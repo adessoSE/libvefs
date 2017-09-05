@@ -5,7 +5,7 @@
   "main": "./dist/index.js",
   "typings": "./dist/index.d.ts",
   "scripts": {
-    "install": "./node_modules/.bin/node-gyp rebuild",
+    "install": "./node_modules/.bin/cmake-js compile",
     "prepublish": "./node_modules/.bin/tsc"
   },
   "repository": "https://github.com/BurningEnlightenment/node-vefs.git",
@@ -13,10 +13,10 @@
   "license": "MIT",
   "gypfile": true,
   "dependencies": {
+    "cmake-js": "^3.5.0",
     "node-addon-api": "^0.6.3"
   },
   "devDependencies": {
-    "node-gyp": "^3.6.2",
     "typescript": "^2.5.2"
   }
 }
