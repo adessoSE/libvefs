@@ -1,0 +1,22 @@
+{
+  "name": "node-vefs",
+  "version": "0.0.0",
+  "description": "A secure Virtual Encrypted FileSystem for node",
+  "main": "./dist/index.js",
+  "typings": "./dist/index.d.ts",
+  "scripts": {
+    "install": "./node_modules/.bin/node-gyp rebuild",
+    "prepublish": "./node_modules/.bin/tsc"
+  },
+  "repository": "https://github.com/BurningEnlightenment/node-vefs.git",
+  "author": "Henrik S. Gaßmann <Henrik.Gassmann@adesso.de>",
+  "license": "MIT",
+  "gypfile": true,
+  "dependencies": {
+    "node-addon-api": "^0.6.3"
+  },
+  "devDependencies": {
+    "node-gyp": "^3.6.2",
+    "typescript": "^2.5.2"
+  }
+}

@@ -1,3 +1,9 @@
+# gyp output
+/build
+
+# generated js files
+/dist
+
 ########################################################################
 # github gitignore for node
 # https://github.com/github/gitignore/blob/master/Node.gitignore
