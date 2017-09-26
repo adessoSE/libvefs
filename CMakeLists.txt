@@ -42,6 +42,9 @@ include(cotire)
 ##########################################################################
 # library includes
 
+# libsodium
+find_package(sodium REQUIRED)
+
 # protobuf + protoc
 set(Protobuf_SRC_ROOT_FOLDER "$ENV{Protobuf_DIR}")
 find_package(Protobuf QUIET)
