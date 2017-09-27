@@ -1,7 +1,52 @@
 syntax = "proto3";
 package adesso.vefs;
 
-message UnsafeFileHeader
+// this file header is only authenticated with the secret used to unlock the
+// master key and is not encrypted (except for some fields as outlined below)
+message StaticArchiveHeader
 {
-    bytes FileSalt = 1;
+    // 64B; contains the master secret from which all other secrets
+    // are derived.
+    bytes EncryptedMasterSecret = 1;
+
+    // 16B unsigned integer initialized to a `random` offset which is incremented
+    // on each write to the static archive header.
+    bytes StaticArchiveHeaderWriteCounter = 2;
+
+    // currently this field should be `0`
+    int32 FormatVersion = 3;
+}
+
+message ArchiveHeader
+{
+    FileDescriptor ArchiveIndex = 1;
+
+    FileDescriptor FreeBlockIndex = 2;
+
+    // 16B unsigned integer initialized to a `random` offset which is incremented
+    // each time a new secret needs to be derived from the master secret.
+    bytes ArchiveSecretCounter = 13;
+    // 16B unsigned integer initialized to a `random` offset. Incremented each
+    // time the journal is closed in order to invalidate the journal
+    bytes JournalCounter = 14;
+}
+
+message FileDescriptor
+{
+    string FileId = 1;
+
+    // 32B File Secret from which all sector keys of this file are derived
+    bytes FileSecret = 2;
+    // 16B unsigned integer initialized to a `random` offset
+    bytes FileSecretCounter = 3;
+
+    uint64 StartBlockIdx = 4;
+    bytes StartBlockMAC = 5;
+    // total file size in bytes
+    uint64 FileSize = 6;
+    // page reference tree depth
+    int32 RefTreeDepth = 7;
+
+    // time of modification
+    uint64 ModTime = 11;
 }

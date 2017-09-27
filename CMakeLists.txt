@@ -10,8 +10,8 @@
 #     http://creativecommons.org/publicdomain/zero/1.0/
 #
 ########################################################################
-cmake_minimum_required(VERSION 3.9)
-project(node-vefs VERSION 0.0.0)
+cmake_minimum_required(VERSION 3.9.3)
+project(vefs VERSION 0.0.0)
 
 if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
     message(FATAL_ERROR "in-source builds are not supported!")
@@ -51,6 +51,17 @@ find_package(Protobuf QUIET)
 if (NOT Protobuf_FOUND)
     # try again with config mode
     find_package(protobuf CONFIG REQUIRED)
+endif()
+
+option(Boost_DEBUG "Use debug boost libraries" OFF)
+option(Boost_USE_STATIC_LIBS "Use static boost libraries" ON)
+find_package(Boost 1.62 REQUIRED COMPONENTS
+    system
+    unit_test_framework
+)
+add_definitions(-DBOOST_ALL_NO_LIB)
+if (NOT Boost_USE_STATIC_LIBS)
+	add_definitions(-DBOOST_ALL_DYN_LINK)
 endif()
 
 
@@ -102,7 +113,34 @@ if (MSVC)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /utf-8")
 endif()
 
+if(WIN32)
+    # specify winapi version
+    add_definitions(-D_WIN32_WINNT=0x0601)
+    # force unicode WINAPI symbols
+    add_definitions(-DUNICODE -D_UNICODE)
+endif()
+macro(add_mingw_unicode_flags)
+    if(MINGW AND CMAKE_C_COMPILER_ID STREQUAL "GNU")
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -municode")
+    endif()
+    if(MINGW AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -municode")
+    endif()
+endmacro()
+
+
+########################################################################
+# configure output directories
+set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
+
 
 ##########################################################################
-# the actual node addon project
+# the actual library project
 add_subdirectory(src)
+
+
+##########################################################################
+enable_testing()
+add_subdirectory(tests)
