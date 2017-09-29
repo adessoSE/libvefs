@@ -1,26 +1,22 @@
 syntax = "proto3";
 package adesso.vefs;
 
-// this file header is only authenticated with the secret used to unlock the
-// master key and is not encrypted (except for some fields as outlined below)
 message StaticArchiveHeader
 {
-    // 64B; contains the master secret from which all other secrets
-    // are derived.
-    bytes EncryptedMasterSecret = 1;
+    // 64B; contains the master secret from which all other secrets are derived.
+    bytes MasterSecret = 1;
 
     // 16B unsigned integer initialized to a `random` offset which is incremented
     // on each write to the static archive header.
     bytes StaticArchiveHeaderWriteCounter = 2;
 
-    // currently this field should be `0`
+    // currently this field must be `0`
     int32 FormatVersion = 3;
 }
 
 message ArchiveHeader
 {
     FileDescriptor ArchiveIndex = 1;
-
     FileDescriptor FreeBlockIndex = 2;
 
     // 16B unsigned integer initialized to a `random` offset which is incremented
@@ -48,5 +44,5 @@ message FileDescriptor
     int32 RefTreeDepth = 7;
 
     // time of modification
-    uint64 ModTime = 11;
+    string ModTime = 11;
 }
