@@ -6,7 +6,7 @@ add_library(vefs-proto STATIC
     ${_FILEPROTO_SRCS}
     ${_FILEPROTO_HDRS}
 )
-target_include_directories(vefs-proto PUBLIC ${CMAKE_CURRENT_BINARY_DIR})
+target_include_directories(vefs-proto PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
 target_link_libraries(vefs-proto PUBLIC protobuf::libprotobuf)
 
 add_library(vefs STATIC
@@ -37,3 +37,11 @@ set_target_properties(${PROJECT_NAME} PROPERTIES
 
 cotire(${PROJECT_NAME})
 
+##########################################################################
+# install targets
+install(TARGETS vefs-proto vefs EXPORT vefs-targets
+    RUNTIME DESTINATION bin/$<CONFIG>
+    LIBRARY DESTINATION lib/$<CONFIG>
+    ARCHIVE DESTINATION lib/$<CONFIG>
+    INCLUDES DESTINATION include
+)

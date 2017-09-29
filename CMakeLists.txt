@@ -144,3 +144,27 @@ add_subdirectory(src)
 ##########################################################################
 enable_testing()
 add_subdirectory(tests)
+
+
+##########################################################################
+# install targets
+configure_file(cmake/vefs-config.cmake
+    "${CMAKE_CURRENT_BINARY_DIR}/vefs-config.cmake"
+    COPYONLY
+)
+
+install(EXPORT vefs-targets DESTINATION cmake)
+
+include(CMakePackageConfigHelpers)
+write_basic_package_version_file(
+    "${CMAKE_CURRENT_BINARY_DIR}/vefs-config-version.cmake"
+    VERSION ${VEFS_VERSION}
+    COMPATIBILITY ExactVersion
+)
+
+install(FILES
+        "${CMAKE_CURRENT_BINARY_DIR}/vefs-config.cmake"
+        "${CMAKE_CURRENT_BINARY_DIR}/vefs-config-version.cmake"
+    DESTINATION cmake
+)
+
