@@ -2,6 +2,8 @@
 add_executable(vefs-tests
     vefs-tests.cpp
     boost-unit-test.hpp
+
+    blob-tests.cpp
 )
 target_link_libraries(vefs-tests
     PUBLIC

@@ -42,8 +42,10 @@ include(cotire)
 ##########################################################################
 # library includes
 
-# libsodium
-find_package(sodium REQUIRED)
+find_package(libb2 REQUIRED CONFIG)
+
+option(OPENSSL_USE_STATIC_LIBS "Use static BoringSSL libraries" ON)
+find_package(OpenSSL 1.1.0 REQUIRED)
 
 # protobuf + protoc
 set(Protobuf_SRC_ROOT_FOLDER "$ENV{Protobuf_DIR}")

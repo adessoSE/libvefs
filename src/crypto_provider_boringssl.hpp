@@ -1,0 +1,46 @@
+#pragma once
+
+#include <random>
+
+#include <vefs/crypto/provider.hpp>
+#include <vefs/utils/secure_array.hpp>
+
+#include "boringssl_aead.hpp"
+
+
+namespace vefs::crypto::detail
+{
+    class boringssl_aes_256_gcm_provider
+        : public crypto_provider
+    {
+        virtual void box_seal(blob ciphertext, blob mac, blob_view plaintext,
+            key_provider_fn keyProvider) const override
+        {
+            utils::secure_byte_array<44> prkMem;
+            blob prk{ prkMem };
+            keyProvider(prk);
+
+            boringssl_aead aead{ prk.slice(0, 32), boringssl_aead::scheme::aes_256_gcm };
+
+            aead.seal(ciphertext, mac, prk.slice(32, 12), plaintext);
+        }
+
+        virtual bool box_open(blob plaintext, blob_view ciphertext, blob_view mac,
+            key_provider_fn keyProvider) const override
+        {
+            utils::secure_byte_array<44> prkMem;
+            blob prk{ prkMem };
+            keyProvider(prk);
+
+            boringssl_aead aead{ prk.slice(0, 32), boringssl_aead::scheme::aes_256_gcm };
+
+            return aead.open(plaintext, prk.slice(32, 12), ciphertext, mac);
+        }
+
+        virtual utils::secure_byte_array<16> generate_session_salt() const override
+        {
+            //TODO: implement
+            return {};
+        }
+    };
+}

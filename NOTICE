@@ -1,0 +1,12 @@
+libvefs
+Copyright
+- 2017 adesso AG
+
+This project uses and distributes the source of Cameron Desrochers' concurrentqueue
+under the terms of the Boost Software License (http://www.boost.org/LICENSE_1_0.txt).
+- include/vefs/detail/concurrentqueue.h
+- include/vefs/detail/blockingconcurrentqueue.h
+
+This project uses and distributes the source of Jeff Preshing's semaphore
+implementation under the terms of the zlib License.
+- include/vefs/detail/blockingconcurrentqueue.h
