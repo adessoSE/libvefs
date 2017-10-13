@@ -131,7 +131,7 @@ void vefs::detail::random_bytes(blob buffer)
     {
         BOOST_THROW_EXCEPTION(std::invalid_argument("invalid buffer"));
     }
-    random_bytes_impl<has_getrandom_v>(buffer);
+    random_bytes_impl<has_getrandom<>>(buffer);
 }
 
 #else
