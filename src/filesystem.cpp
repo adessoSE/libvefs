@@ -219,7 +219,7 @@ namespace vefs
 
         inline uint32_t derive_creation_mode(file_open_mode_bitset mode)
         {
-            if (mode % file_open_mode::write)
+            if (mode & file_open_mode::write)
             {
                 if (mode % (file_open_mode::truncate | file_open_mode::create))
                 {
@@ -298,7 +298,7 @@ namespace vefs
                                                     file::async_callback_fn callback)
         {
             return mOwner->ops_pool()
-                .exec([this, data, writeFilePos](async_callback_fn callback)
+            .exec([this, data, writeFilePos](async_callback_fn callback)
             {
                 std::error_code ec;
                 write(data, writeFilePos, ec);
@@ -309,7 +309,7 @@ namespace vefs
         std::future<void> os_file::sync_async(file::async_callback_fn callback)
         {
             return mOwner->ops_pool()
-                .exec([this](async_callback_fn callback)
+            .exec([this](async_callback_fn callback)
             {
                 std::error_code ec;
                 sync(ec);
@@ -321,7 +321,7 @@ namespace vefs
                                                      file::async_callback_fn callback)
         {
             return mOwner->ops_pool()
-                .exec([this, newSize](async_callback_fn callback)
+            .exec([this, newSize](async_callback_fn callback)
             {
                 std::error_code ec;
                 resize(newSize, ec);

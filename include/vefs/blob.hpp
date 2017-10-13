@@ -222,6 +222,7 @@ namespace vefs
     constexpr void basic_range<T>::remove_prefix(size_type n) noexcept
     {
         mBuffer += n;
+        mBufferSize -= n;
     }
 
     template <typename T>
