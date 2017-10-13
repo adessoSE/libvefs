@@ -40,6 +40,8 @@ add_library(vefs STATIC
 
     "${_INCLUDE_DIR}/vefs/detail/enum_bitset.hpp"
 
+    sysrandom.cpp
+    sysrandom.hpp
     blake2.hpp
     boringssl_aead.hpp
     crypto_provider.cpp
