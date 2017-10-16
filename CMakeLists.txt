@@ -55,7 +55,7 @@ if (NOT Protobuf_FOUND)
     find_package(protobuf CONFIG REQUIRED)
 endif()
 
-option(Boost_DEBUG "Use debug boost libraries" OFF)
+option(Boost_USE_DEBUG_RUNTIME "Use debug boost libraries" ON)
 option(Boost_USE_STATIC_LIBS "Use static boost libraries" ON)
 find_package(Boost 1.62 REQUIRED COMPONENTS
     system

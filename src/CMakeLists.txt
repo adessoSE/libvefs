@@ -63,7 +63,7 @@ target_include_directories(vefs
 )
 target_link_libraries(vefs
     PUBLIC
-        sodium
+        advapi32
         Boost::system
         OpenSSL::Crypto
         libb2

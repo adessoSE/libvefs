@@ -16,7 +16,6 @@
 
 #define RtlGenRandom SystemFunction036
 extern "C" BOOLEAN NTAPI RtlGenRandom(PVOID RandomBuffer, ULONG RandomBufferLength);
-#pragma comment(lib, "advapi32.lib")
 
 void vefs::detail::random_bytes(blob buffer)
 {
@@ -35,7 +34,6 @@ void vefs::detail::random_bytes(blob buffer)
             BOOST_THROW_EXCEPTION(std::system_error(GetLastError(), std::system_category(),
                 "Failed to call RtlGenRandom() (aka SystemFunction036)"));
         }
-
         buffer.remove_prefix(portion);
     }
 }
