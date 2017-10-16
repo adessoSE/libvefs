@@ -5,8 +5,8 @@
 #include <type_traits>
 
 #include <boost/predef.h>
-#include <boost/exception/all.hpp>
 
+#include <vefs/exceptions.hpp>
 #include <vefs/utils/misc.hpp>
 
 #if defined BOOST_OS_WINDOWS_AVAILABLE
@@ -23,7 +23,7 @@ void vefs::detail::random_bytes(blob buffer)
     {
         BOOST_THROW_EXCEPTION(std::invalid_argument("invalid buffer"));
     }
-    while (buffer)
+    do
     {
         using c_type = std::common_type_t<ULONG, std::size_t>;
         constexpr auto max_portion = std::numeric_limits<ULONG>::max();
@@ -31,11 +31,13 @@ void vefs::detail::random_bytes(blob buffer)
 
         if (!RtlGenRandom(buffer.data(), portion))
         {
-            BOOST_THROW_EXCEPTION(std::system_error(GetLastError(), std::system_category(),
-                "Failed to call RtlGenRandom() (aka SystemFunction036)"));
+            BOOST_THROW_EXCEPTION(vefs::crypto_failure{}
+                << vefs::make_system_errinfo_code()
+                << vefs::errinfo_api_function{ "SystemFunction036" });
         }
         buffer.remove_prefix(portion);
     }
+    while (buffer);
 }
 
 #elif defined BOOST_OS_UNIX_AVAILABLE
@@ -66,8 +68,10 @@ namespace
         int urandom = open("/dev/urandom", O_RDONLY);
         if (urandom == -1)
         {
-            const std::error_code ec(errno, std::system_category());
-            BOOST_THROW_EXCEPTION(std::system_error(ec, "Failed to open \"/dev/urandom\"."));
+            std::error_code ec{ errno, std::system_category() };
+            BOOST_THROW_EXCEPTION(vefs::crypto_failure{}
+                << vefs::errinfo_code{ ec }
+                << vefs::errinfo_api_function{ "open" });
         }
         VEFS_SCOPE_EXIT{
             close(urandom);
@@ -81,12 +85,15 @@ namespace
             ssize_t tmp = read(urandom, buffer.data(), portion);
             if (tmp == -1)
             {
-                std::error_code ec(errno, std::system_category());
-                BOOST_THROW_EXCEPTION(std::system_error(ec, "Failed to read \"/dev/urandom\"."));
+                std::error_code ec{ errno, std::system_category() };
+                BOOST_THROW_EXCEPTION(vefs::crypto_failure{}
+                    << vefs::errinfo_code{ ec }
+                    << vefs::errinfo_api_function{ "read" });
             }
             if (tmp == 0)
             {
-                BOOST_THROW_EXCEPTION(std::runtime_error("/dev/urandom illegal end of file condition"));
+                BOOST_THROW_EXCEPTION(vefs::crypto_failure{}
+                    << vefs::errinfo_api_function{ "read" });
             }
             buffer.remove_prefix(static_cast<size_t>(tmp));
         }
@@ -106,12 +113,15 @@ namespace
                 ssize_t tmp = getrandom(static_cast<ptr>(buffer.data()), portion, 0);
                 if (tmp == -1)
                 {
-                    std::error_code ec(errno, std::system_category());
-                    BOOST_THROW_EXCEPTION(std::system_error(ec, "Failed to read \"/dev/urandom\"."));
+                    std::error_code ec{ errno, std::system_category() };
+                    BOOST_THROW_EXCEPTION(vefs::crypto_failure{}
+                        << vefs::errinfo_code{ ec }
+                        << vefs::errinfo_api_function{ "getrandom" });
                 }
                 if (tmp == 0)
                 {
-                    BOOST_THROW_EXCEPTION(std::runtime_error("/dev/urandom illegal end of file condition"));
+                    BOOST_THROW_EXCEPTION(vefs::crypto_failure{}
+                        << vefs::errinfo_api_function{ "getrandom" });
                 }
                 buffer.remove_prefix(static_cast<size_t>(tmp));
             }

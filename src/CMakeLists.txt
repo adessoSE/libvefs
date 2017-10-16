@@ -47,6 +47,7 @@ DEF_SOURCE_GROUP(vefs LIB "lib"
     SOURCES
         archive.cpp
         filesystem.cpp
+        exceptions.cpp
 )
 
 DEF_SOURCE_GROUP(vefs DETAIL "lib/detail"

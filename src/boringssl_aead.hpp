@@ -14,7 +14,7 @@
 #include <openssl/aead.h>
 
 #include <vefs/blob.hpp>
-
+#include <vefs/exceptions.hpp>
 
 
 namespace vefs::crypto::detail
@@ -42,42 +42,27 @@ namespace vefs::crypto::detail
         return str;
     }
 
-    struct openssl_error
-        : std::logic_error
+    enum class errinfo_openssl_tag {};
+    using errinfo_openssl = boost::error_info<errinfo_openssl_tag, std::string>;
+
+    inline auto make_openssl_errinfo(std::string desc = std::string{})
     {
-        openssl_error(std::string desc = std::string{})
-            : logic_error(read_openssl_errors(std::move(desc)))
-        {
-        }
+        return errinfo_openssl{ read_openssl_errors(desc) };
+    }
+
+    class openssl_api_error
+        : public virtual crypto_failure
+    {
     };
 
-    struct aead_invalid_argument
-        : std::logic_error
+    class aead_invalid_argument
+        : public std::logic_error
     {
         using std::logic_error::logic_error;
     };
 
     class boringssl_aead
     {
-        template <typename C, typename... Args>
-        static void safe_call(C func, const char *errMsg, Args... args)
-        {
-            if (!func(std::forward<Args>(args)...))
-            {
-                throw openssl_error(errMsg);
-            }
-        }
-        template <typename C, typename... Args>
-        void ctx_safe_call(C func, const char *errMsg, Args... args)
-        {
-            safe_call(func, errMsg, &mCtx, std::forward<Args>(args)...);
-        }
-        template <typename C, typename... Args>
-        void ctx_safe_call(C func, const char *errMsg, Args... args) const
-        {
-            safe_call(func, errMsg, &mCtx, std::forward<Args>(args)...);
-        }
-
     public:
         enum class scheme
         {
@@ -93,7 +78,7 @@ namespace vefs::crypto::detail
                 return EVP_aead_aes_256_gcm();
 
             default:
-                throw aead_invalid_argument("unknown aead scheme value");
+                BOOST_THROW_EXCEPTION(aead_invalid_argument{ "unknown aead scheme value" });
             }
         }
 
@@ -106,13 +91,17 @@ namespace vefs::crypto::detail
 
             if (key.size() != EVP_AEAD_key_length(impl))
             {
-                throw aead_invalid_argument("invalid key size");
+                BOOST_THROW_EXCEPTION(aead_invalid_argument("invalid key size"));
             }
 
-            ctx_safe_call(EVP_AEAD_CTX_init, "failed to init an boringssl_aead context", impl,
-                reinterpret_cast<const uint8_t *>(key.data()), key.size(),
-                EVP_AEAD_DEFAULT_TAG_LENGTH, nullptr
-            );
+            if (!EVP_AEAD_CTX_init(&mCtx, impl,
+                    reinterpret_cast<const uint8_t *>(key.data()), key.size(),
+                    EVP_AEAD_DEFAULT_TAG_LENGTH, nullptr))
+            {
+                BOOST_THROW_EXCEPTION(openssl_api_error{}
+                    << errinfo_api_function{ "EVP_AEAD_CTX_init" }
+                    << make_openssl_errinfo());
+            }
         }
         ~boringssl_aead()
         {
@@ -141,19 +130,19 @@ namespace vefs::crypto::detail
         {
             if (!out)
             {
-                throw aead_invalid_argument("seal(): no ciphertext output buffer was supplied");
+                BOOST_THROW_EXCEPTION(aead_invalid_argument{ "seal(): no ciphertext output buffer was supplied" });
             }
             if (!outTag)
             {
-                throw aead_invalid_argument("seal(): no tag output buffer was supplied");
+                BOOST_THROW_EXCEPTION(aead_invalid_argument{ "seal(): no tag output buffer was supplied" });
             }
             if (!nonce)
             {
-                throw aead_invalid_argument("seal(): no nonce was supplied");
+                BOOST_THROW_EXCEPTION(aead_invalid_argument{ "seal(): no nonce was supplied" });
             }
             if (!plain)
             {
-                throw aead_invalid_argument("seal(): no plaintext was supplied");
+                BOOST_THROW_EXCEPTION(aead_invalid_argument{ "seal(): no plaintext was supplied" });
             }
             if (!ad)
             {
@@ -166,14 +155,19 @@ namespace vefs::crypto::detail
             size_t outTagLen = outTag.size();
 
             ERR_clear_error();
-            ctx_safe_call(EVP_AEAD_CTX_seal_scatter, "failed to seal a message",
+            if (!EVP_AEAD_CTX_seal_scatter(&mCtx,
                 reinterpret_cast<uint8_t *>(out.data()),
                 reinterpret_cast<uint8_t *>(outTag.data()), &outTagLen, outTag.size(),
                 reinterpret_cast<const uint8_t *>(nonce.data()), nonce.size(),
                 reinterpret_cast<const uint8_t *>(plain.data()), plain.size(),
                 nullptr, 0, // extra_in, extra_in_len
                 reinterpret_cast<const uint8_t *>(ad.data()), ad.size()
-            );
+                ))
+            {
+                BOOST_THROW_EXCEPTION(openssl_api_error{}
+                    << errinfo_api_function{ "EVP_AEAD_CTX_seal_scatter" }
+                    << make_openssl_errinfo());
+            }
 
             outTag = outTag.slice(0, outTagLen);
         }
@@ -182,19 +176,19 @@ namespace vefs::crypto::detail
         {
             if (!out)
             {
-                throw aead_invalid_argument("seal(): no plaintext output buffer was supplied");
+                BOOST_THROW_EXCEPTION(aead_invalid_argument{ "seal(): no plaintext output buffer was supplied" });
             }
             if (!nonce)
             {
-                throw aead_invalid_argument("seal(): no nonce was supplied");
+                BOOST_THROW_EXCEPTION(aead_invalid_argument{ "seal(): no nonce was supplied" });
             }
             if (!ciphertext)
             {
-                throw aead_invalid_argument("seal(): no ciphertext was supplied");
+                BOOST_THROW_EXCEPTION(aead_invalid_argument{ "seal(): no ciphertext was supplied" });
             }
             if (!authTag)
             {
-                throw aead_invalid_argument("seal(): no authentication tag buffer was supplied");
+                BOOST_THROW_EXCEPTION(aead_invalid_argument{ "seal(): no authentication tag buffer was supplied" });
             }
             if (!ad)
             {
@@ -218,7 +212,9 @@ namespace vefs::crypto::detail
                     // parameters etc. were formally correct, but the message is _bad_
                     return false;
                 }
-                throw openssl_error("failed to open a msg for an unexpected reason");
+                BOOST_THROW_EXCEPTION(openssl_api_error{}
+                    << errinfo_api_function{ "failed to open a msg for an unexpected reason" }
+                    << make_openssl_errinfo());
             }
             return true;
         }

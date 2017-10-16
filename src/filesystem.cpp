@@ -267,8 +267,8 @@ namespace vefs
                     +std::string{ filePath }
                     +"]";
 
-                throw std::system_error(GetLastError(), std::system_category(),
-                    errMsg);
+                BOOST_THROW_EXCEPTION(std::system_error(GetLastError(), std::system_category(),
+                    errMsg));
             }
         }
 #else

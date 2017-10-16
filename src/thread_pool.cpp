@@ -19,7 +19,7 @@ namespace vefs::detail
                     moodycamel::ConsumerToken(mTaskQueue));
             }
         }
-        catch (const std::exception &)
+        catch (...)
         {
             if (mWorkerList.size())
             {

@@ -8,6 +8,8 @@
 #include <stdexcept>
 #include <type_traits>
 
+#include <boost/throw_exception.hpp>
+
 namespace vefs
 {
     template <typename T>
@@ -117,7 +119,7 @@ namespace vefs
     {
         if (pos >= mBufferSize)
         {
-            throw std::out_of_range("basic_range<T>::at() out of range index");
+            BOOST_THROW_EXCEPTION(std::out_of_range("basic_range<T>::at() out of range index"));
         }
         return mBuffer[pos];
     }
@@ -127,7 +129,7 @@ namespace vefs
     {
         if (pos >= mBufferSize)
         {
-            throw std::out_of_range("basic_range<T>::at() out of range index");
+            BOOST_THROW_EXCEPTION(std::out_of_range("basic_range<T>::at() out of range index"));
         }
         return mBuffer[pos];
     }

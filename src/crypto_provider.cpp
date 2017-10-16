@@ -1,7 +1,7 @@
 #include "precompiled.hpp"
 #include <vefs/crypto/provider.hpp>
 
-#include <stdexcept>
+#include <vefs/exceptions.hpp>
 
 #include "crypto_provider_boringssl.hpp"
 #include "crypto_provider_debug.hpp"
@@ -28,7 +28,7 @@ namespace vefs::crypto
     {
         if (!debug_provider_enabled)
         {
-            throw std::logic_error("The debug provider wasn't enabled");
+            BOOST_THROW_EXCEPTION(std::logic_error("The debug provider wasn't enabled"));
         }
         static detail::debug_crypto_provider debug_provider;
         return &debug_provider;

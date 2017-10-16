@@ -19,25 +19,23 @@
 #include <boost/preprocessor/stringize.hpp>
 
 #include <vefs/blob.hpp>
+#include <vefs/exceptions.hpp>
 #include <vefs/utils/secure_array.hpp>
 #include <vefs/utils/misc.hpp>
 
 
 namespace vefs::crypto::detail
 {
-    struct blake2_api_error
-        : public std::logic_error
+    class blake2_api_error
+        : public virtual vefs::crypto_failure
     {
-        using std::logic_error::logic_error;
     };
 
-    struct blake2_invalid_argument
+    class blake2_invalid_argument
         : public std::invalid_argument
     {
         using std::invalid_argument::invalid_argument;
     };
-
-#define B2_ERRMSG(msg) (__FILE__ "[" BOOST_PP_STRINGIZE(__LINE__) "] " msg)
 
     template< typename D >
     class blake2_base
@@ -48,15 +46,6 @@ namespace vefs::crypto::detail
         }
 
     protected:
-        template <typename T, typename... Args>
-        static void safe_call(T api, const char *errMsg, Args... args)
-        {
-            if (api(std::forward<Args>(args)...))
-            {
-                throw blake2_api_error(errMsg);
-            }
-        }
-
         void init_key(blob_view key)
         {
             utils::secure_byte_array<D::block_bytes> keyBlockMemory;
@@ -98,12 +87,6 @@ namespace vefs::crypto::detail
     class blake2b
         : public blake2_base<blake2b>
     {
-        template <typename T, typename... Args>
-        void ctx_safe_call(T api, const char *errMsg, Args... args)
-        {
-            safe_call(std::forward<T>(api), errMsg, &mState, std::forward<Args>(args)...);
-        }
-
     public:
         static constexpr size_t salt_bytes = BLAKE2B_SALTBYTES;
         static constexpr size_t personal_bytes = BLAKE2B_PERSONALBYTES;
@@ -137,26 +120,32 @@ namespace vefs::crypto::detail
         {
             if (!digestSize || digestSize < 16 || digestSize > block_bytes)
             {
-                throw blake2_invalid_argument(B2_ERRMSG("requested an invalid digest size"));
+                BOOST_THROW_EXCEPTION(blake2_invalid_argument{ "requested an invalid digest size" });
             }
 
-            ctx_safe_call(blake2b_init, B2_ERRMSG("blake2b_init failed"),
-                digestSize);
+            if (blake2b_init(&mState, digestSize))
+            {
+                BOOST_THROW_EXCEPTION(blake2_api_error{}
+                    << errinfo_api_function{ "blake2b_init" });
+            }
             return *this;
         }
         blake2b& init(std::size_t digestSize, blob_view key)
         {
             if (!digestSize || digestSize < 16 || digestSize > block_bytes)
             {
-                throw blake2_invalid_argument(B2_ERRMSG("requested an invalid digest size"));
+                BOOST_THROW_EXCEPTION(blake2_invalid_argument{ "requested an invalid digest size" });
             }
             if (!key || key.size() > max_key_bytes)
             {
-                throw blake2_invalid_argument(B2_ERRMSG("provided an invalid blake2b key"));
+                BOOST_THROW_EXCEPTION(blake2_invalid_argument{ "provided an invalid blake2b key" });
             }
 
-            ctx_safe_call(blake2b_init_key, B2_ERRMSG("blake2b_init_key failed"),
-                digestSize, key.data(), key.size());
+            if (blake2b_init_key(&mState, digestSize, key.data(), key.size()))
+            {
+                BOOST_THROW_EXCEPTION(blake2_api_error{}
+                    << errinfo_api_function{ "blake2b_init_key" });
+            }
             return *this;
         }
 
@@ -164,15 +153,15 @@ namespace vefs::crypto::detail
         {
             if (!digestSize || digestSize < 16 || digestSize > block_bytes)
             {
-                throw blake2_invalid_argument(B2_ERRMSG("requested an invalid digest size"));
+                BOOST_THROW_EXCEPTION(blake2_invalid_argument{ "requested an invalid digest size" });
             }
             if (!personalisation || personalisation.size() != sizeof(std::declval<blake2b_param>().personal))
             {
-                throw blake2_invalid_argument(B2_ERRMSG("provided an invalid personalisation blob"));
+                BOOST_THROW_EXCEPTION(blake2_invalid_argument{ "provided an invalid personalisation blob" });
             }
             if (key.size() > max_key_bytes)
             {
-                throw blake2_invalid_argument(B2_ERRMSG("provided an invalid blake2b key"));
+                BOOST_THROW_EXCEPTION(blake2_invalid_argument{ "provided an invalid blake2b key" });
             }
 
             blake2b_param param;
@@ -190,8 +179,11 @@ namespace vefs::crypto::detail
             fill_blob(blob{ param.salt });
             personalisation.copy_to(blob{ param.personal });
 
-            ctx_safe_call(blake2b_init_param, B2_ERRMSG("blake2b_init_param with personal failed"),
-                &param);
+            if (blake2b_init_param(&mState, &param))
+            {
+                BOOST_THROW_EXCEPTION(blake2_api_error{}
+                    << errinfo_api_function{ "blake2b_init_param" });
+            }
 
             if (key)
             {
@@ -204,15 +196,21 @@ namespace vefs::crypto::detail
         using blake2_base::update;
         blake2b& update(blob_view data)
         {
-            ctx_safe_call(blake2b_update, B2_ERRMSG("blake2b_update failed"),
-                data.data(), data.size());
+            if (blake2b_update(&mState, data.data(), data.size()))
+            {
+                BOOST_THROW_EXCEPTION(blake2_api_error{}
+                    << boost::errinfo_api_function{ "blake2b_update" });
+            }
             return *this;
         }
 
         void final(blob digest)
         {
-            ctx_safe_call(blake2b_final, B2_ERRMSG("blake2b_final failed"),
-                digest.data(), digest.size());
+            if (blake2b_final(&mState, digest.data(), digest.size()))
+            {
+                BOOST_THROW_EXCEPTION(blake2_api_error{}
+                    << boost::errinfo_api_function{ "blake2b_final" });
+            }
         }
 
     private:
@@ -222,12 +220,6 @@ namespace vefs::crypto::detail
     class blake2xb
         : public blake2_base<blake2xb>
     {
-        template <typename T, typename... Args>
-        void ctx_safe_call(T api, const char *errMsg, Args... args)
-        {
-            safe_call(std::forward<T>(api), errMsg, &mState, std::forward<Args>(args)...);
-        }
-
     public:
         static constexpr size_t salt_bytes = BLAKE2B_SALTBYTES;
         static constexpr size_t personal_bytes = BLAKE2B_PERSONALBYTES;
@@ -261,41 +253,47 @@ namespace vefs::crypto::detail
         {
             if (!digestSize || digestSize > variable_digest_length)
             {
-                throw blake2_invalid_argument(B2_ERRMSG("requested an invalid digest size"));
+                BOOST_THROW_EXCEPTION(blake2_invalid_argument{ "requested an invalid digest size" });
             }
 
-            ctx_safe_call(blake2xb_init, B2_ERRMSG("blake2xb_init failed"),
-                digestSize);
+            if (blake2xb_init(&mState, digestSize))
+            {
+                BOOST_THROW_EXCEPTION(blake2_api_error{}
+                    << boost::errinfo_api_function{ "blake2xb_init" });
+            }
             return *this;
         }
         blake2xb & init(std::size_t digestSize, blob_view key)
         {
             if (!digestSize || digestSize > variable_digest_length)
             {
-                throw blake2_invalid_argument(B2_ERRMSG("requested an invalid digest size"));
+                BOOST_THROW_EXCEPTION(blake2_invalid_argument{ "requested an invalid digest size" });
             }
             if (!key || key.size() > max_key_bytes)
             {
-                throw blake2_invalid_argument(B2_ERRMSG("provided an invalid blake2b key"));
+                BOOST_THROW_EXCEPTION(blake2_invalid_argument{ "provided an invalid blake2b key" });
             }
 
-            ctx_safe_call(blake2xb_init_key, B2_ERRMSG("blake2xb_init_key failed"),
-                digestSize, key.data(), key.size());
+            if (blake2xb_init_key(&mState, digestSize, key.data(), key.size()))
+            {
+                BOOST_THROW_EXCEPTION(blake2_api_error{}
+                    << errinfo_api_function{ "blake2xb_init_key" });
+            }
             return *this;
         }
         blake2xb & init(std::size_t digestSize, blob_view key, blob_view personalisation)
         {
             if (!digestSize || digestSize > variable_digest_length)
             {
-                throw blake2_invalid_argument(B2_ERRMSG("requested an invalid digest size"));
+                BOOST_THROW_EXCEPTION(blake2_invalid_argument{ "requested an invalid digest size" });
             }
             if (!personalisation || personalisation.size() != sizeof(std::declval<blake2b_param>().personal))
             {
-                throw blake2_invalid_argument(B2_ERRMSG("provided an invalid personalisation blob"));
+                BOOST_THROW_EXCEPTION(blake2_invalid_argument{ "provided an invalid personalisation blob" });
             }
             if (key.size() > max_key_bytes)
             {
-                throw blake2_invalid_argument(B2_ERRMSG("provided an invalid blake2b key"));
+                BOOST_THROW_EXCEPTION(blake2_invalid_argument{ "provided an invalid blake2b key" });
             }
 
             blake2b_param &param = mState.P[0];
@@ -313,10 +311,16 @@ namespace vefs::crypto::detail
             fill_blob(blob{ param.salt });
             personalisation.copy_to(blob{ param.personal });
 
-            safe_call(blake2b_init_param, B2_ERRMSG("blake2(x)b_init_param with personal failed"),
-                mState.S, &param);
+            if (blake2b_init_param(mState.S, &param))
+            {
+                BOOST_THROW_EXCEPTION(blake2_api_error{}
+                    << errinfo_api_function{ "blake2b_init_param" });
+            }
 
-            init_key(key);
+            if (key)
+            {
+                init_key(key);
+            }
 
             return *this;
         }
@@ -324,15 +328,21 @@ namespace vefs::crypto::detail
         using blake2_base::update;
         blake2xb & update(blob_view data)
         {
-            ctx_safe_call(blake2xb_update, B2_ERRMSG("blake2xb_update failed"),
-                data.data(), data.size());
+            if (blake2xb_update(&mState, data.data(), data.size()))
+            {
+                BOOST_THROW_EXCEPTION(blake2_api_error{}
+                << boost::errinfo_api_function{ "blake2xb_update" });
+            }
             return *this;
         }
 
         void final(blob digest)
         {
-            ctx_safe_call(blake2xb_final, B2_ERRMSG("blake2xb_final failed"),
-                digest.data(), digest.size());
+            if (blake2xb_final(&mState, digest.data(), digest.size()))
+            {
+                BOOST_THROW_EXCEPTION(blake2_api_error{}
+                << boost::errinfo_api_function{ "blake2xb_final" });
+            }
         }
 
     private:

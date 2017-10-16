@@ -8,6 +8,8 @@
 #include <string_view>
 #include <system_error>
 
+#include <boost/throw_exception.hpp>
+
 #include <vefs/blob.hpp>
 #include <vefs/utils/enum_bitset.hpp>
 
@@ -33,7 +35,7 @@ namespace vefs
             func(ec);
             if (ec)
             {
-                throw std::system_error(ec);
+                BOOST_THROW_EXCEPTION(std::system_error(ec));
             }
         }
         else
@@ -41,7 +43,7 @@ namespace vefs
             auto result = func(ec);
             if (ec)
             {
-                throw std::system_error(ec);
+                BOOST_THROW_EXCEPTION(std::system_error(ec));
             }
             return result;
         }
