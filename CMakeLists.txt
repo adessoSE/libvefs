@@ -10,7 +10,7 @@
 #     http://creativecommons.org/publicdomain/zero/1.0/
 #
 ########################################################################
-cmake_minimum_required(VERSION 3.9.3)
+cmake_minimum_required(VERSION 3.9)
 project(vefs VERSION 0.0.0)
 
 if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
@@ -25,6 +25,10 @@ if (CMAKE_C_COMPILER_ID STREQUAL "GNU" OR CMAKE_C_COMPILER_ID STREQUAL "Clang")
 endif()
 if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
     set(GXX_COMPATIBLE 1)
+endif()
+
+if (MSVC AND MSVC_VERSION LESS 1911)
+    message(FATAL_ERROR "Needs at least MSVC 19.11 / VS 2017 Update 3")
 endif()
 
 
@@ -77,11 +81,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 if (CMAKE_VERSION VERSION_LESS "3.10" AND MSVC)
     # workaround until cmake 3.10 gets available
-    if (MSVC_VERSION LESS 1911)
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std:c++latest")
-    else()
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std:c++17")
-    endif()
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std:c++17")
 endif()
 
 # adjust compiler warning levels
