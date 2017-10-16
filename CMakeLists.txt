@@ -34,6 +34,7 @@ endif()
 
 ########################################################################
 # cmake modules
+include(src-helper)
 
 # cotire
 include(cotire)
