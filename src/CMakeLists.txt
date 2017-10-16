@@ -27,7 +27,7 @@ DEF_SOURCE_GROUP(vefs UTILS "utils"
 
         "${_INCLUDE_DIR}/vefs/utils/misc.hpp"
 
-        "${_INCLUDE_DIR}/vefs/detail/enum_bitset.hpp"
+        "${_INCLUDE_DIR}/vefs/utils/enum_bitset.hpp"
 
     SOURCES
         secure_ops.cpp
@@ -51,7 +51,7 @@ DEF_SOURCE_GROUP(vefs LIB "lib"
 
 DEF_SOURCE_GROUP(vefs DETAIL "lib/detail"
     HEADERS
-        "${_INCLUDE_DIR}/vefs/thread_pool.hpp"
+        "${_INCLUDE_DIR}/vefs/detail/thread_pool.hpp"
         "${_INCLUDE_DIR}/vefs/detail/raw_archive.hpp"
         "${_INCLUDE_DIR}/vefs/detail/journal.hpp"
 

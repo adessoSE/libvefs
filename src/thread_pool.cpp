@@ -1,5 +1,5 @@
 #include "precompiled.hpp"
-#include <vefs/thread_pool.hpp>
+#include <vefs/detail/thread_pool.hpp>
 
 #include <exception>
 #include <stdexcept>

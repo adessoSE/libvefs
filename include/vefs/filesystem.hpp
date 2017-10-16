@@ -8,8 +8,8 @@
 #include <string_view>
 #include <system_error>
 
-#include "blob.hpp"
-#include "detail/enum_bitset.hpp"
+#include <vefs/blob.hpp>
+#include <vefs/utils/enum_bitset.hpp>
 
 namespace vefs
 {

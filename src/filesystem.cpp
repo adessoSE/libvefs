@@ -4,7 +4,7 @@
 #include <mutex>
 #include <functional>
 
-#include <vefs/thread_pool.hpp>
+#include <vefs/detail/thread_pool.hpp>
 #include <vefs/utils/misc.hpp>
 
 #include "utf.hpp"

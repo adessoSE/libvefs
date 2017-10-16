@@ -5,7 +5,7 @@
 #include <functional>
 #include <type_traits>
 
-#include "detail/blockingconcurrentqueue.h"
+#include <vefs/detail/blockingconcurrentqueue.h>
 
 namespace vefs
 {
