@@ -28,7 +28,7 @@ namespace vefs::crypto
                 out = T{};
                 for (auto i = 0; i < limit; ++i)
                 {
-                    out |= std::to_integer<T>(src[i]) << i;
+                    out |= std::to_integer<T>(src[i]) << (i << 3);
                 }
                 return limit;
             }
@@ -47,7 +47,7 @@ namespace vefs::crypto
             {
                 for (auto i = 0; i < limit; ++i)
                 {
-                    loc[i] = std::byte{ (value >> i) & 0xFF };
+                    loc[i] = std::byte{ (value >> (i << 3)) & 0xFF };
                 }
             }
         }
@@ -57,7 +57,7 @@ namespace vefs::crypto
         {
             if constexpr (StepSize == 8 || StepSize == 4)
             {
-                using uint_t = typename  boost::uint_t<StepSize * 8>::exact;
+                using uint_t = typename boost::uint_t<StepSize * 8>::exact;
 
                 unsigned char carry = 1;
                 uint_t in = 0;
