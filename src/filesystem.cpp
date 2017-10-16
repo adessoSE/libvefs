@@ -201,13 +201,13 @@ namespace vefs
                 std::error_code& ec) override;
             void remove(std::string_view filePath) override;
 
-            thread_pool & ops_pool()
+            detail::thread_pool & ops_pool()
             {
                 return mOpsPool;
             }
 
         private:
-            thread_pool mOpsPool;
+            detail::thread_pool mOpsPool;
             std::weak_ptr<os_filesystem_impl> mSelf;
         };
 

@@ -7,48 +7,44 @@
 
 #include <vefs/detail/blockingconcurrentqueue.h>
 
-namespace vefs
+namespace vefs::detail
 {
+    class thread_pool
+    {
+        using task_t = std::function<void()>;
 
+    public:
+        explicit thread_pool(unsigned int numWorkers = std::thread::hardware_concurrency());
+        thread_pool(const thread_pool &) = delete;
+        thread_pool(thread_pool &&) = delete;
+        ~thread_pool();
 
-class thread_pool
-{
-    using task_t = std::function<void()>;
+        thread_pool & operator=(const thread_pool &) = delete;
+        thread_pool & operator=(thread_pool &&) = delete;
 
-public:
-    explicit thread_pool(unsigned int numWorkers = std::thread::hardware_concurrency());
-    thread_pool(const thread_pool &) = delete;
-    thread_pool(thread_pool &&) = delete;
-    ~thread_pool();
+        template <typename T, typename... Args >
+        auto exec(T &&task, Args&&... args)
+            -> std::future<decltype(task(std::forward<Args>(args)...))>;
 
-    thread_pool & operator=(const thread_pool &) = delete;
-    thread_pool & operator=(thread_pool &&) = delete;
+    private:
+        void worker_main(moodycamel::ConsumerToken workerToken);
 
-    template <typename T, typename... Args >
-    auto exec(T &&task, Args&&... args)
-        -> std::future<decltype(task(std::forward<Args>(args)...))>;
+        moodycamel::BlockingConcurrentQueue<task_t> mTaskQueue;
+        std::vector<std::thread> mWorkerList;
+    };
 
-private:
-    void worker_main(moodycamel::ConsumerToken workerToken);
+    template <typename T, typename... Args>
+    auto thread_pool::exec(T&& task, Args&&... args)
+        -> std::future<decltype(task(std::forward<Args>(args)...))>
+    {
+        using return_type = decltype(task(std::forward<Args>(args)...));
+        auto taskPackage = std::make_shared<std::packaged_task<return_type()>>(
+            std::bind(task, std::forward<Args>(args)...)
+        );
+        auto taskResult = taskPackage->get_future();
 
-    moodycamel::BlockingConcurrentQueue<task_t> mTaskQueue;
-    std::vector<std::thread> mWorkerList;
-};
+        mTaskQueue.enqueue([taskPackage]() { (*taskPackage)(); });
 
-template <typename T, typename... Args>
-auto thread_pool::exec(T&& task, Args&&... args)
-    -> std::future<decltype(task(std::forward<Args>(args)...))>
-{
-    using return_type = decltype(task(std::forward<Args>(args)...));
-    auto taskPackage = std::make_shared<std::packaged_task<return_type()>>(
-        std::bind(task, std::forward<Args>(args)...)
-    );
-    auto taskResult = taskPackage->get_future();
-
-    mTaskQueue.enqueue([taskPackage]() { (*taskPackage)(); });
-
-    return taskResult;
-}
-
-
+        return taskResult;
+    }
 }
