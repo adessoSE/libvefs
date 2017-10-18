@@ -65,10 +65,14 @@ namespace vefs::crypto::detail
             return success;
         }
 
-    public:
-        utils::secure_byte_array<16> generate_session_salt() const override
+        virtual utils::secure_byte_array<16> generate_session_salt() const override
         {
             return {};
+        }
+
+        virtual void random_bytes(blob out) const override
+        {
+            utils::secure_memzero(out);
         }
     };
 }

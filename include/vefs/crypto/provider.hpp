@@ -24,6 +24,7 @@ namespace vefs::crypto
         virtual bool box_open(blob plaintext, blob_view ciphertext, blob_view mac,
             key_provider_fn keyProvider) const = 0;
 
+        virtual void random_bytes(blob out) const = 0;
         virtual utils::secure_byte_array<16> generate_session_salt() const = 0;
     };
 

@@ -47,5 +47,10 @@ namespace vefs::crypto::detail
             random_bytes(blob{ salt });
             return salt;
         }
+
+        virtual void random_bytes(blob out) const override
+        {
+            random_bytes(out);
+        }
     };
 }
