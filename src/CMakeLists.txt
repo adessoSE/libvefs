@@ -34,6 +34,8 @@ DEF_SOURCE_GROUP(vefs UTILS "utils"
 
         utf.hpp
         utf.cpp
+
+        proto-helper.hpp
 )
 
 DEF_SOURCE_GROUP(vefs LIB "lib"
