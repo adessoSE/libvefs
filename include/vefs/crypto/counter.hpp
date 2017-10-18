@@ -7,6 +7,7 @@
 #include <stdexcept>
 
 #include <vefs/blob.hpp>
+#include <vefs/exceptions.hpp>
 #include <vefs/utils/secure_array.hpp>
 
 namespace vefs::crypto
@@ -18,6 +19,7 @@ namespace vefs::crypto
     public:
         using state = utils::secure_byte_array<16>;
 
+        counter() = default;
         explicit counter(state ctrState);
         explicit counter(blob_view ctrState);
 
@@ -27,6 +29,9 @@ namespace vefs::crypto
         counter & operator++(int);
 
         state fetch_increment();
+
+        void assign(state ctrState);
+        void assign(blob_view ctrState);
 
     private:
         state mCtrState;
@@ -45,7 +50,7 @@ namespace vefs::crypto
     {
         if (ctrState.size() != mCtrState.size())
         {
-            throw std::invalid_argument("ctr state size mismatch");
+            BOOST_THROW_EXCEPTION(std::invalid_argument("ctr state size mismatch"));
         }
         ctrState.copy_to(blob{ mCtrState });
     }
@@ -65,5 +70,19 @@ namespace vefs::crypto
     {
         increment();
         return *this;
+    }
+
+    inline void counter::assign(state ctrState)
+    {
+        mCtrState = ctrState;
+    }
+    inline void counter::assign(blob_view ctrState)
+    {
+        guard_t sync{ mAccessMutex };
+        if (ctrState.size() != mCtrState.size())
+        {
+            BOOST_THROW_EXCEPTION(std::invalid_argument("ctr state size mismatch"));
+        }
+        ctrState.copy_to(blob{ mCtrState });
     }
 }

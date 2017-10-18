@@ -293,7 +293,7 @@ namespace vefs
     template <typename T, std::enable_if_t<std::is_pod_v<T>, int> = 0>
     constexpr blob_view as_blob_view(T &obj)
     {
-        return blob_view{ &obj, sizeof(T) };
+        return blob_view{ reinterpret_cast<blob_view::pointer>(&obj), sizeof(T) };
     }
 
     inline blob_view operator""_bv(const char *str, std::size_t strSize)
