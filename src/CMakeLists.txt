@@ -87,6 +87,14 @@ DEF_SOURCE_GROUP(vefs CRYPTO "crypto"
         "${_INCLUDE_DIR}/vefs/crypto/counter.hpp"
 )
 
+DEF_SOURCE_GROUP(vefs DETAIL "ext/libcuckoo"
+    HEADERS
+        "${_INCLUDE_DIR}/vefs/ext/libcuckoo/cuckoohash_config.hh"
+        "${_INCLUDE_DIR}/vefs/ext/libcuckoo/cuckoohash_map.hh"
+        "${_INCLUDE_DIR}/vefs/ext/libcuckoo/cuckoohash_util.hh"
+        "${_INCLUDE_DIR}/vefs/ext/libcuckoo/libcuckoo_bucket_container.hh"
+)
+
 add_library(vefs STATIC
     ${vefs_SRC}
 )

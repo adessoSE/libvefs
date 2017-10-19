@@ -10,3 +10,10 @@ under the terms of the Boost Software License (http://www.boost.org/LICENSE_1_0.
 This project uses and distributes the source of Jeff Preshing's semaphore
 implementation under the terms of the zlib License.
 - include/vefs/detail/blockingconcurrentqueue.h
+
+This project uses and distributes the source of libcuckoo under the terms of the
+Apache License Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
+- include/vefs/ext/libcuckoo/cuckoohash_config.hh
+- include/vefs/ext/libcuckoo/cuckoohash_map.hh
+- include/vefs/ext/libcuckoo/cuckoohash_util.hh
+- include/vefs/ext/libcuckoo/libcuckoo_bucket_container.hh
