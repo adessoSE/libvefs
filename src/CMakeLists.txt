@@ -87,14 +87,14 @@ DEF_SOURCE_GROUP(vefs CRYPTO "crypto"
         "${_INCLUDE_DIR}/vefs/crypto/counter.hpp"
 )
 
-DEF_SOURCE_GROUP(vefs EXTERNAL "ext/libcuckoo"
+DEF_SOURCE_GROUP(vefs EXTERNAL_CUCKOO "ext/libcuckoo"
     HEADERS
         "${_INCLUDE_DIR}/vefs/ext/libcuckoo/cuckoohash_config.hh"
         "${_INCLUDE_DIR}/vefs/ext/libcuckoo/cuckoohash_map.hh"
         "${_INCLUDE_DIR}/vefs/ext/libcuckoo/cuckoohash_util.hh"
         "${_INCLUDE_DIR}/vefs/ext/libcuckoo/libcuckoo_bucket_container.hh"
 )
-DEF_SOURCE_GROUP(vefs EXTERNAL "ext/concurrentqueue"
+DEF_SOURCE_GROUP(vefs EXTERNAL_CQUEUE "ext/concurrentqueue"
     HEADERS
         "${_INCLUDE_DIR}/vefs/ext/concurrentqueue/concurrentqueue.h"
         "${_INCLUDE_DIR}/vefs/ext/concurrentqueue/blockingconcurrentqueue.h"

@@ -171,3 +171,5 @@ install(FILES
     DESTINATION cmake
 )
 
+install(DIRECTORY include DESTINATION .)
+
