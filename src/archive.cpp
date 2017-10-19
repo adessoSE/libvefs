@@ -1,8 +1,9 @@
 #include "precompiled.hpp"
 #include <vefs/archive.hpp>
-#include "vefs/detail/raw_archive.hpp"
 
-namespace vefs::detail
+namespace vefs
 {
-
+    archive::archive(filesystem::ptr fs, std::string_view archivePath)
+    {
+    }
 }

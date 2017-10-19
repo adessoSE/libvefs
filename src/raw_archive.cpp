@@ -132,31 +132,17 @@ namespace vefs::detail
         }
     }
 
-    raw_archive::raw_archive(filesystem::ptr fs, std::string_view path,
-        crypto::crypto_provider * cryptoProvider)
+    raw_archive::raw_archive(file::ptr archiveFile, crypto::crypto_provider * cryptoProvider)
         : mCryptoProvider(cryptoProvider)
-        , mParentFs(std::move(fs))
-        , mArchiveFile()
-        , mJournalFile()
-        , mArchivePath(path)
+        , mArchiveFile(std::move(archiveFile))
         , mSessionSalt(cryptoProvider->generate_session_salt())
     {
-         if (!mParentFs)
-        {
-            BOOST_THROW_EXCEPTION(std::invalid_argument("fs == nullptr"));
-        }
-        if (mArchivePath.empty())
-        {
-            BOOST_THROW_EXCEPTION(std::invalid_argument("empty archive path"));
-        }
     }
 
-    raw_archive::raw_archive(filesystem::ptr fs, std::string_view path,
-            crypto::crypto_provider *cryptoProvider, blob_view userPRK)
-        : raw_archive(fs, path, cryptoProvider)
+    raw_archive::raw_archive(file::ptr archiveFile, crypto::crypto_provider *cryptoProvider,
+            blob_view userPRK)
+        : raw_archive(archiveFile, cryptoProvider)
     {
-        // open the actual archive
-        mArchiveFile = mParentFs->open(mArchivePath, file_open_mode::read | file_open_mode::write);
         if (mArchiveFile->size() < sector_size)
         {
             // at least the master sector is required
@@ -182,21 +168,12 @@ namespace vefs::detail
             exc << errinfo_archive_file{ "[master-sector/header]" };
             throw;
         }
-
-        // after successfully opening the existing archive we may need to revive
-        // some semi-dead content logged in an existing journal and create a new one
-        // afterwards
-        auto jnlPath = mArchivePath + ".jnl";
-        process_existing_journal(jnlPath);
-        mJournalFile = mParentFs->open(jnlPath, file_open_mode::read | file_open_mode::write | file_open_mode::create);
     }
 
-    raw_archive::raw_archive(filesystem::ptr fs, std::string_view path,
-        crypto::crypto_provider * cryptoProvider, blob_view userPRK, create_tag)
-        : raw_archive(fs, path, cryptoProvider)
+    raw_archive::raw_archive(file::ptr archiveFile, crypto::crypto_provider * cryptoProvider,
+        blob_view userPRK, create_tag)
+        : raw_archive(archiveFile, cryptoProvider)
     {
-        mArchiveFile = mParentFs->open(mArchivePath, file_open_mode::read | file_open_mode::write | file_open_mode::create);
-
         mCryptoProvider->random_bytes(blob{ mArchiveMasterSecret });
         mCryptoProvider->random_bytes(blob{ mStaticHeaderWriteCounter });
 
@@ -207,16 +184,6 @@ namespace vefs::detail
 
     raw_archive::~raw_archive()
     {
-    }
-
-    void raw_archive::process_existing_journal(std::string_view jnlPath)
-    {
-        std::error_code ec;
-        auto journalFile = mParentFs->open(jnlPath, file_open_mode::read, ec);
-        if (!ec)
-        {
-            //TODO: read existing archive journal
-        }
     }
 
     void raw_archive::parse_static_archive_header(blob_view userPRK)
@@ -342,7 +309,9 @@ namespace vefs::detail
             mFreeBlockIdx = unpack(*header.mutable_freeblockindex());
 
             mArchiveSecretCounter.assign(blob_view{ header.archivesecretcounter() });
-            blob_view{ header.journalcounter() }.copy_to(blob{ mJournalCounter });
+            crypto::counter::state journalCtrState;
+            blob_view{ header.journalcounter() }.copy_to(blob{ journalCtrState });
+            mJournalCounter.assign(journalCtrState);
         };
 
 
@@ -537,10 +506,11 @@ namespace vefs::detail
         headerMsg.set_allocated_archiveindex(pack(*mArchiveIdx));
         headerMsg.set_allocated_freeblockindex(pack(*mFreeBlockIdx));
 
-        auto ctr = mArchiveSecretCounter.fetch_increment();
+        auto secretCtr = mArchiveSecretCounter.fetch_increment();
+        auto journalCtr = mJournalCounter.value();
 
-        headerMsg.set_archivesecretcounter(ctr.data(), ctr.size());
-        headerMsg.set_journalcounter(mJournalCounter.data(), mJournalCounter.size());
+        headerMsg.set_archivesecretcounter(secretCtr.data(), secretCtr.size());
+        headerMsg.set_journalcounter(journalCtr.data(), journalCtr.size());
 
 
         mHeaderSelector = !mHeaderSelector;
@@ -558,7 +528,7 @@ namespace vefs::detail
             BOOST_THROW_EXCEPTION(logic_error{});
         }
 
-        crypto::kdf(blob_view{ ctr }, { archive_header_kdf_salt, blob_view{ mSessionSalt } },
+        crypto::kdf(blob_view{ secretCtr }, { archive_header_kdf_salt, blob_view{ mSessionSalt } },
             blob{ prefix->header_salt });
 
         blob encryptedHeader = blob{ headerMem }.slice(prefix->unencrypted_prefix_size);

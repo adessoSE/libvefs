@@ -23,10 +23,9 @@ namespace vefs::detail
         static constexpr size_t sector_size = 1 << 15;
         static constexpr size_t sector_payload_size = sector_size - (1 << 5);
 
-        raw_archive(filesystem::ptr fs, std::string_view path, crypto::crypto_provider *cryptoProvider,
-            blob_view userPRK);
-        raw_archive(filesystem::ptr fs, std::string_view path, crypto::crypto_provider *cryptoProvider,
-            blob_view userPRK, create_tag);
+        raw_archive(file::ptr archiveFile, crypto::crypto_provider *cryptoProvider, blob_view userPRK);
+        raw_archive(file::ptr archiveFile, crypto::crypto_provider *cryptoProvider, blob_view userPRK,
+            create_tag);
         ~raw_archive();
 
         void read_sector(blob buffer, const raw_archive_file & file, std::uint64_t sectorIdx,
@@ -61,10 +60,19 @@ namespace vefs::detail
             return mCryptoProvider;
         }
 
-    private:
-        raw_archive(filesystem::ptr fs, std::string_view path, crypto::crypto_provider *cryptoProvider);
+        crypto::counter & master_secret_counter()
+        {
+            return mArchiveSecretCounter;
+        }
+        crypto::counter & journal_counter()
+        {
+            return mJournalCounter;
+        }
 
-        void process_existing_journal(std::string_view jnlPath);
+
+    private:
+        raw_archive(file::ptr archiveFile, crypto::crypto_provider *cryptoProvider);
+
         void parse_static_archive_header(blob_view userPRK);
         void parse_archive_header();
 
@@ -82,19 +90,16 @@ namespace vefs::detail
         }
 
         crypto::crypto_provider * const mCryptoProvider;
-        const filesystem::ptr mParentFs;
         file::ptr mArchiveFile;
-        file::ptr mJournalFile;
-        const std::string mArchivePath;
 
         std::unique_ptr<raw_archive_file> mFreeBlockIdx;
         std::unique_ptr<raw_archive_file> mArchiveIdx;
 
         utils::secure_byte_array<64> mArchiveMasterSecret;
         utils::secure_byte_array<16> mStaticHeaderWriteCounter;
-        utils::secure_byte_array<16> mJournalCounter;
         utils::secure_byte_array<16> mSessionSalt;
         crypto::counter mArchiveSecretCounter;
+        crypto::counter mJournalCounter;
 
         size_t mArchiveHeaderOffset;
         unsigned int mHeaderSelector;
