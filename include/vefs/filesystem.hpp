@@ -19,6 +19,7 @@ namespace vefs
     {
         read = 0b0000,
         write = 0b0001,
+        readwrite = read | write,
         truncate = 0b0010,
         create = 0b0100,
     };
