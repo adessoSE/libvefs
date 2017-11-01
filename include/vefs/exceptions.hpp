@@ -49,4 +49,9 @@ namespace vefs
         : public virtual archive_corrupted
     {
     };
+
+    class io_error
+        : public virtual exception
+    {
+    };
 }
