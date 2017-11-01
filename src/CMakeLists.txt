@@ -21,6 +21,7 @@ DEF_SOURCE_GROUP(vefs UTILS "utils"
         precompiled.hpp
 
     HEADERS
+        ../vefs.natvis
         "${_INCLUDE_DIR}/vefs/utils/secure_ops.hpp"
         "${_INCLUDE_DIR}/vefs/utils/secure_array.hpp"
         "${_INCLUDE_DIR}/vefs/utils/secure_allocator.hpp"
@@ -28,6 +29,7 @@ DEF_SOURCE_GROUP(vefs UTILS "utils"
         "${_INCLUDE_DIR}/vefs/utils/misc.hpp"
 
         "${_INCLUDE_DIR}/vefs/utils/enum_bitset.hpp"
+        "${_INCLUDE_DIR}/vefs/utils/bit_scan.hpp"
 
     SOURCES
         secure_ops.cpp
@@ -54,7 +56,13 @@ DEF_SOURCE_GROUP(vefs LIB "lib"
 
 DEF_SOURCE_GROUP(vefs DETAIL "lib/detail"
     HEADERS
+        "${_INCLUDE_DIR}/vefs/detail/cache.hpp"
         "${_INCLUDE_DIR}/vefs/detail/thread_pool.hpp"
+        "${_INCLUDE_DIR}/vefs/detail/memory_pool.hpp"
+        "${_INCLUDE_DIR}/vefs/detail/pool_cache.hpp"
+
+        "${_INCLUDE_DIR}/vefs/detail/string_map.hpp"
+
         "${_INCLUDE_DIR}/vefs/detail/raw_archive.hpp"
         "${_INCLUDE_DIR}/vefs/detail/journal.hpp"
 

@@ -60,11 +60,11 @@ namespace vefs::detail
             return mCryptoProvider;
         }
 
-        crypto::counter & master_secret_counter()
+        crypto::atomic_counter & master_secret_counter()
         {
             return mArchiveSecretCounter;
         }
-        crypto::counter & journal_counter()
+        crypto::atomic_counter & journal_counter()
         {
             return mJournalCounter;
         }
@@ -75,11 +75,12 @@ namespace vefs::detail
 
         void parse_static_archive_header(blob_view userPRK);
         void parse_archive_header();
+        auto parse_archive_header(std::size_t position, std::size_t size);
 
         void write_static_archive_header(blob_view userPRK);
 
         void encrypt_sector(blob saltBuffer, blob ciphertextBuffer, blob mac, blob_view data,
-                            blob_view fileKey, crypto::counter & nonceCtr);
+                            blob_view fileKey, crypto::atomic_counter & nonceCtr);
 
         void write_sector_data(std::uint64_t sectorIdx, blob_view sectorSalt, blob_view ciphertextBuffer);
 
@@ -98,8 +99,8 @@ namespace vefs::detail
         utils::secure_byte_array<64> mArchiveMasterSecret;
         utils::secure_byte_array<16> mStaticHeaderWriteCounter;
         utils::secure_byte_array<16> mSessionSalt;
-        crypto::counter mArchiveSecretCounter;
-        crypto::counter mJournalCounter;
+        crypto::atomic_counter mArchiveSecretCounter;
+        crypto::atomic_counter mJournalCounter;
 
         size_t mArchiveHeaderOffset;
         unsigned int mHeaderSelector;
@@ -107,6 +108,8 @@ namespace vefs::detail
 
     struct raw_archive_file
     {
+        raw_archive_file() = default;
+
         blob_view secret_view() const
         {
             return blob_view{ secret };
@@ -116,12 +119,25 @@ namespace vefs::detail
         {
             return blob{ start_block_mac };
         }
+        blob_view start_block_mac_blob() const
+        {
+            return blob_view{ start_block_mac };
+        }
+
+        std::string & id()
+        {
+            return *id_owner;
+        }
+        const std::string & id() const
+        {
+            return *id_owner;
+        }
 
         utils::secure_byte_array<32> secret;
-        crypto::counter write_counter;
+        crypto::atomic_counter write_counter;
         std::array<std::byte, 16> start_block_mac;
 
-        std::string id;
+        std::shared_ptr<std::string> id_owner;
 
         std::uint64_t start_block_idx;
         std::uint64_t size;

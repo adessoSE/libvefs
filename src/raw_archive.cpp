@@ -62,74 +62,6 @@ namespace vefs::detail
 
 #pragma pack(pop)
 
-        inline std::unique_ptr<raw_archive_file> unpack(adesso::vefs::FileDescriptor &fd)
-        {
-            auto rawFilePtr = std::make_unique<raw_archive_file>();
-            auto &rawFile = *rawFilePtr;
-
-            blob_view{ fd.filesecret() }.copy_to(blob{ rawFile.secret });
-            rawFile.write_counter.assign(blob_view{ fd.filesecretcounter() });
-            blob_view{ fd.startblockmac() }.copy_to(blob{ rawFile.start_block_mac });
-
-            rawFile.id = std::move(*fd.mutable_fileid());
-
-            rawFile.start_block_idx = fd.startblockidx();
-            rawFile.size = fd.filesize();
-            rawFile.tree_depth = fd.reftreedepth();
-
-            return std::move(rawFilePtr);
-        }
-        inline void pack(adesso::vefs::FileDescriptor &fd, const raw_archive_file &rawFile)
-        {
-            fd.set_filesecret(rawFile.secret.data(), rawFile.secret.size());
-            auto ctr = rawFile.write_counter.value();
-            fd.set_filesecretcounter(ctr.data(), ctr.size());
-            fd.set_startblockmac(rawFile.start_block_mac.data(), rawFile.start_block_mac.size());
-
-            fd.set_fileid(rawFile.id);
-
-            fd.set_startblockidx(rawFile.start_block_idx);
-            fd.set_filesize(rawFile.size);
-            fd.set_reftreedepth(rawFile.tree_depth);
-        }
-        inline adesso::vefs::FileDescriptor * pack(const raw_archive_file &rawFile)
-        {
-            auto *fd = new adesso::vefs::FileDescriptor;
-            pack(*fd, rawFile);
-            return fd;
-        }
-
-        inline void erase_secrets(adesso::vefs::FileDescriptor &fd)
-        {
-            if (auto secretPtr = fd.mutable_filesecret())
-            {
-                secure_memzero(blob{ *secretPtr });
-            }
-        }
-
-        void erase_secrets(adesso::vefs::ArchiveHeader &header)
-        {
-            if (auto indexPtr = header.mutable_archiveindex())
-            {
-                erase_secrets(*indexPtr);
-            }
-            if (auto freeSectorIndexPtr = header.mutable_freeblockindex())
-            {
-                erase_secrets(*freeSectorIndexPtr);
-            }
-        }
-
-        void erase_secrets(adesso::vefs::StaticArchiveHeader &header)
-        {
-            if (auto masterSecretPtr = header.mutable_mastersecret())
-            {
-                secure_memzero(blob{ *masterSecretPtr });
-            }
-            if (auto writeCtr = header.mutable_staticarchiveheaderwritecounter())
-            {
-                secure_memzero(blob{ *writeCtr });
-            }
-        }
     }
 
     raw_archive::raw_archive(file::ptr archiveFile, crypto::crypto_provider * cryptoProvider)
@@ -251,73 +183,72 @@ namespace vefs::detail
         mArchiveHeaderOffset = sizeof(StaticArchiveHeaderPrefix) + archivePrefix.static_header_length;
     }
 
-    void raw_archive::parse_archive_header()
+    auto raw_archive::parse_archive_header(std::size_t position, std::size_t size)
     {
         using adesso::vefs::ArchiveHeader;
 
-        const auto parseImpl = [this](size_t position, size_t size)
-            -> std::unique_ptr<ArchiveHeader>
-            // use std::optional as soon as the compiler bug is fixed
-            // https://developercommunity.visualstudio.com/content/problem/74313/compiler-error-in-xsmf-control-with-stdoptional-pa.html
+        secure_vector<std::byte> headerAndPaddingMem(size, std::byte{});
+        blob headerAndPadding{ headerAndPaddingMem };
+
+        mArchiveFile->read(headerAndPadding, position);
+
+        auto archiveHeaderPrefix = reinterpret_cast<ArchiveHeaderPrefix *>(headerAndPaddingMem.data());
+
+        auto encryptedHeaderPart = headerAndPadding.slice(ArchiveHeaderPrefix::unencrypted_prefix_size);
+        auto boxOpened = mCryptoProvider->box_open(encryptedHeaderPart, encryptedHeaderPart,
+            blob_view{ archiveHeaderPrefix->header_mac },
+            [this, &archiveHeaderPrefix](blob prkBuffer)
+            {
+                crypto::kdf(master_secret_view(),
+                    { archive_header_kdf_prk, blob_view{ archiveHeaderPrefix->header_salt } },
+                    prkBuffer);
+            });
+
+        if (!boxOpened)
         {
-            secure_vector<std::byte> headerAndPaddingMem(size, std::byte{});
-            blob headerAndPadding{ headerAndPaddingMem };
+            return std::optional<ArchiveHeader>{};
+        }
 
-            mArchiveFile->read(headerAndPadding, position);
+        auto headerMsg = std::make_optional<ArchiveHeader>();
+        VEFS_ERROR_EXIT{ erase_secrets(*headerMsg); };
 
-            auto archiveHeaderPrefix = reinterpret_cast<ArchiveHeaderPrefix *>(headerAndPaddingMem.data());
+        if (!parse_blob(*headerMsg, headerAndPadding.slice(sizeof(ArchiveHeaderPrefix),
+                        archiveHeaderPrefix->header_length)))
+        {
+            BOOST_THROW_EXCEPTION(archive_corrupted{});
+        }
 
-            auto encryptedHeaderPart = headerAndPadding.slice(ArchiveHeaderPrefix::unencrypted_prefix_size);
-            auto boxOpened = mCryptoProvider->box_open(encryptedHeaderPart, encryptedHeaderPart,
-                blob_view{ archiveHeaderPrefix->header_mac },
-                [this, &archiveHeaderPrefix](blob prkBuffer)
-                {
-                    crypto::kdf(master_secret_view(),
-                        { archive_header_kdf_prk, blob_view{ archiveHeaderPrefix->header_salt } },
-                        prkBuffer);
-                });
+        // the archive is corrupted if the header message doesn't pass parameter validation
+        // simple write failures and incomplete writes are catched by the AE construction
+        if (headerMsg->archivesecretcounter().size() != 16
+            || headerMsg->journalcounter().size() != 16)
+        {
+            BOOST_THROW_EXCEPTION(archive_corrupted{});
+        }
 
-            if (!boxOpened)
-            {
-                return std::unique_ptr<ArchiveHeader>{};
-            }
+        //TODO: further validation
+        return std::optional<ArchiveHeader>{ std::move(headerMsg) };
+    }
 
-            auto headerMsg = std::make_unique<ArchiveHeader>();
-            VEFS_ERROR_EXIT{ erase_secrets(*headerMsg); };
-
-            if (!parse_blob(*headerMsg, headerAndPadding.slice(sizeof(ArchiveHeaderPrefix),
-                            archiveHeaderPrefix->header_length)))
-            {
-                BOOST_THROW_EXCEPTION(archive_corrupted{});
-            }
-
-            // the archive is corrupted if the header message doesn't pass parameter validation
-            // simple write failures and incomplete writes are catched by the AE construction
-            if (headerMsg->archivesecretcounter().size() != 16
-                || headerMsg->journalcounter().size() != 16)
-            {
-                BOOST_THROW_EXCEPTION(archive_corrupted{});
-            }
-
-            //TODO: further validation
-            return std::unique_ptr<ArchiveHeader>{ std::move(headerMsg) };
-        };
+    void raw_archive::parse_archive_header()
+    {
+        using adesso::vefs::ArchiveHeader;
 
         const auto apply = [this](ArchiveHeader &header)
         {
             mArchiveIdx = unpack(*header.mutable_archiveindex());
             mFreeBlockIdx = unpack(*header.mutable_freeblockindex());
 
-            mArchiveSecretCounter.assign(blob_view{ header.archivesecretcounter() });
+            mArchiveSecretCounter = crypto::counter(blob_view{ header.archivesecretcounter() });
             crypto::counter::state journalCtrState;
             blob_view{ header.journalcounter() }.copy_to(blob{ journalCtrState });
-            mJournalCounter.assign(journalCtrState);
+            mJournalCounter = crypto::counter(journalCtrState);
         };
 
 
         const auto headerSize0 = header_size(0);
 
-        auto first = parseImpl(mArchiveHeaderOffset, headerSize0);
+        auto first = parse_archive_header(mArchiveHeaderOffset, headerSize0);
         VEFS_SCOPE_EXIT{
             if (first)
             {
@@ -325,7 +256,7 @@ namespace vefs::detail
             }
         };
 
-        auto second = parseImpl(mArchiveHeaderOffset + headerSize0, header_size(1));
+        auto second = parse_archive_header(mArchiveHeaderOffset + headerSize0, header_size(1));
         VEFS_SCOPE_EXIT{
             if (second)
             {
@@ -392,7 +323,7 @@ namespace vefs::detail
         }
     }
 
-    void vefs::detail::raw_archive::write_static_archive_header(blob_view userPRK)
+    void raw_archive::write_static_archive_header(blob_view userPRK)
     {
         using adesso::vefs::StaticArchiveHeader;
 
@@ -403,11 +334,9 @@ namespace vefs::detail
         header.set_formatversion(0);
         VEFS_SCOPE_EXIT{ erase_secrets(header); };
 
-        {
-            crypto::counter ctr{ blob_view{ mStaticHeaderWriteCounter } };
-            auto state = ctr.fetch_increment();
-            blob_view{ state }.copy_to(blob{ mStaticHeaderWriteCounter });
-        }
+        (++crypto::counter{ mStaticHeaderWriteCounter })
+            .view()
+            .copy_to(blob{ mStaticHeaderWriteCounter });
 
         header.set_staticarchiveheaderwritecounter(
             std::string{ reinterpret_cast<char *>(mStaticHeaderWriteCounter.data()), mStaticHeaderWriteCounter.size() }
@@ -506,8 +435,8 @@ namespace vefs::detail
         headerMsg.set_allocated_archiveindex(pack(*mArchiveIdx));
         headerMsg.set_allocated_freeblockindex(pack(*mFreeBlockIdx));
 
-        auto secretCtr = mArchiveSecretCounter.fetch_increment();
-        auto journalCtr = mJournalCounter.value();
+        auto secretCtr = mArchiveSecretCounter.fetch_increment().value();
+        auto journalCtr = mJournalCounter.load().value();
 
         headerMsg.set_archivesecretcounter(secretCtr.data(), secretCtr.size());
         headerMsg.set_journalcounter(journalCtr.data(), journalCtr.size());
@@ -577,7 +506,7 @@ namespace vefs::detail
     }
 
     void vefs::detail::raw_archive::encrypt_sector(blob saltBuffer, blob ciphertextBuffer, blob mac,
-        blob_view data, blob_view fileKey, crypto::counter & nonceCtr)
+        blob_view data, blob_view fileKey, crypto::atomic_counter & nonceCtr)
     {
         if (data.size() != raw_archive::sector_payload_size)
         {
@@ -589,7 +518,7 @@ namespace vefs::detail
         }
 
         auto nonce = nonceCtr.fetch_increment();
-        crypto::kdf(blob_view{ nonce }, { sector_kdf_salt, blob_view{ mSessionSalt } }, saltBuffer);
+        crypto::kdf(nonce.view(), { sector_kdf_salt, blob_view{ mSessionSalt } }, saltBuffer);
 
         mCryptoProvider->box_seal(ciphertextBuffer, mac, data,
             [fileKey, saltBuffer](blob prk)
