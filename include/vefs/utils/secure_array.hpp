@@ -31,10 +31,24 @@ namespace vefs::utils
         using base_type::reverse_iterator;
         using base_type::const_reverse_iterator;
 
-        using base_type::base_type;
+        secure_array() = default;
+        secure_array(const secure_array &) = default;
+        secure_array(secure_array &&other)
+            : base_type(other)
+        {
+            secure_memzero(blob{ other });
+        }
         ~secure_array()
         {
             secure_memzero(blob{ *this });
+        }
+
+        secure_array & operator=(const secure_array &) = default;
+        secure_array & operator=(secure_array &&other)
+        {
+            *this = static_cast<base_type &>(other);
+            secure_memzero(blob{ other });
+            return this;
         }
 
         using base_type::at;
