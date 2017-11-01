@@ -1551,7 +1551,7 @@ private:
   // provides a strong exception guarantee.
   template <typename TABLE_MODE, typename AUTO_RESIZE>
   cuckoo_status cuckoo_fast_double(size_type current_hp) {
-    if (!std::is_nothrow_move_constructible<key_type>::value ||
+    if constexpr (!std::is_nothrow_move_constructible<key_type>::value ||
         !std::is_nothrow_move_constructible<mapped_type>::value) {
       LIBCUCKOO_DBG("%s", "cannot run cuckoo_fast_double because key-value"
                           " pair is not nothrow move constructible");
