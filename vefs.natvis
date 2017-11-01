@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+
+  <!-- sexpr::basic_node -->
+  <Type Name="vefs::basic_range&lt;*&gt;" >
+    <DisplayString Condition="mBuffer == 0 &amp;&amp; mBufferSize == 0">{{unset range}}</DisplayString>
+    <DisplayString Condition="mBufferSize == 0">{{ empty range }}</DisplayString>
+    <DisplayString Condition="mBuffer == 0">{{ nullptr range }}</DisplayString>
+    <DisplayString>{{ size={mBufferSize} }}</DisplayString>
+    <Expand>
+        <Item Name="[size]" ExcludeView="simple">mBufferSize</Item>
+        <ArrayItems>
+            <Size>mBufferSize</Size>
+            <ValuePointer>mBuffer</ValuePointer>
+        </ArrayItems>
+    </Expand>
+  </Type>
+
+</AutoVisualizer>
