@@ -1,6 +1,8 @@
 #include "boost-unit-test.hpp"
 #include <boost/throw_exception.hpp>
 
+#include <vefs/crypto/provider.hpp>
+
 using namespace boost::unit_test;
 
 
@@ -8,6 +10,8 @@ using namespace boost::unit_test;
 // defining header is already included in the precompiled header...
 bool init_unit_test()
 {
+    vefs::crypto::detail::enable_debug_provider();
+
     framework::master_test_suite().p_name.value = "vefs test suite";
     return true;
 }
