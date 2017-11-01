@@ -298,7 +298,7 @@ namespace vefs::crypto::detail
 
             blake2b_param &param = mState.P[0];
 
-            param.digest_length = BLAKE2B_BLOCKBYTES;
+            param.digest_length = BLAKE2B_OUTBYTES;
             param.key_length = static_cast<uint8_t>(key.size());
             param.fanout = 1;
             param.depth = 1;
@@ -357,5 +357,3 @@ namespace vefs::crypto::detail
         >();
     constexpr blob_view vefs_blake2b_personalization_view = blob_view{ vefs_blake2b_personalization };
 }
-
-#undef B2_ERRMSG
