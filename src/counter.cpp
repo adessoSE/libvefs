@@ -12,110 +12,111 @@ namespace vefs::crypto
 {
     namespace
     {
-        template <typename T>
-        size_t loadxx(blob src, T &out)
+        template <typename T, typename = void>
+        struct has_adc_u64 : std::false_type
         {
-            static_assert(std::is_integral_v<T> && std::is_unsigned_v<T>);
+        };
+        template <typename T>
+        struct has_adc_u64<T, std::void_t<decltype(_addcarry_u64(0, T{}, T{}, nullptr))>>
+            : std::true_type
+        {
+        };
+        constexpr bool has_adc_u64_v = has_adc_u64<unsigned long long>::value;
 
-            const auto limit = src.size();
-            if (sizeof(T) <= limit)
+        template <typename T, typename = void>
+        struct has_adc_u32 : std::false_type
+        {
+        };
+        template <typename T>
+        struct has_adc_u32<T, std::void_t<decltype(_addcarry_u32(0, T{}, T{}, nullptr))>>
+            : std::true_type
+        {
+        };
+        constexpr bool has_adc_u32_v = has_adc_u32<unsigned int>::value;
+
+        template <typename T = std::size_t>
+        inline unsigned char add_carry(unsigned char carry, T a, T b, T *out)
+        {
+            static_assert(std::is_integral_v<T>);
+            static_assert(std::is_unsigned_v<T>);
+
+            [[maybe_unused]] const auto upcast_impl = [&]([[maybe_unused]] auto acc)
             {
-                out = *reinterpret_cast<const T *>(src.data());
-                return sizeof(T);
+                acc += a;
+                acc += b;
+                *out = static_cast<T>(acc);
+                return static_cast<unsigned char>(acc >> std::numeric_limits<T>::digits);
+            };
+
+            if constexpr (sizeof(T) < sizeof(std::uint_fast32_t))
+            {
+                return upcast_impl(static_cast<std::uint_fast32_t>(carry));
+            }
+            else if constexpr (sizeof(T) == 4 && has_adc_u32_v)
+            {
+                return _addcarry_u32(carry, a, b, reinterpret_cast<std::uint32_t *>(out));
+            }
+            else if constexpr (sizeof(T) < 8)
+            {
+                return upcast_impl(static_cast<std::uint_fast64_t>(carry));
+            }
+            else if constexpr (sizeof(T) == 8 && has_adc_u64_v)
+            {
+                return _addcarry_u64(carry, a, b, reinterpret_cast<std::uint64_t *>(out));
             }
             else
             {
-                out = T{};
+                using fraction_t = boost::uint_t<std::numeric_limits<std::size_t>::digits / 2>::exact;
+                constexpr auto limit = sizeof(T) / sizeof(fraction_t);
+
+                auto fa = reinterpret_cast<fraction_t *>(&a);
+                auto fb = reinterpret_cast<fraction_t *>(&b);
+                auto fout = reinterpret_cast<fraction_t *>(out);
+                std::size_t state = carry;
+
                 for (auto i = 0; i < limit; ++i)
                 {
-                    out |= std::to_integer<T>(src[i]) << (i << 3);
+                    state += static_cast<std::size_t>(fa[i]) + fb[i];
+                    fout[i] = static_cast<fraction_t>(state);
+                    state >>= std::numeric_limits<fraction_t>::digits;
                 }
-                return limit;
-            }
-        }
-        template <typename T>
-        void storexx(blob loc, T value)
-        {
-            static_assert(std::is_integral_v<T> && std::is_unsigned_v<T>);
 
-            const auto limit = loc.size();
-            if (sizeof(T) <= limit)
-            {
-                *reinterpret_cast<T *>(loc.data()) = value;
-            }
-            else
-            {
-                for (auto i = 0; i < limit; ++i)
+                static_assert(sizeof(T) % sizeof(fraction_t) == 0);
+                /*
+                if constexpr (sizeof(T) % sizeof(fraction_t) != 0)
                 {
-                    loc[i] = std::byte{ (value >> (i << 3)) & 0xFF };
+                    // I don't think there is any use case for this...
                 }
+                */
             }
         }
 
-        template <size_t StepSize>
-        void increment_big_num_impl(blob state)
-        {
-            if constexpr (StepSize == 8 || StepSize == 4)
-            {
-                using uint_t = typename boost::uint_t<StepSize * 8>::exact;
-
-                unsigned char carry = 1;
-                uint_t in = 0;
-                uint_t out = 0;
-                size_t offset;
-                do
-                {
-                    offset = loadxx(state, in);
-
-                    if constexpr (StepSize == 8)
-                    {
-                        carry = _addcarry_u64(carry, in, 0, &out);
-                    }
-                    else
-                    {
-                        carry = _addcarry_u32(carry, in, 0, &out);
-                    }
-
-                    storexx(state, out);
-                    state.remove_prefix(offset);
-                } while (state);
-            }
-            else
-            {
-                uint_fast16_t carry = 1;
-                const auto limit = state.size();
-                for (auto i = 0; i < limit; i++) {
-                    carry += std::to_integer<uint_fast16_t>(state[i]);
-                    state[i] = std::byte{ carry };
-                    carry >>= 8;
-                }
-            }
-        }
-
-        void increment_big_num(blob state)
-        {
-#if defined BOOST_ARCH_X86_64_AVAILABLE
-            constexpr size_t stepSize = 8;
-#elif defined BOOST_ARCH_X86_AVAILABLE
-            constexpr size_t stepSize = 4;
-#else
-            constexpr size_t stepSize = 1;
+#if defined BOOST_COMP_MSVC_AVAILABLE
+#pragma inline_recursion(on)
 #endif
-            increment_big_num_impl<stepSize>(state);
+
+        template <std::size_t size>
+        inline void increment_impl(std::size_t *state, unsigned char carry)
+        {
+            static_assert(size % sizeof(std::size_t) == 0);
+            constexpr auto remaining = size - sizeof(std::size_t);
+
+            if constexpr (remaining)
+            {
+                auto next_carry = add_carry<std::size_t>(carry, *state, 0, state);
+                increment_impl<remaining>(++state, next_carry);
+            }
+            else
+            {
+                (*state) += carry;
+            }
         }
     }
 
     void counter::increment()
     {
-        guard_t sync{ mAccessMutex };
-        increment_big_num(blob{ mCtrState });
-    }
-
-    counter::state counter::fetch_increment()
-    {
-        guard_t sync{ mAccessMutex };
-        auto ctrState = mCtrState;
-        increment_big_num(blob{ mCtrState });
-        return ctrState;
+        auto p = reinterpret_cast<std::size_t *>(mCtrState.data());
+        auto first_carry = add_carry<std::size_t>(0, *p, 1, p);
+        increment_impl<state_size - sizeof(*p)>(p + 1, first_carry);
     }
 }
