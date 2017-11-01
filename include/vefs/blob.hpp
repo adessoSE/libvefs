@@ -82,6 +82,11 @@ namespace vefs
         void copy_to(basic_range<std::remove_const_t<value_type>> target) const noexcept;
 
     protected:
+        template <typename U>
+        basic_range(std::false_type, U *ptr, size_type size);
+        template <typename U>
+        constexpr basic_range(std::true_type, U *ptr, size_type size);
+
         pointer mBuffer;
         size_type mBufferSize;
     };
@@ -102,14 +107,27 @@ namespace vefs
     template <typename T>
     template <typename U, std::size_t S, std::enable_if_t<std::is_pod_v<U> && sizeof(U) == sizeof(T), int>>
     constexpr basic_range<T>::basic_range(U(& arr)[S])
-        : basic_range(reinterpret_cast<pointer>(arr), S)
+        : basic_range(std::is_convertible<U *, pointer>{}, arr, S)
     {
     }
 
     template <typename T>
     template <typename U, std::enable_if_t<std::is_pod_v<typename U::value_type> && sizeof(typename U::value_type) == sizeof(T), int>>
     constexpr basic_range<T>::basic_range(U& container)
-        : basic_range(reinterpret_cast<pointer>(container.data()), container.size())
+        : basic_range(std::is_convertible<typename U::value_type *, pointer>{}, container.data(), container.size())
+    {
+    }
+
+    template <typename T>
+    template <typename U>
+    basic_range<T>::basic_range(std::false_type, U *ptr, size_type size)
+        : basic_range(reinterpret_cast<pointer>(ptr), size)
+    {
+    }
+    template <typename T>
+    template <typename U>
+    constexpr basic_range<T>::basic_range(std::true_type, U *ptr, size_type size)
+        : basic_range(static_cast<pointer>(ptr), size)
     {
     }
 
@@ -236,7 +254,7 @@ namespace vefs
     template <typename T>
     constexpr basic_range<T> basic_range<T>::slice(size_type pos, size_type count) const noexcept
     {
-        return { mBuffer + pos, count };
+        return { mBuffer + pos, std::min(count, mBufferSize - pos) };
     }
 
     template <typename T>
@@ -255,13 +273,28 @@ namespace vefs
     {
         if (left && right)
         {
-            return left.size() == right.size()
-                && std::equal(left.data(), left.data() + left.size(),
-                    right.data() + right.size());
+            return std::equal(left.data(), left.data() + left.size(),
+                        right.data(), right.data() + right.size());
         }
         else
         {
             return !left && !right;
+        }
+    }
+
+    template <typename T1, typename T2, std::enable_if_t<sizeof(T1) == sizeof(T2), int> = 0>
+    std::size_t mismatch(basic_range<T1> left, basic_range<T2> right)
+    {
+        if (left && right)
+        {
+            auto [l, r] = std::mismatch(left.data(), left.data() + left.size(),
+                            right.data(), right.data() + right.size());
+            (void)r;
+            return l - left.data();
+        }
+        else
+        {
+            return 0;
         }
     }
 
@@ -296,8 +329,11 @@ namespace vefs
         return blob_view{ reinterpret_cast<blob_view::pointer>(&obj), sizeof(T) };
     }
 
-    inline blob_view operator""_bv(const char *str, std::size_t strSize)
+    inline namespace blob_literals
     {
-        return blob_view{ reinterpret_cast<blob_view::pointer>(str), strSize };
+        inline blob_view operator""_bv(const char *str, std::size_t strSize)
+        {
+            return blob_view{ reinterpret_cast<blob_view::pointer>(str), strSize };
+        }
     }
 }

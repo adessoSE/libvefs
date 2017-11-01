@@ -8,6 +8,13 @@
 
 namespace vefs::utils
 {
+    template <typename T>
+    constexpr T div_ceil(T dividend, T divisor)
+    {
+        static_assert(std::is_unsigned_v<T>);
+        return dividend / divisor + (dividend && dividend % divisor != 0);
+    }
+           
     template <std::uint8_t... Values>
     constexpr auto make_byte_array()
     {
@@ -16,6 +23,74 @@ namespace vefs::utils
         };
     }
 
+
+    template <typename Fn>
+    struct scope_guard
+    {
+        BOOST_FORCEINLINE scope_guard(Fn &&fn)
+            : mFn(std::forward<Fn>(fn))
+        {
+        }
+        BOOST_FORCEINLINE ~scope_guard() noexcept
+        {
+            mFn();
+        }
+
+    private:
+        Fn mFn;
+    };
+
+    enum class on_exit_scope
+    {
+    };
+
+    template <typename Fn>
+    BOOST_FORCEINLINE scope_guard<Fn> operator+(on_exit_scope, Fn &&fn)
+    {
+        return scope_guard<Fn>{std::forward<Fn>(fn)};
+    }
+
+    template <typename Fn>
+    struct error_scope_guard
+    {
+        BOOST_FORCEINLINE error_scope_guard(Fn &&fn)
+            : mFn(std::forward<Fn>(fn))
+            , mUncaughtExceptions(std::uncaught_exceptions())
+        {
+        }
+        BOOST_FORCEINLINE ~error_scope_guard() noexcept
+        {
+            if (mUncaughtExceptions < std::uncaught_exceptions())
+            {
+                mFn();
+            }
+        }
+
+    private:
+        Fn mFn;
+        int mUncaughtExceptions;
+    };
+
+    enum class on_error_exit
+    {
+    };
+
+    template <typename Fn>
+    BOOST_FORCEINLINE error_scope_guard<Fn> operator+(on_error_exit, Fn &&fn)
+    {
+        return error_scope_guard<Fn>{std::forward<Fn>(fn)};
+    }
+
+#define VEFS_ANONYMOUS_VAR(id) BOOST_PP_CAT(id, __LINE__)
+#define VEFS_SCOPE_EXIT auto VEFS_ANONYMOUS_VAR(_scope_exit_guard_) \
+                            = ::vefs::utils::on_exit_scope{} + [&]()
+#define VEFS_ERROR_EXIT auto VEFS_ANONYMOUS_VAR(_error_exit_guard_) \
+                            = ::vefs::utils::on_error_exit{} + [&]()
+
+}
+
+namespace vefs::utils::detail
+{
     constexpr bool is_hex_digit(char c)
     {
         return c >= '0' && c <= '9'
@@ -78,92 +153,34 @@ namespace vefs::utils
         auto numBytes = parse_hex<Chars...>(storage, 0);
         return { storage, numBytes };
     }
+}
 
-
-
-    template <char... Chars>
-    constexpr auto operator""_as_bytes()
+namespace vefs
+{
+    inline namespace blob_literals
     {
-        constexpr auto parseResult = parse_hex<Chars...>();
-
-        auto data = std::get<0>(parseResult);
-
-        if constexpr (data.size() == std::get<1>(parseResult))
+        template <char... Chars>
+        constexpr auto operator""_as_bytes()
         {
-            return data;
-        }
-        else
-        {
-            std::array<std::byte, std::get<1>(parseResult)> result = {};
-            for (size_t i = 0; i < result.size(); ++i)
+            using namespace vefs::utils::detail;
+
+            constexpr auto parseResult = parse_hex<Chars...>();
+
+            auto data = std::get<0>(parseResult);
+
+            if constexpr (data.size() == std::get<1>(parseResult))
             {
-                result[i] = data[i];
+                return data;
             }
-            return result;
-        }
-    }
-
-    template <typename Fn>
-    struct scope_guard
-    {
-        scope_guard(Fn &&fn)
-            : mFn(std::forward<Fn>(fn))
-        {
-        }
-        ~scope_guard() noexcept
-        {
-            mFn();
-        }
-
-    private:
-        Fn mFn;
-    };
-
-    enum class on_exit_scope
-    {
-    };
-
-    template <typename Fn>
-    scope_guard<Fn> operator+(on_exit_scope, Fn &&fn)
-    {
-        return scope_guard<Fn>{std::forward<Fn>(fn)};
-    }
-
-    template <typename Fn>
-    struct error_scope_guard
-    {
-        error_scope_guard(Fn &&fn)
-            : mFn(std::forward<Fn>(fn))
-            , mUncaughtExceptions(std::uncaught_exceptions())
-        {
-        }
-        ~error_scope_guard() noexcept
-        {
-            if (mUncaughtExceptions < std::uncaught_exceptions())
+            else
             {
-                mFn();
+                std::array<std::byte, std::get<1>(parseResult)> result = {};
+                for (size_t i = 0; i < result.size(); ++i)
+                {
+                    result[i] = data[i];
+                }
+                return result;
             }
         }
-
-    private:
-        Fn mFn;
-        int mUncaughtExceptions;
-    };
-
-    enum class on_error_exit
-    {
-    };
-
-    template <typename Fn>
-    error_scope_guard<Fn> operator+(on_error_exit, Fn &&fn)
-    {
-        return error_scope_guard<Fn>{std::forward<Fn>(fn)};
     }
-
-#define VEFS_ANONYMOUS_VAR(id) BOOST_PP_CAT(id, __LINE__)
-#define VEFS_SCOPE_EXIT auto VEFS_ANONYMOUS_VAR(_scope_exit_guard_) \
-                            = ::vefs::utils::on_exit_scope{} + [&]()
-#define VEFS_ERROR_EXIT auto VEFS_ANONYMOUS_VAR(_error_exit_guard_) \
-                            = ::vefs::utils::on_error_exit{} + [&]()
-
 }
