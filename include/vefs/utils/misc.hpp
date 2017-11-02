@@ -3,6 +3,7 @@
 #include <exception>
 #include <stdexcept>
 #include <string_view>
+#include <type_traits>
 
 #include <boost/preprocessor/cat.hpp>
 
@@ -12,9 +13,17 @@ namespace vefs::utils
     constexpr T div_ceil(T dividend, T divisor)
     {
         static_assert(std::is_unsigned_v<T>);
+
         return dividend / divisor + (dividend && dividend % divisor != 0);
     }
-           
+    template <typename T, typename U>
+    constexpr auto div_ceil(T dividend, U divisor)
+        -> std::common_type_t<T, U>
+    {
+        using common_t = std::common_type_t<T, U>;
+        return div_ceil(static_cast<common_t>(dividend), static_cast<common_t>(divisor));
+    }
+
     template <std::uint8_t... Values>
     constexpr auto make_byte_array()
     {
