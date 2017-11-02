@@ -60,6 +60,12 @@ namespace vefs
         constexpr pointer data() noexcept;
         constexpr const_pointer data() const noexcept;
 
+        template <typename U, bool checked = false>
+        auto & as(size_type offset = size_type{}) noexcept(!checked);
+
+        template <typename U, bool checked = false>
+        auto & pop_front_as() noexcept(!checked);
+
 
         //TODO: iterators
 
@@ -150,6 +156,33 @@ namespace vefs
             BOOST_THROW_EXCEPTION(std::out_of_range("basic_range<T>::at() out of range index"));
         }
         return mBuffer[pos];
+    }
+
+    template <typename T>
+    template <typename U, bool checked>
+    inline auto & basic_range<T>::as(size_type offset) noexcept(!checked)
+    {
+        static_assert(std::is_pod_v<U>);
+        using target_type = std::conditional_t<std::is_const_v<T>, std::add_const_t<U>, U>;
+
+        if constexpr (checked)
+        {
+            if (sizeof(U) > mBufferSize)
+            {
+                BOOST_THROW_EXCEPTION(std::out_of_range("basic_range<T>::at<U>() over the end cast"));
+            }
+        }
+
+        return *reinterpret_cast<target_type *>(mBuffer + offset);
+    }
+
+    template <typename T>
+    template <typename U, bool checked>
+    inline auto & basic_range<T>::pop_front_as() noexcept(!checked)
+    {
+        auto & result = as<U, checked>(0);
+        remove_prefix(sizeof(U));
+        return result;
     }
 
     template <typename T>
