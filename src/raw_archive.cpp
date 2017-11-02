@@ -375,9 +375,9 @@ namespace vefs::detail
     }
 
     void raw_archive::read_sector(blob buffer, const raw_archive_file & file,
-        std::uint64_t sectorIdx, blob_view contentMAC)
+        sector_id sectorIdx, blob_view contentMAC)
     {
-        const auto sectorOffset = sectorIdx * raw_archive::sector_size;
+        const auto sectorOffset = to_offset(sectorIdx);
 
         try
         {
@@ -419,7 +419,7 @@ namespace vefs::detail
     }
 
     void vefs::detail::raw_archive::write_sector(blob ciphertextBuffer, blob mac,
-        raw_archive_file &file, std::uint64_t sectorIdx, blob_view data)
+        raw_archive_file &file, sector_id sectorIdx, blob_view data)
     {
         std::array<std::byte, 32> salt;
 
@@ -479,7 +479,7 @@ namespace vefs::detail
         update_header();
     }
 
-    void raw_archive::write_sector_data(std::uint64_t sectorIdx, blob_view sectorSalt,
+    void raw_archive::write_sector_data(sector_id sectorIdx, blob_view sectorSalt,
         blob_view ciphertextBuffer)
     {
         if (sectorSalt.size() != 1 << 5)
@@ -490,16 +490,16 @@ namespace vefs::detail
         {
             BOOST_THROW_EXCEPTION(std::invalid_argument{ "ciphertextBuffer has an inappropriate size" });
         }
-        if (!sectorIdx)
+        if (sectorIdx == sector_id::master)
         {
             BOOST_THROW_EXCEPTION(std::invalid_argument{ "cannot write the first sector" });
         }
-        if (sectorIdx >= std::numeric_limits<std::uint64_t>::max() / sector_size)
+        if (static_cast<std::uint64_t>(sectorIdx) >= std::numeric_limits<std::uint64_t>::max() / sector_size)
         {
             BOOST_THROW_EXCEPTION(std::invalid_argument{ "sector id points to a sector which isn't within the supported archive file size" });
         }
 
-        const auto sectorOffset = sectorIdx * sector_size;
+        const auto sectorOffset = to_offset(sectorIdx);
 
         mArchiveFile->write(sectorSalt, sectorOffset);
         mArchiveFile->write(ciphertextBuffer, sectorOffset + sectorSalt.size());

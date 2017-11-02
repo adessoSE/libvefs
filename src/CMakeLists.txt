@@ -63,6 +63,7 @@ DEF_SOURCE_GROUP(vefs DETAIL "lib/detail"
 
         "${_INCLUDE_DIR}/vefs/detail/string_map.hpp"
 
+        "${_INCLUDE_DIR}/vefs/detail/sector_id.hpp"
         "${_INCLUDE_DIR}/vefs/detail/raw_archive.hpp"
         "${_INCLUDE_DIR}/vefs/detail/journal.hpp"
 

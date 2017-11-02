@@ -11,6 +11,8 @@
 #include <vefs/crypto/provider.hpp>
 #include <vefs/crypto/counter.hpp>
 
+#include <vefs/detail/sector_id.hpp>
+
 namespace vefs::detail
 {
     struct raw_archive_file;
@@ -23,15 +25,20 @@ namespace vefs::detail
         static constexpr size_t sector_size = 1 << 15;
         static constexpr size_t sector_payload_size = sector_size - (1 << 5);
 
+        std::uint64_t to_offset(sector_id id)
+        {
+            return static_cast<std::uint64_t>(id) << 15;
+        }
+
         raw_archive(file::ptr archiveFile, crypto::crypto_provider *cryptoProvider, blob_view userPRK);
         raw_archive(file::ptr archiveFile, crypto::crypto_provider *cryptoProvider, blob_view userPRK,
             create_tag);
         ~raw_archive();
 
-        void read_sector(blob buffer, const raw_archive_file & file, std::uint64_t sectorIdx,
+        void read_sector(blob buffer, const raw_archive_file & file, sector_id sectorIdx,
                          blob_view contentMAC);
         void write_sector(blob ciphertextBuffer, blob mac, raw_archive_file & file,
-                          std::uint64_t sectorIdx, blob_view data);
+                          sector_id sectorIdx, blob_view data);
 
         void update_header();
         void update_static_header(blob_view newUserPRK);
@@ -41,7 +48,7 @@ namespace vefs::detail
         {
             return *mArchiveIdx;
         }
-        raw_archive_file & raw_block_index_file()
+        raw_archive_file & free_sector_index_file()
         {
             return *mFreeBlockIdx;
         }
@@ -82,7 +89,7 @@ namespace vefs::detail
         void encrypt_sector(blob saltBuffer, blob ciphertextBuffer, blob mac, blob_view data,
                             blob_view fileKey, crypto::atomic_counter & nonceCtr);
 
-        void write_sector_data(std::uint64_t sectorIdx, blob_view sectorSalt, blob_view ciphertextBuffer);
+        void write_sector_data(sector_id sectorIdx, blob_view sectorSalt, blob_view ciphertextBuffer);
 
         auto header_size(int which) const noexcept
         {
@@ -139,7 +146,7 @@ namespace vefs::detail
 
         std::shared_ptr<std::string> id_owner;
 
-        std::uint64_t start_block_idx;
+        sector_id start_block_idx;
         std::uint64_t size;
         int tree_depth;
     };

@@ -6,6 +6,8 @@
 #include <stdexcept>
 #include <boost/exception/all.hpp>
 
+#include <vefs/detail/sector_id.hpp>
+
 namespace vefs
 {
     enum class errinfo_code_tag {};
@@ -21,7 +23,7 @@ namespace vefs
     using errinfo_archive_file = boost::error_info<errinfo_archive_file_tag, std::string>;
 
     enum class errinfo_sector_idx_tag {};
-    using errinfo_sector_idx = boost::error_info<errinfo_sector_idx_tag, std::uint64_t>;
+    using errinfo_sector_idx = boost::error_info<errinfo_sector_idx_tag, detail::sector_id>;
 
 
     class exception

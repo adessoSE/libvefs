@@ -29,7 +29,7 @@ namespace vefs
 
         rawFile.id_owner = std::make_unique<std::string>(std::move(*fd.mutable_fileid()));
 
-        rawFile.start_block_idx = fd.startblockidx();
+        rawFile.start_block_idx = detail::sector_id{ fd.startblockidx() };
         rawFile.size = fd.filesize();
         rawFile.tree_depth = fd.reftreedepth();
 
@@ -49,7 +49,7 @@ namespace vefs
 
         fd.set_fileid(rawFile.id());
 
-        fd.set_startblockidx(rawFile.start_block_idx);
+        fd.set_startblockidx(static_cast<std::uint64_t>(rawFile.start_block_idx));
         fd.set_filesize(rawFile.size);
         fd.set_reftreedepth(rawFile.tree_depth);
     }
