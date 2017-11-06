@@ -24,6 +24,20 @@ namespace vefs::utils
         return div_ceil(static_cast<common_t>(dividend), static_cast<common_t>(divisor));
     }
 
+    constexpr auto upow(std::uint64_t x, std::uint64_t e)
+    {
+        std::uint64_t result = 1;
+        while (e)
+        {
+            if (e & 1)
+                result *= x;
+
+            e >>= 1;
+            x *= x;
+        }
+        return result;
+    }
+
     template <std::uint8_t... Values>
     constexpr auto make_byte_array()
     {
