@@ -112,42 +112,4 @@ namespace vefs::detail
         size_t mArchiveHeaderOffset;
         unsigned int mHeaderSelector;
     };
-
-    struct raw_archive_file
-    {
-        raw_archive_file() = default;
-
-        blob_view secret_view() const
-        {
-            return blob_view{ secret };
-        }
-
-        blob start_block_mac_blob()
-        {
-            return blob{ start_block_mac };
-        }
-        blob_view start_block_mac_blob() const
-        {
-            return blob_view{ start_block_mac };
-        }
-
-        std::string & id()
-        {
-            return *id_owner;
-        }
-        const std::string & id() const
-        {
-            return *id_owner;
-        }
-
-        utils::secure_byte_array<32> secret;
-        crypto::atomic_counter write_counter;
-        std::array<std::byte, 16> start_block_mac;
-
-        std::shared_ptr<std::string> id_owner;
-
-        sector_id start_block_idx;
-        std::uint64_t size;
-        int tree_depth;
-    };
 }

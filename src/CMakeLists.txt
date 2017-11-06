@@ -28,6 +28,8 @@ DEF_SOURCE_GROUP(vefs UTILS "utils"
 
         "${_INCLUDE_DIR}/vefs/utils/misc.hpp"
 
+        "${_INCLUDE_DIR}/vefs/utils/uuid.hpp"
+
         "${_INCLUDE_DIR}/vefs/utils/enum_bitset.hpp"
         "${_INCLUDE_DIR}/vefs/utils/bit_scan.hpp"
 
@@ -43,6 +45,7 @@ DEF_SOURCE_GROUP(vefs UTILS "utils"
 DEF_SOURCE_GROUP(vefs LIB "lib"
     HEADERS
         "${_INCLUDE_DIR}/vefs/archive.hpp"
+        "${_INCLUDE_DIR}/vefs/archive_file.hpp"
         "${_INCLUDE_DIR}/vefs/exceptions.hpp"
         "${_INCLUDE_DIR}/vefs/blob.hpp"
         "${_INCLUDE_DIR}/vefs/filesystem.hpp"
@@ -64,6 +67,7 @@ DEF_SOURCE_GROUP(vefs DETAIL "lib/detail"
         "${_INCLUDE_DIR}/vefs/detail/string_map.hpp"
 
         "${_INCLUDE_DIR}/vefs/detail/sector_id.hpp"
+        "${_INCLUDE_DIR}/vefs/detail/archive_file.hpp"
         "${_INCLUDE_DIR}/vefs/detail/raw_archive.hpp"
         "${_INCLUDE_DIR}/vefs/detail/journal.hpp"
 
@@ -114,6 +118,10 @@ add_library(vefs STATIC
 )
 GROUP_FILES(vefs)
 
+target_compile_definitions(vefs
+    PUBLIC
+        BOOST_UUID_NO_TYPE_TRAITS=1
+)
 target_include_directories(vefs
     PRIVATE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>

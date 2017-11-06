@@ -9,6 +9,7 @@
 #include <vefs/utils/misc.hpp>
 #include <vefs/utils/secure_array.hpp>
 #include <vefs/utils/secure_allocator.hpp>
+#include <vefs/detail/archive_file.hpp>
 
 #include <boost/multiprecision/cpp_int.hpp>
 
@@ -20,6 +21,9 @@ using namespace vefs::utils;
 
 namespace vefs::detail
 {
+    const file_id file_id::archive_index{ utils::uuid{ 0xba, 0x22, 0xb0, 0x33, 0x4b, 0xa8, 0x4e, 0x5b, 0x83, 0x0c, 0xbf, 0x48, 0x94, 0xaf, 0x53, 0xf8 } };
+    const file_id file_id::free_block_index{ utils::uuid{ 0x33, 0x38, 0xbe, 0x54, 0x6b, 0x02, 0x49, 0x24, 0x9f, 0xcc, 0x56, 0x3d, 0x7e, 0xe6, 0x81, 0xe6 }  };
+
     namespace
     {
         constexpr std::array<std::byte, 4> archive_magic_number = 0x76'65'66'73_as_bytes;
@@ -221,13 +225,15 @@ namespace vefs::detail
         // the archive is corrupted if the header message doesn't pass parameter validation
         // simple write failures and incomplete writes are catched by the AE construction
         if (headerMsg->archivesecretcounter().size() != 16
-            || headerMsg->journalcounter().size() != 16)
+            || headerMsg->journalcounter().size() != 16
+            || !headerMsg->has_archiveindex()
+            || !headerMsg->has_freeblockindex())
         {
             BOOST_THROW_EXCEPTION(archive_corrupted{});
         }
 
         //TODO: further validation
-        return std::optional<ArchiveHeader>{ std::move(headerMsg) };
+        return headerMsg;
     }
 
     void raw_archive::parse_archive_header()

@@ -23,8 +23,7 @@ namespace vefs::detail
         thread_pool & operator=(thread_pool &&) = delete;
 
         template <typename T, typename... Args >
-        auto exec(T &&task, Args&&... args)
-            -> std::future<decltype(task(std::forward<Args>(args)...))>;
+        auto exec(T &&task, Args&&... args);
 
     private:
         void worker_main(moodycamel::ConsumerToken workerToken);
@@ -35,7 +34,6 @@ namespace vefs::detail
 
     template <typename T, typename... Args>
     auto thread_pool::exec(T&& task, Args&&... args)
-        -> std::future<decltype(task(std::forward<Args>(args)...))>
     {
         using return_type = decltype(task(std::forward<Args>(args)...));
         auto taskPackage = std::make_shared<std::packaged_task<return_type()>>(

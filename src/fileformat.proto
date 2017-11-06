@@ -29,7 +29,10 @@ message ArchiveHeader
 
 message FileDescriptor
 {
-    string FileId = 1;
+    // the file path or name
+    string FilPath = 1;
+    // 16B UUID of the file
+    bytes FileId = 8;
 
     // 32B File Secret from which all sector keys of this file are derived
     bytes FileSecret = 2;
