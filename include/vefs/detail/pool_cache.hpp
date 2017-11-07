@@ -142,24 +142,21 @@ namespace vefs::detail
             return {};
         }
 
-        template <std::size_t maxTries, typename Fn, typename... ConstructorArgs>
-        std::tuple<bool, handle> try_access(const key_type &key, Fn &&initFn, ConstructorArgs... ctorArgs)
+        template <std::size_t maxTries, typename... ConstructorArgs>
+        std::tuple<bool, handle> try_access(const key_type &key, ConstructorArgs&&... ctorArgs)
         {
+            static_assert(maxTries);
             if (auto cache_ptr = this->try_access(key))
             {
                 return { true, cache_ptr };
             }
             else
             {
-                auto nptr = try_create(key, ctorArgs...);
+                auto mem = mMemPool.try_alloc();
                 [[maybe_unused]] auto tries = maxTries;
                 //TODO: passive wait
-                while (!nptr)
+                while (!mem)
                 {
-                    std::this_thread::yield();
-                    make_room();
-                    nptr = try_create(key, ctorArgs...);
-
                     if constexpr (maxTries)
                     {
                         if (!--tries)
@@ -167,17 +164,21 @@ namespace vefs::detail
                             return { false, {} };
                         }
                     }
+
+                    std::this_thread::yield();
+                    make_room();
+                    mem = mMemPool.try_alloc();
                 }
-                initFn(*nptr->cached_object);
+                auto nptr = emplace(key, mem, std::forward<ConstructorArgs>(ctorArgs)...);
                 return try_push<>(std::move(nptr));
             }
         }
 
-        template <typename Fn, typename... ConstructorArgs>
-        std::tuple<bool, handle> access(const key_type &key, Fn &&initFn, ConstructorArgs... ctorArgs)
+        template <typename... ConstructorArgs>
+        std::tuple<bool, handle> access(const key_type &key, ConstructorArgs&&... ctorArgs)
         {
-            return this->try_access<std::numeric_limits<std::size_t>::max()>(key, std::forward<Fn>(initFn),
-                std::move(ctorArgs)...);
+            return this->try_access<std::numeric_limits<std::size_t>::max()>(key,
+                std::forward<ConstructorArgs>(ctorArgs)...);
         }
 
         void make_room()
@@ -186,21 +187,39 @@ namespace vefs::detail
             {
                 node_ptr nptr;
                 mAccessQueue.try_dequeue(nptr);
-                if (nptr && is_dirty(nptr->id, as_handle(nptr)))
+                if (nptr)
                 {
-                    mAccessQueue.enqueue(std::move(nptr));
-                }
-                else
-                {
-                    node_weak_ptr postMortem{ nptr };
-                    nptr.reset();
-                    // check wether the reset killed the kid
-                    if (postMortem.expired())
+                    if (is_dirty(nptr->id, as_handle(nptr)) && nptr->type != node_type::external)
                     {
-                        break;
+                        mAccessQueue.enqueue(std::move(nptr));
+                    }
+                    else
+                    {
+                        node_weak_ptr postMortem{ nptr };
+                        nptr.reset();
+                        // check wether the reset killed the kid
+                        if (postMortem.expired())
+                        {
+                            return;
+                        }
                     }
                 }
             }
+        }
+
+        bool mark_as_accessed(const key_type &key)
+        {
+            node_ptr nptr;
+            mCachedValues.find_fn(key, [&nptr](auto &weaknptr)
+            {
+                nptr = weaknptr.lock();
+            });
+            if (nptr && nptr->type != node_type::external)
+            {
+                mAccessQueue.enqueue(std::move(nptr));
+                return true;
+            }
+            return false;
         }
 
         // transfers ownership of @param object to the cache; the given object reference must
@@ -235,24 +254,29 @@ namespace vefs::detail
         }
 
         template <typename... Args>
+        node_ptr emplace(key_type id, blob mem, Args&&... args)
+        {
+            try
+            {
+                auto n = std::make_shared<node>(this, std::move(id));
+
+                n->cached_object = new (mem.data()) T(std::forward<Args>(args)...);
+
+                return n;
+            }
+            catch (...)
+            {
+                mMemPool.dealloc(mem);
+                throw;
+            }
+        }
+
+        template <typename... Args>
         node_ptr try_create(key_type id, Args&&... args)
         {
             if (auto mem = mMemPool.try_alloc())
             {
-                try
-                {
-                    auto n = std::make_shared<node>(this, std::move(id));
-
-                    n->cached_object = new (mem.data()) T(std::forward<Args>(args)...);
-
-                    return n;
-                }
-                catch (...)
-                {
-                    mMemPool.dealloc(mem);
-                    throw;
-                }
-
+                return emplace(std::move(id), std::forward<Args>(args)...);
             }
             return {};
         }
