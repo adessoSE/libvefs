@@ -90,7 +90,11 @@ namespace std
     {
         using value_type = vefs::crypto::counter;
 
-        atomic() noexcept = default;
+        atomic() noexcept
+            : mImpl(value_type::state{})
+            , mAccessMutex()
+        {
+        }
         atomic(value_type ctr) noexcept
             : mImpl(ctr)
             , mAccessMutex()
