@@ -47,6 +47,11 @@ namespace vefs
     {
     };
 
+    class sector_reference_out_of_range
+        : public virtual archive_corrupted
+    {
+    };
+
     class unknown_archive_version
         : public virtual archive_corrupted
     {

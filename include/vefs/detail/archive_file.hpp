@@ -77,7 +77,9 @@ namespace vefs::detail
             return blob_view{ start_block_mac };
         }
 
+        // always lock the shrink_mutex first!
         mutable std::shared_mutex integrity_mutex;
+        mutable std::shared_mutex shrink_mutex;
 
         utils::secure_byte_array<32> secret;
         crypto::atomic_counter write_counter;
