@@ -17,6 +17,7 @@ add_executable(vefs-tests
 target_link_libraries(vefs-tests
     PUBLIC
         vefs
+        protobuf::libprotobuf
         Boost::unit_test_framework
 )
 add_test(NAME vefs-tests COMMAND vefs-tests)
