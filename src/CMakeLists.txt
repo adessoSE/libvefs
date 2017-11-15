@@ -33,6 +33,7 @@ DEF_SOURCE_GROUP(vefs UTILS "utils"
 
         "${_INCLUDE_DIR}/vefs/utils/enum_bitset.hpp"
         "${_INCLUDE_DIR}/vefs/utils/bit_scan.hpp"
+        "${_INCLUDE_DIR}/vefs/utils/bitset_overlay.hpp"
 
     SOURCES
         secure_ops.cpp
