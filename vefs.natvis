@@ -16,4 +16,16 @@
     </Expand>
   </Type>
 
+  <Type Name="vefs::detail::file_sector_id">
+    <DisplayString>{{ layer={static_cast&lt;unsigned short&gt;(mLayerPosition &gt;&gt; 56)}; position={mLayerPosition &amp; 0x00FFFFFFFFFFFFFF}; file-id={mFileId} }}</DisplayString>
+    <Expand>
+      <Item Name="[layer]">static_cast&lt;unsigned short&gt;(mLayerPosition &gt;&gt; 56)</Item>
+      <Item Name="[position]">mLayerPosition &amp; 0x00FFFFFFFFFFFFFF</Item>
+      <Item Name="[file]">mFileId</Item>
+    </Expand>
+  </Type>
+
+  <Type Name="vefs::detail::file_id">
+    <DisplayString>{mId}</DisplayString>
+  </Type>
 </AutoVisualizer>
