@@ -50,7 +50,7 @@ namespace vefs::crypto::detail
 
         virtual void random_bytes(blob out) const override
         {
-            random_bytes(out);
+            vefs::detail::random_bytes(out);
         }
     };
 }

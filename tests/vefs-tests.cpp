@@ -2,8 +2,18 @@
 #include <boost/throw_exception.hpp>
 
 #include <vefs/crypto/provider.hpp>
+#include <google/protobuf/stubs/common.h>
 
 using namespace boost::unit_test;
+
+struct ProtobufShutdownFixture
+{
+    ~ProtobufShutdownFixture()
+    {
+        google::protobuf::ShutdownProtobufLibrary();
+    }
+};
+BOOST_TEST_GLOBAL_FIXTURE(ProtobufShutdownFixture);
 
 
 // we can't use the macros to specify the module name, because the

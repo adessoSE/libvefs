@@ -444,7 +444,8 @@ namespace vefs::detail
         auto secretCtr = mArchiveSecretCounter.fetch_increment().value();
         auto journalCtr = mJournalCounter.load().value();
 
-        headerMsg.set_archivesecretcounter(secretCtr.data(), secretCtr.size());
+        auto nextSecretCtr = mArchiveSecretCounter.fetch_increment().value();
+        headerMsg.set_archivesecretcounter(nextSecretCtr.data(), nextSecretCtr.size());
         headerMsg.set_journalcounter(journalCtr.data(), journalCtr.size());
 
 

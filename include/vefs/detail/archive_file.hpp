@@ -46,7 +46,7 @@ namespace vefs::detail
         }
 
     private:
-        alignas(16) utils::uuid mId;
+        utils::uuid mId;
     };
 
     inline bool operator==(const file_id &lhs, const file_id &rhs)
@@ -61,7 +61,11 @@ namespace vefs::detail
 
     struct raw_archive_file
     {
-        raw_archive_file() = default;
+        raw_archive_file()
+            : integrity_mutex()
+            , shrink_mutex()
+        {
+        }
 
         blob_view secret_view() const
         {
@@ -90,6 +94,7 @@ namespace vefs::detail
         sector_id start_block_idx;
         std::uint64_t size;
         int tree_depth;
+        bool valid = true;
     };
 }
 

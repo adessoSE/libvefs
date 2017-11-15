@@ -131,13 +131,14 @@ namespace vefs::detail
             });
             if (n)
             {
+                auto handle = as_handle(n);
                 // external objects are never pushed into the access queue
                 // in order to release them as soon as possible
                 if (n->type != node_type::external)
                 {
                     mAccessQueue.enqueue(std::move(n));
                 }
-                return as_handle(n);
+                return handle;
             }
             return {};
         }

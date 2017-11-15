@@ -38,6 +38,7 @@ namespace vefs
         constexpr basic_range(const basic_range &other) noexcept = default;
 
         constexpr basic_range & operator=(const basic_range &other) noexcept = default;
+        constexpr basic_range & operator=(std::nullptr_t) noexcept;
 
         constexpr operator basic_range<std::add_const_t<value_type>>()
         {
@@ -135,6 +136,14 @@ namespace vefs
     constexpr basic_range<T>::basic_range(std::true_type, U *ptr, size_type size)
         : basic_range(static_cast<pointer>(ptr), size)
     {
+    }
+
+    template<typename T>
+    inline constexpr basic_range<T> & basic_range<T>::operator=(std::nullptr_t) noexcept
+    {
+        mBuffer = nullptr;
+        mBufferSize = 0;
+        return *this;
     }
 
     template <typename T>
@@ -275,13 +284,13 @@ namespace vefs
     constexpr void basic_range<T>::remove_prefix(size_type n) noexcept
     {
         mBuffer += n;
-        mBufferSize -= n;
+        mBufferSize -= std::min(n, mBufferSize);
     }
 
     template <typename T>
     constexpr void basic_range<T>::remove_suffix(size_type n) noexcept
     {
-        mBufferSize -= n;
+        mBufferSize -= std::min(n, mBufferSize);
     }
 
     template <typename T>
