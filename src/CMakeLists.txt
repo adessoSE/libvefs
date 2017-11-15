@@ -29,6 +29,7 @@ DEF_SOURCE_GROUP(vefs UTILS "utils"
         "${_INCLUDE_DIR}/vefs/utils/misc.hpp"
 
         "${_INCLUDE_DIR}/vefs/utils/uuid.hpp"
+        "${_INCLUDE_DIR}/vefs/utils/random.hpp"
 
         "${_INCLUDE_DIR}/vefs/utils/enum_bitset.hpp"
         "${_INCLUDE_DIR}/vefs/utils/bit_scan.hpp"
