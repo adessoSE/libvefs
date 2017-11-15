@@ -184,27 +184,9 @@ namespace vefs::detail
 
         void make_room()
         {
-            for (std::size_t i = 0, limit = mAccessQueue.size_approx(); i < limit; ++i)
+            for (std::size_t i = 0, limit = mAccessQueue.size_approx();
+                i < limit && !try_pop_one(); ++i)
             {
-                node_ptr nptr;
-                mAccessQueue.try_dequeue(nptr);
-                if (nptr)
-                {
-                    if (is_dirty(nptr->id, as_handle(nptr)) && nptr->type != node_type::external)
-                    {
-                        mAccessQueue.enqueue(std::move(nptr));
-                    }
-                    else
-                    {
-                        node_weak_ptr postMortem{ nptr };
-                        nptr.reset();
-                        // check wether the reset killed the kid
-                        if (postMortem.expired())
-                        {
-                            return;
-                        }
-                    }
-                }
             }
         }
 
@@ -248,10 +230,46 @@ namespace vefs::detail
             return try_push<false>(std::static_pointer_cast<node>(ext_node));
         }
 
+        void queue_dirty()
+        {
+            auto lockedTable = mCachedValues.lock_table();
+            for (const auto &pair : lockedTable)
+            {
+                if (auto ptr = std::get<1>(pair).lock())
+                {
+                    is_dirty(std::get<0>(pair), as_handle(ptr));
+                }
+            }
+        }
+
     private:
         handle as_handle(const node_ptr &node)
         {
             return { node, node->cached_object };
+        }
+
+        bool try_pop_one()
+        {
+            node_ptr nptr;
+            mAccessQueue.try_dequeue(nptr);
+            if (nptr)
+            {
+                if (is_dirty(nptr->id, as_handle(nptr)))
+                {
+                    mAccessQueue.enqueue(std::move(nptr));
+                }
+                else
+                {
+                    node_weak_ptr postMortem{ nptr };
+                    nptr.reset();
+                    // check wether the reset killed the kid
+                    if (postMortem.expired())
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
         }
 
         template <typename... Args>
