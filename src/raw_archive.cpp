@@ -2,11 +2,15 @@
 #include <vefs/detail/raw_archive.hpp>
 
 #include <array>
+#include <random>
 #include <optional>
+
+#include <boost/uuid/random_generator.hpp>
 
 #include <vefs/exceptions.hpp>
 #include <vefs/crypto/kdf.hpp>
 #include <vefs/utils/misc.hpp>
+#include <vefs/utils/random.hpp>
 #include <vefs/utils/secure_array.hpp>
 #include <vefs/utils/secure_allocator.hpp>
 #include <vefs/detail/archive_file.hpp>
@@ -38,7 +42,11 @@ namespace vefs::detail
         const blob_view archive_journal_counter_kdf = "vefs/seed/JournalCounter"_bv;
 
         const blob_view sector_kdf_salt = "vefs/salt/Sector-Salt"_bv;
+        const blob_view sector_kdf_erase = "vefs/erase/Sector"_bv;
         const blob_view sector_kdf_prk = "vefs/prk/SectorPRK"_bv;
+
+        const blob_view file_kdf_secret = "vefs/seed/FileSecret"_bv;
+        const blob_view file_kdf_counter = "vefs/seed/FileSecretCounter"_bv;
 
 #pragma pack(push, 1)
 
@@ -68,11 +76,49 @@ namespace vefs::detail
 
     }
 
+    void vefs::detail::raw_archive::initialize_file(raw_archive_file &file)
+    {
+        auto ctrValue = mArchiveSecretCounter.fetch_increment().value();
+        blob_view ctrValueView{ ctrValue };
+        crypto::kdf(master_secret_view(), { file_kdf_secret, ctrValueView, session_salt_view() },
+            blob{ file.secret });
+
+        {
+            crypto::counter::state fileWriteCtrState;
+            ctrValue = mArchiveSecretCounter.fetch_increment().value();
+            crypto::kdf(master_secret_view(), { file_kdf_counter, ctrValueView },
+                blob{ fileWriteCtrState });
+            file.write_counter.store(crypto::counter{ fileWriteCtrState });
+        }
+
+        file.start_block_idx = sector_id{};
+        file.start_block_mac = {};
+        file.size = 0;
+        file.tree_depth = -1;
+    }
+
+    std::shared_ptr<raw_archive_file> raw_archive::create_file()
+    {
+        //TODO: improve id generation
+        thread_local vefs::utils::xoroshiro128plus engine{ std::random_device{}() };
+        thread_local boost::uuids::basic_random_generator<decltype(engine)> generate_id{ engine };
+
+        auto file = std::make_shared<raw_archive_file>();
+
+        file->id = file_id{ generate_id() };
+
+        initialize_file(*file);
+
+        return file;
+    }
+
     raw_archive::raw_archive(file::ptr archiveFile, crypto::crypto_provider * cryptoProvider)
         : mCryptoProvider(cryptoProvider)
         , mArchiveFile(std::move(archiveFile))
         , mSessionSalt(cryptoProvider->generate_session_salt())
+        , mNumSectors(0)
     {
+        mNumSectors = mArchiveFile->size() / sector_size;
     }
 
     raw_archive::raw_archive(file::ptr archiveFile, crypto::crypto_provider *cryptoProvider,
@@ -108,14 +154,21 @@ namespace vefs::detail
 
     raw_archive::raw_archive(file::ptr archiveFile, crypto::crypto_provider * cryptoProvider,
         blob_view userPRK, create_tag)
-        : raw_archive(archiveFile, cryptoProvider)
+        : raw_archive(std::move(archiveFile), cryptoProvider)
     {
+        // allocate the master sector
+        resize(1);
+
         mCryptoProvider->random_bytes(blob{ mArchiveMasterSecret });
         mCryptoProvider->random_bytes(blob{ mStaticHeaderWriteCounter });
 
         write_static_archive_header(userPRK);
         mFreeBlockIdx = std::make_unique<raw_archive_file>();
+        mFreeBlockIdx->id = file_id::free_block_index;
+        initialize_file(*mFreeBlockIdx);
         mArchiveIdx = std::make_unique<raw_archive_file>();
+        mArchiveIdx->id = file_id::archive_index;
+        initialize_file(*mArchiveIdx);
     }
 
     raw_archive::~raw_archive()
@@ -431,6 +484,22 @@ namespace vefs::detail
 
         encrypt_sector(blob{ salt }, ciphertextBuffer, mac, data, file.secret_view(), file.write_counter);
         write_sector_data(sectorIdx, blob{ salt }, ciphertextBuffer);
+    }
+
+    void vefs::detail::raw_archive::erase_sector(raw_archive_file &file, sector_id sectorIdx)
+    {
+        if (sectorIdx == sector_id::master)
+        {
+            BOOST_THROW_EXCEPTION(std::invalid_argument{ "cannot erase the first sector" });
+        }
+        std::array<std::byte, 32> saltBuffer;
+        blob salt{ saltBuffer };
+
+        auto nonce = file.write_counter.fetch_increment();
+        crypto::kdf(nonce.view(), { sector_kdf_erase, blob_view{ mSessionSalt } }, salt);
+
+        const auto offset = to_offset(sectorIdx);
+        mArchiveFile->write(salt, offset);
     }
 
     void vefs::detail::raw_archive::update_header()

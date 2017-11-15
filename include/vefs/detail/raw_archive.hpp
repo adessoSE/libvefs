@@ -35,14 +35,29 @@ namespace vefs::detail
             create_tag);
         ~raw_archive();
 
-        void read_sector(blob buffer, const raw_archive_file & file, sector_id sectorIdx,
+        void read_sector(blob buffer, const raw_archive_file &file, sector_id sectorIdx,
                          blob_view contentMAC);
-        void write_sector(blob ciphertextBuffer, blob mac, raw_archive_file & file,
+        void write_sector(blob ciphertextBuffer, blob mac, raw_archive_file &file,
                           sector_id sectorIdx, blob_view data);
+        void erase_sector(raw_archive_file &file, sector_id sectorIdx);
 
         void update_header();
         void update_static_header(blob_view newUserPRK);
 
+        // numSectors = number of sectors (i.e. including the master sector)
+        void resize(std::uint64_t numSectors)
+        {
+            mArchiveFile->resize(numSectors * sector_size);
+            mNumSectors = numSectors;
+        }
+        std::uint64_t size() const
+        {
+            return mNumSectors.load();
+        }
+        void sync()
+        {
+            mArchiveFile->sync();
+        }
 
         raw_archive_file & index_file()
         {
@@ -76,6 +91,7 @@ namespace vefs::detail
             return mJournalCounter;
         }
 
+        std::shared_ptr<raw_archive_file> create_file();
 
     private:
         raw_archive(file::ptr archiveFile, crypto::crypto_provider *cryptoProvider);
@@ -85,6 +101,8 @@ namespace vefs::detail
         auto parse_archive_header(std::size_t position, std::size_t size);
 
         void write_static_archive_header(blob_view userPRK);
+
+        void initialize_file(raw_archive_file &file);
 
         void encrypt_sector(blob saltBuffer, blob ciphertextBuffer, blob mac, blob_view data,
                             blob_view fileKey, crypto::atomic_counter & nonceCtr);
@@ -108,6 +126,8 @@ namespace vefs::detail
         utils::secure_byte_array<16> mSessionSalt;
         crypto::atomic_counter mArchiveSecretCounter;
         crypto::atomic_counter mJournalCounter;
+
+        std::atomic<uint64_t> mNumSectors;
 
         size_t mArchiveHeaderOffset;
         unsigned int mHeaderSelector;
