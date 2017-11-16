@@ -19,6 +19,7 @@
 
 #include "fileformat.pb.h"
 #include "proto-helper.hpp"
+#include "sysrandom.hpp"
 
 using namespace vefs::utils;
 
@@ -74,6 +75,13 @@ namespace vefs::detail
 
 #pragma pack(pop)
 
+        inline utils::xoroshiro128plus create_engine()
+        {
+            std::uint64_t randomState[2];
+            random_bytes(blob{ reinterpret_cast<std::byte *>(randomState), sizeof(randomState) });
+
+            return xoroshiro128plus{ randomState[0], randomState[1] };
+        }
     }
 
     void vefs::detail::raw_archive::initialize_file(raw_archive_file &file)
@@ -100,7 +108,7 @@ namespace vefs::detail
     std::shared_ptr<raw_archive_file> raw_archive::create_file()
     {
         //TODO: improve id generation
-        thread_local vefs::utils::xoroshiro128plus engine{ std::random_device{}() };
+        thread_local vefs::utils::xoroshiro128plus engine = create_engine();
         thread_local boost::uuids::basic_random_generator<decltype(engine)> generate_id{ engine };
 
         auto file = std::make_shared<raw_archive_file>();
