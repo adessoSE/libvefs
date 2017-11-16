@@ -30,7 +30,7 @@ message ArchiveHeader
 message FileDescriptor
 {
     // the file path or name
-    string FilPath = 1;
+    string FilePath = 1;
     // 16B UUID of the file
     bytes FileId = 8;
 

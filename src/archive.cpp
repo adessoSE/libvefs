@@ -1013,7 +1013,7 @@ namespace vefs
                     unpack(*currentFile, descriptor);
                 }
 
-                mIndex.insert_or_assign(descriptor.filpath(), currentFile->id);
+                mIndex.insert_or_assign(descriptor.filepath(), currentFile->id);
                 mFiles.uprase_fn(currentFile->id, [&currentFile](raw_archive_file_ptr &f)
                 {
                     assert(currentFile); // we depend on an implementation detail of uprase_fn
@@ -1051,7 +1051,7 @@ namespace vefs
         {
             auto file = mFiles.find(std::get<1>(*it));
             pack(descriptor, *file);
-            descriptor.set_filpath(std::get<0>(*it));
+            descriptor.set_filepath(std::get<0>(*it));
 
             auto size = descriptor.ByteSizeLong();
             auto neededBlocks = utils::div_ceil(size + 2, block_size);
