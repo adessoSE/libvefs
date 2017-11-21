@@ -154,4 +154,38 @@ BOOST_AUTO_TEST_CASE(archive_file_erase)
     }
 }
 
+BOOST_AUTO_TEST_CASE(archive_empty_userprk)
+{
+    using namespace vefs;
+
+    auto memfs = tests::memory_filesystem::create();
+    auto fs = std::static_pointer_cast<filesystem>(memfs);
+    auto cprov = crypto::boringssl_aes_256_gcm_crypto_provider();
+
+    constexpr std::uint64_t pos = detail::raw_archive::sector_payload_size * 2 - 1;
+    using file_type = std::array<std::byte, (1 << 17) * 3 - 1>;
+    auto bigFile = std::make_unique<file_type>();
+    blob file{ *bigFile };
+
+    utils::xoroshiro128plus dataGenerator{ 0 };
+    dataGenerator.fill(file);
+
+    {
+        archive ac{ fs, default_archive_path, cprov, blob_view{}, archive::create };
+        auto id = ac.open(default_file_path, file_open_mode::readwrite | file_open_mode::create);
+        ac.write(id, file, pos);
+        BOOST_TEST_REQUIRE(ac.size_of(id) == file.size() + pos);
+    }
+    {
+        archive ac{ fs, default_archive_path, cprov, blob_view{} };
+        auto id = ac.open(default_file_path, file_open_mode::read);
+        BOOST_TEST_REQUIRE(ac.size_of(id) == file.size() + pos);
+
+        auto readBuffer = std::make_unique<file_type>();
+        ac.read(id, blob{ *readBuffer }, pos);
+
+        BOOST_TEST(mismatch(file, blob_view{ *readBuffer }) == file.size());
+    }
+}
+
 BOOST_AUTO_TEST_SUITE_END()
