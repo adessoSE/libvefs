@@ -44,6 +44,12 @@ DEF_SOURCE_GROUP(vefs UTILS "utils"
         proto-helper.hpp
 )
 
+if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    set(OS_FILESYSTEM_SRC os_filesystem_linux.cpp)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    set(OS_FILESYSTEM_SRC os_filesystem_win.cpp)
+endif()
+
 DEF_SOURCE_GROUP(vefs LIB "lib"
     HEADERS
         "${_INCLUDE_DIR}/vefs/archive.hpp"
@@ -56,6 +62,9 @@ DEF_SOURCE_GROUP(vefs LIB "lib"
     SOURCES
         archive.cpp
         filesystem.cpp
+        os_filesystem.hpp
+        os_filesystem.cpp
+        ${OS_FILESYSTEM_SRC}
         exceptions.cpp
 )
 
