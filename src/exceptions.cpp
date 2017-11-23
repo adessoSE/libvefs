@@ -22,4 +22,46 @@ namespace vefs
 #endif
         return errinfo_code{ ec };
     }
+
+    namespace
+    {
+        class vefs_error_category
+            : public std::error_category
+        {
+        public:
+#if !defined BOOST_COMP_MSVC_AVAILABLE
+            constexpr
+#endif
+                vefs_error_category() = default;
+
+
+            // Inherited via error_category
+            virtual const char * name() const noexcept override
+            {
+                return "vefs";
+            }
+
+            virtual std::string message(int errval) const override
+            {
+                switch (vefs_error_code{ errval })
+                {
+                default:
+                    return std::string{ "unknown mvefs error code: #" } +std::to_string(errval);
+                }
+            }
+
+        };
+
+#if defined BOOST_COMP_MSVC_AVAILABLE
+        const
+#else
+        constexpr
+#endif
+        vefs_error_category gVefsErrorCategory;
+    }
+
+    const std::error_category & vefs_category()
+    {
+        return gVefsErrorCategory;
+    }
 }

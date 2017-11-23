@@ -4,6 +4,8 @@
 
 #include <exception>
 #include <stdexcept>
+#include <system_error>
+#include <type_traits>
 #include <boost/exception/all.hpp>
 
 #include <vefs/detail/sector_id.hpp>
@@ -59,6 +61,26 @@ namespace vefs
 
     class io_error
         : public virtual exception
+    {
+    };
+
+
+    enum class vefs_error_code
+    {
+
+    };
+    const std::error_category & vefs_category();
+    inline std::error_code make_error_code(vefs_error_code code)
+    {
+        return { static_cast<int>(code), vefs_category() };
+    }
+}
+
+namespace std
+{
+    template <>
+    struct is_error_code_enum<vefs::vefs_error_code>
+        : std::true_type
     {
     };
 }
