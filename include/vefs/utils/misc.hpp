@@ -47,6 +47,30 @@ namespace vefs::utils
     }
 
 
+    template <typename F, typename... Args>
+    inline auto error_code_scope(F &&f, Args&&... args)
+    {
+        std::error_code ec;
+        if constexpr (std::is_same_v<decltype(f(std::forward<Args>(args)..., ec)), void>)
+        {
+            f(std::forward<Args>(args)..., ec);
+            if (ec)
+            {
+                BOOST_THROW_EXCEPTION(std::system_error(ec));
+            }
+        }
+        else
+        {
+            auto result = f(std::forward<Args>(args)..., ec);
+            if (ec)
+            {
+                BOOST_THROW_EXCEPTION(std::system_error(ec));
+            }
+            return result;
+        }
+    }
+
+
     template <typename Fn>
     struct scope_guard
     {
