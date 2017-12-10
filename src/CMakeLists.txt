@@ -1,16 +1,5 @@
 protobuf_generate_cpp(_FILEPROTO_SRCS _FILEPROTO_HDRS fileformat.proto)
 
-# the protobuf generated files don't know about the precompiled header and
-# thus cannot be put into the main project
-add_library(vefs-proto STATIC
-    ${_FILEPROTO_SRCS}
-    ${_FILEPROTO_HDRS}
-
-    fileformat.proto
-)
-target_include_directories(vefs-proto PRIVATE $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>)
-target_link_libraries(vefs-proto PUBLIC protobuf::libprotobuf)
-
 set(_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/include")
 
 DEF_SOURCE_GROUP(vefs UTILS "utils"
@@ -124,6 +113,15 @@ DEF_SOURCE_GROUP(vefs EXTERNAL_CQUEUE "ext/concurrentqueue"
         "${_INCLUDE_DIR}/vefs/ext/concurrentqueue/blockingconcurrentqueue.h"
 )
 
+DEF_SOURCE_GROUP(vefs PROTO "proto"
+    SOURCES
+        ${_FILEPROTO_SRCS}
+        fileformat.proto
+
+    HEADERS
+        ${_FILEPROTO_HDRS}
+)
+
 add_library(vefs STATIC
     ${vefs_SRC}
 )
@@ -146,10 +144,15 @@ target_link_libraries(vefs
         Boost::system
         OpenSSL::Crypto
         libb2
-
-    PRIVATE
-        vefs-proto
+        protobuf::libprotobuf
 )
+
+if (MSVC)
+    set_source_files_properties(${_FILEPROTO_SRCS} PROPERTIES
+        COMPILE_FLAGS "/wd4146 /wd4125"
+    )   
+endif()
+
 
 ##########################################################################
 # cotire config
@@ -162,7 +165,7 @@ cotire(vefs)
 
 ##########################################################################
 # install targets
-install(TARGETS vefs-proto vefs EXPORT vefs-targets
+install(TARGETS vefs EXPORT vefs-targets
     RUNTIME DESTINATION bin/$<CONFIG>
     LIBRARY DESTINATION lib/$<CONFIG>
     ARCHIVE DESTINATION lib/$<CONFIG>

@@ -62,7 +62,7 @@ endif()
 
 option(Boost_USE_DEBUG_RUNTIME "Use debug boost libraries" ON)
 option(Boost_USE_STATIC_LIBS "Use static boost libraries" ON)
-find_package(Boost 1.62 REQUIRED COMPONENTS
+find_package(Boost 1.65 REQUIRED COMPONENTS
     system
     unit_test_framework
 )
