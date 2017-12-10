@@ -182,6 +182,11 @@ namespace vefs::detail
     {
     }
 
+    void raw_archive::sync()
+    {
+        mArchiveFile->sync();
+    }
+
     void raw_archive::parse_static_archive_header(blob_view userPRK)
     {
         StaticArchiveHeaderPrefix archivePrefix;
@@ -312,7 +317,7 @@ namespace vefs::detail
         };
 
 
-        const auto headerSize0 = header_size(0);
+        const auto headerSize0 = header_size(header_id::first);
 
         auto first = parse_archive_header(mArchiveHeaderOffset, headerSize0);
         VEFS_SCOPE_EXIT{
@@ -322,7 +327,7 @@ namespace vefs::detail
             }
         };
 
-        auto second = parse_archive_header(mArchiveHeaderOffset + headerSize0, header_size(1));
+        auto second = parse_archive_header(mArchiveHeaderOffset + headerSize0, header_size(header_id::second));
         VEFS_SCOPE_EXIT{
             if (second)
             {
@@ -363,24 +368,24 @@ namespace vefs::detail
 
             if (0 < cmp)
             {
-                mHeaderSelector = 0;
+                mHeaderSelector = header_id::first;
                 apply(*first);
             }
             else
             {
-                mHeaderSelector = 1;
+                mHeaderSelector = header_id::second;
                 apply(*second);
             }
         }
         else if (first)
         {
-            mHeaderSelector = 0;
+            mHeaderSelector = header_id::first;
             apply(*first);
 
         }
         else if (second)
         {
-            mHeaderSelector = 1;
+            mHeaderSelector = header_id::second;
             apply(*second);
         }
         else
@@ -525,9 +530,8 @@ namespace vefs::detail
         headerMsg.set_journalcounter(journalCtr.data(), journalCtr.size());
 
 
-        mHeaderSelector = !mHeaderSelector;
-        const auto headerOffset
-            = mArchiveHeaderOffset + mHeaderSelector * header_size(0);
+        switch_header();
+        const auto headerOffset = header_offset(mHeaderSelector);
         const auto fullHeaderSize = header_size(mHeaderSelector);
 
         secure_vector<std::byte> headerMem{ fullHeaderSize, std::byte{} };
