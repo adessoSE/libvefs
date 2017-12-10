@@ -17,7 +17,6 @@
 
 #include <boost/multiprecision/cpp_int.hpp>
 
-#include "fileformat.pb.h"
 #include "proto-helper.hpp"
 #include "sysrandom.hpp"
 

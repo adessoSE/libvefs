@@ -5,7 +5,17 @@
 #include <vefs/detail/archive_file.hpp>
 #include <vefs/utils/secure_ops.hpp>
 
+#if defined BOOST_COMP_MSVC_AVAILABLE
+#pragma warning(push)
+#pragma warning(disable: 4146)
+#endif
+
 #include "fileformat.pb.h"
+
+#if defined BOOST_COMP_MSVC_AVAILABLE
+#pragma warning(pop)
+#endif
+
 
 namespace vefs
 {

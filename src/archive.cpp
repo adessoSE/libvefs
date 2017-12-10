@@ -17,7 +17,6 @@
 #include <vefs/utils/misc.hpp>
 #include <vefs/utils/bitset_overlay.hpp>
 
-#include "fileformat.pb.h"
 #include "proto-helper.hpp"
 
 using namespace std::string_view_literals;
