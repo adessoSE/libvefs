@@ -152,7 +152,7 @@ namespace vefs
             width /= references_per_sector;
             offset = logId.position() * references_per_sector;
 
-            logId.layer() -= 1;
+            logId.layer(logId.layer() - 1);
             logId.position(cacheId.position() / width);
 
             const auto ref = &sector->data_view().as<RawSectorReference>() + logId.position() - offset;
@@ -398,7 +398,7 @@ namespace vefs
                 macMem = file.start_block_mac;
                 physId = file.start_block_idx;
 
-                logicalId.layer() = static_cast<std::uint8_t>(file.tree_depth);
+                logicalId.layer(static_cast<std::uint8_t>(file.tree_depth));
                 if (file.tree_depth == 0)
                 {
                     return {};
@@ -744,7 +744,7 @@ namespace vefs
                 it = safe_acquire(file, logId, nextSector, blob_view{ nextMac });
 
                 width /= file_sector_id::references_per_sector;
-                logId.layer() -= 1;
+                logId.layer(logId.layer() - 1);
                 logId.position(walker.current().position() / width);
 
                 offset = logId.position_array_offset();
