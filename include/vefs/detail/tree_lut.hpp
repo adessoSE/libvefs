@@ -31,9 +31,23 @@ namespace vefs::detail::lut::detail
         }
         return lut;
     }
+
+    constexpr auto compute_ref_width_lut()
+    {
+        // zero is tree depth -1
+        // one is tree depth 0
+        std::array<std::uint64_t, max_tree_depth + 1> lut{};
+        lut[0] = 1;
+        for (auto i = 1; i < lut.size(); ++i)
+        {
+            lut[i] = lut[i - 1] * references_per_sector;
+        }
+        return lut;
+    }
 }
 
 namespace vefs::detail::lut
 {
     constexpr auto step_width{ detail::compute_step_width_lut() };
+    constexpr auto ref_width{ detail::compute_ref_width_lut() };
 }

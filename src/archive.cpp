@@ -11,11 +11,13 @@
 #include <sstream>
 #include <string_view>
 
+
 #include <boost/dynamic_bitset.hpp>
 #include <boost/iterator/iterator_facade.hpp>
 
 #include <vefs/utils/misc.hpp>
 #include <vefs/utils/bitset_overlay.hpp>
+#include <vefs/detail/tree_walker.hpp>
 
 #include "proto-helper.hpp"
 
@@ -80,10 +82,10 @@ namespace vefs
             return std::make_optional<file_sector_handle>();
         }
 
-        auto width = utils::upow(references_per_sector, treeDepth);
-        file_sector_id logId{ file.id, cacheId.position() / width, treeDepth };
+        tree_path path{ treeDepth, cacheId.position(), cacheId.layer() };
+        file_sector_id logId{ file.id, treeDepth ? path.position(treeDepth - 1) : 0, treeDepth };
         std::shared_ptr<file_sector> parentSector;
-        std::uint64_t offset = 0;
+
 
         for (;;)
         {
@@ -124,7 +126,8 @@ namespace vefs
                     // stabelize memory representation
                     std::lock_guard<std::mutex> parentLock{ parentSector->write_mutex() };
 
-                    const auto ref = &sector->data_view().as<RawSectorReference>() + logId.position() - offset;
+                    const auto ref = &sector->data_view().as<RawSectorReference>()
+                        + path.position(logId.layer());
                     if (ref->reference != sector_id::master)
                     {
                         return std::make_optional<file_sector_handle>();
@@ -149,13 +152,11 @@ namespace vefs
                 return sector;
             }
 
-            width /= references_per_sector;
-            offset = logId.position() * references_per_sector;
-
             logId.layer(logId.layer() - 1);
-            logId.position(cacheId.position() / width);
+            logId.position(path.position(logId.layer()));
 
-            const auto ref = &sector->data_view().as<RawSectorReference>() + logId.position() - offset;
+            const auto ref = &sector->data_view().as<RawSectorReference>()
+                + path.offset(logId.layer());
 
             physId = ref->reference;
             mac = ref->mac;
