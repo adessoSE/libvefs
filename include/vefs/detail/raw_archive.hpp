@@ -161,7 +161,7 @@ namespace vefs::detail
     inline auto vefs::detail::raw_archive::header_size(header_id which) const noexcept
     {
         return (sector_size - mArchiveHeaderOffset) / 2
-            + static_cast<size_t>(which) & mArchiveHeaderOffset;
+            + (static_cast<size_t>(which) & mArchiveHeaderOffset);
     }
     inline auto raw_archive::header_offset(header_id which) const noexcept
     {

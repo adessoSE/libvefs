@@ -68,6 +68,8 @@ DEF_SOURCE_GROUP(vefs DETAIL "lib/detail"
 
         "${_INCLUDE_DIR}/vefs/detail/sector_id.hpp"
         "${_INCLUDE_DIR}/vefs/detail/file_sector.hpp"
+        "${_INCLUDE_DIR}/vefs/detail/tree_walker.hpp"
+        "${_INCLUDE_DIR}/vefs/detail/tree_lut.hpp"
         "${_INCLUDE_DIR}/vefs/detail/archive_file.hpp"
         "${_INCLUDE_DIR}/vefs/detail/raw_archive.hpp"
         "${_INCLUDE_DIR}/vefs/detail/journal.hpp"
@@ -76,6 +78,7 @@ DEF_SOURCE_GROUP(vefs DETAIL "lib/detail"
         thread_pool.cpp
         raw_archive.cpp
         file_sector.cpp
+        tree_walker.cpp
 )
 
 DEF_SOURCE_GROUP(vefs CRYPTO "crypto"

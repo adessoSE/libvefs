@@ -15,6 +15,7 @@
 #include <vefs/detail/sector_id.hpp>
 #include <vefs/detail/raw_archive.hpp>
 #include <vefs/detail/archive_file.hpp>
+#include <vefs/detail/tree_walker.hpp>
 
 
 namespace vefs::detail
@@ -27,7 +28,7 @@ namespace vefs::detail
         static constexpr auto layer_offset = 56;
 
     public:
-        static constexpr auto references_per_sector = raw_archive::sector_payload_size / 32;
+        static constexpr auto references_per_sector = lut::references_per_sector;
 
         file_sector_id();
         file_sector_id(const vefs::detail::file_id &fileId,
@@ -156,18 +157,16 @@ namespace vefs::detail
         mLayerPosition = value;
     }
 
-    inline bool file_sector_id::is_allocated(std::uint64_t fileSize) const
+    inline bool file_sector_id::is_allocated(const std::uint64_t fileSize) const
     {
-        auto numAllocatedBlocks = utils::div_ceil(fileSize, raw_archive::sector_payload_size);
-        auto l = layer();
-        auto pos = position();
-        if (l == 0)
-        {
-            return pos < numAllocatedBlocks
-                || (fileSize == 0 && pos == 0); // there is always a sector allocated for each file
-        }
-        auto width = utils::upow(references_per_sector, l);
-        return numAllocatedBlocks > width && width * pos < numAllocatedBlocks;
+        const auto l = layer();
+        const auto pos = position();
+        const auto unit_width = lut::step_width[l]; // width of the referenced layer
+        const auto step_width = lut::step_width[l + 1]; // step width on the reference layer
+        const auto beginPos = pos * step_width;
+
+        return ((pos | l) == 0) // there is always a sector allocated for each file
+            || unit_width < fileSize && beginPos < fileSize;
     }
 
     inline file_sector_id::operator bool() const noexcept
