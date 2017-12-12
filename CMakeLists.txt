@@ -71,6 +71,8 @@ if (NOT Boost_USE_STATIC_LIBS)
 	add_definitions(-DBOOST_ALL_DYN_LINK)
 endif()
 
+find_package(benchmark)
+
 
 ##########################################################################
 # compiler adjustments
@@ -142,7 +144,9 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 ##########################################################################
 # the actual library project
 add_subdirectory(src)
-
+if (benchmark_FOUND)
+    add_subdirectory(benchmark)
+endif()
 
 ##########################################################################
 enable_testing()
