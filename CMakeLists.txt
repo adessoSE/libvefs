@@ -114,8 +114,9 @@ endif()
 
 # additional compiler tweaks
 if (MSVC)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /utf-8 /permissive-")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /utf-8 /permissive-")
+    # protobuf uses std::iterator within repeated_field.h
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /utf-8 /permissive- /D_SILENCE_CXX17_ITERATOR_BASE_CLASS_DEPRECATION_WARNING")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /utf-8 /permissive- /D_SILENCE_CXX17_ITERATOR_BASE_CLASS_DEPRECATION_WARNING")
 endif()
 
 if(WIN32)
