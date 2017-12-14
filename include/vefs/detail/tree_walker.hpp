@@ -15,8 +15,9 @@
 
 namespace vefs::detail
 {
-    class compact_sector_position
+    struct compact_sector_position
     {
+    private:
         using storage_type = std::uint64_t;
         static constexpr storage_type position_mask = 0x00FF'FFFF'FFFF'FFFF;
         static constexpr storage_type layer_mask = ~position_mask;
@@ -74,12 +75,11 @@ namespace vefs::detail
         int mTargetLayer;
     };
 
-    /*
     class tree_path::iterator
         : boost::iterator_facade<tree_path::iterator,
-            std::uint64_t,
+            compact_sector_position,
             boost::forward_traversal_tag,
-            std::uint64_t
+            compact_sector_position
         >
     {
         friend class boost::iterator_core_access;
@@ -89,15 +89,14 @@ namespace vefs::detail
         iterator(const tree_path &path);
 
     private:
-        std::uint64_t dereference() const
-        {
-            return
-        }
+        bool equal(const iterator &other) const;
+
+        compact_sector_position dereference() const;
+        void increment();
 
         const tree_path *mOwner;
-        waypoint_array::const_reverse_iterator mIt;
+        int mLayer;
     };
-    */
 }
 
 namespace vefs::detail
@@ -142,6 +141,8 @@ namespace vefs::detail
     }
 
     #pragma endregion
+
+    #pragma region tree_path implementation
 
     inline tree_path::tree_path(int treeDepth, int targetLayer) noexcept
         : mTreeDepth(treeDepth)
@@ -257,4 +258,44 @@ namespace vefs::detail
     {
         return mTreeDepth < 0;
     }
+
+    #pragma endregion
+
+    #pragma region tree_path::iterator implementation
+
+    inline tree_path::iterator::iterator()
+        : mOwner(nullptr)
+        , mLayer(-1)
+    {
+    }
+    inline tree_path::iterator::iterator(const tree_path &path)
+        : mOwner(&path)
+        , mLayer(path.mTreeDepth - 1)
+    {
+        if (mLayer < 0)
+        {
+            mLayer = 0;
+        }
+    }
+
+    inline compact_sector_position tree_path::iterator::dereference() const
+    {
+        return mOwner->layer_position(mLayer);
+    }
+
+    inline void tree_path::iterator::increment()
+    {
+        mLayer -= 1;
+    }
+
+    inline bool tree_path::iterator::equal(const iterator & other) const
+    {
+        if (mLayer < 0)
+        {
+            return other.mLayer < 0;
+        }
+        return mLayer == other.mLayer && mOwner == other.mOwner;
+    }
+
+    #pragma endregion
 }
