@@ -1,31 +1,37 @@
 <?xml version="1.0" encoding="utf-8"?>
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
 
-  <!-- sexpr::basic_node -->
-  <Type Name="vefs::basic_range&lt;*&gt;" >
-    <DisplayString Condition="mBuffer == 0 &amp;&amp; mBufferSize == 0">{{unset range}}</DisplayString>
-    <DisplayString Condition="mBufferSize == 0">{{ empty range }}</DisplayString>
-    <DisplayString Condition="mBuffer == 0">{{ nullptr range }}</DisplayString>
-    <DisplayString>{{ size={mBufferSize} }}</DisplayString>
-    <Expand>
-        <Item Name="[size]" ExcludeView="simple">mBufferSize</Item>
-        <ArrayItems>
-            <Size>mBufferSize</Size>
-            <ValuePointer>mBuffer</ValuePointer>
-        </ArrayItems>
-    </Expand>
-  </Type>
+    <!-- sexpr::basic_node -->
+    <Type Name="vefs::basic_range&lt;*&gt;" >
+        <DisplayString Condition="mBuffer == 0 &amp;&amp; mBufferSize == 0">{{unset range}}</DisplayString>
+        <DisplayString Condition="mBufferSize == 0">{{ empty range }}</DisplayString>
+        <DisplayString Condition="mBuffer == 0">{{ nullptr range }}</DisplayString>
+        <DisplayString>{{ size={mBufferSize} }}</DisplayString>
+        <Expand>
+            <Item Name="[size]" ExcludeView="simple">mBufferSize</Item>
+            <ArrayItems>
+                <Size>mBufferSize</Size>
+                <ValuePointer>mBuffer</ValuePointer>
+            </ArrayItems>
+        </Expand>
+    </Type>
 
-  <Type Name="vefs::detail::file_sector_id">
-    <DisplayString>{{ layer={static_cast&lt;unsigned short&gt;(mLayerPosition &gt;&gt; 56)}; position={mLayerPosition &amp; 0x00FFFFFFFFFFFFFF}; file-id={mFileId} }}</DisplayString>
-    <Expand>
-      <Item Name="[layer]">static_cast&lt;unsigned short&gt;(mLayerPosition &gt;&gt; 56)</Item>
-      <Item Name="[position]">mLayerPosition &amp; 0x00FFFFFFFFFFFFFF</Item>
-      <Item Name="[file]">mFileId</Item>
-    </Expand>
-  </Type>
+    <Type Name="vefs::detail::file_sector_id">
+        <DisplayString>{{ tree-position={mLayerPosition}; file-id={mFileId} }}</DisplayString>
+        <Expand>
+            <Item Name="[tree_position]">mLayerPosition</Item>
+            <Item Name="[file]">mFileId</Item>
+        </Expand>
+    </Type>
 
-  <Type Name="vefs::detail::file_id">
-    <DisplayString>{mId}</DisplayString>
-  </Type>
+    <Type Name="vefs::detail::file_id">
+        <DisplayString>{mId}</DisplayString>
+    </Type>
+    <Type Name="vefs::detail::tree_position">
+        <DisplayString>{{ layer={static_cast&lt;unsigned short&gt;(mLayerPosition &gt;&gt; 56)}; position={mLayerPosition &amp; 0x00FFFFFFFFFFFFFF} }}</DisplayString>
+        <Expand>
+            <Item Name="[layer]">static_cast&lt;unsigned short&gt;(mLayerPosition &gt;&gt; 56)</Item>
+            <Item Name="[position]">mLayerPosition &amp; 0x00FFFFFFFFFFFFFF</Item>
+        </Expand>
+    </Type>
 </AutoVisualizer>
