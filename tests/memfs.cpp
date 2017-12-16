@@ -9,7 +9,7 @@ struct MemfsThreadPoolFixture
 {
     MemfsThreadPoolFixture()
     {
-        thread_pool = std::make_unique<vefs::detail::thread_pool>();
+        thread_pool = std::make_unique<vefs::detail::thread_pool>(4, "memfs");
     }
     ~MemfsThreadPoolFixture()
     {

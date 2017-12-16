@@ -1,9 +1,11 @@
 #pragma once
 
+#include <string>
 #include <thread>
 #include <future>
 #include <functional>
 #include <type_traits>
+#include <string_view>
 
 #include <vefs/ext/concurrentqueue/blockingconcurrentqueue.h>
 
@@ -14,7 +16,8 @@ namespace vefs::detail
         using task_t = std::function<void()>;
 
     public:
-        explicit thread_pool(unsigned int numWorkers = std::thread::hardware_concurrency());
+        explicit thread_pool(unsigned int numWorkers = std::thread::hardware_concurrency(),
+            std::string_view poolName = {});
         thread_pool(const thread_pool &) = delete;
         thread_pool(thread_pool &&) = delete;
         ~thread_pool();
@@ -26,10 +29,11 @@ namespace vefs::detail
         auto exec(T &&task, Args&&... args);
 
     private:
-        void worker_main(moodycamel::ConsumerToken workerToken);
+        void worker_main(moodycamel::ConsumerToken workerToken, int id);
 
         moodycamel::BlockingConcurrentQueue<task_t> mTaskQueue;
         std::vector<std::thread> mWorkerList;
+        const std::string mThreadPoolName;
     };
 
     template <typename T, typename... Args>
