@@ -55,6 +55,18 @@ namespace vefs
 
         static_assert(file_sector_id::references_per_sector == raw_archive::sector_payload_size / sizeof(RawSectorReference));
 
+        inline RawSectorReference & sector_reference_at(file_sector &sector, int which)
+        {
+            return *(&(sector.data().as<RawSectorReference>()) + which);
+        }
+        inline const RawSectorReference & sector_reference_at(const file_sector &sector, int which)
+        {
+            return *(&(sector.data().as<RawSectorReference>()) + which);
+        }
+        inline const RawSectorReference sector_creference_at(const file_sector &sector, int which)
+        {
+            return sector_reference_at(sector, which);
+        }
     }
 
     inline std::optional<archive::file_sector_handle> archive::access_impl(const raw_archive_file &file,
@@ -68,12 +80,12 @@ namespace vefs
         constexpr auto references_per_sector = raw_archive::sector_payload_size / sizeof(RawSectorReference);
 
         std::uint64_t fileSize;
-        std::uint8_t treeDepth;
+        int treeDepth;
         sector_id physId;
         decltype(file.start_block_mac) mac;
         {
             std::shared_lock<std::shared_mutex> fileLock{ file.integrity_mutex };
-            treeDepth = static_cast<std::uint8_t>(file.tree_depth);
+            treeDepth = file.tree_depth;
             physId = file.start_block_idx;
             mac = file.start_block_mac;
             fileSize = file.size;
@@ -101,14 +113,14 @@ namespace vefs
                 auto entry = mBlockPool->access(logId, *mArchive, file, logId, physId, blob_view{ mac });
                 sector = std::move(std::get<1>(entry));
             }
-            catch (const boost::exception &)
+            catch (const vefs::archive_corrupted &)
             {
                 std::shared_lock<std::shared_mutex> fileLock{ file.integrity_mutex };
                 // if the file tree shrinks during an access operation it may happen
                 // that one of the intermediate nodes dies :(
                 // however this is detectable and recoverable if the cut off part
                 // doesn't contain the block we want to access
-                auto nTreeDepth = static_cast<std::uint8_t>(file.tree_depth);
+                const auto nTreeDepth = file.tree_depth;
                 if (nTreeDepth < cacheId.layer())
                 {
                     return std::make_optional<file_sector_handle>();
@@ -124,19 +136,18 @@ namespace vefs
                 if (parentSector)
                 {
                     fileLock.unlock();
-                    // stabelize memory representation
+                    // stabilize memory representation
                     std::lock_guard<std::mutex> parentLock{ parentSector->write_mutex() };
 
-                    const auto ref = &sector->data_view().as<RawSectorReference>()
-                        + path.position(logId.layer());
-                    if (ref->reference != sector_id::master)
+                    auto &ref = sector_creference_at(*sector, path.offset(logId.layer()));
+                    if (ref.reference == sector_id::master)
                     {
                         return std::make_optional<file_sector_handle>();
                     }
-                    if (!equal(blob_view{ mac }, blob_view{ ref->mac }))
+                    if (!equal(blob_view{ mac }, blob_view{ ref.mac }))
                     {
-                        physId = ref->reference;
-                        mac = ref->mac;
+                        physId = ref.reference;
+                        mac = ref.mac;
                         continue;
                     }
                 }
@@ -144,7 +155,7 @@ namespace vefs
                 {
                     return std::nullopt;
                 }
-                //TODO: add additional information like failed file_sector_id
+                // #TODO add additional information like failed file_sector_id
                 throw;
             }
 
@@ -156,11 +167,10 @@ namespace vefs
             logId.layer(logId.layer() - 1);
             logId.position(path.position(logId.layer()));
 
-            const auto ref = &sector->data_view().as<RawSectorReference>()
-                + path.offset(logId.layer());
+            auto &ref = sector_creference_at(*sector, path.offset(logId.layer()));
 
-            physId = ref->reference;
-            mac = ref->mac;
+            physId = ref.reference;
+            mac = ref.mac;
             // this will happen if we read past the end of the file
             if (physId == sector_id::master)
             {
@@ -371,9 +381,9 @@ namespace vefs
                     auto &parent = parents.top();
                     std::unique_lock<std::mutex> parentLock{ parent->write_mutex() };
 
-                    auto ref = &parent->data().as<RawSectorReference>() + offset;
-                    ref->reference = lastUpdated->sector();
-                    mac.copy_to(blob{ ref->mac });
+                    auto &ref = sector_reference_at(*parent, offset);
+                    ref.reference = lastUpdated->sector();
+                    mac.copy_to(blob{ ref.mac });
 
                     mOwner.mArchive->write_sector(ciphertext, mac, file, parent->sector(), parent->data_view());
 
@@ -418,7 +428,7 @@ namespace vefs
             std::stack<tree_position> wishlist;
             {
                 auto parentId = leaf.parent();
-                for (std::uint8_t i = 1, limit = logicalId.layer(); i < limit; ++i)
+                for (auto i = 1, limit = logicalId.layer(); i < limit; ++i)
                 {
                     wishlist.push(parentId.layer_position());
                     parentId = parentId.parent();

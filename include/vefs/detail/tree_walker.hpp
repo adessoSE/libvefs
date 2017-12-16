@@ -54,7 +54,7 @@ namespace vefs::detail
         struct waypoint
         {
             std::uint64_t absolute;
-            std::uint64_t offset;
+            int offset;
         };
         using waypoint_array = std::array<waypoint, lut::max_tree_depth + 2>;
 
@@ -70,7 +70,7 @@ namespace vefs::detail
 
         tree_position layer_position(int layer) const noexcept;
         std::uint64_t position(int layer) const noexcept;
-        std::uint64_t offset(int layer) const noexcept;
+        int offset(int layer) const noexcept;
 
         explicit operator bool() const noexcept;
 
@@ -313,7 +313,7 @@ namespace vefs::detail
     {
         return mTreePath[layer].absolute;
     }
-    inline std::uint64_t tree_path::offset(int layer) const noexcept
+    inline int tree_path::offset(int layer) const noexcept
     {
         return mTreePath[layer].offset;
     }
