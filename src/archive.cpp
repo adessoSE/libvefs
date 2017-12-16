@@ -96,7 +96,10 @@ namespace vefs
         }
 
         tree_path path{ treeDepth, cacheId.position(), cacheId.layer() };
-        file_sector_id logId{ file.id, path.layer_position(treeDepth) };
+        auto pathIterator = path.cbegin();
+        tree_path::iterator pathEnd{ path, cacheId.layer() };
+
+        file_sector_id logId{ file.id, *pathIterator };
         std::shared_ptr<file_sector> parentSector;
 
 
@@ -113,7 +116,7 @@ namespace vefs
                 auto entry = mBlockPool->access(logId, *mArchive, file, logId, physId, blob_view{ mac });
                 sector = std::move(std::get<1>(entry));
             }
-            catch (const vefs::archive_corrupted &)
+            catch (const boost::exception &)
             {
                 std::shared_lock<std::shared_mutex> fileLock{ file.integrity_mutex };
                 // if the file tree shrinks during an access operation it may happen
@@ -159,15 +162,15 @@ namespace vefs
                 throw;
             }
 
-            if (logId.layer() == cacheId.layer())
+
+            if (pathIterator == pathEnd)
             {
                 return sector;
             }
 
-            logId.layer(logId.layer() - 1);
-            logId.position(path.position(logId.layer()));
+            logId.layer_position(*++pathIterator);
 
-            auto &ref = sector_creference_at(*sector, path.offset(logId.layer()));
+            auto &ref = sector_creference_at(*sector, pathIterator.array_offset());
 
             physId = ref.reference;
             mac = ref.mac;

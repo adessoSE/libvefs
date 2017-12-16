@@ -62,10 +62,10 @@ namespace vefs
         constexpr const_pointer data() const noexcept;
 
         template <typename U, bool checked = false>
-        auto & as(size_type offset = size_type{}) noexcept(!checked);
+        inline auto & as(size_type offset = size_type{}) noexcept(!checked);
 
         template <typename U, bool checked = false>
-        auto & pop_front_as() noexcept(!checked);
+        inline auto & pop_front_as() noexcept(!checked);
 
 
         //TODO: iterators
@@ -86,7 +86,7 @@ namespace vefs
 
         constexpr basic_range slice(size_type pos, size_type count = npos) const noexcept;
 
-        void copy_to(basic_range<std::remove_const_t<value_type>> target) const noexcept;
+        inline void copy_to(basic_range<std::remove_const_t<value_type>> target) const noexcept;
 
     protected:
         template <typename U>
@@ -178,7 +178,7 @@ namespace vefs
         {
             if (sizeof(U) > mBufferSize)
             {
-                BOOST_THROW_EXCEPTION(std::out_of_range("basic_range<T>::at<U>() over the end cast"));
+                BOOST_THROW_EXCEPTION(std::out_of_range("basic_range<T>::as<U>() over the end cast"));
             }
         }
 

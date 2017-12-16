@@ -31,15 +31,15 @@ namespace vefs::detail
         explicit constexpr tree_position(std::uint64_t pos) noexcept;
         constexpr tree_position(std::uint64_t pos, int layer) noexcept;
 
-        int layer() const noexcept;
-        void layer(int value) noexcept;
+        inline int layer() const noexcept;
+        inline void layer(int value) noexcept;
 
-        std::uint64_t position() const noexcept;
-        void position(std::uint64_t value) noexcept;
+        inline std::uint64_t position() const noexcept;
+        inline void position(std::uint64_t value) noexcept;
 
-        tree_position parent() const noexcept;
+        inline tree_position parent() const noexcept;
 
-        storage_type raw() const noexcept;
+        inline storage_type raw() const noexcept;
         //void raw(storage_type value) noexcept;
 
         explicit operator bool() const noexcept;
@@ -64,15 +64,15 @@ namespace vefs::detail
         using reverse_iterator = std::reverse_iterator<iterator>;
         using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
-        tree_path() noexcept;
-        tree_path(int treeDepth, tree_position position) noexcept;
-        tree_path(int treeDepth, std::uint64_t pos, int layer = 0) noexcept;
+        inline tree_path() noexcept;
+        inline tree_path(int treeDepth, tree_position position) noexcept;
+        inline tree_path(int treeDepth, std::uint64_t pos, int layer = 0) noexcept;
 
-        tree_position layer_position(int layer) const noexcept;
-        std::uint64_t position(int layer) const noexcept;
-        int offset(int layer) const noexcept;
+        inline tree_position layer_position(int layer) const noexcept;
+        inline std::uint64_t position(int layer) const noexcept;
+        inline int offset(int layer) const noexcept;
 
-        explicit operator bool() const noexcept;
+        inline explicit operator bool() const noexcept;
 
         auto begin() const -> const_iterator;
         auto cbegin() const -> const_iterator;
@@ -86,7 +86,7 @@ namespace vefs::detail
 
 
     private:
-        tree_path(int treeDepth, int targetLayer) noexcept;
+        inline tree_path(int treeDepth, int targetLayer) noexcept;
 
         template <int layer>
         void init(std::uint64_t pos) noexcept;
@@ -109,6 +109,8 @@ namespace vefs::detail
         iterator();
         iterator(const tree_path &path);
         iterator(const tree_path &path, int layer);
+
+        int array_offset();
 
     private:
         bool equal(const iterator &other) const;
@@ -341,6 +343,11 @@ namespace vefs::detail
     inline tree_path::iterator::iterator(const tree_path &path)
         : iterator(path, path.mTreeDepth)
     {
+    }
+
+    inline int tree_path::iterator::array_offset()
+    {
+        return mOwner->offset(mLayer);
     }
 
     inline tree_position tree_path::iterator::dereference() const
