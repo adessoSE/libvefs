@@ -13,6 +13,7 @@
 
 
 #include <boost/dynamic_bitset.hpp>
+#include <boost/range/adaptor/reversed.hpp>
 #include <boost/iterator/iterator_facade.hpp>
 
 #include <vefs/utils/misc.hpp>
@@ -83,7 +84,7 @@ namespace vefs
         }
 
         tree_path path{ treeDepth, cacheId.position(), cacheId.layer() };
-        file_sector_id logId{ file.id, treeDepth ? path.position(treeDepth - 1) : 0, treeDepth };
+        file_sector_id logId{ file.id, path.layer_position(treeDepth) };
         std::shared_ptr<file_sector> parentSector;
 
 
@@ -228,7 +229,7 @@ namespace vefs
         file_walker(archive &owner, const detail::raw_archive_file &file, std::uint64_t initialSectorOffset = {})
             : mArchive(&owner)
             , mFile(&file)
-            , mPosition{ file.id, initialSectorOffset, 0 }
+            , mPosition{ file.id, { initialSectorOffset, 0 } }
         {
         }
 
@@ -389,7 +390,7 @@ namespace vefs
 
         sector_stack acquire_parents(const raw_archive_file &file, const file_sector_id &leaf)
         {
-            file_sector_id logicalId{ leaf.file_id(), 0, 0 };
+            file_sector_id logicalId{ leaf.file_id(), {} };
             std::array<std::byte, 16> macMem;
             sector_id physId;
             blob mac{ macMem };
@@ -399,7 +400,7 @@ namespace vefs
                 macMem = file.start_block_mac;
                 physId = file.start_block_idx;
 
-                logicalId.layer(static_cast<std::uint8_t>(file.tree_depth));
+                logicalId.layer_position({ 0, file.tree_depth });
                 if (file.tree_depth == 0)
                 {
                     return {};
@@ -412,7 +413,9 @@ namespace vefs
             sector_stack stack{ std::move(stackStorage) };
             stack.push(std::move(currentSector));
 
-            std::stack<std::uint64_t> wishlist;
+            //tree_path wishlist{ logicalId.layer(), leaf.layer_position().parent() };
+
+            std::stack<tree_position> wishlist;
             {
                 auto parentId = leaf.parent();
                 for (std::uint8_t i = 1, limit = logicalId.layer(); i < limit; ++i)
@@ -507,8 +510,8 @@ namespace vefs
         file::ptr archiveFile = fs->open(archivePath, file_open_mode::readwrite | file_open_mode::create | file_open_mode::truncate);
 
         mArchive = std::make_unique<detail::raw_archive>(archiveFile, cryptoProvider, userPRK, create);
-        access_or_append(mArchive->index_file(), file_sector_id{ file_id::archive_index, 0, 0 });
-        access_or_append(mArchive->free_sector_index_file(), file_sector_id{ file_id::free_block_index, 0, 0 });
+        access_or_append(mArchive->index_file(), file_sector_id{ file_id::archive_index, { 0, 0 } });
+        access_or_append(mArchive->free_sector_index_file(), file_sector_id{ file_id::free_block_index, { 0, 0 } });
     }
 
     archive::~archive()
@@ -556,7 +559,7 @@ namespace vefs
                 BOOST_THROW_EXCEPTION(logic_error{});
             }
 
-            access_or_append(*file, file_sector_id{ file->id, 0, 0 });
+            access_or_append(*file, file_sector_id{ file->id, { 0, 0 } });
             mIndex.insert_or_assign(std::string{ filePath }, file->id);
 
             return file->id;
@@ -676,7 +679,7 @@ namespace vefs
             auto cutOff = false;
             auto newSize = std::max(size, walker.current().position() * raw_archive::sector_payload_size);
 
-            file_sector_id logId{ file.id, 0, treeDepth };
+            file_sector_id logId{ file.id, { 0, treeDepth } };
 
             std::shared_ptr<file_sector> it = safe_acquire(file, logId, nextSector, blob_view{ nextMac });
 
