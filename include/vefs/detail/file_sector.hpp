@@ -58,11 +58,16 @@ namespace vefs::detail
     class file_sector
     {
     public:
-        file_sector(file_sector_id logicalId, sector_id physId) noexcept;
+        using handle = std::shared_ptr<file_sector>;
+
+        file_sector(handle parentSector, file_sector_id logicalId, sector_id physId) noexcept;
         file_sector(detail::raw_archive &src, const detail::raw_archive_file &file,
-            const file_sector_id &logicalId, sector_id physId, blob_view mac);
+            handle parentSector, const file_sector_id &logicalId,
+            sector_id physId, blob_view mac);
 
         const auto & sector() const noexcept;
+        const auto & parent() const noexcept;
+        void update_parent(handle newParent);
 
         const auto & id() const noexcept;
 
@@ -79,6 +84,7 @@ namespace vefs::detail
     private:
         file_sector_id mId;
         detail::sector_id mSector;
+        handle mParentSector;
         std::mutex mWriteMutex{};
         std::atomic<bool> mDirtyFlag{ false };
         std::atomic_flag mWriteQueued = ATOMIC_FLAG_INIT;
@@ -175,15 +181,17 @@ namespace vefs::detail
         return blob{ mBlockData };
     }
 
-    inline file_sector::file_sector(file_sector_id logicalId, sector_id physId) noexcept
+    inline file_sector::file_sector(handle parentSector, file_sector_id logicalId, sector_id physId) noexcept
         : mId{logicalId}
         , mSector{physId}
+        , mParentSector{std::move(parentSector)}
         , mBlockData{}
     {
     }
 
-    inline file_sector::file_sector(detail::raw_archive & src, const detail::raw_archive_file & file, const file_sector_id & logicalId, sector_id physId, blob_view mac)
-        : file_sector{logicalId, physId}
+    inline file_sector::file_sector(detail::raw_archive & src, const detail::raw_archive_file & file,
+        handle parentSector, const file_sector_id & logicalId, sector_id physId, blob_view mac)
+        : file_sector{std::move(parentSector), logicalId, physId}
     {
         src.read_sector(data(), file, mSector, mac);
     }
@@ -191,6 +199,16 @@ namespace vefs::detail
     inline const auto & file_sector::sector() const noexcept
     {
         return mSector;
+    }
+
+    inline const auto & file_sector::parent() const noexcept
+    {
+        return mParentSector;
+    }
+
+    inline void file_sector::update_parent(handle newParent)
+    {
+        mParentSector = std::move(newParent);
     }
 
     inline const auto & file_sector::id() const noexcept

@@ -64,7 +64,7 @@ namespace vefs
         void read_free_sector_index();
         void write_free_sector_index();
 
-        std::shared_ptr<file_sector> access_or_append(detail::raw_archive_file &file, detail::file_sector_id id);
+        file_sector::handle access_or_append(detail::raw_archive_file &file, std::uint64_t position);
 
         std::map<detail::sector_id, std::uint64_t>::iterator grow_archive_impl(unsigned int num);
         std::vector<detail::sector_id> alloc_sectors(unsigned int num = 1);

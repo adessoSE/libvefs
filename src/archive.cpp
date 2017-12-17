@@ -113,7 +113,7 @@ namespace vefs
                     BOOST_THROW_EXCEPTION(sector_reference_out_of_range{}
                         << errinfo_sector_idx{ physId });
                 }
-                auto entry = mBlockPool->access(logId, *mArchive, file, logId, physId, blob_view{ mac });
+                auto entry = mBlockPool->access(logId, *mArchive, file, parentSector, logId, physId, blob_view{ mac });
                 sector = std::move(std::get<1>(entry));
             }
             catch (const boost::exception &)
@@ -186,14 +186,14 @@ namespace vefs
 
     std::shared_ptr<file_sector> archive::safe_acquire(const raw_archive_file & file, const file_sector_id & logicalId, sector_id physId, blob_view mac)
     {
-        auto result = mBlockPool->try_access<3>(logicalId, *mArchive, file, logicalId, physId, mac);
+        auto result = mBlockPool->try_access<3>(logicalId, *mArchive, file, file_sector_handle{}, logicalId, physId, mac);
         if (auto sector = std::move(std::get<1>(result)))
         {
             return sector;
         }
 
         //TODO: bad alloc
-        auto raw = new file_sector(*mArchive, file, logicalId, physId, mac);
+        auto raw = new file_sector(*mArchive, file, {}, logicalId, physId, mac);
         return std::get<1>(mBlockPool->try_push_external(logicalId, *raw, [](auto &, file_sector *val)
         {
             delete val;
@@ -459,14 +459,14 @@ namespace vefs
         std::shared_ptr<file_sector> acquire(const raw_archive_file &file,
             const file_sector_id &logicalId, sector_id physId, blob_view mac)
         {
-            auto result = mOwner.mBlockPool->try_access<3>(logicalId, *mOwner.mArchive, file, logicalId, physId, mac);
+            auto result = mOwner.mBlockPool->try_access<3>(logicalId, *mOwner.mArchive, file, file_sector_handle{}, logicalId, physId, mac);
             if (auto sector = std::move(std::get<1>(result)))
             {
                 return sector;
             }
 
             //TODO: bad alloc
-            auto raw = new file_sector(*mOwner.mArchive, file, logicalId, physId, mac);
+            auto raw = new file_sector(*mOwner.mArchive, file, {}, logicalId, physId, mac);
             return std::get<1>(mOwner.mBlockPool->try_push_external(logicalId, *raw, [](auto &, file_sector *val)
             {
                 if (val)
@@ -523,8 +523,8 @@ namespace vefs
         file::ptr archiveFile = fs->open(archivePath, file_open_mode::readwrite | file_open_mode::create | file_open_mode::truncate);
 
         mArchive = std::make_unique<detail::raw_archive>(archiveFile, cryptoProvider, userPRK, create);
-        access_or_append(mArchive->index_file(), file_sector_id{ file_id::archive_index, { 0, 0 } });
-        access_or_append(mArchive->free_sector_index_file(), file_sector_id{ file_id::free_block_index, { 0, 0 } });
+        access_or_append(mArchive->index_file(), 0);
+        access_or_append(mArchive->free_sector_index_file(), 0);
     }
 
     archive::~archive()
@@ -572,13 +572,14 @@ namespace vefs
                 BOOST_THROW_EXCEPTION(logic_error{});
             }
 
-            access_or_append(*file, file_sector_id{ file->id, { 0, 0 } });
+            access_or_append(*file, 0);
             mIndex.insert_or_assign(std::string{ filePath }, file->id);
 
             return file->id;
         }
         else
         {
+            // #TODO refine open failure exception
             BOOST_THROW_EXCEPTION(exception{});
         }
     }
@@ -645,7 +646,7 @@ namespace vefs
         {
             if (!walker.current().is_allocated(fileSize))
             {
-                access_or_append(file, walker.current());
+                access_or_append(file, walker.current().position());
 
                 std::lock_guard<std::shared_mutex> integrityLock{ file.integrity_mutex };
                 auto newSize = std::min((walker.current().position() + 1) * raw_archive::sector_payload_size, size);
@@ -666,13 +667,13 @@ namespace vefs
     void vefs::archive::shrink_file(detail::raw_archive_file & file, const std::uint64_t size)
     {
         std::uint64_t fileSize;
-        std::uint8_t treeDepth;
+        int treeDepth;
         sector_id nextSector;
         std::array<std::byte, 16> nextMac;
         {
             std::lock_guard<std::shared_mutex> integrityLock{ file.integrity_mutex };
             fileSize = file.size;
-            treeDepth = static_cast<std::uint8_t>(file.tree_depth);
+            treeDepth = file.tree_depth;
             nextSector = file.start_block_idx;
             nextMac = file.start_block_mac;
         }
@@ -720,12 +721,18 @@ namespace vefs
 
                 file.start_block_idx = ref->reference;
                 file.start_block_mac = ref->mac;
-                treeDepth = static_cast<std::uint8_t>(--file.tree_depth);
+                treeDepth = --file.tree_depth;
                 utils::secure_data_erase(*ref++);
 
                 nextSector = ref->reference;
                 nextMac = ref->mac;
                 utils::secure_data_erase(*ref);
+
+                file_sector_id rootId{ file.id, { 0, treeDepth } };
+                if (auto root = mBlockPool->try_access({ file.id, { 0, treeDepth } }))
+                {
+                    root->update_parent({});
+                }
             }
             else
             {
@@ -888,7 +895,7 @@ namespace vefs
 
         while (data)
         {
-            auto sector = access_or_append(file, (walker++).current());
+            auto sector = access_or_append(file, (walker++).current().position());
             auto chunk = sector->data().slice(offset);
             offset = 0;
             {
@@ -1214,61 +1221,136 @@ namespace vefs
         }
     }
 
-    std::shared_ptr<file_sector> vefs::archive::access_or_append(detail::raw_archive_file & file, file_sector_id id)
+    file_sector::handle vefs::archive::access_or_append(detail::raw_archive_file &file, std::uint64_t position)
     {
-        assert(file.id == id.file_id());
-        if (auto sector = mBlockPool->try_access(id))
+        file_sector_id cacheId{ file.id, tree_position{ position } };
+        if (auto sector = mBlockPool->try_access(cacheId))
         {
             return sector;
         }
 
+        auto requiredDepth = lut::required_tree_depth(position);
+        tree_path path{ requiredDepth, position };
+
         std::shared_lock<std::shared_mutex> fileReadLock{ file.integrity_mutex };
-        if (id.layer() > file.tree_depth)
+
+        // check whether we need to increase the tree depth
+        file_sector::handle parent;
+        if (requiredDepth > file.tree_depth)
         {
-            assert(id.position() == 0);
             fileReadLock.unlock();
             std::unique_lock<std::shared_mutex> fileWriteLock{ file.integrity_mutex };
 
-            if (id.layer() <= file.tree_depth)
+            if (requiredDepth > file.tree_depth)
             {
-                fileWriteLock.unlock();
-                return access(file, id);
+                cacheId.layer_position({ 0, requiredDepth });
+
+                auto physId = alloc_sector();
+                auto entry = mBlockPool->access(cacheId, parent, cacheId, physId);
+
+                if (std::get<0>(entry))
+                {
+                    // we got a cached sector entry, i.e. the previously
+                    // allocated physical sector needs to be freed.
+                    dealloc_sectors({ physId });
+                    // this shouldn't ever happen though, therefore trigger the debugger
+                    assert(!std::get<0>(entry));
+                }
+
+                parent = std::move(std::get<1>(entry));
+
+                auto &ref = sector_reference_at(*parent, 0);
+                ref.reference = file.start_block_idx;
+                ref.mac = file.start_block_mac;
+
+                file.start_block_idx = physId;
+                file.start_block_mac = {};
+                file.tree_depth += 1;
+
+                mark_dirty(parent);
+
+                cacheId.layer(requiredDepth - 1);
+                if (auto oldRoot = mBlockPool->try_access(cacheId))
+                {
+                    oldRoot->update_parent(parent);
+                }
             }
-
-            auto physId = alloc_sector();
-            auto sector = std::get<1>(mBlockPool->access(id, id, physId));
-
-            auto ref = &sector->data().as<RawSectorReference>();
-            ref->reference = file.start_block_idx;
-            ref->mac = file.start_block_mac;
-
-            file.start_block_idx = physId;
-            file.start_block_mac = {};
-            file.tree_depth += 1;
-
-            mark_dirty(sector);
-
-            return sector;
         }
-
-        fileReadLock.unlock();
-
-        if (id.is_allocated(file.size))
+        else if (cacheId.is_allocated(file.size))
         {
-            return access(file, id);
+            fileReadLock.unlock();
+            return access(file, cacheId);
         }
-        if (id.position() == 1 || id.position_array_offset() == 0)
+        else
         {
-            access_or_append(file, id.parent());
+            fileReadLock.unlock();
         }
 
-        auto physId = alloc_sector();
-        auto [cached, sector] = mBlockPool->access(id, id, physId);
-        if (!cached)
+        // tree depth wasn't increased
+        // => try to find a cached intermediate node
+        //    otherwise load the root node
+        // note that this is not an `else if` because it also needs to
+        // be executed if the second depth check is satisfied.
+        if (!parent)
         {
-            mark_dirty(sector);
+            for (auto tpos : boost::adaptors::reverse(path))
+            {
+                cacheId.layer_position(tpos);
+                if (parent = mBlockPool->try_access(cacheId))
+                {
+                    break;
+                }
+            }
+            if (!parent)
+            {
+                parent = access(file, cacheId);
+            }
         }
-        return sector;
+
+        // #TODO #resilience consider implementing tree allocation rollback.
+
+        // walk the tree path down to layer 0 inserting missing sectors
+        // if parent is on layer 0 then `it` is automatically an end iterator
+        for (auto it = tree_path::iterator{ path, parent->id().layer() - 1 },
+                  end = path.cend();
+                  it != end; ++it)
+        {
+            cacheId.layer_position(*it);
+            auto &ref = sector_reference_at(*parent, it.array_offset());
+
+            std::unique_lock<std::mutex> parentLock{ parent->write_mutex() };
+            if (ref.reference != sector_id::master)
+            {
+                parentLock.unlock();
+                parent = access(file, cacheId);
+            }
+            else
+            {
+                parentLock.unlock();
+
+                auto physId = alloc_sector();
+                auto[cached, entry] = mBlockPool->access(cacheId,
+                    parent, cacheId, physId);
+
+                if (cached)
+                {
+                    dealloc_sectors({ physId });
+                }
+                else
+                {
+                    std::unique_lock<std::mutex> entryLock{ entry->write_mutex(), std::defer_lock };
+                    std::lock(parentLock, entryLock);
+
+                    ref.reference = entry->sector();
+                    ref.mac = {};
+                    mark_dirty(parent);
+                }
+                parent = std::move(entry);
+            }
+        }
+
+        mark_dirty(parent);
+        return parent;
     }
 
     std::map<detail::sector_id, std::uint64_t>::iterator vefs::archive::grow_archive_impl(unsigned int num)
