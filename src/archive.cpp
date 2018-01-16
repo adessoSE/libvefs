@@ -77,8 +77,6 @@ namespace vefs
             return sector;
         }
 
-        constexpr auto references_per_sector = raw_archive::sector_payload_size / sizeof(RawSectorReference);
-
         std::uint64_t fileSize;
         int treeDepth;
         sector_id physId;
@@ -184,7 +182,8 @@ namespace vefs
         }
     }
 
-    std::shared_ptr<file_sector> archive::safe_acquire(const raw_archive_file & file, const file_sector_id & logicalId, sector_id physId, blob_view mac)
+    std::shared_ptr<file_sector> archive::safe_acquire(const raw_archive_file & file,
+        const file_sector_id & logicalId, sector_id physId, blob_view mac)
     {
         auto result = mBlockPool->try_access<3>(logicalId, *mArchive, file, file_sector_handle{}, logicalId, physId, mac);
         if (auto sector = std::move(std::get<1>(result)))
@@ -321,6 +320,7 @@ namespace vefs
                 {
                     --mOwner.mDirtyObjects;
                 }
+                mSector->write_queued_flag().clear(std::memory_order_release);
                 return;
             }
 
@@ -664,18 +664,14 @@ namespace vefs
         }
     }
 
-    void vefs::archive::shrink_file(detail::raw_archive_file & file, const std::uint64_t size)
+    void vefs::archive::shrink_file(detail::raw_archive_file &file, const std::uint64_t size)
     {
         std::uint64_t fileSize;
         int treeDepth;
-        sector_id nextSector;
-        std::array<std::byte, 16> nextMac;
         {
             std::lock_guard<std::shared_mutex> integrityLock{ file.integrity_mutex };
             fileSize = file.size;
             treeDepth = file.tree_depth;
-            nextSector = file.start_block_idx;
-            nextMac = file.start_block_mac;
         }
         // we always keep the first sector alive
         if (fileSize <= raw_archive::sector_payload_size)
@@ -684,201 +680,124 @@ namespace vefs
             file.size = size;
             return;
         }
-        auto endSectorId = size ? (size - 1) / raw_archive::sector_payload_size : 0;
 
         std::vector<detail::sector_id> collectedIds;
-        file_walker walker{ *this, file, (fileSize-1) / raw_archive::sector_payload_size };
-        while (walker.current().position() > endSectorId)
+        tree_path walker{ treeDepth, lut::sector_position_of(fileSize - 1) };
+        auto endPosition = size != 0 ? lut::sector_position_of(size) : 0;
+
+        file_sector_id loadedSectorId{ file.id, tree_position{0} };
+
+        while (walker.position(0) > endPosition)
         {
-            auto cutOff = false;
-            auto newSize = std::max(size, walker.current().position() * raw_archive::sector_payload_size);
+            loadedSectorId.position(walker.position(0));
+            auto it = access(file, loadedSectorId);
 
-            file_sector_id logId{ file.id, { 0, treeDepth } };
-
-            std::shared_ptr<file_sector> it = safe_acquire(file, logId, nextSector, blob_view{ nextMac });
-
-            auto width = utils::upow(file_sector_id::references_per_sector, treeDepth - 1);
-            logId.layer(treeDepth - 1);
-            logId.position(walker.current().position() / width);
-
-
-            if (walker.current().position() == width)
             {
-                std::unique_lock<std::mutex> writeLock{ it->write_mutex() };
+                std::lock_guard<std::mutex> writeLock{ it->write_mutex() };
 
-                cutOff = true;
-
-                collectedIds.push_back(it->sector());
-                mArchive->erase_sector(file, it->sector());
+                auto sectorIdx = it->sector();
+                collectedIds.push_back(sectorIdx);
+                mArchive->erase_sector(file, sectorIdx);
                 if (it->dirty_flag().exchange(false))
                 {
                     --mDirtyObjects;
                 }
 
-                auto ref = &it->data().as<RawSectorReference>();
-
-                std::lock_guard<std::shared_mutex> integrityLock{ file.integrity_mutex };
-
-                file.start_block_idx = ref->reference;
-                file.start_block_mac = ref->mac;
-                treeDepth = --file.tree_depth;
-                utils::secure_data_erase(*ref++);
-
-                nextSector = ref->reference;
-                nextMac = ref->mac;
-                utils::secure_data_erase(*ref);
-
-                file_sector_id rootId{ file.id, { 0, treeDepth } };
-                if (auto root = mBlockPool->try_access({ file.id, { 0, treeDepth } }))
-                {
-                    root->update_parent({});
-                }
-            }
-            else
-            {
-                auto ref = &it->data().as<RawSectorReference>() + logId.position();
-
-                nextSector = ref->reference;
-                nextMac = ref->mac;
-
+                auto tmp = it->parent();
+                it->update_parent({});
+                it = std::move(tmp);
             }
 
-            auto offset = logId.position_array_offset();
-            while (logId.layer() > 0)
+            // update all parent sectors affected by the removal of the current sector
+            for (auto layer = 1; ; ++layer)
             {
-                if (cutOff || walker.current().position() == logId.position() * width)
+                std::lock_guard<std::mutex> writeLock{ it->write_mutex() };
+
+                auto offset = walker.offset(layer-1);
+                auto ref = sector_reference_at(*it, offset);
+                utils::secure_data_erase(ref);
+                mark_dirty(it);
+
+                auto tmp = it->parent();
+
+                if (offset != 0)
                 {
-
-                    std::unique_lock<std::mutex> writeLock{ it->write_mutex() };
-
-                    if (!cutOff)
-                    {
-                        auto ref = &it->data().as<RawSectorReference>() + offset;
-                        utils::secure_data_erase(*ref);
-                        mark_dirty(it);
-                    }
-                    else if (it->dirty_flag().exchange(false))
-                    {
-                        --mDirtyObjects;
-                    }
-                    cutOff = true;
-
+                    // isn't the first reference stored here, so we need to keep
+                    // this sector for now.
+                    // no more parents need to be updated
+                    break;
                 }
-
-                it = safe_acquire(file, logId, nextSector, blob_view{ nextMac });
-
-                width /= file_sector_id::references_per_sector;
-                logId.layer(logId.layer() - 1);
-                logId.position(walker.current().position() / width);
-
-                offset = logId.position_array_offset();
-                auto ref = &it->data().as<RawSectorReference>() + offset;
-
-                nextSector = ref->reference;
-                nextMac = ref->mac;
-
-                if (cutOff)
+                else if (walker.position(layer) != 0)
                 {
-                    std::unique_lock<std::mutex> writeLock{ it->write_mutex() };
+                    // this reference sector isn't needed anymore
+                    // we don't immediately erase the sectors at the beginning
+                    // of each layer as this would involve reducing the height
+                    // of the tree which we'll do afterwards
 
-                    utils::secure_data_erase(*ref);
+                    auto sectorIdx = it->sector();
+                    collectedIds.push_back(sectorIdx);
+                    mArchive->erase_sector(file, sectorIdx);
                     if (it->dirty_flag().exchange(false))
                     {
                         --mDirtyObjects;
                     }
-                    collectedIds.push_back(it->sector());
-                    mArchive->erase_sector(file, it->sector());
+
+                    it->update_parent({});
                 }
 
+                it = std::move(tmp);
             }
 
-            if (!cutOff)
+            walker = walker.previous();
+        }
+
+        auto tmp = access(file, loadedSectorId);
+
+        // now we only need to adjust the height of the file tree
+        auto adjustedDepth = lut::required_tree_depth(endPosition);
+        if (adjustedDepth != treeDepth)
+        {
+            auto it = access(file, file_sector_id{ file.id, tree_position{ 0, adjustedDepth } });
+
+            auto parent = it->parent();
+            auto ref = &parent->data().as<RawSectorReference>();
+
+            std::lock_guard<std::shared_mutex> integrityLock{ file.integrity_mutex };
+            file.start_block_idx = ref->reference;
+            file.start_block_mac = ref->mac;
+            file.tree_depth = adjustedDepth;
+            file.size = size;
+
+            // loop over all parents and free them
+            do
             {
-                auto ref = &it->data().as<RawSectorReference>() + offset;
-                utils::secure_data_erase(*ref);
-                mark_dirty(it);
-            }
-            // acquire the data sector
-            it = safe_acquire(file, logId, nextSector, blob_view{ nextMac });
-            collectedIds.push_back(it->sector());
-            mArchive->erase_sector(file, it->sector());
-            if (it->dirty_flag().exchange(false))
-            {
-                --mDirtyObjects;
-            }
+                it->update_parent({});
 
-            /*
-            auto current = *walker--;
-            std::lock_guard<std::mutex> sectorLock{ current->write_mutex() };
+                it = std::move(parent);
 
-            {
-                auto tbcSecId = current->sector();
-                auto it = walker.current();
-                auto parentId = it.parent();
-                do
-                {
-                    // process all parents which will be deallocated
-                    auto parent = access(file, parentId);
-                    std::lock_guard<std::mutex> sectorLock{ parent->write_mutex() };
-
-                    collectedIds.push_back(tbcSecId);
-                    tbcSecId = parent->sector();
-
-                    auto itOffset = it.position_array_offset();
-                    utils::secure_data_erase(*(&parent->data().as<RawSectorReference>() + itOffset));
-
-                    if (parent->dirty_flag().exchange(false, std::memory_order_acq_rel))
-                    {
-                        --mDirtyObjects;
-                    }
-
-                    if (parentId.layer() == file.tree_depth && !parentId.is_allocated(newSize))
-                    {
-                        assert(itOffset == 1);
-                        // the current root must be erased
-                        std::lock_guard<std::shared_mutex> integrityLock{ file.integrity_mutex };
-                        file.tree_depth -= 1;
-
-                        auto ref = parent->data().as<RawSectorReference>();
-                        file.start_block_idx = ref.reference;
-                        file.start_block_mac = ref.mac;
-                        utils::secure_data_erase(ref);
-                        break;
-                    }
-
-                    it = parentId;
-                    parentId = parentId.parent();
-                } while (!it.is_allocated(newSize));
-            }
-
-
-            {
-                // we need to synchronize with pending writer tasks
-                if (current->dirty_flag().exchange(false, std::memory_order_release))
+                utils::secure_data_erase(it->data().as<RawSectorReference>());
+                auto sectorIdx = it->sector();
+                collectedIds.push_back(sectorIdx);
+                mArchive->erase_sector(file, sectorIdx);
+                if (it->dirty_flag().exchange(false))
                 {
                     --mDirtyObjects;
                 }
-                mArchive->erase_sector(file, current->sector());
-                utils::secure_memzero(current->data());
+
+                parent = it->parent();
             }
-            */
-
-            --walker;
-            std::lock_guard<std::shared_mutex> integrityLock{ file.integrity_mutex };
-            file.size = std::max(newSize, size);
+            while (parent);
         }
-
+        else
         {
             std::lock_guard<std::shared_mutex> integrityLock{ file.integrity_mutex };
-            if (file.size != size)
-            {
-                file.size = size;
-            }
+            file.size = size;
         }
 
         dealloc_sectors(std::move(collectedIds));
 
-        mark_dirty(*walker);
+        // #TODO this becomes obsolete soon
+        mark_dirty(tmp);
     }
 
     void vefs::archive::write(detail::raw_archive_file & file, blob_view data, std::uint64_t writeFilePos)
