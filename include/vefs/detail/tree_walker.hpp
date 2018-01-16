@@ -31,18 +31,18 @@ namespace vefs::detail
         explicit constexpr tree_position(std::uint64_t pos) noexcept;
         constexpr tree_position(std::uint64_t pos, int layer) noexcept;
 
-        inline int layer() const noexcept;
-        inline void layer(int value) noexcept;
+        constexpr int layer() const noexcept;
+        constexpr void layer(int value) noexcept;
 
-        inline std::uint64_t position() const noexcept;
-        inline void position(std::uint64_t value) noexcept;
+        constexpr std::uint64_t position() const noexcept;
+        constexpr void position(std::uint64_t value) noexcept;
 
-        inline tree_position parent() const noexcept;
+        constexpr tree_position parent() const noexcept;
 
-        inline storage_type raw() const noexcept;
+        constexpr storage_type raw() const noexcept;
         //void raw(storage_type value) noexcept;
 
-        explicit operator bool() const noexcept;
+        explicit constexpr operator bool() const noexcept;
 
     private:
         // 8b layer pos + 56b sector position on that layer
@@ -84,6 +84,8 @@ namespace vefs::detail
         auto rend() const -> const_reverse_iterator;
         auto crend() const -> const_reverse_iterator;
 
+        inline tree_path next() const;
+        inline tree_path previous() const;
 
     private:
         inline tree_path(int treeDepth, int targetLayer) noexcept;
@@ -147,12 +149,12 @@ namespace vefs::detail
     {
     }
 
-    inline int tree_position::layer() const noexcept
+    constexpr int tree_position::layer() const noexcept
     {
         return static_cast<int>((mLayerPosition & layer_mask) >> layer_offset);
     }
 
-    inline void tree_position::layer(int value) noexcept
+    constexpr void tree_position::layer(int value) noexcept
     {
         //*(reinterpret_cast<std::uint8_t *>(&mLayerPosition) + 7)
         //    = static_cast<std::uint8_t>(value);
@@ -160,36 +162,36 @@ namespace vefs::detail
             | static_cast<storage_type>(value) << 56;
     }
 
-    inline std::uint64_t tree_position::position() const noexcept
+    constexpr std::uint64_t tree_position::position() const noexcept
     {
         return mLayerPosition & position_mask;
     }
 
-    inline void tree_position::position(std::uint64_t value) noexcept
+    constexpr void tree_position::position(std::uint64_t value) noexcept
     {
         mLayerPosition = (mLayerPosition & layer_mask) | (value & position_mask);
     }
 
-    inline tree_position::operator bool() const noexcept
+    constexpr tree_position::operator bool() const noexcept
     {
         return mLayerPosition != std::numeric_limits<storage_type>::max();
     }
 
-    inline tree_position vefs::detail::tree_position::parent() const noexcept
+    constexpr tree_position vefs::detail::tree_position::parent() const noexcept
     {
         return tree_position{ position() / lut::references_per_sector, layer() + 1 };
     }
 
-    inline tree_position::storage_type tree_position::raw() const noexcept
+    constexpr tree_position::storage_type tree_position::raw() const noexcept
     {
         return mLayerPosition;
     }
 
-    inline bool operator==(tree_position lhs, tree_position rhs)
+    constexpr bool operator==(tree_position lhs, tree_position rhs)
     {
         return lhs.raw() == rhs.raw();
     }
-    inline bool operator!=(tree_position lhs, tree_position rhs)
+    constexpr bool operator!=(tree_position lhs, tree_position rhs)
     {
         return !(lhs == rhs);
     }
@@ -205,7 +207,8 @@ namespace vefs::detail
 #if !defined NDEBUG
         for (auto &p : mTreePath)
         {
-            p.absolute = p.offset = std::numeric_limits<std::uint64_t>::max();
+            p.absolute = std::numeric_limits<decltype(p.absolute)>::max();
+            p.offset = std::numeric_limits<decltype(p.offset)>::max();
         }
 #endif
     }
@@ -390,7 +393,7 @@ namespace vefs::detail
     inline auto tree_path::end() const
         -> const_iterator
     {
-        return const_iterator{*this, -1};
+        return const_iterator{*this, mTargetLayer - 1};
     }
 
     inline auto tree_path::cend() const
@@ -421,6 +424,16 @@ namespace vefs::detail
         -> const_reverse_iterator
     {
         return rend();
+    }
+
+    inline tree_path tree_path::next() const
+    {
+        return tree_path(mTreeDepth, position(mTargetLayer) + 1, mTargetLayer);
+    }
+
+    inline tree_path tree_path::previous() const
+    {
+        return tree_path(mTreeDepth, position(mTargetLayer) - 1, mTargetLayer);
     }
 
     #pragma endregion
