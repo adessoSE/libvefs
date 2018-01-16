@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cassert>
 #include <exception>
 #include <stdexcept>
 #include <string_view>
@@ -15,7 +16,7 @@ namespace vefs::utils
     {
         static_assert(std::is_unsigned_v<T>);
 
-        return dividend / divisor + (dividend && dividend % divisor != 0);
+        return dividend / divisor + (dividend % divisor != 0);
     }
     template <typename T, typename U>
     constexpr auto div_ceil(T dividend, U divisor)
@@ -23,6 +24,16 @@ namespace vefs::utils
     {
         using common_t = std::common_type_t<T, U>;
         return div_ceil(static_cast<common_t>(dividend), static_cast<common_t>(divisor));
+    }
+
+    template <typename T, typename U>
+    constexpr auto mod(T k, U n)
+        -> std::common_type_t<T, U>
+    {
+        assert(n > 0);
+
+        const auto r = k % n;
+        return r < 0 ? k + n : k;
     }
 
     constexpr auto upow(std::uint64_t x, std::uint64_t e)
