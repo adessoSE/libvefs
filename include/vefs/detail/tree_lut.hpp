@@ -52,7 +52,7 @@ namespace vefs::detail::lut
     constexpr auto ref_width{ detail::compute_ref_width_lut() };
 
     // sectorPos on layer 0
-    inline int required_tree_depth(std::uint64_t sectorPos)
+    constexpr int required_tree_depth(std::uint64_t sectorPos)
     {
         static_assert(ref_width.size() == 5); // safe guard for ref_width changes.
         return 0
@@ -61,5 +61,10 @@ namespace vefs::detail::lut
             + static_cast<int>(sectorPos >= ref_width[2])
             + static_cast<int>(sectorPos >= ref_width[3])
             + static_cast<int>(sectorPos >= ref_width[4]);
+    }
+
+    constexpr std::uint64_t sector_position_of(std::uint64_t bytePos)
+    {
+        return bytePos / raw_archive::sector_payload_size;
     }
 }
