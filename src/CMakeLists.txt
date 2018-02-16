@@ -11,6 +11,8 @@ DEF_SOURCE_GROUP(vefs UTILS "utils"
 
     HEADERS
         ../vefs.natvis
+        "${_INCLUDE_DIR}/vefs/utils/allocator.hpp"
+        "${_INCLUDE_DIR}/vefs/utils/pool_allocator.hpp"
         "${_INCLUDE_DIR}/vefs/utils/secure_ops.hpp"
         "${_INCLUDE_DIR}/vefs/utils/secure_array.hpp"
         "${_INCLUDE_DIR}/vefs/utils/secure_allocator.hpp"
@@ -155,7 +157,7 @@ target_link_libraries(vefs
 if (MSVC)
     set_source_files_properties(${_FILEPROTO_SRCS} PROPERTIES
         COMPILE_FLAGS "/wd4146 /wd4125"
-    )   
+    )
 endif()
 
 

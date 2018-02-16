@@ -4,18 +4,8 @@
 #include <random>
 
 #include <vefs/detail/file_sector.hpp>
-#include <vefs/utils/random.hpp>
 
 namespace bdata = boost::unit_test::data;
-
-struct test_rng : vefs::utils::xoroshiro128plus
-{
-    test_rng()
-        : xoroshiro128plus(0, 0)
-    {
-    }
-    using xoroshiro128plus::xoroshiro128plus;
-};
 
 static bool check_mult_overflow(std::uint64_t a, std::uint64_t b)
 {

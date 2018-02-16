@@ -2,6 +2,10 @@
 add_executable(vefs-tests
     vefs-tests.cpp
     boost-unit-test.hpp
+    test-utils.hpp
+
+    allocator-tests.cpp
+    cache-tests.cpp
 
     osfilesystem-tests.cpp
     memfs.cpp
