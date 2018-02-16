@@ -141,7 +141,7 @@ namespace vefs
                     // stabilize memory representation
                     std::lock_guard<std::mutex> parentLock{ parentSector->write_mutex() };
 
-                    auto &ref = sector_creference_at(*sector, path.offset(logId.layer()));
+                    auto &ref = sector_creference_at(*parentSector, path.offset(logId.layer()));
                     if (ref.reference == sector_id::master)
                     {
                         return std::make_optional<file_sector_handle>();
@@ -181,14 +181,6 @@ namespace vefs
 
             parentSector = std::move(sector);
         }
-    }
-
-    archive::file_sector_handle archive::safe_acquire(const raw_archive_file & file,
-        const file_sector_id & logicalId, sector_id physId, blob_view mac)
-    {
-        (void)physId;
-        (void)mac;
-        return access(file, logicalId);
     }
 
     archive::file_sector_handle archive::access(const detail::raw_archive_file &file,
@@ -334,6 +326,7 @@ namespace vefs
                 //mSector->dirty_flag().store(false, std::memory_order_release);
                 return;
             }
+            assert(mSector->id().is_allocated(file->size));
 
             std::array<std::byte, raw_archive::sector_payload_size + 16> encryptionMem;
             blob ciphertext{ encryptionMem };
@@ -342,11 +335,7 @@ namespace vefs
 
             mOwner.mArchive->write_sector(ciphertext, mac, *file, mSector->sector(), mSector->data_view());
 
-            auto sectorChain = mSector;
-            while (!try_finish_update(*file, sectorChain->id(), mac))
-            {
-                sectorChain = update_parents(*file, std::move(sectorChain), ciphertext, mac);
-            }
+            update_parent(*file, mac);
 
             mSector.mark_clean();
             //mSector->dirty_flag().store(false, std::memory_order_release);
@@ -354,102 +343,35 @@ namespace vefs
         }
 
     private:
-        bool try_finish_update(raw_archive_file &file, file_sector_id logicalId, blob_view mac)
+        void update_parent(raw_archive_file &file, blob_view mac)
         {
-            std::lock_guard<std::shared_mutex> fileIntegrityLock{ file.integrity_mutex };
-
-            if (logicalId.layer() != file.tree_depth)
+            auto parent = mSector->parent();
+            if (parent)
             {
-                return false;
+                std::lock_guard<std::mutex> parentLock{ parent->write_mutex() };
+
+                auto offset = mSector->id().position_array_offset();
+                auto &ref = sector_reference_at(*parent, offset);
+                ref.reference = mSector->sector();
+                mac.copy_to(blob{ ref.mac });
+                parent.mark_dirty();
             }
-            mac.copy_to(file.start_block_mac_blob());
-            return true;
-        }
-
-        file_sector_handle update_parents(raw_archive_file &file,
-            file_sector_handle lastUpdated, blob ciphertext, blob mac)
-        {
-            auto logicalId = lastUpdated->id();
-            auto parents = acquire_parents(file, logicalId);
-            while (!parents.empty())
+            else
             {
-                auto offset = logicalId.position_array_offset();
-                logicalId = logicalId.parent();
+                std::unique_lock<std::shared_mutex> fileIntegrityLock{ file.integrity_mutex };
+                if (mSector->parent())
                 {
-                    auto &parent = parents.top();
-                    std::unique_lock<std::mutex> parentLock{ parent->write_mutex() };
-
-                    auto &ref = sector_reference_at(*parent, offset);
-                    ref.reference = lastUpdated->sector();
-                    mac.copy_to(blob{ ref.mac });
-
-                    mOwner.mArchive->write_sector(ciphertext, mac, file, parent->sector(), parent->data_view());
-
-                    if (parent.mark_clean())
-                    {
-                        --mOwner.mDirtyObjects;
-                    }
+                    fileIntegrityLock.unlock();
+                    // the file grew a new root node
+                    update_parent(file, mac);
+                    return;
                 }
-                lastUpdated = std::move(parents.top());
-                parents.pop();
+
+                assert(file.tree_depth == mSector->id().layer());
+
+                file.start_block_idx = mSector->sector();
+                mac.copy_to(file.start_block_mac_blob());
             }
-            return lastUpdated;
-        }
-
-        sector_stack acquire_parents(const raw_archive_file &file, const file_sector_id &leaf)
-        {
-            file_sector_id logicalId{ leaf.file_id(), {} };
-            std::array<std::byte, 16> macMem;
-            sector_id physId;
-            blob mac{ macMem };
-            file_sector_handle currentSector;
-            {
-                std::shared_lock<std::shared_mutex> integrityLock{ file.integrity_mutex };
-                macMem = file.start_block_mac;
-                physId = file.start_block_idx;
-
-                logicalId.layer_position({ 0, file.tree_depth });
-                if (file.tree_depth == 0)
-                {
-                    return {};
-                }
-                currentSector = mOwner.access(file, logicalId);
-            }
-
-            sector_vector stackStorage;
-            stackStorage.reserve(logicalId.layer());
-            sector_stack stack{ std::move(stackStorage) };
-            stack.push(std::move(currentSector));
-
-            //tree_path wishlist{ logicalId.layer(), leaf.layer_position().parent() };
-
-            std::stack<tree_position> wishlist;
-            {
-                auto parentId = leaf.parent();
-                for (auto i = 1, limit = logicalId.layer(); i < limit; ++i)
-                {
-                    wishlist.push(parentId.layer_position());
-                    parentId = parentId.parent();
-                }
-                assert(parentId.layer_position() == logicalId.layer_position());
-            }
-
-            while (!wishlist.empty())
-            {
-                logicalId.layer_position(wishlist.top());
-                wishlist.pop();
-
-                auto &sector = stack.top();
-                std::lock_guard<std::mutex> sectorLock{ sector->write_mutex() };
-
-                const auto ref = &sector->data_view().as<RawSectorReference>() + logicalId.position_array_offset();
-                physId = ref->reference;
-                macMem = ref->mac;
-
-                stack.push(mOwner.access(file, logicalId));
-            }
-            return stack;
-
         }
 
         archive &mOwner;
@@ -715,8 +637,6 @@ namespace vefs
             walker = walker.previous();
         }
 
-        auto tmp = access(file, loadedSectorId);
-
         // now we only need to adjust the height of the file tree
         auto adjustedDepth = lut::required_tree_depth(endPosition);
         if (adjustedDepth != treeDepth)
@@ -759,9 +679,6 @@ namespace vefs
         }
 
         dealloc_sectors(std::move(collectedIds));
-
-        // #TODO this becomes obsolete soon
-        mark_dirty(tmp);
     }
 
     void vefs::archive::write(detail::raw_archive_file & file, blob_view data, std::uint64_t writeFilePos)

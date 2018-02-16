@@ -101,9 +101,6 @@ namespace vefs
             return get_file_handle(fsid.file_id());
         }
 
-        archive::file_sector_handle safe_acquire(const detail::raw_archive_file &file,
-            const detail::file_sector_id &logicalId, detail::sector_id physId, blob_view mac);
-
         file_sector_handle access(const detail::raw_archive_file &file, detail::file_sector_id sector);
         std::optional<file_sector_handle> access_impl(const detail::raw_archive_file &file,
             const detail::file_sector_id &sector);
