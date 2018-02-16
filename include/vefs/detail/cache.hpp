@@ -37,7 +37,10 @@ namespace vefs::detail::detail
             : mData{ other.mData }
             , mControl{ other.mControl }
         {
-            mControl->add_reference();
+            if (*this)
+            {
+                mControl->add_reference();
+            }
         }
         constexpr cache_handle(cache_handle &&other) noexcept
             : mData{ other.mData }
@@ -62,7 +65,10 @@ namespace vefs::detail::detail
             }
             mData = other.mData;
             mControl = other.mControl;
-            mControl->add_reference();
+            if (*this)
+            {
+                mControl->add_reference();
+            }
             return *this;
         }
         inline cache_handle & operator=(cache_handle &&other) noexcept
@@ -113,13 +119,13 @@ namespace vefs::detail::detail
             return mControl < other.mControl;
         }
 
-        inline void mark_dirty() const noexcept
+        inline bool mark_dirty() const noexcept
         {
-            mControl->mark_dirty();
+            return mControl->mark_dirty();
         }
-        inline void mark_clean() const noexcept
+        inline bool mark_clean() const noexcept
         {
-            mControl->mark_clean();
+            return mControl->mark_clean();
         }
         inline bool is_dirty() const noexcept
         {
@@ -187,7 +193,9 @@ namespace vefs::detail::detail
                 // it is a non dirty tombstone
                 if (current != 0 && (current & DirtyTombstone) != TombstoneBit)
                 {
-                    return replacement_result::failed;
+                    return current == DirtyBit
+                        ? replacement_result::dirty
+                        : replacement_result::failed;
                 }
 
             } while (!mEntryState.compare_exchange_weak(current, DirtyTombstone,
@@ -225,13 +233,13 @@ namespace vefs::detail::detail
         {
             return mEntryState.load(std::memory_order_acquire) & DirtyBit;
         }
-        inline void mark_dirty()
+        inline bool mark_dirty()
         {
-            mEntryState.fetch_or(DirtyBit, std::memory_order_release);
+            return mEntryState.fetch_or(DirtyBit, std::memory_order_acq_rel) & DirtyBit;
         }
-        inline void mark_clean()
+        inline bool mark_clean()
         {
-            mEntryState.fetch_and(~DirtyBit, std::memory_order_release);
+            return !(mEntryState.fetch_and(~DirtyBit, std::memory_order_acq_rel) & DirtyBit);
         }
         inline void add_reference()
         {
@@ -289,24 +297,6 @@ namespace vefs::detail::detail
     };
 
     using cache_lookup_ptr = std::shared_ptr<cache_lookup>;
-
-    template <std::size_t num_entries>
-    using cache_lookup_pool_allocator = utils::alloc_std_adaptor<cache_lookup,
-        utils::octopus_allocator<
-            utils::pool_allocator_mt<
-                sizeof(cache_lookup) + 2 * sizeof(std::size_t), num_entries,
-                utils::default_system_allocator
-            >,
-            utils::default_system_allocator
-        >
-    >;
-
-    using temp_alloc_t = cache_lookup_pool_allocator<2014>;
-
-    inline cache_lookup_ptr create_lookup(temp_alloc_t &allocator)
-    {
-        return std::allocate_shared<cache_lookup>(allocator);
-    }
 }
 
 namespace std
@@ -352,18 +342,15 @@ namespace vefs::detail
         using lookup_state = detail::cache_lookup_state;
         using lookup_ptr = detail::cache_lookup_ptr;
 
-        /*
         using lookup_allocator_t = utils::alloc_std_adaptor<lookup,
             utils::octopus_allocator<
                 utils::pool_allocator_mt<
-                    sizeof(lookup) + 2*sizeof(std::size_t), max_entries + 16,
+                    sizeof(lookup) + 4*sizeof(std::size_t), max_entries + 16,
                     utils::default_system_allocator
                 >,
                 utils::default_system_allocator
             >
         >;
-        */
-        using lookup_allocator_t = detail::temp_alloc_t;
 
         using key_index_map = CacheMap<key_type, lookup_ptr>;
         using index_key_map = std::array<key_type, max_entries>;
@@ -374,8 +361,7 @@ namespace vefs::detail
 
         inline lookup_ptr create_lookup()
         {
-            //return std::allocate_shared<lookup>(mLookupAllocator);
-            return detail::create_lookup(mLookupAllocator);
+            return std::allocate_shared<lookup>(mLookupAllocator);
         }
 
     public:
@@ -592,7 +578,7 @@ namespace vefs::detail
             bool anyDirty = false;
             for (auto &e : mEntries)
             {
-                if (auto h = e.try_peek(); e && e.is_dirty())
+                if (auto h = e.try_peek(); h && h.is_dirty())
                 {
                     anyDirty = true;
                     fn(std::move(h));

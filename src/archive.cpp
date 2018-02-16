@@ -98,12 +98,12 @@ namespace vefs
         tree_path::iterator pathEnd{ path, cacheId.layer() };
 
         file_sector_id logId{ file.id, *pathIterator };
-        std::shared_ptr<file_sector> parentSector;
+        file_sector_handle parentSector;
 
 
         for (;;)
         {
-            std::shared_ptr<file_sector> sector;
+            file_sector_handle sector;
             try
             {
                 if (static_cast<uint64_t>(physId) >= mArchive->size())
@@ -111,7 +111,8 @@ namespace vefs
                     BOOST_THROW_EXCEPTION(sector_reference_out_of_range{}
                         << errinfo_sector_idx{ physId });
                 }
-                auto entry = mBlockPool->access(logId, *mArchive, file, parentSector, logId, physId, blob_view{ mac });
+                auto entry = mBlockPool->access(logId,
+                    *mArchive, file, parentSector, logId, physId, blob_view{ mac });
                 sector = std::move(std::get<1>(entry));
             }
             catch (const boost::exception &)
@@ -182,24 +183,15 @@ namespace vefs
         }
     }
 
-    std::shared_ptr<file_sector> archive::safe_acquire(const raw_archive_file & file,
+    archive::file_sector_handle archive::safe_acquire(const raw_archive_file & file,
         const file_sector_id & logicalId, sector_id physId, blob_view mac)
     {
-        auto result = mBlockPool->try_access<3>(logicalId, *mArchive, file, file_sector_handle{}, logicalId, physId, mac);
-        if (auto sector = std::move(std::get<1>(result)))
-        {
-            return sector;
-        }
-
-        //TODO: bad alloc
-        auto raw = new file_sector(*mArchive, file, {}, logicalId, physId, mac);
-        return std::get<1>(mBlockPool->try_push_external(logicalId, *raw, [](auto &, file_sector *val)
-        {
-            delete val;
-        }));
+        (void)physId;
+        (void)mac;
+        return access(file, logicalId);
     }
 
-    std::shared_ptr<file_sector> archive::access(const detail::raw_archive_file &file,
+    archive::file_sector_handle archive::access(const detail::raw_archive_file &file,
         detail::file_sector_id sector)
     {
         if (!sector)
@@ -224,9 +216,9 @@ namespace vefs
 
     class archive::file_walker
         : public boost::iterator_facade<archive::file_walker,
-            std::shared_ptr<file_sector>, // value_type
+            archive::file_sector_handle, // value_type
             boost::random_access_traversal_tag,   // category
-            std::shared_ptr<file_sector>  // reference
+            archive::file_sector_handle  // reference
         >
     {
         friend class boost::iterator_core_access;
@@ -251,7 +243,7 @@ namespace vefs
         }
 
     private:
-        std::shared_ptr<file_sector> dereference() const
+        archive::file_sector_handle dereference() const
         {
             return mArchive->access(*mFile, mPosition);
         }
@@ -292,10 +284,10 @@ namespace vefs
     class archive::writer_task
     {
     public:
-        using sector_vector = std::vector<std::shared_ptr<file_sector>>;
-        using sector_stack = std::stack<std::shared_ptr<file_sector>, sector_vector>;
+        using sector_vector = std::vector<file_sector_handle>;
+        using sector_stack = std::stack<file_sector_handle, sector_vector>;
 
-        writer_task(archive &owner, std::shared_ptr<file_sector> sector)
+        writer_task(archive &owner, file_sector_handle sector)
             : mOwner(owner)
             , mSector(std::move(sector))
         {
@@ -316,7 +308,8 @@ namespace vefs
             catch (const std::out_of_range &)
             {
                 // file is dead, so we let go of this sector
-                if (mSector->dirty_flag().exchange(false, std::memory_order_release))
+                //if (mSector->dirty_flag().exchange(false, std::memory_order_release))
+                if (mSector.mark_clean())
                 {
                     --mOwner.mDirtyObjects;
                 }
@@ -330,14 +323,15 @@ namespace vefs
             VEFS_ERROR_EXIT{ mOwner.mark_dirty(mSector); };
             VEFS_SCOPE_EXIT{ mSector->write_queued_flag().clear(std::memory_order_release); };
 
-            if (!mSector->dirty_flag())
+            if (!mSector.is_dirty())
             {
                 return;
             }
 
             if (!file->valid)
             {
-                mSector->dirty_flag().store(false, std::memory_order_release);
+                mSector.mark_clean();
+                //mSector->dirty_flag().store(false, std::memory_order_release);
                 return;
             }
 
@@ -354,7 +348,8 @@ namespace vefs
                 sectorChain = update_parents(*file, std::move(sectorChain), ciphertext, mac);
             }
 
-            mSector->dirty_flag().store(false, std::memory_order_release);
+            mSector.mark_clean();
+            //mSector->dirty_flag().store(false, std::memory_order_release);
             --mOwner.mDirtyObjects;
         }
 
@@ -371,8 +366,8 @@ namespace vefs
             return true;
         }
 
-        std::shared_ptr<file_sector> update_parents(raw_archive_file &file, std::shared_ptr<file_sector> lastUpdated,
-            blob ciphertext, blob mac)
+        file_sector_handle update_parents(raw_archive_file &file,
+            file_sector_handle lastUpdated, blob ciphertext, blob mac)
         {
             auto logicalId = lastUpdated->id();
             auto parents = acquire_parents(file, logicalId);
@@ -390,7 +385,7 @@ namespace vefs
 
                     mOwner.mArchive->write_sector(ciphertext, mac, file, parent->sector(), parent->data_view());
 
-                    if (parent->dirty_flag().exchange(false))
+                    if (parent.mark_clean())
                     {
                         --mOwner.mDirtyObjects;
                     }
@@ -407,7 +402,7 @@ namespace vefs
             std::array<std::byte, 16> macMem;
             sector_id physId;
             blob mac{ macMem };
-            std::shared_ptr<file_sector> currentSector;
+            file_sector_handle currentSector;
             {
                 std::shared_lock<std::shared_mutex> integrityLock{ file.integrity_mutex };
                 macMem = file.start_block_mac;
@@ -418,7 +413,7 @@ namespace vefs
                 {
                     return {};
                 }
-                currentSector = acquire(file, logicalId, physId, mac);
+                currentSector = mOwner.access(file, logicalId);
             }
 
             sector_vector stackStorage;
@@ -451,58 +446,27 @@ namespace vefs
                 physId = ref->reference;
                 macMem = ref->mac;
 
-                stack.push(acquire(file, logicalId, physId, mac));
+                stack.push(mOwner.access(file, logicalId));
             }
             return stack;
 
         }
-        std::shared_ptr<file_sector> acquire(const raw_archive_file &file,
-            const file_sector_id &logicalId, sector_id physId, blob_view mac)
-        {
-            auto result = mOwner.mBlockPool->try_access<3>(logicalId, *mOwner.mArchive, file, file_sector_handle{}, logicalId, physId, mac);
-            if (auto sector = std::move(std::get<1>(result)))
-            {
-                return sector;
-            }
-
-            //TODO: bad alloc
-            auto raw = new file_sector(*mOwner.mArchive, file, {}, logicalId, physId, mac);
-            return std::get<1>(mOwner.mBlockPool->try_push_external(logicalId, *raw, [](auto &, file_sector *val)
-            {
-                if (val)
-                {
-                    delete val;
-                }
-            }));
-        }
 
         archive &mOwner;
-        const std::shared_ptr<file_sector> mSector;
+        const file_sector_handle mSector;
     };
 
     archive::archive()
         : mFreeSectorPoolMutex()
         , mDirtyObjects(0)
     {
-        mBlockPool = std::make_unique<block_pool_t>([this](const file_sector_id &id, block_pool_t::handle sector)
+        mBlockPool = std::make_unique<block_pool_t>([this](block_pool_t::handle sector)
         {
-            if (sector->dirty_flag().load(std::memory_order_acquire))
+            if (!sector->write_queued_flag().test_and_set(std::memory_order_acq_rel))
             {
-                if (id.layer() == 0)
-                {
-                    // we only queue data sectors for writing
-                    if (!sector->write_queued_flag().test_and_set(std::memory_order_acq_rel))
-                    {
-                        // we only queue each sector round about once (plus races)
-                        mOpsPool->exec(writer_task{ *this, std::move(sector) });
-                    }
-                    // data sectors are locked by their writer tasks and thus don't need to
-                    // pollute the access queue
-                    return false;
-                }
-                return true;
+                // we only queue each sector round about once (plus races)
+                mOpsPool->exec(writer_task{ *this, std::move(sector) });
             }
-            return false;
         });
     }
 
@@ -537,20 +501,20 @@ namespace vefs
     {
         using namespace std::chrono_literals;
 
-        while (mDirtyObjects)
+        atomic_thread_fence(std::memory_order_acquire);
+
+        while (mBlockPool->for_dirty([this](file_sector_handle sector)
         {
-            mBlockPool->queue_dirty();
-            std::this_thread::sleep_for(500us);
-        }
+            writer_task{ *this, std::move(sector) }();
+        }));
 
         write_archive_index();
         write_free_sector_index();
 
-        while (mDirtyObjects)
+        while (mBlockPool->for_dirty([this](file_sector_handle sector)
         {
-            mBlockPool->queue_dirty();
-            std::this_thread::sleep_for(500us);
-        }
+            writer_task{ *this, std::move(sector) }();
+        }));
 
         mArchive->update_header();
         mArchive->sync();
@@ -698,7 +662,7 @@ namespace vefs
                 auto sectorIdx = it->sector();
                 collectedIds.push_back(sectorIdx);
                 mArchive->erase_sector(file, sectorIdx);
-                if (it->dirty_flag().exchange(false))
+                if (it.mark_clean())
                 {
                     --mDirtyObjects;
                 }
@@ -737,7 +701,7 @@ namespace vefs
                     auto sectorIdx = it->sector();
                     collectedIds.push_back(sectorIdx);
                     mArchive->erase_sector(file, sectorIdx);
-                    if (it->dirty_flag().exchange(false))
+                    if (it.mark_clean())
                     {
                         --mDirtyObjects;
                     }
@@ -779,7 +743,7 @@ namespace vefs
                 auto sectorIdx = it->sector();
                 collectedIds.push_back(sectorIdx);
                 mArchive->erase_sector(file, sectorIdx);
-                if (it->dirty_flag().exchange(false))
+                if (it.mark_clean())
                 {
                     --mDirtyObjects;
                 }

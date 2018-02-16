@@ -13,7 +13,7 @@
 #include <vefs/crypto/provider.hpp>
 #include <vefs/detail/raw_archive.hpp>
 #include <vefs/detail/archive_file.hpp>
-#include <vefs/detail/pool_cache.hpp>
+#include <vefs/detail/cache.hpp>
 #include <vefs/detail/thread_pool.hpp>
 #include <vefs/detail/file_sector.hpp>
 
@@ -23,8 +23,8 @@ namespace vefs
     class archive
     {
         using file_sector = detail::file_sector;
-        using file_sector_handle = std::shared_ptr<file_sector>;
-        using block_pool_t = detail::caching_object_pool<detail::file_sector_id, file_sector, 1 << 10>;
+        using block_pool_t = detail::cache<detail::file_sector_id, file_sector, 1 << 10>;
+        using file_sector_handle = typename block_pool_t::handle;
         using raw_archive_file_ptr = std::shared_ptr<detail::raw_archive_file>;
 
         class file_walker;
@@ -75,13 +75,12 @@ namespace vefs
         void dealloc_sectors(std::vector<detail::sector_id> sectors);
         void dealloc_sectors_impl(std::vector<detail::sector_id> sectors);
 
-        void mark_dirty(const std::shared_ptr<file_sector> &sector)
+        void mark_dirty(const file_sector_handle &sector)
         {
-            if (!sector->dirty_flag().exchange(true, std::memory_order_acq_rel))
+            if (sector.mark_dirty())
             {
                 ++mDirtyObjects;
             }
-            mBlockPool->mark_as_accessed(sector->id());
         }
 
         raw_archive_file_ptr get_file_handle(const detail::file_id &id)
@@ -102,7 +101,7 @@ namespace vefs
             return get_file_handle(fsid.file_id());
         }
 
-        std::shared_ptr<file_sector> safe_acquire(const detail::raw_archive_file &file,
+        archive::file_sector_handle safe_acquire(const detail::raw_archive_file &file,
             const detail::file_sector_id &logicalId, detail::sector_id physId, blob_view mac);
 
         file_sector_handle access(const detail::raw_archive_file &file, detail::file_sector_id sector);

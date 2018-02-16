@@ -13,6 +13,7 @@
 #include <vefs/blob.hpp>
 #include <vefs/utils/misc.hpp>
 #include <vefs/detail/sector_id.hpp>
+#include <vefs/detail/cache.hpp>
 #include <vefs/detail/raw_archive.hpp>
 #include <vefs/detail/archive_file.hpp>
 #include <vefs/detail/tree_walker.hpp>
@@ -58,10 +59,10 @@ namespace vefs::detail
     class file_sector
     {
     public:
-        using handle = std::shared_ptr<file_sector>;
+        using handle = detail::cache_handle<file_sector>;
 
         file_sector(handle parentSector, file_sector_id logicalId, sector_id physId) noexcept;
-        file_sector(detail::raw_archive &src, const detail::raw_archive_file &file,
+        file_sector(raw_archive &src, const raw_archive_file &file,
             handle parentSector, const file_sector_id &logicalId,
             sector_id physId, blob_view mac);
 
@@ -75,20 +76,16 @@ namespace vefs::detail
         auto data() const noexcept;
         auto data_view() const noexcept;
 
-        auto & dirty_flag();
-        const auto & dirty_flag() const;
-
         auto & write_mutex();
         auto & write_queued_flag();
 
     private:
         file_sector_id mId;
-        detail::sector_id mSector;
+        sector_id mSector;
         handle mParentSector;
         std::mutex mWriteMutex{};
-        std::atomic<bool> mDirtyFlag{ false };
         std::atomic_flag mWriteQueued = ATOMIC_FLAG_INIT;
-        std::array<std::byte, detail::raw_archive::sector_payload_size> mBlockData;
+        std::array<std::byte, raw_archive::sector_payload_size> mBlockData;
     };
 
     std::string to_string(const file_sector_id &id);
@@ -189,7 +186,7 @@ namespace vefs::detail
     {
     }
 
-    inline file_sector::file_sector(detail::raw_archive & src, const detail::raw_archive_file & file,
+    inline file_sector::file_sector(raw_archive & src, const raw_archive_file & file,
         handle parentSector, const file_sector_id & logicalId, sector_id physId, blob_view mac)
         : file_sector{std::move(parentSector), logicalId, physId}
     {
@@ -224,16 +221,6 @@ namespace vefs::detail
     inline auto file_sector::data_view() const noexcept
     {
         return blob_view{ mBlockData };
-    }
-
-    inline auto & file_sector::dirty_flag()
-    {
-        return mDirtyFlag;
-    }
-
-    inline const auto & file_sector::dirty_flag() const
-    {
-        return mDirtyFlag;
     }
 
     inline auto & file_sector::write_mutex()
