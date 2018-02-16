@@ -1194,8 +1194,10 @@ private:
     slot = -1;
     for (int i = 0; i < static_cast<int>(slot_per_bucket()); ++i) {
       if (b.occupied(i)) {
-        if (!is_simple && partial != b.partial(i)) {
-          continue;
+        if constexpr (!is_simple) {
+            if (partial != b.partial(i)) {
+                continue;
+            }
         }
         if (key_eq()(b.key(i), key)) {
           slot = i;
