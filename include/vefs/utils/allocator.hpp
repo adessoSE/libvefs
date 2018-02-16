@@ -357,7 +357,7 @@ namespace vefs::utils
         inline alloc_std_adaptor(impl_handle h)
             : mAllocator{ std::move(h) }
         {
-            assert(h);
+            assert(mAllocator);
         }
         inline alloc_std_adaptor(const alloc_std_adaptor &other)
             : alloc_std_adaptor{ other.mAllocator }

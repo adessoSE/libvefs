@@ -18,11 +18,14 @@ namespace vefs::detail::detail
 {
     template <typename T>
     struct cache_entry;
+}
 
+namespace vefs::detail
+{
     template <typename T>
-    class [[nodiscard]] cache_handle
+    class[[nodiscard]] cache_handle
     {
-        using entry_type = cache_entry<T>;
+        using entry_type = detail::cache_entry<T>;
         friend struct entry_type;
 
     public:
@@ -140,12 +143,16 @@ namespace vefs::detail::detail
         }
 
     private:
-        inline cache_handle(cache_entry<T> &entry) noexcept;
+        inline cache_handle(entry_type &entry) noexcept;
 
         element_type *mData;
         entry_type *mControl;
     };
+}
 
+
+namespace vefs::detail::detail
+{
     enum class replacement_result
     {
         dirty = -1,
@@ -166,6 +173,7 @@ namespace vefs::detail::detail
         static constexpr state_type DirtyBit = TombstoneBit >> 1;
         static constexpr state_type DirtyTombstone = TombstoneBit | DirtyBit;
         static constexpr state_type SecondChanceBit = DirtyBit >> 1;
+        static constexpr state_type RefMask = ~(TombstoneBit | DirtyBit | SecondChanceBit);
 
         constexpr cache_entry()
             : mEntryState(TombstoneBit)
@@ -258,16 +266,9 @@ namespace vefs::detail::detail
 
     public:
 
-        std::atomic<std::size_t> mEntryState{ std::numeric_limits<std::size_t>::max() };
+        std::atomic<state_type> mEntryState{ state_traits::max() };
         std::atomic<T *> mValuePtr{ nullptr };
     };
-
-    template <typename T>
-    inline cache_handle<T>::cache_handle(cache_entry<T> &entry) noexcept
-        : mData{ entry.mValuePtr.load(std::memory_order_acquire) }
-        , mControl{ &entry }
-    {
-    }
 
     enum class cache_lookup_state
     {
@@ -299,13 +300,23 @@ namespace vefs::detail::detail
     using cache_lookup_ptr = std::shared_ptr<cache_lookup>;
 }
 
+namespace vefs::detail
+{
+    template <typename T>
+    inline cache_handle<T>::cache_handle(entry_type &entry) noexcept
+        : mData{ entry.mValuePtr.load(std::memory_order_acquire) }
+        , mControl{ &entry }
+    {
+    }
+}
+
 namespace std
 {
     template <typename T>
-    struct owner_less<vefs::detail::detail::cache_handle<T>>
+    struct owner_less<vefs::detail::cache_handle<T>>
     {
     private:
-        using cache_handle = vefs::detail::detail::cache_handle<T>;
+        using cache_handle = vefs::detail::cache_handle<T>;
 
     public:
         constexpr bool operator()(const cache_handle &lhs, const cache_handle &rhs)
@@ -365,7 +376,7 @@ namespace vefs::detail
         }
 
     public:
-        using handle = detail::cache_handle<value_type>;
+        using handle = cache_handle<value_type>;
         using notify_dirty_fn = std::function<void(handle)>;
 
         enum class preinit_storage_t {};

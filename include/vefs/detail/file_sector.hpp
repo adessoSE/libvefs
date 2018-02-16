@@ -59,7 +59,7 @@ namespace vefs::detail
     class file_sector
     {
     public:
-        using handle = detail::cache_handle<file_sector>;
+        using handle = cache_handle<file_sector>;
 
         file_sector(handle parentSector, file_sector_id logicalId, sector_id physId) noexcept;
         file_sector(raw_archive &src, const raw_archive_file &file,
