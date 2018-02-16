@@ -425,18 +425,40 @@ namespace vefs
 
         atomic_thread_fence(std::memory_order_acquire);
 
-        while (mBlockPool->for_dirty([this](file_sector_handle sector)
         {
-            writer_task{ *this, std::move(sector) }();
-        }));
+            auto layer = 0;
+            bool finished;
+            do
+            {
+                finished = mBlockPool->for_dirty([this, &layer](file_sector_handle sector)
+                {
+                    if (sector->id().layer() == layer)
+                    {
+                        writer_task{ *this, std::move(sector) }();
+                    }
+                });
+                layer = layer == lut::max_tree_depth ? layer + 1 : 0;
+            } while (!finished);
+        }
 
         write_archive_index();
         write_free_sector_index();
 
-        while (mBlockPool->for_dirty([this](file_sector_handle sector)
         {
-            writer_task{ *this, std::move(sector) }();
-        }));
+            auto layer = 0;
+            bool finished;
+            do
+            {
+                finished = mBlockPool->for_dirty([this, &layer](file_sector_handle sector)
+                {
+                    if (sector->id().layer() == layer)
+                    {
+                        writer_task{ *this, std::move(sector) }();
+                    }
+                });
+                layer = layer == lut::max_tree_depth ? layer + 1 : 0;
+            } while (!finished);
+        }
 
         mArchive->update_header();
         mArchive->sync();
