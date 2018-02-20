@@ -222,47 +222,47 @@ namespace vefs::tests
     std::future<void> memory_file::read_async(blob buffer, std::uint64_t readFilePos,
                                                 file::async_callback_fn callback)
     {
-        return mOwner->opsPool
-        .exec([this, buffer, readFilePos](async_callback_fn callback)
+        auto task = [this, buffer, readFilePos, cb = std::move(callback)]()
         {
             std::error_code ec;
             read(buffer, readFilePos, ec);
-            callback(std::move(ec));
-        }, std::move(callback));
+            cb(std::move(ec));
+        };
+        return mOwner->opsPool.exec_with_completion(std::move(task));
     }
 
     std::future<void> memory_file::write_async(blob_view data, std::uint64_t writeFilePos,
                                                 file::async_callback_fn callback)
     {
-        return mOwner->opsPool
-        .exec([this, data, writeFilePos](async_callback_fn callback)
+        auto task = [this, data, writeFilePos, cb = std::move(callback)]()
         {
             std::error_code ec;
             write(data, writeFilePos, ec);
-            callback(std::move(ec));
-        }, std::move(callback));
+            cb(std::move(ec));
+        };
+        return mOwner->opsPool.exec_with_completion(std::move(task));
     }
 
     std::future<void> memory_file::sync_async(file::async_callback_fn callback)
     {
-        return mOwner->opsPool
-        .exec([this](async_callback_fn callback)
+        auto task = [this, cb = std::move(callback)]()
         {
             std::error_code ec;
             sync(ec);
-            callback(std::move(ec));
-        }, std::move(callback));
+            cb(std::move(ec));
+        };
+        return mOwner->opsPool.exec_with_completion(std::move(task));
     }
 
     std::future<void> memory_file::resize_async(std::uint64_t newSize,
                                                 file::async_callback_fn callback)
     {
-        return mOwner->opsPool
-        .exec([this, newSize](async_callback_fn callback)
+        auto task = [this, newSize, cb = std::move(callback)]()
         {
             std::error_code ec;
             resize(newSize, ec);
-            callback(std::move(ec));
-        }, std::move(callback));
+            cb(std::move(ec));
+        };
+        return mOwner->opsPool.exec_with_completion(std::move(task));
     }
 }

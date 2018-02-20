@@ -35,6 +35,7 @@ namespace vefs::detail
         , mWorkerList{}
         , mThreadPoolName{ poolName.size() ? std::string{ poolName } : make_anonymous_pool_name() }
     {
+        mWorkerList.reserve(numWorkers);
         try
         {
             for (unsigned int i = 0; i < numWorkers; ++i)

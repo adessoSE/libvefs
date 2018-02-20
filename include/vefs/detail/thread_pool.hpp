@@ -28,6 +28,12 @@ namespace vefs::detail
         template <typename T, typename... Args >
         auto exec(T &&task, Args&&... args);
 
+        template <typename Fn>
+        void exec(Fn &&task);
+
+        template <typename Fn>
+        auto exec_with_completion(Fn &&task);
+
     private:
         void worker_main(moodycamel::ConsumerToken workerToken, int id);
 
@@ -36,16 +42,42 @@ namespace vefs::detail
         const std::string mThreadPoolName;
     };
 
-    template <typename T, typename... Args>
-    auto thread_pool::exec(T&& task, Args&&... args)
+    template <typename Fn>
+    inline void thread_pool::exec(Fn &&task)
     {
-        using return_type = decltype(task(std::forward<Args>(args)...));
+        if constexpr (noexcept(task()))
+        {
+            // this part won't be compiled if Fn is a std::function
+            // because the std::function::operator() is noexcept(false)
+            // therefore you cannot sneakily invoke either the copy or move ctor
+            mTaskQueue.enqueue(task_t{ std::forward<Fn>(task) });
+        }
+        else
+        {
+            mTaskQueue.enqueue([btask = std::forward<Fn>(task)]() mutable noexcept
+            {
+                try
+                {
+                    btask();
+                }
+                catch (...)
+                {
+                    // maybe trigger the debugger or something
+                }
+            });
+        }
+    }
+
+    template <typename Fn>
+    inline auto thread_pool::exec_with_completion(Fn &&task)
+    {
+        using return_type = decltype(task());
         auto taskPackage = std::make_shared<std::packaged_task<return_type()>>(
-            std::bind(task, std::forward<Args>(args)...)
+            std::forward<Fn>(task)
         );
         auto taskResult = taskPackage->get_future();
 
-        mTaskQueue.enqueue([taskPackage]() { (*taskPackage)(); });
+        this->exec([task = std::move(taskPackage)]() mutable noexcept { (*task)(); });
 
         return taskResult;
     }
