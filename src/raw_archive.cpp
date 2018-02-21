@@ -104,13 +104,13 @@ namespace vefs::detail
         file.tree_depth = -1;
     }
 
-    std::shared_ptr<raw_archive_file> raw_archive::create_file()
+    std::unique_ptr<raw_archive_file> raw_archive::create_file()
     {
         //TODO: improve id generation
         thread_local vefs::utils::xoroshiro128plus engine = create_engine();
         thread_local boost::uuids::basic_random_generator<decltype(engine)> generate_id{ engine };
 
-        auto file = std::make_shared<raw_archive_file>();
+        auto file = std::make_unique<raw_archive_file>();
 
         file->id = file_id{ generate_id() };
 

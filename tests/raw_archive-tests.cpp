@@ -3,8 +3,6 @@
 
 #include <random>
 
-#include <vefs/detail/file_sector.hpp>
-
 namespace bdata = boost::unit_test::data;
 
 static bool check_mult_overflow(std::uint64_t a, std::uint64_t b)

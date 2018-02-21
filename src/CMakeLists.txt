@@ -44,7 +44,6 @@ endif()
 DEF_SOURCE_GROUP(vefs LIB "lib"
     HEADERS
         "${_INCLUDE_DIR}/vefs/archive.hpp"
-        "${_INCLUDE_DIR}/vefs/archive_file.hpp"
         "${_INCLUDE_DIR}/vefs/exceptions.hpp"
         "${_INCLUDE_DIR}/vefs/blob.hpp"
         "${_INCLUDE_DIR}/vefs/filesystem.hpp"
@@ -52,6 +51,8 @@ DEF_SOURCE_GROUP(vefs LIB "lib"
 
     SOURCES
         archive.cpp
+        archive_file.hpp
+        archive_file.cpp
         filesystem.cpp
         os_filesystem.hpp
         os_filesystem.cpp
@@ -63,15 +64,12 @@ DEF_SOURCE_GROUP(vefs DETAIL "lib/detail"
     HEADERS
         "${_INCLUDE_DIR}/vefs/detail/cache.hpp"
         "${_INCLUDE_DIR}/vefs/detail/thread_pool.hpp"
-        "${_INCLUDE_DIR}/vefs/detail/memory_pool.hpp"
-        "${_INCLUDE_DIR}/vefs/detail/pool_cache.hpp"
 
         "${_INCLUDE_DIR}/vefs/detail/string_map.hpp"
 
         "${_INCLUDE_DIR}/vefs/detail/sector_id.hpp"
-        "${_INCLUDE_DIR}/vefs/detail/file_sector.hpp"
-        "${_INCLUDE_DIR}/vefs/detail/tree_walker.hpp"
         "${_INCLUDE_DIR}/vefs/detail/tree_lut.hpp"
+        "${_INCLUDE_DIR}/vefs/detail/tree_walker.hpp"
         "${_INCLUDE_DIR}/vefs/detail/archive_file.hpp"
         "${_INCLUDE_DIR}/vefs/detail/raw_archive.hpp"
         "${_INCLUDE_DIR}/vefs/detail/journal.hpp"
@@ -79,7 +77,6 @@ DEF_SOURCE_GROUP(vefs DETAIL "lib/detail"
     SOURCES
         thread_pool.cpp
         raw_archive.cpp
-        file_sector.cpp
         tree_walker.cpp
 )
 

@@ -6,6 +6,7 @@
 
 #include <array>
 #include <limits>
+#include <functional>
 
 #include <boost/iterator/iterator_facade.hpp>
 
@@ -38,6 +39,7 @@ namespace vefs::detail
         constexpr void position(std::uint64_t value) noexcept;
 
         constexpr tree_position parent() const noexcept;
+        constexpr int parent_array_offset() const;
 
         constexpr storage_type raw() const noexcept;
         //void raw(storage_type value) noexcept;
@@ -180,6 +182,11 @@ namespace vefs::detail
     constexpr tree_position vefs::detail::tree_position::parent() const noexcept
     {
         return tree_position{ position() / lut::references_per_sector, layer() + 1 };
+    }
+
+    inline constexpr int tree_position::parent_array_offset() const
+    {
+        return position() % lut::references_per_sector;
     }
 
     constexpr tree_position::storage_type tree_position::raw() const noexcept
@@ -437,4 +444,17 @@ namespace vefs::detail
     }
 
     #pragma endregion
+}
+
+namespace std
+{
+    template <>
+    struct hash<vefs::detail::tree_position>
+        : private std::hash<std::uint64_t>
+    {
+        inline std::size_t operator()(vefs::detail::tree_position data) const
+        {
+            return hash<std::uint64_t>::operator()(data.raw());
+        }
+    };
 }
