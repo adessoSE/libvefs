@@ -9,9 +9,10 @@
 #include <boost/functional/hash.hpp>
 
 #include <vefs/blob.hpp>
-#include <vefs/crypto/counter.hpp>
-#include <vefs/utils/secure_array.hpp>
 #include <vefs/utils/uuid.hpp>
+#include <vefs/utils/secure_array.hpp>
+#include <vefs/utils/hash/default_weak.hpp>
+#include <vefs/crypto/counter.hpp>
 #include <vefs/detail/sector_id.hpp>
 
 namespace vefs::detail
@@ -58,6 +59,17 @@ namespace vefs::detail
         return !(lhs == rhs);
     }
 
+    template <typename Impl, typename H>
+    inline void compute_hash(const file_id &obj, H &h, utils::hash::algorithm_tag<Impl>)
+    {
+        utils::compute_hash(obj.as_uuid(), h, utils::hash::algorithm_tag<Impl>{});
+    }
+    template <typename Impl>
+    inline void compute_hash(const file_id &obj, Impl &state)
+    {
+        utils::compute_hash(obj.as_uuid(), state);
+    }
+
 
     struct raw_archive_file
     {
@@ -102,10 +114,7 @@ namespace std
 {
     template <>
     struct hash<vefs::detail::file_id>
+        : vefs::utils::hash::default_weak_std<vefs::detail::file_id>
     {
-        std::size_t operator()(const vefs::detail::file_id &id)
-        {
-            return boost::hash<boost::uuids::uuid>{}(id.as_uuid());
-        }
     };
 }

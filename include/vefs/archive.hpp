@@ -16,6 +16,7 @@
 #include <vefs/detail/raw_archive.hpp>
 #include <vefs/detail/archive_file.hpp>
 #include <vefs/detail/cache.hpp>
+#include <vefs/utils/unordered_map_mt.hpp>
 #include <vefs/detail/thread_pool.hpp>
 
 
@@ -87,8 +88,8 @@ namespace vefs
 
         std::unique_ptr<detail::raw_archive> mArchive;
 
-        cuckoohash_map<std::string, detail::file_id, std::hash<std::string_view>, std::equal_to<>> mIndex;
-        cuckoohash_map<detail::file_id, file_lookup> mFileHandles;
+        utils::unordered_string_map_mt<detail::file_id> mIndex;
+        utils::unordered_map_mt<detail::file_id, file_lookup> mFileHandles;
         file_handle mArchiveIndexFile;
         file_handle mFreeBlockIndexFile;
 

@@ -9,10 +9,9 @@
 #include <type_traits>
 #include <condition_variable>
 
-#include <vefs/ext/libcuckoo/cuckoohash_map.hh>
-
 #include <vefs/utils/allocator.hpp>
 #include <vefs/utils/pool_allocator.hpp>
+#include <vefs/utils/unordered_map_mt.hpp>
 
 namespace vefs::detail::detail
 {
@@ -329,7 +328,7 @@ namespace std
 namespace vefs::detail
 {
     template <typename Key, typename T>
-    using cache_default_map = cuckoohash_map<Key, T, std::hash<Key>, std::equal_to<>>;
+    using cache_default_map = utils::unordered_map_mt<Key, T>;
 
     template <typename Key, typename T, std::size_t cacheLimit,
         typename InstanceAllocator = utils::system_allocator<alignof(T)>,

@@ -10,6 +10,7 @@
 
 #include <boost/iterator/iterator_facade.hpp>
 
+#include <vefs/utils/hash/default_weak.hpp>
 #include <vefs/detail/raw_archive.hpp>
 #include <vefs/detail/tree_lut.hpp>
 
@@ -50,6 +51,12 @@ namespace vefs::detail
         // 8b layer pos + 56b sector position on that layer
         storage_type mLayerPosition;
     };
+
+    template <typename Impl>
+    inline void compute_hash(const tree_position &obj, Impl &state);
+    template <typename Impl, typename H>
+    inline void compute_hash(const tree_position &obj, H &h,
+                             utils::hash::algorithm_tag<Impl>);
 
     class tree_path
     {
@@ -194,6 +201,7 @@ namespace vefs::detail
         return mLayerPosition;
     }
 
+
     constexpr bool operator==(tree_position lhs, tree_position rhs)
     {
         return lhs.raw() == rhs.raw();
@@ -201,6 +209,19 @@ namespace vefs::detail
     constexpr bool operator!=(tree_position lhs, tree_position rhs)
     {
         return !(lhs == rhs);
+    }
+
+
+    template <typename Impl>
+    inline void compute_hash(const tree_position &obj, Impl &state)
+    {
+        utils::compute_hash(obj.raw(), state);
+    }
+    template <typename Impl, typename H>
+    inline void compute_hash(const tree_position &obj, H &h,
+                             utils::hash::algorithm_tag<Impl>)
+    {
+        utils::compute_hash(obj.raw(), h, utils::hash::algorithm_tag<Impl>{});
     }
 
     #pragma endregion
@@ -444,17 +465,4 @@ namespace vefs::detail
     }
 
     #pragma endregion
-}
-
-namespace std
-{
-    template <>
-    struct hash<vefs::detail::tree_position>
-        : private std::hash<std::uint64_t>
-    {
-        inline std::size_t operator()(vefs::detail::tree_position data) const
-        {
-            return hash<std::uint64_t>::operator()(data.raw());
-        }
-    };
 }

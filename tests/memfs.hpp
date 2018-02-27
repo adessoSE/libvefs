@@ -13,7 +13,7 @@
 #include <vefs/detail/thread_pool.hpp>
 #include <vefs/utils/misc.hpp>
 #include <vefs/utils/secure_ops.hpp>
-#include <vefs/ext/libcuckoo/cuckoohash_map.hh>
+#include <vefs/utils/unordered_map_mt.hpp>
 
 namespace vefs::tests
 {
@@ -42,25 +42,6 @@ namespace std
 
 namespace vefs::tests
 {
-    namespace detail
-    {
-        struct relaxed_string_hash
-        {
-            std::size_t operator()(std::string_view value)
-            {
-                return std::hash<std::string_view>()(value);
-            }
-        };
-
-        struct relaxed_string_equal
-        {
-            bool operator()(std::string_view lhs, std::string_view rhs)
-            {
-                return lhs == rhs;
-            }
-        };
-    }
-
     struct memory_filesystem;
 
     struct memory_file
@@ -185,8 +166,8 @@ namespace vefs::tests
     struct memory_filesystem
         : public filesystem
     {
-        using relaxed_string_map = cuckoohash_map<std::string, std::shared_ptr<memory_file::memory_holder>,
-            detail::relaxed_string_hash, detail::relaxed_string_equal>;
+        using relaxed_string_map
+            = utils::unordered_string_map_mt<std::shared_ptr<memory_file::memory_holder>>;
 
         memory_filesystem();
 

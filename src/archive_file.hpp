@@ -6,7 +6,6 @@
 #include <shared_mutex>
 
 #include <vefs/detail/archive_file.hpp>
-#include <vefs/detail/string_map.hpp>
 #include <vefs/archive.hpp>
 
 namespace vefs

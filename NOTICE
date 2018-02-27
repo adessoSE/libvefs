@@ -17,3 +17,8 @@ Apache License Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
 - include/vefs/ext/libcuckoo/cuckoohash_map.hh
 - include/vefs/ext/libcuckoo/cuckoohash_util.hh
 - include/vefs/ext/libcuckoo/libcuckoo_bucket_container.hh
+
+This project uses and distributes the source of Bob Jenkins Spooky Hash V2 implementation
+which has been placed into the public domain.
+- src/SpookyV2.h
+- src/SpookyV2.cpp

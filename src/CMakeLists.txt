@@ -26,6 +26,12 @@ DEF_SOURCE_GROUP(vefs UTILS "utils"
         "${_INCLUDE_DIR}/vefs/utils/bit_scan.hpp"
         "${_INCLUDE_DIR}/vefs/utils/bitset_overlay.hpp"
 
+        "${_INCLUDE_DIR}/vefs/utils/hash/algorithm_tag.hpp"
+        "${_INCLUDE_DIR}/vefs/utils/hash/default_weak.hpp"
+        "${_INCLUDE_DIR}/vefs/utils/hash/detail/std_adaptor.hpp"
+
+        "${_INCLUDE_DIR}/vefs/utils/unordered_map_mt.hpp"
+
     SOURCES
         secure_ops.cpp
 
@@ -64,8 +70,6 @@ DEF_SOURCE_GROUP(vefs DETAIL "lib/detail"
     HEADERS
         "${_INCLUDE_DIR}/vefs/detail/cache.hpp"
         "${_INCLUDE_DIR}/vefs/detail/thread_pool.hpp"
-
-        "${_INCLUDE_DIR}/vefs/detail/string_map.hpp"
 
         "${_INCLUDE_DIR}/vefs/detail/sector_id.hpp"
         "${_INCLUDE_DIR}/vefs/detail/tree_lut.hpp"
@@ -115,6 +119,15 @@ DEF_SOURCE_GROUP(vefs EXTERNAL_CQUEUE "ext/concurrentqueue"
     HEADERS
         "${_INCLUDE_DIR}/vefs/ext/concurrentqueue/concurrentqueue.h"
         "${_INCLUDE_DIR}/vefs/ext/concurrentqueue/blockingconcurrentqueue.h"
+)
+
+DEF_SOURCE_GROUP(vefs EXTERNAL_SPOOKYHASH "ext/SpookyV2"
+    HEADERS
+        "${_INCLUDE_DIR}/vefs/utils/hash/detail/spooky.hpp"
+        "${_INCLUDE_DIR}/vefs/utils/hash/detail/SpookyV2_impl.hpp"
+
+    SOURCES
+        SpookyV2.cpp
 )
 
 DEF_SOURCE_GROUP(vefs PROTO "proto"
