@@ -14,7 +14,7 @@
 #include <vefs/detail/sector_id.hpp>
 #include <vefs/detail/tree_walker.hpp>
 #include <vefs/detail/raw_archive.hpp>
-#include <vefs/detail/archive_file.hpp>
+#include <vefs/detail/basic_archive_file_meta.hpp>
 #include <vefs/detail/cache.hpp>
 #include <vefs/utils/unordered_map_mt.hpp>
 #include <vefs/detail/thread_pool.hpp>
@@ -24,7 +24,7 @@ namespace vefs
 {
     class archive
     {
-        using raw_archive_file_ptr = std::unique_ptr<detail::raw_archive_file>;
+        using raw_archive_file_ptr = std::unique_ptr<detail::basic_archive_file_meta>;
 
         class file_walker;
         class writer_task;

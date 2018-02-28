@@ -13,7 +13,7 @@
 #include <vefs/utils/random.hpp>
 #include <vefs/utils/secure_array.hpp>
 #include <vefs/utils/secure_allocator.hpp>
-#include <vefs/detail/archive_file.hpp>
+#include <vefs/detail/basic_archive_file_meta.hpp>
 
 #include <boost/multiprecision/cpp_int.hpp>
 
@@ -83,7 +83,7 @@ namespace vefs::detail
         }
     }
 
-    void vefs::detail::raw_archive::initialize_file(raw_archive_file &file)
+    void vefs::detail::raw_archive::initialize_file(basic_archive_file_meta &file)
     {
         auto ctrValue = mArchiveSecretCounter.fetch_increment().value();
         blob_view ctrValueView{ ctrValue };
@@ -104,13 +104,13 @@ namespace vefs::detail
         file.tree_depth = -1;
     }
 
-    std::unique_ptr<raw_archive_file> raw_archive::create_file()
+    std::unique_ptr<basic_archive_file_meta> raw_archive::create_file()
     {
         //TODO: improve id generation
         thread_local vefs::utils::xoroshiro128plus engine = create_engine();
         thread_local boost::uuids::basic_random_generator<decltype(engine)> generate_id{ engine };
 
-        auto file = std::make_unique<raw_archive_file>();
+        auto file = std::make_unique<basic_archive_file_meta>();
 
         file->id = file_id{ generate_id() };
 
@@ -170,10 +170,10 @@ namespace vefs::detail
         mCryptoProvider->random_bytes(blob{ mStaticHeaderWriteCounter });
 
         write_static_archive_header(userPRK);
-        mFreeBlockIdx = std::make_unique<raw_archive_file>();
+        mFreeBlockIdx = std::make_unique<basic_archive_file_meta>();
         mFreeBlockIdx->id = file_id::free_block_index;
         initialize_file(*mFreeBlockIdx);
-        mArchiveIdx = std::make_unique<raw_archive_file>();
+        mArchiveIdx = std::make_unique<basic_archive_file_meta>();
         mArchiveIdx->id = file_id::archive_index;
         initialize_file(*mArchiveIdx);
     }
@@ -445,7 +445,7 @@ namespace vefs::detail
         mArchiveHeaderOffset = sizeof(headerPrefix) + headerPrefix.static_header_length;
     }
 
-    void raw_archive::read_sector(blob buffer, const raw_archive_file & file,
+    void raw_archive::read_sector(blob buffer, const basic_archive_file_meta & file,
         sector_id sectorIdx, blob_view contentMAC)
     {
         const auto sectorOffset = to_offset(sectorIdx);
@@ -490,7 +490,7 @@ namespace vefs::detail
     }
 
     void vefs::detail::raw_archive::write_sector(blob ciphertextBuffer, blob mac,
-        raw_archive_file &file, sector_id sectorIdx, blob_view data)
+        basic_archive_file_meta &file, sector_id sectorIdx, blob_view data)
     {
         std::array<std::byte, 32> salt;
 
@@ -498,7 +498,7 @@ namespace vefs::detail
         write_sector_data(sectorIdx, blob{ salt }, ciphertextBuffer);
     }
 
-    void vefs::detail::raw_archive::erase_sector(raw_archive_file &file, sector_id sectorIdx)
+    void vefs::detail::raw_archive::erase_sector(basic_archive_file_meta &file, sector_id sectorIdx)
     {
         if (sectorIdx == sector_id::master)
         {

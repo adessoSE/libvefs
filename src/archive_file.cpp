@@ -59,7 +59,7 @@ namespace vefs
         }
     }
 
-    archive::file::file(archive & owner, detail::raw_archive_file & data)
+    archive::file::file(archive & owner, detail::basic_archive_file_meta & data)
         : mOwner{ owner }
         , mData{ data }
         , mCachedBlocks{}
@@ -80,7 +80,7 @@ namespace vefs
         });
     }
 
-    archive::file::file(archive & owner, detail::raw_archive_file & data, create_tag)
+    archive::file::file(archive & owner, detail::basic_archive_file_meta & data, create_tag)
         : file{ owner, data }
     {
         assert(mData.tree_depth == -1);

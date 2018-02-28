@@ -15,7 +15,7 @@
 
 namespace vefs::detail
 {
-    struct raw_archive_file;
+    struct basic_archive_file_meta;
 
     class raw_archive
     {
@@ -38,11 +38,11 @@ namespace vefs::detail
             create_tag);
         ~raw_archive();
 
-        void read_sector(blob buffer, const raw_archive_file &file, sector_id sectorIdx,
+        void read_sector(blob buffer, const basic_archive_file_meta &file, sector_id sectorIdx,
                          blob_view contentMAC);
-        void write_sector(blob ciphertextBuffer, blob mac, raw_archive_file &file,
+        void write_sector(blob ciphertextBuffer, blob mac, basic_archive_file_meta &file,
                           sector_id sectorIdx, blob_view data);
-        void erase_sector(raw_archive_file &file, sector_id sectorIdx);
+        void erase_sector(basic_archive_file_meta &file, sector_id sectorIdx);
 
         void update_header();
         void update_static_header(blob_view newUserPRK);
@@ -52,8 +52,8 @@ namespace vefs::detail
         std::uint64_t size() const;
         void sync();
 
-        raw_archive_file & index_file();
-        raw_archive_file & free_sector_index_file();
+        basic_archive_file_meta & index_file();
+        basic_archive_file_meta & free_sector_index_file();
 
         blob_view master_secret_view() const;
         blob_view session_salt_view() const;
@@ -63,7 +63,7 @@ namespace vefs::detail
         crypto::atomic_counter & master_secret_counter();
         crypto::atomic_counter & journal_counter();
 
-        std::unique_ptr<raw_archive_file> create_file();
+        std::unique_ptr<basic_archive_file_meta> create_file();
 
     private:
         raw_archive(file::ptr archiveFile, crypto::crypto_provider *cryptoProvider);
@@ -74,7 +74,7 @@ namespace vefs::detail
 
         void write_static_archive_header(blob_view userPRK);
 
-        void initialize_file(raw_archive_file &file);
+        void initialize_file(basic_archive_file_meta &file);
 
         void encrypt_sector(blob saltBuffer, blob ciphertextBuffer, blob mac, blob_view data,
                             blob_view fileKey, crypto::atomic_counter & nonceCtr);
@@ -88,8 +88,8 @@ namespace vefs::detail
         crypto::crypto_provider * const mCryptoProvider;
         file::ptr mArchiveFile;
 
-        std::unique_ptr<raw_archive_file> mFreeBlockIdx;
-        std::unique_ptr<raw_archive_file> mArchiveIdx;
+        std::unique_ptr<basic_archive_file_meta> mFreeBlockIdx;
+        std::unique_ptr<basic_archive_file_meta> mArchiveIdx;
 
         utils::secure_byte_array<64> mArchiveMasterSecret;
         utils::secure_byte_array<16> mStaticHeaderWriteCounter;
@@ -118,12 +118,12 @@ namespace vefs::detail
         return mNumSectors.load();
     }
 
-    inline raw_archive_file & raw_archive::index_file()
+    inline basic_archive_file_meta & raw_archive::index_file()
     {
         return *mArchiveIdx;
     }
 
-    inline raw_archive_file & raw_archive::free_sector_index_file()
+    inline basic_archive_file_meta & raw_archive::free_sector_index_file()
     {
         return *mFreeBlockIdx;
     }

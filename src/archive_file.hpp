@@ -5,7 +5,7 @@
 #include <memory>
 #include <shared_mutex>
 
-#include <vefs/detail/archive_file.hpp>
+#include <vefs/detail/basic_archive_file_meta.hpp>
 #include <vefs/archive.hpp>
 
 namespace vefs
@@ -56,8 +56,8 @@ namespace vefs
         using create_tag = archive::create_tag;
         static constexpr create_tag create = archive::create;
 
-        file(archive &owner, detail::raw_archive_file &data);
-        file(archive &owner, detail::raw_archive_file &data, create_tag);
+        file(archive &owner, detail::basic_archive_file_meta &data);
+        file(archive &owner, detail::basic_archive_file_meta &data, create_tag);
         ~file();
 
         sector::handle access(tree_position sectorPosition);
@@ -84,7 +84,7 @@ namespace vefs
         void write_sector_to_disk(sector::handle sector);
 
         archive &mOwner;
-        detail::raw_archive_file &mData;
+        detail::basic_archive_file_meta &mData;
         std::unique_ptr<block_pool_t> mCachedBlocks;
     };
 }

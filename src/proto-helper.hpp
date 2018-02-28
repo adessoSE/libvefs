@@ -2,7 +2,7 @@
 
 #include <vefs/blob.hpp>
 #include <vefs/detail/raw_archive.hpp>
-#include <vefs/detail/archive_file.hpp>
+#include <vefs/detail/basic_archive_file_meta.hpp>
 #include <vefs/utils/secure_ops.hpp>
 
 #if defined BOOST_COMP_MSVC_AVAILABLE
@@ -32,7 +32,7 @@ namespace vefs
     }
 
 
-    inline void unpack(detail::raw_archive_file &rawFile, adesso::vefs::FileDescriptor &fd)
+    inline void unpack(detail::basic_archive_file_meta &rawFile, adesso::vefs::FileDescriptor &fd)
     {
         blob_view{ fd.filesecret() }.copy_to(blob{ rawFile.secret });
         rawFile.write_counter = crypto::counter(blob_view{ fd.filesecretcounter() });
@@ -45,13 +45,13 @@ namespace vefs
         rawFile.tree_depth = fd.reftreedepth();
 
     }
-    inline std::unique_ptr<detail::raw_archive_file> unpack(adesso::vefs::FileDescriptor &fd)
+    inline std::unique_ptr<detail::basic_archive_file_meta> unpack(adesso::vefs::FileDescriptor &fd)
     {
-        auto rawFilePtr = std::make_unique<detail::raw_archive_file>();
+        auto rawFilePtr = std::make_unique<detail::basic_archive_file_meta>();
         unpack(*rawFilePtr, fd);
         return rawFilePtr;
     }
-    inline void pack(adesso::vefs::FileDescriptor &fd, const detail::raw_archive_file &rawFile)
+    inline void pack(adesso::vefs::FileDescriptor &fd, const detail::basic_archive_file_meta &rawFile)
     {
         fd.set_filesecret(rawFile.secret.data(), rawFile.secret.size());
         auto ctr = rawFile.write_counter.load().value();
@@ -64,7 +64,7 @@ namespace vefs
         fd.set_filesize(rawFile.size);
         fd.set_reftreedepth(rawFile.tree_depth);
     }
-    inline adesso::vefs::FileDescriptor * pack(const detail::raw_archive_file &rawFile)
+    inline adesso::vefs::FileDescriptor * pack(const detail::basic_archive_file_meta &rawFile)
     {
         auto *fd = new adesso::vefs::FileDescriptor;
         pack(*fd, rawFile);

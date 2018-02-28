@@ -71,9 +71,9 @@ namespace vefs::detail
     }
 
 
-    struct raw_archive_file
+    struct basic_archive_file_meta
     {
-        raw_archive_file()
+        basic_archive_file_meta()
             : integrity_mutex()
             , shrink_mutex()
         {

@@ -290,7 +290,7 @@ namespace vefs
                     }
                 }
 
-                auto currentFile = std::make_unique<detail::raw_archive_file>();
+                auto currentFile = std::make_unique<detail::basic_archive_file_meta>();
                 {
                     if (!parse_blob(descriptor, sectorBlob.slice(2, descriptorLength)))
                     {
@@ -332,7 +332,7 @@ namespace vefs
 
         for (auto it = lockedindex.begin(), end = lockedindex.end(); it != end;)
         {
-            detail::raw_archive_file *file;
+            detail::basic_archive_file_meta *file;
             mFileHandles.find_fn(std::get<1>(*it), [&file](const file_lookup &fl)
             {
                 file = fl.persistent.get();
