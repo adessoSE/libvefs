@@ -10,7 +10,7 @@
 
 namespace vefs
 {
-    class archive::file : public std::enable_shared_from_this<archive::file>
+    class archive::file
     {
         friend class archive;
 
@@ -56,8 +56,10 @@ namespace vefs
         using create_tag = archive::create_tag;
         static constexpr create_tag create = archive::create;
 
-        file(archive &owner, detail::basic_archive_file_meta &data);
-        file(archive &owner, detail::basic_archive_file_meta &data, create_tag);
+        file(archive &owner, detail::basic_archive_file_meta &data,
+            block_pool_t::notify_dirty_fn onDirty);
+        file(archive &owner, detail::basic_archive_file_meta &data,
+            block_pool_t::notify_dirty_fn onDirty, create_tag);
         ~file();
 
         sector::handle access(tree_position sectorPosition);
@@ -70,8 +72,13 @@ namespace vefs
         void resize(std::uint64_t size);
 
         void sync();
+        //bool is_dirty();
+
+        void erase_self();
 
         archive & owner_ref();
+
+        void write_sector_to_disk(sector::handle sector);
 
     private:
         std::optional<file::sector::handle> access_impl(tree_position sectorPosition);
@@ -81,25 +88,20 @@ namespace vefs
         // the caller is required to uniquely lock the shrink mutex during the call
         void shrink_file(const std::uint64_t size);
 
-        void write_sector_to_disk(sector::handle sector);
 
         archive &mOwner;
         detail::basic_archive_file_meta &mData;
+
+        // always lock the shrink_mutex first!
+        mutable std::shared_mutex integrity_mutex;
+        mutable std::shared_mutex shrink_mutex;
+
         std::unique_ptr<block_pool_t> mCachedBlocks;
     };
 }
 
 namespace vefs
 {
-    inline archive::file_handle archive::file_lookup::to_handle(archive &owner)
-    {
-        if (!handle)
-        {
-            handle = std::make_shared<archive::file>(owner, *persistent);
-        }
-        return handle;
-    }
-
     inline archive & archive::file::owner_ref()
     {
         return mOwner;
@@ -107,7 +109,7 @@ namespace vefs
 
     inline std::uint64_t archive::file::size()
     {
-        std::shared_lock<std::shared_mutex> intLock{ mData.integrity_mutex };
+        std::shared_lock<std::shared_mutex> intLock{ integrity_mutex };
         return mData.size;
     }
 

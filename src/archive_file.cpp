@@ -59,29 +59,18 @@ namespace vefs
         }
     }
 
-    archive::file::file(archive & owner, detail::basic_archive_file_meta & data)
+    archive::file::file(archive & owner, detail::basic_archive_file_meta & data,
+        block_pool_t::notify_dirty_fn onDirty)
         : mOwner{ owner }
         , mData{ data }
         , mCachedBlocks{}
     {
-        mCachedBlocks = std::make_unique<block_pool_t>([this](block_pool_t::handle sector)
-        {
-            auto maybe_self = weak_from_this();
-            mOwner.mOpsPool->exec([maybe_self, sector]()
-            {
-                if (auto self = maybe_self.lock())
-                {
-                    if (!self->mData.valid)
-                    {
-                        self->write_sector_to_disk(std::move(sector));
-                    }
-                }
-            });
-        });
+        mCachedBlocks = std::make_unique<block_pool_t>(std::move(onDirty));
     }
 
-    archive::file::file(archive & owner, detail::basic_archive_file_meta & data, create_tag)
-        : file{ owner, data }
+    archive::file::file(archive & owner, detail::basic_archive_file_meta & data,
+        block_pool_t::notify_dirty_fn onDirty, create_tag)
+        : file{ owner, data, std::move(onDirty) }
     {
         assert(mData.tree_depth == -1);
         access_or_append(detail::tree_position{ 0, 0 });
@@ -89,23 +78,6 @@ namespace vefs
 
     archive::file::~file()
     {
-        if (mData.valid)
-        {
-            sync();
-        }
-        else
-        {
-            {
-                std::unique_lock<std::shared_mutex> shrinkLock{ mData.shrink_mutex };
-                shrink_file(0);
-
-                std::unique_lock<std::shared_mutex> integrityLock{ mData.integrity_mutex };
-                mOwner.mArchive->erase_sector(mData, mData.start_block_idx);
-                mOwner.dealloc_sectors({ mData.start_block_idx });
-            }
-            auto id = mData.id;
-            mOwner.mFileHandles.erase(id);
-        }
     }
 
     std::optional<archive::file::sector::handle> archive::file::access_impl(
@@ -123,7 +95,7 @@ namespace vefs
         sector_id physId;
         decltype(mData.start_block_mac) mac;
         {
-            std::shared_lock<std::shared_mutex> fileLock{ mData.integrity_mutex };
+            std::shared_lock<std::shared_mutex> fileLock{ integrity_mutex };
             treeDepth = mData.tree_depth;
             physId = mData.start_block_idx;
             mac = mData.start_block_mac;
@@ -158,7 +130,7 @@ namespace vefs
             }
             catch (const boost::exception &)
             {
-                std::shared_lock<std::shared_mutex> fileLock{ mData.integrity_mutex };
+                std::shared_lock<std::shared_mutex> fileLock{ integrity_mutex };
                 // if the file tree shrinks during an access operation it may happen
                 // that one of the intermediate nodes dies :(
                 // however this is detectable and recoverable if the cut off part
@@ -281,7 +253,7 @@ namespace vefs
         auto requiredDepth = lut::required_tree_depth(position.position());
         tree_path path{ requiredDepth, position };
 
-        std::shared_lock<std::shared_mutex> fileReadLock{ mData.integrity_mutex };
+        std::shared_lock<std::shared_mutex> fileReadLock{ integrity_mutex };
         const tree_position rootPos{ 0, std::max(mData.tree_depth, requiredDepth) };
 
         // check whether we need to increase the tree depth
@@ -289,7 +261,7 @@ namespace vefs
         if (requiredDepth > mData.tree_depth)
         {
             fileReadLock.unlock();
-            std::unique_lock<std::shared_mutex> fileWriteLock{ mData.integrity_mutex };
+            std::unique_lock<std::shared_mutex> fileWriteLock{ integrity_mutex };
 
             if (requiredDepth > mData.tree_depth)
             {
@@ -413,7 +385,7 @@ namespace vefs
 
         auto newMinSize = writeFilePos + data.size();
 
-        std::shared_lock<std::shared_mutex> shrinkLock{ mData.shrink_mutex };
+        std::shared_lock<std::shared_mutex> shrinkLock{ shrink_mutex };
         // make sure that the file is valid up until our write starting point
         grow_file(writeFilePos + 1);
 
@@ -437,7 +409,7 @@ namespace vefs
                 writePos.position() * detail::raw_archive::sector_payload_size, newMinSize
             );
 
-            std::lock_guard<std::shared_mutex> integrityLock{ mData.integrity_mutex };
+            std::lock_guard<std::shared_mutex> integrityLock{ integrity_mutex };
             mData.size = std::max(mData.size, newSize);
         }
     }
@@ -449,7 +421,7 @@ namespace vefs
             return;
         }
 
-        std::shared_lock<std::shared_mutex> shrinkLock{ mData.shrink_mutex, std::defer_lock };
+        std::shared_lock<std::shared_mutex> shrinkLock{ shrink_mutex, std::defer_lock };
         std::unique_lock<std::shared_mutex> sectorLock{ sector->data_sync(), std::defer_lock };
         std::lock(shrinkLock, sectorLock);
         VEFS_ERROR_EXIT{ sector.mark_dirty(); };
@@ -460,11 +432,13 @@ namespace vefs
             return;
         }
 
+        /* this case is currently handled by file_lookup
         if (!mData.valid)
         {
             sector.mark_clean();
             return;
         }
+        */
         assert(is_allocated(mData.size, sector->position()));
 
         std::array<std::byte, detail::raw_archive::sector_payload_size + 16> encryptionMem;
@@ -493,7 +467,7 @@ namespace vefs
             else
             {
                 std::unique_lock<std::shared_mutex> fileIntegrityLock{
-                    mData.integrity_mutex
+                    integrity_mutex
                 };
                 if (sector->parent())
                 {
@@ -515,17 +489,17 @@ namespace vefs
 
     void archive::file::resize(std::uint64_t size)
     {
-        std::unique_lock<std::shared_mutex> shrinkLock{ mData.shrink_mutex };
+        std::unique_lock<std::shared_mutex> shrinkLock{ shrink_mutex };
         std::uint64_t fileSize;
         {
-            std::unique_lock<std::shared_mutex> integrityLock{ mData.integrity_mutex };
+            std::unique_lock<std::shared_mutex> integrityLock{ integrity_mutex };
             fileSize = mData.size;
         }
 
         if (fileSize < size)
         {
             shrinkLock.unlock();
-            std::shared_lock<std::shared_mutex> growLock{ mData.shrink_mutex };
+            std::shared_lock<std::shared_mutex> growLock{ shrink_mutex };
             grow_file(size);
         }
         else if (fileSize > size)
@@ -553,6 +527,19 @@ namespace vefs
         } while (dirtyElements);
     }
 
+    void archive::file::erase_self()
+    {
+        std::unique_lock<std::shared_mutex> shrinkLock{ shrink_mutex };
+        shrink_file(0);
+
+        std::unique_lock<std::shared_mutex> integrityLock{ integrity_mutex };
+        mOwner.mArchive->erase_sector(mData, mData.start_block_idx);
+        mOwner.dealloc_sectors({ mData.start_block_idx });
+        mData.tree_depth = -1;
+        mData.start_block_idx = detail::sector_id::master;
+        mData.start_block_mac = {};
+    }
+
     void archive::file::grow_file(std::uint64_t size)
     {
         using detail::raw_archive;
@@ -562,7 +549,7 @@ namespace vefs
             : 0;
         std::uint64_t fileSize;
         {
-            std::lock_guard<std::shared_mutex> integrityLock{ mData.integrity_mutex };
+            std::lock_guard<std::shared_mutex> integrityLock{ integrity_mutex };
             fileSize = mData.size;
         }
         auto startSectorPos = fileSize
@@ -583,14 +570,14 @@ namespace vefs
                     (posIt.position() + 1) * raw_archive::sector_payload_size, size
                 );
 
-                std::lock_guard<std::shared_mutex> integrityLock{ mData.integrity_mutex };
+                std::lock_guard<std::shared_mutex> integrityLock{ integrity_mutex };
                 fileSize = mData.size = std::max(mData.size, newSize);
             }
             posIt.position(posIt.position() + 1);
         }
 
         {
-            std::lock_guard<std::shared_mutex> integrityLock{ mData.integrity_mutex };
+            std::lock_guard<std::shared_mutex> integrityLock{ integrity_mutex };
             if (mData.size < size)
             {
                 mData.size = size;
@@ -607,14 +594,14 @@ namespace vefs
         std::uint64_t fileSize;
         int treeDepth;
         {
-            std::lock_guard<std::shared_mutex> integrityLock{ mData.integrity_mutex };
+            std::lock_guard<std::shared_mutex> integrityLock{ integrity_mutex };
             fileSize = mData.size;
             treeDepth = mData.tree_depth;
         }
         // we always keep the first sector alive
         if (fileSize <= raw_archive::sector_payload_size)
         {
-            std::lock_guard<std::shared_mutex> integrityLock{ mData.integrity_mutex };
+            std::lock_guard<std::shared_mutex> integrityLock{ integrity_mutex };
             mData.size = size;
             return;
         }
@@ -689,7 +676,7 @@ namespace vefs
             auto parent = it->parent();
             auto ref = &parent->data().as<RawSectorReference>();
 
-            std::lock_guard<std::shared_mutex> integrityLock{ mData.integrity_mutex };
+            std::lock_guard<std::shared_mutex> integrityLock{ integrity_mutex };
             mData.start_block_idx = ref->reference;
             mData.start_block_mac = ref->mac;
             mData.tree_depth = adjustedDepth;
@@ -713,7 +700,7 @@ namespace vefs
         }
         else
         {
-            std::lock_guard<std::shared_mutex> integrityLock{ mData.integrity_mutex };
+            std::lock_guard<std::shared_mutex> integrityLock{ integrity_mutex };
             mData.size = size;
         }
 

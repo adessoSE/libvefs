@@ -18,6 +18,7 @@ DEF_SOURCE_GROUP(vefs UTILS "utils"
         "${_INCLUDE_DIR}/vefs/utils/secure_allocator.hpp"
 
         "${_INCLUDE_DIR}/vefs/utils/misc.hpp"
+        "${_INCLUDE_DIR}/vefs/utils/ref_ptr.hpp"
 
         "${_INCLUDE_DIR}/vefs/utils/uuid.hpp"
         "${_INCLUDE_DIR}/vefs/utils/random.hpp"
@@ -59,6 +60,15 @@ DEF_SOURCE_GROUP(vefs LIB "lib"
         archive.cpp
         archive_file.hpp
         archive_file.cpp
+        archive_file_lookup.hpp
+        archive_file_lookup.cpp
+        archive_free_block_list_file.hpp
+        archive_free_block_list_file.cpp
+        archive_index_file.hpp
+        archive_index_file.cpp
+        archive_internal_file.hpp
+        archive_internal_file.cpp
+
         filesystem.cpp
         os_filesystem.hpp
         os_filesystem.cpp
@@ -71,12 +81,13 @@ DEF_SOURCE_GROUP(vefs DETAIL "lib/detail"
         "${_INCLUDE_DIR}/vefs/detail/cache.hpp"
         "${_INCLUDE_DIR}/vefs/detail/thread_pool.hpp"
 
+        "${_INCLUDE_DIR}/vefs/detail/archive_file_id.hpp"
+        "${_INCLUDE_DIR}/vefs/detail/basic_archive_file_meta.hpp"
+        "${_INCLUDE_DIR}/vefs/detail/journal.hpp"
+        "${_INCLUDE_DIR}/vefs/detail/raw_archive.hpp"
         "${_INCLUDE_DIR}/vefs/detail/sector_id.hpp"
         "${_INCLUDE_DIR}/vefs/detail/tree_lut.hpp"
         "${_INCLUDE_DIR}/vefs/detail/tree_walker.hpp"
-        "${_INCLUDE_DIR}/vefs/detail/basic_archive_file_meta.hpp"
-        "${_INCLUDE_DIR}/vefs/detail/raw_archive.hpp"
-        "${_INCLUDE_DIR}/vefs/detail/journal.hpp"
 
     SOURCES
         thread_pool.cpp

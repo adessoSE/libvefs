@@ -2,6 +2,7 @@
 
 #include <map>
 #include <mutex>
+#include <atomic>
 #include <memory>
 #include <string>
 #include <limits>
@@ -16,8 +17,9 @@
 #include <vefs/detail/raw_archive.hpp>
 #include <vefs/detail/basic_archive_file_meta.hpp>
 #include <vefs/detail/cache.hpp>
-#include <vefs/utils/unordered_map_mt.hpp>
 #include <vefs/detail/thread_pool.hpp>
+#include <vefs/utils/ref_ptr.hpp>
+#include <vefs/utils/unordered_map_mt.hpp>
 
 
 namespace vefs
@@ -33,24 +35,42 @@ namespace vefs
         static constexpr auto create = create_tag{};
 
         class file;
-        using file_handle = std::shared_ptr<file>;
 
     private:
-        struct file_lookup
-        {
-            inline file_lookup(raw_archive_file_ptr first)
-                : persistent{ std::move(first) }
-                , handle{}
-            {
-            }
+        class internal_file;
+        class index_file;
+        class free_block_list_file;
 
-            inline file_handle to_handle(archive &owner);
-
-            raw_archive_file_ptr persistent;
-            file_handle handle;
-        };
+        class file_lookup;
+        using file_lookup_ptr = utils::ref_ptr<file_lookup>;
 
     public:
+        class file_handle final
+        {
+            friend class file_lookup;
+            friend bool operator==(const file_handle &, const file_handle &);
+
+            inline explicit file_handle(file_lookup &data);
+
+        public:
+            inline file_handle() noexcept;
+            inline file_handle(const file_handle &other) noexcept;
+            inline file_handle(file_handle &&other) noexcept;
+            inline file_handle(nullptr_t);
+            inline ~file_handle();
+
+            inline file_handle & operator=(const file_handle &other) noexcept;
+            inline file_handle & operator=(file_handle &&other) noexcept;
+            inline file_handle & operator=(std::nullptr_t);
+
+            inline explicit operator bool() const;
+
+        private:
+            void add_reference();
+            void release();
+
+            file_lookup *mData;
+        };
 
         archive(filesystem::ptr fs, std::string_view archivePath,
             crypto::crypto_provider *cryptoProvider, blob_view userPRK);
@@ -60,8 +80,7 @@ namespace vefs
 
         void sync();
 
-        file_handle open(std::string_view filePath, file_open_mode_bitset mode);
-        void close(file_handle &handle);
+        file_handle open(const std::string_view filePath, const file_open_mode_bitset mode);
         void erase(std::string_view filePath);
         void read(file_handle handle, blob buffer, std::uint64_t readFilePos);
         void write(file_handle handle, blob_view data, std::uint64_t writeFilePos);
@@ -89,15 +108,99 @@ namespace vefs
         std::unique_ptr<detail::raw_archive> mArchive;
 
         utils::unordered_string_map_mt<detail::file_id> mIndex;
-        utils::unordered_map_mt<detail::file_id, file_lookup> mFileHandles;
-        file_handle mArchiveIndexFile;
-        file_handle mFreeBlockIndexFile;
+        utils::unordered_map_mt<detail::file_id, file_lookup_ptr> mFileHandles;
+        std::shared_ptr<index_file> mArchiveIndexFile;
+        std::shared_ptr<free_block_list_file> mFreeBlockIndexFile;
 
         std::unique_ptr<detail::thread_pool> mOpsPool = std::make_unique<detail::thread_pool>();
 
         std::map<detail::sector_id, std::uint64_t> mFreeSectorPool;
         std::mutex mFreeSectorPoolMutex;
     };
+}
 
+namespace vefs
+{
+    inline archive::file_handle::file_handle() noexcept
+        : mData{ nullptr }
+    {
+    }
+    inline archive::file_handle::file_handle(std::nullptr_t)
+        : file_handle{}
+    {
+    }
+    inline archive::file_handle::file_handle(file_lookup &data)
+        : mData{ &data }
+    {
+    }
+    inline archive::file_handle::file_handle(const file_handle &other) noexcept
+        : mData{ other.mData }
+    {
+        if (mData)
+        {
+            add_reference();
+        }
+    }
+    inline archive::file_handle::file_handle(file_handle &&other) noexcept
+        : mData{ other.mData }
+    {
+        other.mData = nullptr;
+    }
+    inline archive::file_handle::~file_handle()
+    {
+        if (mData)
+        {
+            release();
+        }
+    }
 
+    inline archive::file_handle & archive::file_handle::operator=(std::nullptr_t)
+    {
+        if (mData)
+        {
+            release();
+            mData = nullptr;
+        }
+
+        return *this;
+    }
+    inline archive::file_handle & archive::file_handle::operator=(const file_handle &other) noexcept
+    {
+        if (mData)
+        {
+            release();
+        }
+        mData = other.mData;
+        if (mData)
+        {
+            add_reference();
+        }
+
+        return *this;
+    }
+    inline archive::file_handle & archive::file_handle::operator=(file_handle &&other) noexcept
+    {
+        if (mData)
+        {
+            release();
+        }
+        mData = other.mData;
+        other.mData = nullptr;
+
+        return *this;
+    }
+
+    inline archive::file_handle::operator bool() const
+    {
+        return mData != nullptr;
+    }
+
+    inline bool operator==(const archive::file_handle &lhs, const archive::file_handle &rhs)
+    {
+        return lhs.mData == rhs.mData;
+    }
+    inline bool operator!=(const archive::file_handle &lhs, const archive::file_handle &rhs)
+    {
+        return !(lhs == rhs);
+    }
 }

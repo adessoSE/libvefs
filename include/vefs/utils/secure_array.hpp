@@ -46,9 +46,9 @@ namespace vefs::utils
         secure_array & operator=(const secure_array &) = default;
         secure_array & operator=(secure_array &&other)
         {
-            *this = static_cast<base_type &>(other);
+            static_cast<base_type &>(*this) = static_cast<base_type &>(other);
             secure_memzero(blob{ other });
-            return this;
+            return *this;
         }
 
         using base_type::at;

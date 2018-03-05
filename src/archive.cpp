@@ -21,6 +21,9 @@
 #include <vefs/detail/tree_walker.hpp>
 
 #include "archive_file.hpp"
+#include "archive_file_lookup.hpp"
+#include "archive_index_file.hpp"
+#include "archive_free_block_list_file.hpp"
 #include "proto-helper.hpp"
 
 using namespace std::string_view_literals;
@@ -56,8 +59,10 @@ namespace vefs
 
         mArchive = std::make_unique<detail::raw_archive>(std::move(archiveFile), cryptoProvider, userPRK);
 
-        mArchiveIndexFile = std::make_shared<archive::file>(*this, mArchive->index_file());
-        mFreeBlockIndexFile = std::make_shared<archive::file>(*this, mArchive->free_sector_index_file());
+        mArchiveIndexFile = index_file::create(*this, mArchive->index_file());
+        mFreeBlockIndexFile = free_block_list_file::create(*this,
+            mArchive->free_sector_index_file());
+
         read_archive_index();
         read_free_sector_index();
     }
@@ -69,17 +74,18 @@ namespace vefs
 
         mArchive = std::make_unique<detail::raw_archive>(archiveFile, cryptoProvider, userPRK, create);
 
-        mArchiveIndexFile = std::make_shared<archive::file>(
-            *this, mArchive->index_file(), create
-        );
-        mFreeBlockIndexFile = std::make_shared<archive::file>(
-            *this, mArchive->free_sector_index_file(), create
-        );
+        mArchiveIndexFile = index_file::create(*this, mArchive->index_file(), create);
+        mFreeBlockIndexFile = free_block_list_file::create(*this,
+            mArchive->free_sector_index_file(), create);
     }
 
     archive::~archive()
     {
         sync();
+        mArchiveIndexFile->dispose();
+        mArchiveIndexFile = nullptr;
+        mFreeBlockIndexFile->dispose();
+        mFreeBlockIndexFile = nullptr;
         mOpsPool.reset();
     }
 
@@ -87,9 +93,9 @@ namespace vefs
     {
         for (auto &f : mFileHandles.lock_table())
         {
-            if (auto &fh = f.second.handle)
+            if (auto fh = f.second->load(*this))
             {
-                fh->sync();
+                file_lookup::deref(fh)->sync();
             }
         }
 
@@ -102,45 +108,55 @@ namespace vefs
         mArchive->sync();
     }
 
-    archive::file_handle archive::open(std::string_view filePath,
-        file_open_mode_bitset mode)
+    archive::file_handle archive::open(const std::string_view filePath,
+        const file_open_mode_bitset mode)
     {
         file_id id;
+        file_lookup_ptr lookup;
         file_handle result;
 
-        auto acquire_fn = [this, &result](file_lookup &f)
+        auto acquire_fn = [&lookup](const file_lookup_ptr &f)
         {
-            result = f.to_handle(*this);
+            lookup = f;
         };
 
         if (mIndex.find_fn(filePath, [&id](const detail::file_id &elem) { id = elem; }))
         {
-            if (mFileHandles.update_fn(id, acquire_fn))
+            if (mFileHandles.find_fn(id, acquire_fn))
             {
-                return result;
+                if (result = lookup->load(*this))
+                {
+                    return result;
+                }
+                lookup = nullptr;
             }
         }
         if (mode % file_open_mode::create)
         {
-            auto file = mArchive->create_file();
-            id = file->id;
+            {
+                auto file = mArchive->create_file();
+                id = file->id;
 
-            if (!mFileHandles.insert(id, file_lookup{ std::move(file) }))
+                // file will be moved from, so after this line file contains garbage
+                lookup = utils::make_ref_counted<file_lookup>(*file, *this, create);
+            }
+            result = lookup->load(*this);
+            lookup->ext_release();
+
+            if (!mFileHandles.insert(id, lookup))
             {
                 BOOST_THROW_EXCEPTION(logic_error{});
             }
 
-            mIndex.upsert(filePath, [&](file_id &rid)
+            if (!mIndex.insert(filePath, id))
             {
                 // rollback, someone was faster
+                result = nullptr;
+                lookup->try_kill(*this);
                 mFileHandles.erase(id);
-                id = rid;
-            }, id);
 
-            mFileHandles.update_fn(id, [this, &result](file_lookup &f)
-            {
-                f.handle = result = std::make_shared<archive::file>(*this, *f.persistent, create);
-            });
+                return open(filePath, mode);
+            }
 
             return result;
         }
@@ -149,113 +165,126 @@ namespace vefs
         BOOST_THROW_EXCEPTION(exception{});
     }
 
-    void archive::close(file_handle &handle)
-    {
-        if (!handle || &handle->owner_ref() != this)
-        {
-            BOOST_THROW_EXCEPTION(exception{});
-        }
-
-        handle->sync();
-        auto id = handle->mData.id;
-        handle = nullptr;
-        mFileHandles.update_fn(id, [](file_lookup &l)
-        {
-            file_handle::weak_type rst{ l.handle };
-            l.handle = nullptr;
-            l.handle = rst.lock();
-        });
-    }
-
     void archive::erase(std::string_view filePath)
     {
         file_id fid;
-        if (!mIndex.erase_fn(filePath, [&fid](const detail::file_id &elem) { fid = elem; return true; }))
+        if (!mIndex.find_fn(filePath, [&fid](const detail::file_id &elem) { fid = elem; }))
         {
             BOOST_THROW_EXCEPTION(std::out_of_range{"filePath wasn't found in the archive index"});
         }
 
-        file_handle handle;
-        mFileHandles.update_fn(fid, [this, &handle](file_lookup &l)
+        file_lookup_ptr lookup;
+        mFileHandles.find_fn(fid, [this, &lookup](const file_lookup_ptr &l)
         {
-            handle = l.to_handle(*this);
-            l.persistent->valid = false;
-            l.handle = nullptr;
+            lookup = l;
         });
+        if (lookup)
+        {
+            if (!lookup->try_kill(*this))
+            {
+                BOOST_THROW_EXCEPTION(std::runtime_error{ "the file to be deleted has open handles" });
+            }
+            mIndex.erase(filePath);
+            mFileHandles.erase(fid);
+        }
     }
 
-    void archive::read(file_handle file, blob buffer, std::uint64_t readFilePos)
+    void archive::read(file_handle handle, blob buffer, std::uint64_t readFilePos)
     {
         if (!buffer)
         {
             return;
         }
-        if (!file || &file->owner_ref() != this)
+        if (!handle)
         {
             BOOST_THROW_EXCEPTION(exception{});
         }
-
-        file->read(buffer, readFilePos);
+        auto f = file_lookup::deref(handle);
+        if (&f->owner_ref() != this)
+        {
+            BOOST_THROW_EXCEPTION(exception{});
+        }
+        f->read(buffer, readFilePos);
     }
 
-    void archive::write(file_handle file, blob_view data, std::uint64_t writeFilePos)
+    void archive::write(file_handle handle, blob_view data, std::uint64_t writeFilePos)
     {
         if (!data)
         {
             return;
         }
-        if (!file || &file->owner_ref() != this)
+        if (!handle)
+        {
+            BOOST_THROW_EXCEPTION(exception{});
+        }
+        auto f = file_lookup::deref(handle);
+        if (&f->owner_ref() != this)
         {
             BOOST_THROW_EXCEPTION(exception{});
         }
 
-        file->write(data, writeFilePos);
+        f->write(data, writeFilePos);
     }
 
-    void archive::resize(file_handle file, std::uint64_t size)
+    void archive::resize(file_handle handle, std::uint64_t size)
     {
-        if (!file || &file->owner_ref() != this)
+        if (!handle)
+        {
+            BOOST_THROW_EXCEPTION(exception{});
+        }
+        auto f = file_lookup::deref(handle);
+        if (&f->owner_ref() != this)
         {
             BOOST_THROW_EXCEPTION(exception{});
         }
 
-        file->resize(size);
+        f->resize(size);
     }
 
-    std::uint64_t archive::size_of(file_handle file)
+    std::uint64_t archive::size_of(file_handle handle)
     {
-        if (!file || &file->owner_ref() != this)
+        if (!handle)
+        {
+            BOOST_THROW_EXCEPTION(exception{});
+        }
+        auto f = file_lookup::deref(handle);
+        if (&f->owner_ref() != this)
         {
             BOOST_THROW_EXCEPTION(exception{});
         }
 
-        return file->size();
+        return f->size();
     }
 
-    void archive::sync(file_handle file)
+    void archive::sync(file_handle handle)
     {
-        if (!file || &file->owner_ref() != this)
+        if (!handle)
+        {
+            BOOST_THROW_EXCEPTION(exception{});
+        }
+        auto f = file_lookup::deref(handle);
+        if (&f->owner_ref() != this)
         {
             BOOST_THROW_EXCEPTION(exception{});
         }
 
-        file->sync();
+        f->sync();
     }
 
     void archive::read_archive_index()
     {
         using alloc_bitset_t = utils::bitset_overlay;
 
-        mArchiveIndexFile;
-
         tree_position it{ 0 };
 
         adesso::vefs::FileDescriptor descriptor;
+        file *indexFile = mArchiveIndexFile.get();
 
-        for (std::uint64_t consumed = 0; consumed < mArchiveIndexFile->size();
+        for (std::uint64_t consumed = 0;
+            consumed < indexFile->size();
             consumed += detail::raw_archive::sector_payload_size)
         {
-            auto sector = mArchiveIndexFile->access(it);
+            auto sector = indexFile->access(it);
             it.position(it.position() + 1);
 
             auto sectorBlob = sector->data();
@@ -303,9 +332,11 @@ namespace vefs
 
                 auto currentId = currentFile->id;
                 mIndex.insert_or_assign(descriptor.filepath(), currentId);
-                mFileHandles.insert(currentId, file_lookup{ std::move(currentFile) });
+                mFileHandles.insert(currentId,
+                    utils::make_ref_counted<file_lookup>(*currentFile));
 
-                sectorBlob.remove_prefix(utils::div_ceil(sizeof(std::uint16_t) + descriptorLength, block_size));
+                sectorBlob.remove_prefix(
+                    utils::div_ceil(sizeof(std::uint16_t) + descriptorLength, block_size));
             }
         }
     }
@@ -317,6 +348,7 @@ namespace vefs
         auto lockedindex = mIndex.lock_table();
 
         adesso::vefs::FileDescriptor descriptor;
+        file *indexFile = mArchiveIndexFile.get();
 
         auto dataMem = std::make_unique<std::array<std::byte, raw_archive::sector_payload_size>>();
         blob data{ *dataMem };
@@ -333,9 +365,9 @@ namespace vefs
         for (auto it = lockedindex.begin(), end = lockedindex.end(); it != end;)
         {
             detail::basic_archive_file_meta *file;
-            mFileHandles.find_fn(std::get<1>(*it), [&file](const file_lookup &fl)
+            mFileHandles.find_fn(std::get<1>(*it), [&file](const file_lookup_ptr &fl)
             {
-                file = fl.persistent.get();
+                file = &fl->meta_data();
             });
             pack(descriptor, *file);
             descriptor.set_filepath(std::get<0>(*it));
@@ -367,7 +399,7 @@ namespace vefs
             {
                 data = blob{ *dataMem };
 
-                mArchiveIndexFile->write(data, fileOffset);
+                indexFile->write(data, fileOffset);
                 fileOffset += raw_archive::sector_payload_size;
                 dirty = false;
                 i = 0;
@@ -381,11 +413,11 @@ namespace vefs
         {
             data = blob{ *dataMem };
 
-            mArchiveIndexFile->write(data, fileOffset);
+            indexFile->write(data, fileOffset);
             fileOffset += raw_archive::sector_payload_size;
         }
 
-        mArchiveIndexFile->resize(fileOffset);
+        indexFile->resize(fileOffset);
     }
 
     void archive::read_free_sector_index()
@@ -396,12 +428,13 @@ namespace vefs
             BOOST_THROW_EXCEPTION(archive_corrupted{});
         }
 
+        file *freeBlockFile = mFreeBlockIndexFile.get();
         std::lock_guard<std::mutex> freeSectorLock{ mFreeSectorPoolMutex };
         tree_position it{ 0 };
 
         for (std::uint64_t consumed = 0; consumed < free_sector_index.size; )
         {
-            auto sector = mFreeBlockIndexFile->access(it);
+            auto sector = freeBlockFile->access(it);
             it.position(it.position() + 1);
 
             auto sectorBlob = sector->data_view();
@@ -435,34 +468,35 @@ namespace vefs
         const blob_view entryView = as_blob_view(entry);
         std::uint64_t writePos = 0;
 
+        file *freeBlockFile = mFreeBlockIndexFile.get();
         std::unique_lock<std::mutex> freeSectorLock{ mFreeSectorPoolMutex };
 
         // #TODO there must be a better way to reliably flush the free block index
 
         do
         {
-            while (mFreeBlockIndexFile->size() / sizeof(RawFreeSectorRange) > mFreeSectorPool.size() + 2)
+            while (freeBlockFile->size() / sizeof(RawFreeSectorRange) > mFreeSectorPool.size() + 2)
             {
                 freeSectorLock.unlock();
                 {
                     std::unique_lock<std::shared_mutex> shrinkLock{
-                        mFreeBlockIndexFile->mData.shrink_mutex
+                        freeBlockFile->shrink_mutex
                     };
-                    mFreeBlockIndexFile->shrink_file(
+                    freeBlockFile->shrink_file(
                         (mFreeSectorPool.size() + 2) * sizeof(RawFreeSectorRange)
                     );
                 }
                 freeSectorLock.lock();
             }
 
-            if (mFreeBlockIndexFile->size() / sizeof(RawFreeSectorRange) < mFreeSectorPool.size())
+            if (freeBlockFile->size() / sizeof(RawFreeSectorRange) < mFreeSectorPool.size())
             {
                 freeSectorLock.unlock();
                 {
                     std::shared_lock<std::shared_mutex> shrinkLock{
-                        mFreeBlockIndexFile->mData.shrink_mutex
+                        freeBlockFile->shrink_mutex
                     };
-                    mFreeBlockIndexFile->grow_file(
+                    freeBlockFile->grow_file(
                         mFreeSectorPool.size() * sizeof(RawFreeSectorRange)
                     );
                 }
@@ -479,14 +513,14 @@ namespace vefs
             entry.start_sector = sector_id{ static_cast<uint64_t>(lastId) - numPrev };
             entry.num_sectors = numPrev + 1;
 
-            mFreeBlockIndexFile->write(entryView, writePos);
+            freeBlockFile->write(entryView, writePos);
             writePos += entryView.size();
         }
 
         entry = {};
-        while (writePos < mFreeBlockIndexFile->size())
+        while (writePos < freeBlockFile->size())
         {
-            mFreeBlockIndexFile->write(entryView, writePos);
+            freeBlockFile->write(entryView, writePos);
             writePos += entryView.size();
         }
     }
