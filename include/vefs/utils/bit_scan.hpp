@@ -77,9 +77,9 @@ namespace vefs::utils
         if constexpr (has_BitScanForward_v<T> && sizeof(T) <= 4)
         {
             unsigned long pos_impl;
-            bool result = _BitScanForward(&pos_impl, data);
+            _BitScanForward(&pos_impl, data);
             pos = static_cast<std::size_t>(pos_impl);
-            return result;
+            return data != 0;
         }
         else if constexpr (has_builtin_ffs_v<T> && sizeof(T) <= 4)
         {
@@ -89,9 +89,9 @@ namespace vefs::utils
         else if constexpr (has_BitScanForward64_v<T>  && sizeof(T) <= 8)
         {
             unsigned long pos_impl;
-            bool result = _BitScanForward64(&pos_impl, data);
+            _BitScanForward64(&pos_impl, data);
             pos = static_cast<std::size_t>(pos_impl);
-            return result;
+            return data != 0;
         }
         else if constexpr (has_builtin_ffsll_v<T> && sizeof(T) <= 8)
         {
