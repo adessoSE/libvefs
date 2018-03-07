@@ -105,6 +105,10 @@ namespace vefs
         void dealloc_sectors(std::vector<detail::sector_id> sectors);
         void dealloc_sectors_impl(std::vector<detail::sector_id> sectors);
 
+        inline void mark_dirty();
+        inline void mark_clean();
+        inline bool is_dirty();
+
         std::unique_ptr<detail::raw_archive> mArchive;
 
         utils::unordered_string_map_mt<detail::file_id> mIndex;
@@ -112,15 +116,30 @@ namespace vefs
         std::shared_ptr<index_file> mArchiveIndexFile;
         std::shared_ptr<free_block_list_file> mFreeBlockIndexFile;
 
-        std::unique_ptr<detail::thread_pool> mOpsPool = std::make_unique<detail::thread_pool>();
+        std::unique_ptr<detail::thread_pool> mOpsPool;
 
         std::map<detail::sector_id, std::uint64_t> mFreeSectorPool;
         std::mutex mFreeSectorPoolMutex;
+
+        std::atomic<bool> mDirty;
     };
 }
 
 namespace vefs
 {
+    inline void vefs::archive::mark_dirty()
+    {
+        mDirty.store(true, std::memory_order_release);
+    }
+    inline void vefs::archive::mark_clean()
+    {
+        mDirty.store(false, std::memory_order_release);
+    }
+    inline bool vefs::archive::is_dirty()
+    {
+        return mDirty.load(std::memory_order_acquire);
+    }
+
     inline archive::file_handle::file_handle() noexcept
         : mData{ nullptr }
     {

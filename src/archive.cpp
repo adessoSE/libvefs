@@ -47,7 +47,11 @@ namespace vefs
     }
 
     archive::archive()
-        : mFreeSectorPoolMutex{}
+        : mIndex{}
+        , mFileHandles{}
+        , mOpsPool{ std::make_unique<detail::thread_pool>() }
+        , mFreeSectorPoolMutex{}
+        , mDirty{ false }
     {
     }
 
@@ -70,6 +74,7 @@ namespace vefs
         crypto::crypto_provider * cryptoProvider, blob_view userPRK, create_tag)
         : archive()
     {
+        mark_dirty();
         auto archiveFile = fs->open(archivePath, file_open_mode::readwrite | file_open_mode::create | file_open_mode::truncate);
 
         mArchive = std::make_unique<detail::raw_archive>(archiveFile, cryptoProvider, userPRK, create);
@@ -81,7 +86,10 @@ namespace vefs
 
     archive::~archive()
     {
-        sync();
+        if (is_dirty())
+        {
+            sync();
+        }
         mArchiveIndexFile->dispose();
         mArchiveIndexFile = nullptr;
         mFreeBlockIndexFile->dispose();
@@ -91,6 +99,7 @@ namespace vefs
 
     void archive::sync()
     {
+        mark_clean();
         for (auto &f : mFileHandles.lock_table())
         {
             if (auto fh = f.second->load(*this))
@@ -106,6 +115,7 @@ namespace vefs
 
         mArchive->update_header();
         mArchive->sync();
+
     }
 
     archive::file_handle archive::open(const std::string_view filePath,
@@ -158,6 +168,7 @@ namespace vefs
                 return open(filePath, mode);
             }
 
+            mark_dirty();
             return result;
         }
 
@@ -186,6 +197,7 @@ namespace vefs
             }
             mIndex.erase(filePath);
             mFileHandles.erase(fid);
+            mark_dirty();
         }
     }
 
@@ -224,6 +236,7 @@ namespace vefs
         }
 
         f->write(data, writeFilePos);
+        mark_dirty();
     }
 
     void archive::resize(file_handle handle, std::uint64_t size)
@@ -239,6 +252,7 @@ namespace vefs
         }
 
         f->resize(size);
+        mark_dirty();
     }
 
     std::uint64_t archive::size_of(file_handle handle)
