@@ -56,6 +56,10 @@ namespace vefs::tests
             using lock_t = std::lock_guard<std::mutex>;
 
             memory_holder()
+                : mGrowMutex{}
+                , mChunks{}
+                , mCurrentSize{ 0 }
+                , mMaxSize{ std::numeric_limits<std::size_t>::max() }
             {
                 mChunks.emplace_back();
             }
@@ -92,6 +96,7 @@ namespace vefs::tests
                 lock_t sync{ mGrowMutex };
                 return mCurrentSize;
             }
+
             template <typename Fn>
             void access(std::size_t offset, std::size_t size, Fn &&fn)
             {
@@ -133,9 +138,9 @@ namespace vefs::tests
             }
 
             mutable std::mutex mGrowMutex;
-            chunk_list mChunks = { };
-            std::size_t mCurrentSize = 0;
-            std::size_t mMaxSize = std::numeric_limits<std::size_t>::max();
+            chunk_list mChunks;
+            std::size_t mCurrentSize;
+            std::size_t mMaxSize;
         };
 
         memory_file(std::shared_ptr<memory_filesystem> owner, std::shared_ptr<memory_holder> memory, file_open_mode_bitset mode)
@@ -165,6 +170,7 @@ namespace vefs::tests
 
     struct memory_filesystem
         : public filesystem
+        , std::enable_shared_from_this<memory_filesystem>
     {
         using relaxed_string_map
             = utils::unordered_string_map_mt<std::shared_ptr<memory_file::memory_holder>>;
@@ -173,10 +179,7 @@ namespace vefs::tests
 
         static std::shared_ptr<memory_filesystem> create()
         {
-            auto fs = std::shared_ptr<memory_filesystem>{ new memory_filesystem };
-            fs->self = fs;
-
-            return fs;
+            return std::make_shared<memory_filesystem>();
         }
 
         using filesystem::open;
@@ -185,8 +188,5 @@ namespace vefs::tests
 
         vefs::detail::thread_pool &opsPool;
         relaxed_string_map files;
-
-    private:
-        std::weak_ptr<memory_filesystem> self;
     };
 }

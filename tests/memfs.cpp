@@ -181,22 +181,22 @@ namespace vefs::tests
                     ec = memvefs_code::file_not_found;
                 }
             }
-            if (mode % file_open_mode::truncate)
-            {
-                if (mode % file_open_mode::write)
-                {
-                    fileHandle->resize(0);
-                }
-                else
-                {
-                    ec = memvefs_code::no_write_mode;
-                    fileHandle.reset();
-                }
-            }
             if (fileHandle)
             {
+                if (mode % file_open_mode::truncate)
+                {
+                    if (mode % file_open_mode::write)
+                    {
+                        fileHandle->resize(0);
+                    }
+                    else
+                    {
+                        ec = memvefs_code::no_write_mode;
+                        fileHandle.reset();
+                    }
+                }
                 return std::static_pointer_cast<file>(
-                    std::make_shared<memory_file>(self.lock(), fileHandle, mode)
+                    std::make_shared<memory_file>(shared_from_this(), fileHandle, mode)
                 );
             }
         }

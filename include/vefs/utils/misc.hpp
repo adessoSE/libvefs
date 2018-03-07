@@ -66,10 +66,10 @@ namespace vefs::utils
         struct error_code_scope
         {
             template <typename F, typename... Args>
-            inline static auto eval(F &&f, Args&&... args)
+            inline static decltype(auto) eval(F &&f, Args&&... args)
             {
                 std::error_code ec;
-                auto result = f(std::forward<Args>(args)..., ec);
+                decltype(auto) result = f(std::forward<Args>(args)..., ec);
                 if (ec)
                 {
                     BOOST_THROW_EXCEPTION(std::system_error(ec));
@@ -95,14 +95,14 @@ namespace vefs::utils
     }
 
     template <typename F, typename... Args>
-    inline auto error_code_scope(F &&f, Args&&... args)
+    inline decltype(auto) error_code_scope(F &&f, Args&&... args)
     {
         return detail::error_code_scope<decltype(f(std::forward<Args>(args)..., std::declval<std::error_code &>()))>
             ::eval(std::forward<F>(f), std::forward<Args>(args)...);
     }
 #else
     template <typename F, typename... Args>
-    inline auto error_code_scope(F &&f, Args&&... args)
+    inline decltype(auto) error_code_scope(F &&f, Args&&... args)
     {
         std::error_code ec;
         if constexpr (std::is_void_v<decltype(f(std::forward<Args>(args)..., ec))>)
@@ -115,7 +115,7 @@ namespace vefs::utils
         }
         else
         {
-            auto result = f(std::forward<Args>(args)..., ec);
+            decltype(auto) result = f(std::forward<Args>(args)..., ec);
             if (ec)
             {
                 BOOST_THROW_EXCEPTION(std::system_error(ec));
