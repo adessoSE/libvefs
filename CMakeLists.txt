@@ -64,6 +64,7 @@ option(Boost_USE_DEBUG_RUNTIME "Use debug boost libraries" ON)
 option(Boost_USE_STATIC_LIBS "Use static boost libraries" ON)
 find_package(Boost 1.65 REQUIRED COMPONENTS
     system
+    program_options
     unit_test_framework
 )
 add_definitions(-DBOOST_ALL_NO_LIB)
@@ -145,6 +146,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 ##########################################################################
 # the actual library project
 add_subdirectory(src)
+add_subdirectory(src/cli)
 if (benchmark_FOUND)
     add_subdirectory(benchmark)
 endif()
@@ -177,4 +179,3 @@ install(FILES
 )
 
 install(DIRECTORY include DESTINATION .)
-
