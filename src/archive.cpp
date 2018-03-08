@@ -608,7 +608,8 @@ namespace vefs
         }
 
         std::sort(sectors.begin(), sectors.end());
-        std::unique(sectors.begin(), sectors.end());
+        auto newEnd = std::unique(sectors.begin(), sectors.end());
+        sectors.resize(std::distance(sectors.begin(), newEnd));
 
         if (sectors.front() == sector_id::master)
         {

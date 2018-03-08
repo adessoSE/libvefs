@@ -22,7 +22,7 @@ namespace vefs::detail::detail
 namespace vefs::detail
 {
     template <typename T>
-    class[[nodiscard]] cache_handle
+    class cache_handle
     {
         using entry_type = detail::cache_entry<T>;
         friend struct entry_type;
@@ -437,6 +437,7 @@ namespace vefs::detail
             }
         }
 
+        [[nodiscard]]
         inline handle try_access(const key_type &key)
         {
             lookup_ptr lptr;
@@ -471,7 +472,6 @@ namespace vefs::detail
         }
 
         template <typename... ConstructorArgs>
-        [[nodiscard]]
         inline std::tuple<bool, handle> access(const key_type &key,
             ConstructorArgs&&... ctorArgs)
         {
