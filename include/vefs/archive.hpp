@@ -93,17 +93,6 @@ namespace vefs
 
         void read_archive_index();
         void write_archive_index();
-        void read_free_sector_index();
-        void write_free_sector_index();
-
-        std::map<detail::sector_id, std::uint64_t>::iterator grow_archive_impl(unsigned int num);
-        std::vector<detail::sector_id> alloc_sectors(unsigned int num = 1);
-        inline auto alloc_sector()
-        {
-            return alloc_sectors(1).front();
-        }
-        void dealloc_sectors(std::vector<detail::sector_id> sectors);
-        void dealloc_sectors_impl(std::vector<detail::sector_id> sectors);
 
         inline void mark_dirty();
         inline void mark_clean();
@@ -113,13 +102,11 @@ namespace vefs
 
         utils::unordered_string_map_mt<detail::file_id> mIndex;
         utils::unordered_map_mt<detail::file_id, file_lookup_ptr> mFileHandles;
+
         std::shared_ptr<index_file> mArchiveIndexFile;
         std::shared_ptr<free_block_list_file> mFreeBlockIndexFile;
 
         std::unique_ptr<detail::thread_pool> mOpsPool;
-
-        std::map<detail::sector_id, std::uint64_t> mFreeSectorPool;
-        std::mutex mFreeSectorPoolMutex;
 
         std::atomic<bool> mDirty;
     };

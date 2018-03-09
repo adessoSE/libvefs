@@ -1,8 +1,8 @@
 #pragma once
 
+#include <mutex>
 #include <memory>
 #include <utility>
-#include <shared_mutex>
 
 #include <vefs/archive.hpp>
 
@@ -11,20 +11,42 @@
 
 namespace vefs
 {
-    class archive::free_block_list_file
-        : public archive::internal_file
+    class archive::free_block_list_file final
+        : private archive::internal_file
     {
+        using free_block_map = std::map<detail::sector_id, std::uint64_t>;
+
     public:
         free_block_list_file(archive &owner, detail::basic_archive_file_meta &meta);
         free_block_list_file(archive &owner, detail::basic_archive_file_meta &meta, create_tag);
+        using internal_file::dispose;
 
         template <typename... Args>
         static inline std::shared_ptr<archive::free_block_list_file> create(Args &&... args);
+
+        inline auto alloc_sector();
+        std::vector<detail::sector_id> alloc_sectors(unsigned int num);
+
+        void dealloc_sectors(std::vector<detail::sector_id> sectors);
+
+        void sync();
+
+    private:
+        free_block_map::iterator grow_owner_impl(unsigned int num);
+        void dealloc_sectors_impl(std::vector<detail::sector_id> sectors);
+
+        std::mutex mFreeBlockSync;
+        free_block_map mFreeBlockMap;
     };
 
     template<typename ...Args>
     inline std::shared_ptr<archive::free_block_list_file> archive::free_block_list_file::create(Args &&... args)
     {
         return std::make_shared<archive::free_block_list_file>(std::forward<Args>(args)...);
+    }
+
+    inline auto archive::free_block_list_file::alloc_sector()
+    {
+        return alloc_sectors(1).front();
     }
 }

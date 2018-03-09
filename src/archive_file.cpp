@@ -5,6 +5,8 @@
 
 #include <boost/range/adaptor/reversed.hpp>
 
+#include "archive_free_block_list_file.hpp"
+
 namespace vefs
 {
     namespace
@@ -64,6 +66,7 @@ namespace vefs
         : mOwner{ owner }
         , mData{ data }
         , mCachedBlocks{}
+        , mWriteFlag{}
     {
         mCachedBlocks = std::make_unique<block_pool_t>(std::move(onDirty));
     }
@@ -265,14 +268,14 @@ namespace vefs
 
             if (requiredDepth > mData.tree_depth)
             {
-                auto physId = mOwner.alloc_sector();
+                auto physId = mOwner.mFreeBlockIndexFile->alloc_sector();
                 auto entry = mCachedBlocks->access(rootPos, parent, rootPos, physId);
 
                 if (std::get<0>(entry))
                 {
                     // we got a cached sector entry, i.e. the previously
                     // allocated physical sector needs to be freed.
-                    mOwner.dealloc_sectors({ physId });
+                    mOwner.mFreeBlockIndexFile->dealloc_sectors({ physId });
                     // this shouldn't ever happen though, therefore trigger the debugger
                     assert(!std::get<0>(entry));
                 }
@@ -348,12 +351,12 @@ namespace vefs
             {
                 parentLock.unlock();
 
-                auto physId = mOwner.alloc_sector();
+                auto physId = mOwner.mFreeBlockIndexFile->alloc_sector();
                 auto[cached, entry] = mCachedBlocks->access(*it, parent, *it, physId);
 
                 if (cached)
                 {
-                    mOwner.dealloc_sectors({ physId });
+                    mOwner.mFreeBlockIndexFile->dealloc_sectors({ physId });
                 }
                 else
                 {
@@ -370,6 +373,7 @@ namespace vefs
         }
 
         parent.mark_dirty();
+        mWriteFlag.mark();
         return parent;
     }
 
@@ -401,6 +405,7 @@ namespace vefs
                 data.copy_to(chunk);
 
                 sector.mark_dirty();
+                mWriteFlag.mark();
 
             }
             data.remove_prefix(chunk.size());
@@ -534,7 +539,7 @@ namespace vefs
 
         std::unique_lock<std::shared_mutex> integrityLock{ integrity_mutex };
         mOwner.mArchive->erase_sector(mData, mData.start_block_idx);
-        mOwner.dealloc_sectors({ mData.start_block_idx });
+        mOwner.mFreeBlockIndexFile->dealloc_sectors({ mData.start_block_idx });
         mData.tree_depth = -1;
         mData.start_block_idx = detail::sector_id::master;
         mData.start_block_mac = {};
@@ -704,7 +709,7 @@ namespace vefs
             mData.size = size;
         }
 
-        mOwner.dealloc_sectors(std::move(collectedIds));
+        mOwner.mFreeBlockIndexFile->dealloc_sectors(std::move(collectedIds));
     }
 }
 

@@ -5,8 +5,9 @@
 #include <memory>
 #include <shared_mutex>
 
-#include <vefs/detail/basic_archive_file_meta.hpp>
 #include <vefs/archive.hpp>
+#include <vefs/detail/basic_archive_file_meta.hpp>
+#include <vefs/utils/dirt_flag.hpp>
 
 namespace vefs
 {
@@ -40,7 +41,7 @@ namespace vefs
             inline std::shared_mutex & data_sync();
             inline std::atomic_flag & write_queued_flag();
 
-        private:
+        protected:
             std::shared_mutex mDataSync;
             tree_position mPosition;
             detail::sector_id mSectorId;
@@ -97,6 +98,8 @@ namespace vefs
         mutable std::shared_mutex shrink_mutex;
 
         std::unique_ptr<block_pool_t> mCachedBlocks;
+
+        utils::dirt_flag mWriteFlag;
     };
 }
 

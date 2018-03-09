@@ -19,6 +19,7 @@ DEF_SOURCE_GROUP(vefs UTILS "utils"
 
         "${_INCLUDE_DIR}/vefs/utils/misc.hpp"
         "${_INCLUDE_DIR}/vefs/utils/ref_ptr.hpp"
+        "${_INCLUDE_DIR}/vefs/utils/dirt_flag.hpp"
 
         "${_INCLUDE_DIR}/vefs/utils/uuid.hpp"
         "${_INCLUDE_DIR}/vefs/utils/random.hpp"

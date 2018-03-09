@@ -32,25 +32,11 @@ using namespace vefs::detail;
 
 namespace vefs
 {
-    namespace
-    {
-#pragma pack(push, 1)
-
-        struct RawFreeSectorRange
-        {
-            detail::sector_id start_sector;
-            std::uint64_t num_sectors;
-        };
-        static_assert(sizeof(RawFreeSectorRange) == 16);
-
-#pragma pack(pop)
-    }
 
     archive::archive()
         : mIndex{}
         , mFileHandles{}
         , mOpsPool{ std::make_unique<detail::thread_pool>() }
-        , mFreeSectorPoolMutex{}
         , mDirty{ false }
     {
     }
@@ -63,12 +49,12 @@ namespace vefs
 
         mArchive = std::make_unique<detail::raw_archive>(std::move(archiveFile), cryptoProvider, userPRK);
 
-        mArchiveIndexFile = index_file::create(*this, mArchive->index_file());
         mFreeBlockIndexFile = free_block_list_file::create(*this,
             mArchive->free_sector_index_file());
 
+        mArchiveIndexFile = index_file::create(*this, mArchive->index_file());
         read_archive_index();
-        read_free_sector_index();
+
     }
     archive::archive(filesystem::ptr fs, std::string_view archivePath,
         crypto::crypto_provider * cryptoProvider, blob_view userPRK, create_tag)
@@ -79,9 +65,9 @@ namespace vefs
 
         mArchive = std::make_unique<detail::raw_archive>(archiveFile, cryptoProvider, userPRK, create);
 
-        mArchiveIndexFile = index_file::create(*this, mArchive->index_file(), create);
         mFreeBlockIndexFile = free_block_list_file::create(*this,
             mArchive->free_sector_index_file(), create);
+        mArchiveIndexFile = index_file::create(*this, mArchive->index_file(), create);
     }
 
     archive::~archive()
@@ -110,7 +96,6 @@ namespace vefs
 
         write_archive_index();
         mArchiveIndexFile->sync();
-        write_free_sector_index();
         mFreeBlockIndexFile->sync();
 
         mArchive->update_header();
@@ -432,216 +417,5 @@ namespace vefs
         }
 
         indexFile->resize(fileOffset);
-    }
-
-    void archive::read_free_sector_index()
-    {
-        const auto &free_sector_index = mArchive->free_sector_index_file();
-        if (free_sector_index.size % sizeof(RawFreeSectorRange) != 0)
-        {
-            BOOST_THROW_EXCEPTION(archive_corrupted{});
-        }
-
-        file *freeBlockFile = mFreeBlockIndexFile.get();
-        std::lock_guard<std::mutex> freeSectorLock{ mFreeSectorPoolMutex };
-        tree_position it{ 0 };
-
-        for (std::uint64_t consumed = 0; consumed < free_sector_index.size; )
-        {
-            auto sector = freeBlockFile->access(it);
-            it.position(it.position() + 1);
-
-            auto sectorBlob = sector->data_view();
-            if (free_sector_index.size - consumed < detail::raw_archive::sector_payload_size)
-            {
-                sectorBlob.slice(0, static_cast<std::size_t>(free_sector_index.size - consumed));
-            }
-            consumed += sectorBlob.size();
-
-            while (sectorBlob)
-            {
-                auto &freeSectorRange = sectorBlob.pop_front_as<RawFreeSectorRange>();
-                if (freeSectorRange.start_sector == sector_id::master)
-                {
-                    continue;
-                }
-
-                auto sectorId = static_cast<std::uint64_t>(freeSectorRange.start_sector);
-
-                auto offset = freeSectorRange.num_sectors - 1;
-                auto lastSector = detail::sector_id{ sectorId + offset };
-
-                mFreeSectorPool.emplace_hint(mFreeSectorPool.cend(), lastSector, offset);
-            }
-        }
-    }
-
-    void archive::write_free_sector_index()
-    {
-        RawFreeSectorRange entry = {};
-        const blob_view entryView = as_blob_view(entry);
-        std::uint64_t writePos = 0;
-
-        file *freeBlockFile = mFreeBlockIndexFile.get();
-        std::unique_lock<std::mutex> freeSectorLock{ mFreeSectorPoolMutex };
-
-        // #TODO there must be a better way to reliably flush the free block index
-
-        do
-        {
-            while (freeBlockFile->size() / sizeof(RawFreeSectorRange) > mFreeSectorPool.size() + 2)
-            {
-                freeSectorLock.unlock();
-                {
-                    std::unique_lock<std::shared_mutex> shrinkLock{
-                        freeBlockFile->shrink_mutex
-                    };
-                    freeBlockFile->shrink_file(
-                        (mFreeSectorPool.size() + 2) * sizeof(RawFreeSectorRange)
-                    );
-                }
-                freeSectorLock.lock();
-            }
-
-            if (freeBlockFile->size() / sizeof(RawFreeSectorRange) < mFreeSectorPool.size())
-            {
-                freeSectorLock.unlock();
-                {
-                    std::shared_lock<std::shared_mutex> shrinkLock{
-                        freeBlockFile->shrink_mutex
-                    };
-                    freeBlockFile->grow_file(
-                        mFreeSectorPool.size() * sizeof(RawFreeSectorRange)
-                    );
-                }
-                freeSectorLock.lock();
-            }
-            else
-            {
-                break;
-            }
-        } while (true);
-
-        for (auto [lastId, numPrev] : mFreeSectorPool)
-        {
-            entry.start_sector = sector_id{ static_cast<uint64_t>(lastId) - numPrev };
-            entry.num_sectors = numPrev + 1;
-
-            freeBlockFile->write(entryView, writePos);
-            writePos += entryView.size();
-        }
-
-        entry = {};
-        while (writePos < freeBlockFile->size())
-        {
-            freeBlockFile->write(entryView, writePos);
-            writePos += entryView.size();
-        }
-    }
-
-    std::map<detail::sector_id, std::uint64_t>::iterator archive::grow_archive_impl(unsigned int num)
-    {
-        if (!num)
-        {
-            return {};
-        }
-        // assuming mFreeSectorPoolMutex is held
-        num -= 1;
-        auto newLastSector = sector_id{ mArchive->size() + num };
-        mArchive->resize(static_cast<std::uint64_t>(newLastSector) + 1);
-
-        return mFreeSectorPool.emplace_hint(mFreeSectorPool.cend(), newLastSector, num);
-    }
-
-    std::vector<detail::sector_id> archive::alloc_sectors(unsigned int num)
-    {
-        std::vector<detail::sector_id> allocated;
-        allocated.reserve(num);
-
-        std::lock_guard<std::mutex> allocLock{ mFreeSectorPoolMutex };
-
-        VEFS_ERROR_EXIT{
-            try
-            {
-                dealloc_sectors_impl(std::move(allocated));
-            }
-            catch (...)
-            {
-            }
-        };
-
-        auto freeSectorIt = mFreeSectorPool.begin();
-        auto freeSectorRangeEnd = mFreeSectorPool.end();
-        while (num)
-        {
-            if (freeSectorIt == freeSectorRangeEnd)
-            {
-                freeSectorIt = grow_archive_impl(std::min(4u, num));
-            }
-            auto[lastIdx, offset] = *freeSectorIt;
-
-            auto i = 0ull;
-            for (; num && i <= offset; ++i)
-            {
-                allocated.push_back(sector_id{ static_cast<std::uint64_t>(lastIdx) - offset + i });
-                --num;
-            }
-
-            if (i > offset)
-            {
-                mFreeSectorPool.erase(freeSectorIt++);
-            }
-            else
-            {
-                offset -= i;
-            }
-        }
-
-        return allocated;
-    }
-
-    void archive::dealloc_sectors(std::vector<detail::sector_id> sectors)
-    {
-        if (sectors.empty())
-        {
-            return;
-        }
-
-        std::sort(sectors.begin(), sectors.end());
-        auto newEnd = std::unique(sectors.begin(), sectors.end());
-        sectors.resize(std::distance(sectors.begin(), newEnd));
-
-        if (sectors.front() == sector_id::master)
-        {
-            sectors.erase(sectors.cbegin());
-            if (sectors.empty())
-            {
-                return;
-            }
-        }
-
-        std::lock_guard<std::mutex> allocLock{ mFreeSectorPoolMutex };
-
-        dealloc_sectors_impl(std::move(sectors));
-    }
-    void archive::dealloc_sectors_impl(std::vector<detail::sector_id> sectors)
-    {
-        auto current = sectors.front();
-        auto offset = 0ull;
-        for (auto it = ++sectors.cbegin(), end = sectors.cend(); it != end; ++it)
-        {
-            const auto next = *it;
-            if (static_cast<std::uint64_t>(next) - static_cast<std::uint64_t>(current) == 1)
-            {
-                ++offset;
-            }
-            else
-            {
-                mFreeSectorPool.emplace(current, offset);
-                offset = 0;
-            }
-            current = next;
-        }
-        mFreeSectorPool.emplace(current, offset);
     }
 }
