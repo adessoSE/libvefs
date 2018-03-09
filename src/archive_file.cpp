@@ -123,8 +123,10 @@ namespace vefs
             {
                 if (static_cast<uint64_t>(physId) >= mOwner.mArchive->size())
                 {
-                    BOOST_THROW_EXCEPTION(sector_reference_out_of_range{}
-                        << errinfo_sector_idx{ physId });
+                    BOOST_THROW_EXCEPTION(archive_corrupted{}
+                        << errinfo_sector_idx{ physId }
+                        << errinfo_code{ archive_error_code::sector_reference_out_of_range }
+                    );
                 }
                 auto currentPosition = *pathIterator;
                 auto entry = mCachedBlocks->access(currentPosition,
@@ -201,7 +203,10 @@ namespace vefs
     {
         if (!sectorPosition)
         {
-            BOOST_THROW_EXCEPTION(logic_error{});
+            BOOST_THROW_EXCEPTION(invalid_argument{}
+                << errinfo_param_name{ "sectorPosition" }
+                << errinfo_param_misuse_description{ "the given sector position isn't valid" }
+            );
         }
         std::optional<file::sector::handle> result;
         do
@@ -230,7 +235,9 @@ namespace vefs
             it.position(it.position() + 1);
             if (!sector)
             {
-                BOOST_THROW_EXCEPTION(exception{}); // read after end of file
+                BOOST_THROW_EXCEPTION(invalid_argument{}
+                    << errinfo_param_misuse_description{ "tried to read after the end of an archive file" }
+                );
             }
 
             auto chunk = sector->data_view().slice(offset);

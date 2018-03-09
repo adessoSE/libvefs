@@ -3,47 +3,81 @@
 
 #include <functional>
 
-#include <vefs/utils/misc.hpp>
+#include <vefs/exceptions.hpp>
 
 namespace vefs
 {
     void file::read(blob buffer, std::uint64_t readFilePos)
     {
-        using namespace utils;
-        error_code_scope(std::mem_fn<void(blob, std::uint64_t, std::error_code &)>(&file::read),
-            this, buffer, readFilePos);
+        std::error_code ec;
+        read(buffer, readFilePos, ec);
+        if (ec)
+        {
+            BOOST_THROW_EXCEPTION(io_error{}
+                << errinfo_code{ ec }
+            );
+        }
     }
 
     void file::write(blob_view data, std::uint64_t writeFilePos)
     {
-        using namespace utils;
-        error_code_scope(std::mem_fn<void(blob_view, std::uint64_t, std::error_code &)>(&file::write),
-            this, data, writeFilePos);
+        std::error_code ec;
+        write(data, writeFilePos, ec);
+        if (ec)
+        {
+            BOOST_THROW_EXCEPTION(io_error{}
+                << errinfo_code{ ec }
+            );
+        }
     }
 
     void file::sync()
     {
-        using namespace utils;
-        error_code_scope(std::mem_fn<void(std::error_code &)>(&file::sync), this);
+        std::error_code ec;
+        sync(ec);
+        if (ec)
+        {
+            BOOST_THROW_EXCEPTION(io_error{}
+                << errinfo_code{ ec }
+            );
+        }
     }
 
     std::uint64_t file::size()
     {
-        using namespace utils;
-        return error_code_scope(std::mem_fn<std::uint64_t(std::error_code &)>(&file::size), this);
+        std::error_code ec;
+        auto result = size(ec);
+        if (ec)
+        {
+            BOOST_THROW_EXCEPTION(io_error{}
+                << errinfo_code{ ec }
+            );
+        }
+        return result;
     }
 
     void file::resize(std::uint64_t newSize)
     {
-        using namespace utils;
-        error_code_scope(std::mem_fn<void(std::uint64_t, std::error_code &)>(&file::resize),
-            this, newSize);
+        std::error_code ec;
+        resize(newSize, ec);
+        if (ec)
+        {
+            BOOST_THROW_EXCEPTION(io_error{}
+                << errinfo_code{ ec }
+            );
+        }
     }
 
     file::ptr filesystem::open(std::string_view filePath, file_open_mode_bitset mode)
     {
-        using namespace utils;
-        return error_code_scope(std::mem_fn<file::ptr(std::string_view, file_open_mode_bitset, std::error_code &)>(&filesystem::open),
-            this, filePath, mode);
+        std::error_code ec;
+        auto result = open(filePath, mode, ec);
+        if (ec)
+        {
+            BOOST_THROW_EXCEPTION(io_error{}
+                << errinfo_code{ ec }
+            );
+        }
+        return result;
     }
 }

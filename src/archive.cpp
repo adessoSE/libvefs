@@ -49,12 +49,26 @@ namespace vefs
 
         mArchive = std::make_unique<detail::raw_archive>(std::move(archiveFile), cryptoProvider, userPRK);
 
-        mFreeBlockIndexFile = free_block_list_file::create(*this,
-            mArchive->free_sector_index_file());
-
-        mArchiveIndexFile = index_file::create(*this, mArchive->index_file());
-        read_archive_index();
-
+        try
+        {
+            mFreeBlockIndexFile = free_block_list_file::create(*this,
+                mArchive->free_sector_index_file());
+        }
+        catch (const boost::exception &exc)
+        {
+            exc << errinfo_archive_file{ "[free-sector-index]" };
+            throw;
+        }
+        try
+        {
+            mArchiveIndexFile = index_file::create(*this, mArchive->index_file());
+            read_archive_index();
+        }
+        catch (const boost::exception &exc)
+        {
+            exc << errinfo_archive_file{ "[archive-index]" };
+            throw;
+        }
     }
     archive::archive(filesystem::ptr fs, std::string_view archivePath,
         crypto::crypto_provider * cryptoProvider, blob_view userPRK, create_tag)
@@ -94,13 +108,25 @@ namespace vefs
             }
         }
 
-        write_archive_index();
-        mArchiveIndexFile->sync();
-        mFreeBlockIndexFile->sync();
-
+        try
+        {
+            write_archive_index();
+            mArchiveIndexFile->sync();
+        }
+        catch (const boost::exception &exc)
+        {
+            exc << errinfo_archive_file{ "[archive-index]" };
+        }
+        try
+        {
+            mFreeBlockIndexFile->sync();
+        }
+        catch (const boost::exception &exc)
+        {
+            exc << errinfo_archive_file{ "[free-sector-index]" };
+        }
         mArchive->update_header();
         mArchive->sync();
-
     }
 
     archive::file_handle archive::open(const std::string_view filePath,
@@ -158,7 +184,7 @@ namespace vefs
         }
 
         // #TODO refine open failure exception
-        BOOST_THROW_EXCEPTION(exception{});
+        BOOST_THROW_EXCEPTION(file_not_found{});
     }
 
     void archive::erase(std::string_view filePath)
@@ -166,7 +192,7 @@ namespace vefs
         file_id fid;
         if (!mIndex.find_fn(filePath, [&fid](const detail::file_id &elem) { fid = elem; }))
         {
-            BOOST_THROW_EXCEPTION(std::out_of_range{"filePath wasn't found in the archive index"});
+            BOOST_THROW_EXCEPTION(file_not_found{});
         }
 
         file_lookup_ptr lookup;
@@ -178,7 +204,7 @@ namespace vefs
         {
             if (!lookup->try_kill(*this))
             {
-                BOOST_THROW_EXCEPTION(std::runtime_error{ "the file to be deleted has open handles" });
+                BOOST_THROW_EXCEPTION(file_still_open{});
             }
             mIndex.erase(filePath);
             mFileHandles.erase(fid);
@@ -194,12 +220,18 @@ namespace vefs
         }
         if (!handle)
         {
-            BOOST_THROW_EXCEPTION(exception{});
+            BOOST_THROW_EXCEPTION(invalid_argument{}
+                << errinfo_param_name{ "handle" }
+                << errinfo_param_misuse_description{ "the handle isn't valid" }
+            );
         }
         auto f = file_lookup::deref(handle);
         if (&f->owner_ref() != this)
         {
-            BOOST_THROW_EXCEPTION(exception{});
+            BOOST_THROW_EXCEPTION(invalid_argument{}
+                << errinfo_param_name{ "handle" }
+                << errinfo_param_misuse_description{ "the handle doesn't belong this archive" }
+            );
         }
         f->read(buffer, readFilePos);
     }
@@ -212,12 +244,18 @@ namespace vefs
         }
         if (!handle)
         {
-            BOOST_THROW_EXCEPTION(exception{});
+            BOOST_THROW_EXCEPTION(invalid_argument{}
+                << errinfo_param_name{ "handle" }
+                << errinfo_param_misuse_description{ "the handle isn't valid" }
+            );
         }
         auto f = file_lookup::deref(handle);
         if (&f->owner_ref() != this)
         {
-            BOOST_THROW_EXCEPTION(exception{});
+            BOOST_THROW_EXCEPTION(invalid_argument{}
+                << errinfo_param_name{ "handle" }
+                << errinfo_param_misuse_description{ "the handle doesn't belong this archive" }
+            );
         }
 
         f->write(data, writeFilePos);
@@ -228,12 +266,18 @@ namespace vefs
     {
         if (!handle)
         {
-            BOOST_THROW_EXCEPTION(exception{});
+            BOOST_THROW_EXCEPTION(invalid_argument{}
+                << errinfo_param_name{ "handle" }
+                << errinfo_param_misuse_description{ "the handle isn't valid" }
+            );
         }
         auto f = file_lookup::deref(handle);
         if (&f->owner_ref() != this)
         {
-            BOOST_THROW_EXCEPTION(exception{});
+            BOOST_THROW_EXCEPTION(invalid_argument{}
+                << errinfo_param_name{ "handle" }
+                << errinfo_param_misuse_description{ "the handle doesn't belong this archive" }
+            );
         }
 
         f->resize(size);
@@ -244,12 +288,18 @@ namespace vefs
     {
         if (!handle)
         {
-            BOOST_THROW_EXCEPTION(exception{});
+            BOOST_THROW_EXCEPTION(invalid_argument{}
+                << errinfo_param_name{ "handle" }
+                << errinfo_param_misuse_description{ "the handle isn't valid" }
+            );
         }
         auto f = file_lookup::deref(handle);
         if (&f->owner_ref() != this)
         {
-            BOOST_THROW_EXCEPTION(exception{});
+            BOOST_THROW_EXCEPTION(invalid_argument{}
+                << errinfo_param_name{ "handle" }
+                << errinfo_param_misuse_description{ "the handle doesn't belong this archive" }
+            );
         }
 
         return f->size();
@@ -259,12 +309,18 @@ namespace vefs
     {
         if (!handle)
         {
-            BOOST_THROW_EXCEPTION(exception{});
+            BOOST_THROW_EXCEPTION(invalid_argument{}
+                << errinfo_param_name{ "handle" }
+                << errinfo_param_misuse_description{ "the handle isn't valid" }
+            );
         }
         auto f = file_lookup::deref(handle);
         if (&f->owner_ref() != this)
         {
-            BOOST_THROW_EXCEPTION(exception{});
+            BOOST_THROW_EXCEPTION(invalid_argument{}
+                << errinfo_param_name{ "handle" }
+                << errinfo_param_misuse_description{ "the handle doesn't belong this archive" }
+            );
         }
 
         f->sync();
@@ -308,13 +364,17 @@ namespace vefs
                 const auto numBlocks = utils::div_ceil(descriptorLength, block_size);
                 if (numBlocks + i >= blocks_per_sector)
                 {
-                    BOOST_THROW_EXCEPTION(archive_corrupted{});
+                    BOOST_THROW_EXCEPTION(archive_corrupted{}
+                        << errinfo_code{ archive_error_code::corrupt_index_entry }
+                    );
                 }
                 for (const auto j = i; i - j < numBlocks; ++i)
                 {
                     if (!allocMap[i])
                     {
-                        BOOST_THROW_EXCEPTION(archive_corrupted{});
+                        BOOST_THROW_EXCEPTION(archive_corrupted{}
+                            << errinfo_code{ archive_error_code::corrupt_index_entry }
+                        );
                     }
                 }
 
@@ -322,7 +382,9 @@ namespace vefs
                 {
                     if (!parse_blob(descriptor, sectorBlob.slice(2, descriptorLength)))
                     {
-                        BOOST_THROW_EXCEPTION(archive_corrupted{});
+                        BOOST_THROW_EXCEPTION(archive_corrupted{}
+                            << errinfo_code{ archive_error_code::corrupt_index_entry }
+                        );
                     }
                     VEFS_SCOPE_EXIT{ erase_secrets(descriptor); };
 

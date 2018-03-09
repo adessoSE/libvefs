@@ -1,6 +1,7 @@
 #include "precompiled.hpp"
 #include "os_filesystem.hpp"
 
+#include <vefs/exceptions.hpp>
 #include <vefs/utils/misc.hpp>
 #include <vefs/utils/secure_ops.hpp>
 
@@ -167,12 +168,11 @@ namespace vefs::detail
 
         if (!DeleteFileW(reinterpret_cast<const wchar_t *>(u16FilePath.c_str())))
         {
-            auto errMsg = std::string{ "Failed to delete the file [" }
-                +std::string{ filePath }
-            +"]";
-
-            BOOST_THROW_EXCEPTION(std::system_error(GetLastError(), std::system_category(),
-                errMsg));
+            BOOST_THROW_EXCEPTION(io_error{}
+                << make_system_errinfo_code()
+                << errinfo_api_function{ "DeleteFileW" }
+                << errinfo_io_file{ std::string{ filePath } }
+            );
         }
     }
 }

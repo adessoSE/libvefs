@@ -29,7 +29,9 @@ namespace vefs
 
         if (mData.size % sizeof(RawFreeSectorRange) != 0)
         {
-            BOOST_THROW_EXCEPTION(archive_corrupted{});
+            BOOST_THROW_EXCEPTION(archive_corrupted{}
+                << errinfo_code{ archive_error_code::free_sector_index_invalid_size }
+            );
         }
 
         std::lock_guard<std::mutex> freeSectorLock{ mFreeBlockSync };

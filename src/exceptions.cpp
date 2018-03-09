@@ -29,12 +29,6 @@ namespace vefs
             : public std::error_category
         {
         public:
-#if !defined BOOST_COMP_MSVC_AVAILABLE
-            constexpr
-#endif
-                vefs_error_category() = default;
-
-
             // Inherited via error_category
             virtual const char * name() const noexcept override
             {
@@ -43,25 +37,79 @@ namespace vefs
 
             virtual std::string message(int errval) const override
             {
+                /*
                 switch (vefs_error_code{ errval })
                 {
                 default:
-                    return std::string{ "unknown mvefs error code: #" } +std::to_string(errval);
+
                 }
+                */
+                return std::string{ "unknown mvefs error code: #" } +std::to_string(errval);
             }
 
         };
 
-#if defined BOOST_COMP_MSVC_AVAILABLE
-        const
-#else
-        constexpr
-#endif
-        vefs_error_category gVefsErrorCategory;
+        class archive_error_category
+            : public std::error_category
+        {
+            // Inherited via error_category
+            virtual const char * name() const noexcept override
+            {
+                return "vefs-archive";
+            }
+
+            virtual std::string message(int errval) const override
+            {
+                auto code = archive_error_code{ errval };
+                switch (code)
+                {
+                case vefs::archive_error_code::invalid_prefix:
+                    return "the magic number at the beginning of the archive didn't match";
+
+                case vefs::archive_error_code::oversized_static_header:
+                    return "the static archive header would be greater than the master sector";
+
+                case vefs::archive_error_code::no_archive_header:
+                    return "no valid archive header could be read";
+
+                case vefs::archive_error_code::identical_header_version:
+                    return "both archive headers were valid and contained the same version switch";
+
+                case vefs::archive_error_code::tag_mismatch:
+                    return "decryption failed because the message tag didn't match";
+
+                case vefs::archive_error_code::invalid_proto:
+                    return "the protobuf message decoding failed";
+
+                case vefs::archive_error_code::incompatible_proto:
+                    return "the protobuf message contained invalid values";
+
+                case vefs::archive_error_code::sector_reference_out_of_range:
+                    return "a sector reference pointed to a sector which currently isn't allocated";
+
+                case vefs::archive_error_code::corrupt_index_entry:
+                    return "an entry from the archive index is corrupted and could not be read";
+
+                case vefs::archive_error_code::free_sector_index_invalid_size:
+                    return "the free sector index has an invalid size";
+
+                default:
+                    return std::string{ "unknown vefs archive error code: #" } +std::to_string(errval);
+                }
+            }
+        };
+
+        const vefs_error_category gVefsErrorCategory;
+        const archive_error_category gArchiveErrorCategory;
     }
 
     const std::error_category & vefs_category()
     {
         return gVefsErrorCategory;
+    }
+
+    const std::error_category & archive_category()
+    {
+        return gArchiveErrorCategory;
     }
 }

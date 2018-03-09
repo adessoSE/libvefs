@@ -55,12 +55,6 @@ namespace vefs::crypto::detail
     {
     };
 
-    class aead_invalid_argument
-        : public std::logic_error
-    {
-        using std::logic_error::logic_error;
-    };
-
     class boringssl_aead
     {
     public:
@@ -78,7 +72,10 @@ namespace vefs::crypto::detail
                 return EVP_aead_aes_256_gcm();
 
             default:
-                BOOST_THROW_EXCEPTION(aead_invalid_argument{ "unknown aead scheme value" });
+                BOOST_THROW_EXCEPTION(invalid_argument{}
+                    << errinfo_param_name{ "algorithm" }
+                    << errinfo_param_misuse_description{ "unknown aead scheme value" }
+                );
             }
         }
 
@@ -91,7 +88,11 @@ namespace vefs::crypto::detail
 
             if (key.size() != EVP_AEAD_key_length(impl))
             {
-                BOOST_THROW_EXCEPTION(aead_invalid_argument("invalid key size"));
+                BOOST_THROW_EXCEPTION(invalid_argument{}
+                    << errinfo_param_name{ "key" }
+                    << errinfo_param_misuse_description{ "invalid key size" }
+                    << errinfo_api_function{ "EVP_AEAD_key_length" }
+                );
             }
 
             if (!EVP_AEAD_CTX_init(&mCtx, impl,
@@ -100,7 +101,8 @@ namespace vefs::crypto::detail
             {
                 BOOST_THROW_EXCEPTION(openssl_api_error{}
                     << errinfo_api_function{ "EVP_AEAD_CTX_init" }
-                    << make_openssl_errinfo());
+                    << make_openssl_errinfo()
+                );
             }
         }
         ~boringssl_aead()
@@ -130,19 +132,31 @@ namespace vefs::crypto::detail
         {
             if (!out)
             {
-                BOOST_THROW_EXCEPTION(aead_invalid_argument{ "seal(): no ciphertext output buffer was supplied" });
+                BOOST_THROW_EXCEPTION(invalid_argument{}
+                    << errinfo_param_name{ "out" }
+                    << errinfo_param_misuse_description{ "no ciphertext output buffer was supplied" }
+                );
             }
             if (!outTag)
             {
-                BOOST_THROW_EXCEPTION(aead_invalid_argument{ "seal(): no tag output buffer was supplied" });
+                BOOST_THROW_EXCEPTION(invalid_argument{}
+                    << errinfo_param_name{ "outTag" }
+                    << errinfo_param_misuse_description{ "no tag output buffer was supplied" }
+                );
             }
             if (!nonce)
             {
-                BOOST_THROW_EXCEPTION(aead_invalid_argument{ "seal(): no nonce was supplied" });
+                BOOST_THROW_EXCEPTION(invalid_argument{}
+                    << errinfo_param_name{ "nonce" }
+                    << errinfo_param_misuse_description{ "no nonce was supplied" }
+                );
             }
             if (!plain)
             {
-                BOOST_THROW_EXCEPTION(aead_invalid_argument{ "seal(): no plaintext was supplied" });
+                BOOST_THROW_EXCEPTION(invalid_argument{}
+                    << errinfo_param_name{ "plain" }
+                    << errinfo_param_misuse_description{ "no plaintext was supplied" }
+                );
             }
             if (!ad)
             {
@@ -166,7 +180,8 @@ namespace vefs::crypto::detail
             {
                 BOOST_THROW_EXCEPTION(openssl_api_error{}
                     << errinfo_api_function{ "EVP_AEAD_CTX_seal_scatter" }
-                    << make_openssl_errinfo());
+                    << make_openssl_errinfo()
+                );
             }
 
             outTag = outTag.slice(0, outTagLen);
@@ -176,19 +191,31 @@ namespace vefs::crypto::detail
         {
             if (!out)
             {
-                BOOST_THROW_EXCEPTION(aead_invalid_argument{ "seal(): no plaintext output buffer was supplied" });
+                BOOST_THROW_EXCEPTION(invalid_argument{}
+                    << errinfo_param_name{ "out" }
+                    << errinfo_param_misuse_description{ "no ciphertext output buffer was supplied" }
+                );
             }
             if (!nonce)
             {
-                BOOST_THROW_EXCEPTION(aead_invalid_argument{ "seal(): no nonce was supplied" });
+                BOOST_THROW_EXCEPTION(invalid_argument{}
+                    << errinfo_param_name{ "nonce" }
+                    << errinfo_param_misuse_description{ "no nonce was supplied" }
+                );
             }
             if (!ciphertext)
             {
-                BOOST_THROW_EXCEPTION(aead_invalid_argument{ "seal(): no ciphertext was supplied" });
+                BOOST_THROW_EXCEPTION(invalid_argument{}
+                    << errinfo_param_name{ "ciphertext" }
+                    << errinfo_param_misuse_description{ "seal(): no ciphertext was supplied" }
+                );
             }
             if (!authTag)
             {
-                BOOST_THROW_EXCEPTION(aead_invalid_argument{ "seal(): no authentication tag buffer was supplied" });
+                BOOST_THROW_EXCEPTION(invalid_argument{}
+                    << errinfo_param_name{ "authTag" }
+                    << errinfo_param_misuse_description{ "no authentication tag buffer was supplied" }
+                );
             }
             if (!ad)
             {

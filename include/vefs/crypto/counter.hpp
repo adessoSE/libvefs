@@ -43,7 +43,10 @@ namespace vefs::crypto
     {
         if (ctrState.size() != mCtrState.size())
         {
-            BOOST_THROW_EXCEPTION(std::invalid_argument("ctr state size mismatch"));
+            BOOST_THROW_EXCEPTION(invalid_argument{}
+                << errinfo_param_name{ "ctrState" }
+                << errinfo_param_misuse_description{ "ctr state size mismatch" }
+            );
         }
         ctrState.copy_to(blob{ mCtrState });
     }

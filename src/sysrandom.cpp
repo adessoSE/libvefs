@@ -21,7 +21,10 @@ void vefs::detail::random_bytes(blob buffer)
 {
     if (!buffer)
     {
-        BOOST_THROW_EXCEPTION(std::invalid_argument("invalid buffer"));
+        BOOST_THROW_EXCEPTION(invalid_argument{}
+            << errinfo_param_name{ "buffer" }
+            << errinfo_param_misuse_description{ "n" }
+        );
     }
     do
     {
@@ -137,7 +140,10 @@ void vefs::detail::random_bytes(blob buffer)
 {
     if (!buffer)
     {
-        BOOST_THROW_EXCEPTION(std::invalid_argument("invalid buffer"));
+        BOOST_THROW_EXCEPTION(invalid_argument{}
+            << errinfo_param_name{ "buffer" }
+            << errinfo_param_misuse_description{ "n" }
+        );
     }
     random_bytes_impl<has_getrandom<>>(buffer);
 }

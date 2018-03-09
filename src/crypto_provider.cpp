@@ -28,7 +28,7 @@ namespace vefs::crypto
     {
         if (!debug_provider_enabled)
         {
-            BOOST_THROW_EXCEPTION(std::logic_error("The debug provider wasn't enabled"));
+            BOOST_THROW_EXCEPTION(logic_error{});
         }
         static detail::debug_crypto_provider debug_provider;
         return &debug_provider;

@@ -31,6 +31,7 @@ namespace vefs::crypto::detail
     {
     };
 
+    // #TODO replace blake2_invalid_argument with invalid_argument
     class blake2_invalid_argument
         : public std::invalid_argument
     {

@@ -73,14 +73,6 @@ namespace vefs::detail
         static_assert(sizeof(ArchiveHeaderPrefix) == 52);
 
 #pragma pack(pop)
-
-        inline utils::xoroshiro128plus create_engine()
-        {
-            std::uint64_t randomState[2];
-            random_bytes(blob{ reinterpret_cast<std::byte *>(randomState), sizeof(randomState) });
-
-            return xoroshiro128plus{ randomState[0], randomState[1] };
-        }
     }
 
     void vefs::detail::raw_archive::initialize_file(basic_archive_file_meta &file)
@@ -106,9 +98,18 @@ namespace vefs::detail
 
     std::unique_ptr<basic_archive_file_meta> raw_archive::create_file()
     {
-        //TODO: improve id generation
-        thread_local vefs::utils::xoroshiro128plus engine = create_engine();
-        thread_local boost::uuids::basic_random_generator<decltype(engine)> generate_id{ engine };
+        using vefs::utils::xoroshiro128plus;
+        using boost::uuids::basic_random_generator;
+        const static auto create_engine = []()
+        {
+            std::array<std::uint64_t, 2> randomState;
+            random_bytes(as_blob(randomState));
+
+            return xoroshiro128plus{ randomState[0], randomState[1] };
+        };
+
+        thread_local xoroshiro128plus engine = create_engine();
+        thread_local basic_random_generator<decltype(engine)> generate_id{ engine };
 
         auto file = std::make_unique<basic_archive_file_meta>();
 
@@ -143,7 +144,7 @@ namespace vefs::detail
         {
             parse_static_archive_header(userPRK);
         }
-        catch (boost::exception &exc)
+        catch (const boost::exception &exc)
         {
             exc << errinfo_archive_file{ "[master-sector/static-header]" };
             throw;
@@ -152,7 +153,7 @@ namespace vefs::detail
         {
             parse_archive_header();
         }
-        catch (boost::exception &exc)
+        catch (const boost::exception &exc)
         {
             exc << errinfo_archive_file{ "[master-sector/header]" };
             throw;
@@ -195,24 +196,22 @@ namespace vefs::detail
         // check for magic number
         if (!equal(blob_view{ archivePrefix.magic_number }, archive_magic_number_view))
         {
-            BOOST_THROW_EXCEPTION(archive_corrupted{});
+            BOOST_THROW_EXCEPTION(archive_corrupted{}
+                << errinfo_code{ archive_error_code::invalid_prefix }
+            );
         }
         // the static archive header must be within the bounds of the first block
         if (archivePrefix.static_header_length >= sector_size - sizeof(StaticArchiveHeaderPrefix))
         {
-            BOOST_THROW_EXCEPTION(archive_corrupted{});
+            BOOST_THROW_EXCEPTION(archive_corrupted{}
+                << errinfo_code{ archive_error_code::oversized_static_header }
+            );
         }
 
         secure_vector<std::byte> staticHeaderMem{ archivePrefix.static_header_length, std::byte{} };
         blob staticHeader{ staticHeaderMem };
-        try
-        {
-            mArchiveFile->read(staticHeader, sizeof(StaticArchiveHeaderPrefix));
-        }
-        catch (const std::system_error &)
-        {
-            throw;
-        }
+
+        mArchiveFile->read(staticHeader, sizeof(StaticArchiveHeaderPrefix));
 
         auto boxOpened = mCryptoProvider->box_open(/* out */staticHeader, /* in */staticHeader,
             blob_view{ archivePrefix.static_header_mac },
@@ -225,7 +224,9 @@ namespace vefs::detail
 
         if (!boxOpened)
         {
-            BOOST_THROW_EXCEPTION(archive_corrupted{});
+            BOOST_THROW_EXCEPTION(archive_corrupted{}
+                << errinfo_code{ archive_error_code::tag_mismatch }
+            );
         }
 
         adesso::vefs::StaticArchiveHeader staticHeaderMsg;
@@ -233,7 +234,9 @@ namespace vefs::detail
 
         if (!parse_blob(staticHeaderMsg, staticHeader))
         {
-            BOOST_THROW_EXCEPTION(archive_corrupted{});
+            BOOST_THROW_EXCEPTION(archive_corrupted{}
+                << errinfo_code{ archive_error_code::invalid_proto }
+            );
         }
         if (staticHeaderMsg.formatversion() != 0)
         {
@@ -242,7 +245,9 @@ namespace vefs::detail
         if (staticHeaderMsg.mastersecret().size() != 64
             || staticHeaderMsg.staticarchiveheaderwritecounter().size() != 16)
         {
-            BOOST_THROW_EXCEPTION(archive_corrupted{});
+            BOOST_THROW_EXCEPTION(archive_corrupted{}
+                << errinfo_code{ archive_error_code::incompatible_proto }
+            );
         }
 
         blob_view{ staticHeaderMsg.mastersecret() }.copy_to(blob{ mArchiveMasterSecret });
@@ -284,7 +289,9 @@ namespace vefs::detail
         if (!parse_blob(*headerMsg, headerAndPadding.slice(sizeof(ArchiveHeaderPrefix),
                         archiveHeaderPrefix->header_length)))
         {
-            BOOST_THROW_EXCEPTION(archive_corrupted{});
+            BOOST_THROW_EXCEPTION(archive_corrupted{}
+                << errinfo_code{ archive_error_code::invalid_proto }
+            );
         }
 
         // the archive is corrupted if the header message doesn't pass parameter validation
@@ -294,10 +301,12 @@ namespace vefs::detail
             || !headerMsg->has_archiveindex()
             || !headerMsg->has_freeblockindex())
         {
-            BOOST_THROW_EXCEPTION(archive_corrupted{});
+            BOOST_THROW_EXCEPTION(archive_corrupted{}
+                << errinfo_code{ archive_error_code::incompatible_proto }
+            );
         }
 
-        //TODO: further validation
+        // #TODO further validation
         return headerMsg;
     }
 
@@ -363,7 +372,9 @@ namespace vefs::detail
             {
                 // both headers are at the same counter value which is an invalid
                 // state which cannot be produced by a conforming implementation
-                BOOST_THROW_EXCEPTION(archive_corrupted{});
+                BOOST_THROW_EXCEPTION(archive_corrupted{}
+                    << errinfo_code{ archive_error_code::identical_header_version }
+                );
             }
 
             if (0 < cmp)
@@ -390,7 +401,9 @@ namespace vefs::detail
         }
         else
         {
-            BOOST_THROW_EXCEPTION(archive_corrupted{});
+            BOOST_THROW_EXCEPTION(archive_corrupted{}
+                << errinfo_code{ archive_error_code::no_archive_header }
+            );
         }
     }
 
@@ -454,7 +467,10 @@ namespace vefs::detail
         {
             if (buffer.size() != raw_archive::sector_payload_size)
             {
-                BOOST_THROW_EXCEPTION(std::invalid_argument{ "the read buffer size doesn't match the sector payload size" });
+                BOOST_THROW_EXCEPTION(invalid_argument{}
+                    << errinfo_param_name{ "buffer" }
+                    << errinfo_param_misuse_description{ "the read buffer size doesn't match the sector payload size" }
+                );
             }
 
             secure_byte_array<32> sectorSaltMem;
@@ -465,9 +481,9 @@ namespace vefs::detail
                 mArchiveFile->read(sectorSalt, sectorOffset);
                 mArchiveFile->read(buffer, sectorOffset + sectorSalt.size());
             }
-            catch (const std::system_error &)
+            catch ( const boost::exception &exc)
             {
-                throw;
+                exc << errinfo_sector_idx{ sectorIdx };
             }
 
             auto boxOpened = mCryptoProvider->box_open(buffer, buffer, contentMAC,
@@ -480,10 +496,12 @@ namespace vefs::detail
 
             if (!boxOpened)
             {
-                BOOST_THROW_EXCEPTION(archive_corrupted{});
+                BOOST_THROW_EXCEPTION(archive_corrupted{}
+                    << errinfo_code{ archive_error_code::tag_mismatch }
+                );
             }
         }
-        catch (boost::exception &exc)
+        catch (const boost::exception &exc)
         {
             exc << errinfo_sector_idx{ sectorIdx };
         }
@@ -502,7 +520,10 @@ namespace vefs::detail
     {
         if (sectorIdx == sector_id::master)
         {
-            BOOST_THROW_EXCEPTION(std::invalid_argument{ "cannot erase the first sector" });
+            BOOST_THROW_EXCEPTION(invalid_argument{}
+                << errinfo_param_name{ "sectorIdx" }
+                << errinfo_param_misuse_description{ "cannot erase the first sector" }
+            );
         }
         std::array<std::byte, 32> saltBuffer;
         blob salt{ saltBuffer };
@@ -571,19 +592,31 @@ namespace vefs::detail
     {
         if (sectorSalt.size() != 1 << 5)
         {
-            BOOST_THROW_EXCEPTION(std::invalid_argument{ "sectorSalt has an inappropriate size" });
+            BOOST_THROW_EXCEPTION(invalid_argument{}
+                << errinfo_param_name{ "sectorSalt" }
+                << errinfo_param_misuse_description{ "sectorSalt has an inappropriate size" }
+            );
         }
         if (ciphertextBuffer.size() != raw_archive::sector_payload_size)
         {
-            BOOST_THROW_EXCEPTION(std::invalid_argument{ "ciphertextBuffer has an inappropriate size" });
+            BOOST_THROW_EXCEPTION(invalid_argument{}
+                << errinfo_param_name{ "ciphertextBuffer" }
+                << errinfo_param_misuse_description{ "ciphertextBuffer has an inappropriate size" }
+            );
         }
         if (sectorIdx == sector_id::master)
         {
-            BOOST_THROW_EXCEPTION(std::invalid_argument{ "cannot write the first sector" });
+            BOOST_THROW_EXCEPTION(invalid_argument{}
+                << errinfo_param_name{ "sectorIdx" }
+                << errinfo_param_misuse_description{ "cannot write the first sector" }
+            );
         }
         if (static_cast<std::uint64_t>(sectorIdx) >= std::numeric_limits<std::uint64_t>::max() / sector_size)
         {
-            BOOST_THROW_EXCEPTION(std::invalid_argument{ "sector id points to a sector which isn't within the supported archive file size" });
+            BOOST_THROW_EXCEPTION(invalid_argument{}
+                << errinfo_param_name{ "sectorIdx" }
+                << errinfo_param_misuse_description{ "sector id points to a sector which isn't within the supported archive file size" }
+            );
         }
 
         const auto sectorOffset = to_offset(sectorIdx);
@@ -597,11 +630,17 @@ namespace vefs::detail
     {
         if (data.size() != raw_archive::sector_payload_size)
         {
-            BOOST_THROW_EXCEPTION(std::invalid_argument{ "data has an inappropriate size" });
+            BOOST_THROW_EXCEPTION(invalid_argument{}
+                << errinfo_param_name{ "data" }
+                << errinfo_param_misuse_description{ "data has an inappropriate size" }
+            );
         }
         if (ciphertextBuffer.size() != raw_archive::sector_payload_size)
         {
-            BOOST_THROW_EXCEPTION(std::invalid_argument{ "ciphertextBuffer has an inappropriate size" });
+            BOOST_THROW_EXCEPTION(invalid_argument{}
+                << errinfo_param_name{ "ciphertextBuffer" }
+                << errinfo_param_misuse_description{ "ciphertextBuffer has an inappropriate size" }
+            );
         }
 
         auto nonce = nonceCtr.fetch_increment();

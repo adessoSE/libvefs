@@ -23,7 +23,10 @@ namespace vefs::detail
         {
             if (raw_data.size() != mId.size())
             {
-                BOOST_THROW_EXCEPTION(logic_error{});
+                BOOST_THROW_EXCEPTION(logic_error{}
+                    << errinfo_param_name{ "raw_data" }
+                    << errinfo_param_misuse_description{ "data size mismatch (!= 16b)" }
+                );
             }
             raw_data.copy_to(blob{ reinterpret_cast<std::byte*>(mId.data), mId.static_size() });
         }
