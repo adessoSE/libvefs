@@ -132,6 +132,18 @@ namespace vefs
         mArchive->sync();
     }
 
+    void archive::sync_async(std::function<void(utils::async_error_info)> cb)
+    {
+        mOpsPool->exec([this, cb = std::move(cb)]()
+        {
+            auto einfo = utils::async_error_context([&]()
+            {
+                sync();
+            });
+            cb(std::move(einfo));
+        });
+    }
+
     archive::file_handle archive::open(const std::string_view filePath,
         const file_open_mode_bitset mode)
     {
@@ -327,6 +339,114 @@ namespace vefs
         }
 
         f->sync();
+    }
+
+    void archive::erase_async(std::string filePath, std::function<void(utils::async_error_info)> cb)
+    {
+        mOpsPool->exec([this, filePath = std::move(filePath), cb = std::move(cb)]()
+        {
+            auto einfo = utils::async_error_context([&]()
+            {
+                erase(filePath);
+            });
+            cb(std::move(einfo));
+        });
+    }
+
+    void archive::read_async(file_handle handle, blob buffer, std::uint64_t readFilePos, std::function<void(utils::async_error_info)> cb)
+    {
+        if (!handle)
+        {
+            BOOST_THROW_EXCEPTION(invalid_argument{}
+                << errinfo_param_name{ "handle" }
+                << errinfo_param_misuse_description{ "the handle isn't valid" }
+            );
+        }
+        mOpsPool->exec([this, h = std::move(handle), buffer, readFilePos, cb = std::move(cb)]()
+        {
+            auto einfo = utils::async_error_context([&]()
+            {
+                read(std::move(h), buffer, readFilePos);
+            });
+            cb(std::move(einfo));
+        });
+    }
+
+    void archive::write_async(file_handle handle, blob_view data, std::uint64_t writeFilePos, std::function<void(utils::async_error_info)> cb)
+    {
+        if (!handle)
+        {
+            BOOST_THROW_EXCEPTION(invalid_argument{}
+                << errinfo_param_name{ "handle" }
+                << errinfo_param_misuse_description{ "the handle isn't valid" }
+            );
+        }
+        mOpsPool->exec([this, h = std::move(handle), data, writeFilePos, cb = std::move(cb)]()
+        {
+            auto einfo = utils::async_error_context([&]()
+            {
+                write(std::move(h), data, writeFilePos);
+            });
+            cb(std::move(einfo));
+        });
+    }
+
+    void archive::resize_async(file_handle handle, std::uint64_t size, std::function<void(utils::async_error_info)> cb)
+    {
+        if (!handle)
+        {
+            BOOST_THROW_EXCEPTION(invalid_argument{}
+                << errinfo_param_name{ "handle" }
+                << errinfo_param_misuse_description{ "the handle isn't valid" }
+            );
+        }
+        mOpsPool->exec([this, h = std::move(handle), size, cb = std::move(cb)]()
+        {
+            auto einfo = utils::async_error_context([&]()
+            {
+                resize(std::move(h), size);
+            });
+            cb(std::move(einfo));
+        });
+    }
+
+    void archive::size_of_async(file_handle handle, std::function<void(std::uint64_t, utils::async_error_info)> cb)
+    {
+        if (!handle)
+        {
+            BOOST_THROW_EXCEPTION(invalid_argument{}
+                << errinfo_param_name{ "handle" }
+                << errinfo_param_misuse_description{ "the handle isn't valid" }
+            );
+        }
+        mOpsPool->exec([this, h = std::move(handle), cb = std::move(cb)]()
+        {
+            auto size = std::numeric_limits<std::uint64_t>::max();
+            auto einfo = utils::async_error_context([&]()
+            {
+                size = size_of(std::move(h));
+            });
+            cb(size, std::move(einfo));
+        });
+    }
+
+    void archive::sync_async(file_handle handle, std::function<void(utils::async_error_info)> cb)
+    {
+        if (!handle)
+        {
+            BOOST_THROW_EXCEPTION(invalid_argument{}
+                << errinfo_param_name{ "handle" }
+                << errinfo_param_misuse_description{ "the handle isn't valid" }
+            );
+        }
+        mOpsPool->exec([this, h = std::move(handle), cb = std::move(cb)]()
+        {
+            auto einfo = utils::async_error_context([&]()
+            {
+                sync(std::move(h));
+            });
+            cb(std::move(einfo));
+        });
     }
 
     void archive::read_archive_index()

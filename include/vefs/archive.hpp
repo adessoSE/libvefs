@@ -10,6 +10,7 @@
 #include <vefs/detail/archive_file_id.hpp>
 #include <vefs/utils/ref_ptr.hpp>
 #include <vefs/utils/unordered_map_mt.hpp>
+#include <vefs/utils/async_error_info.hpp>
 
 
 namespace vefs
@@ -67,6 +68,7 @@ namespace vefs
         ~archive();
 
         void sync();
+        void sync_async(std::function<void(utils::async_error_info)> cb);
 
         file_handle open(const std::string_view filePath, const file_open_mode_bitset mode);
         void erase(std::string_view filePath);
@@ -75,6 +77,20 @@ namespace vefs
         void resize(file_handle handle, std::uint64_t size);
         std::uint64_t size_of(file_handle handle);
         void sync(file_handle handle);
+
+
+        void erase_async(std::string filePath,
+            std::function<void(utils::async_error_info)> cb);
+        void read_async(file_handle handle, blob buffer, std::uint64_t readFilePos,
+            std::function<void(utils::async_error_info)> cb);
+        void write_async(file_handle handle, blob_view data, std::uint64_t writeFilePos,
+            std::function<void(utils::async_error_info)> cb);
+        void resize_async(file_handle handle, std::uint64_t size,
+            std::function<void(utils::async_error_info)> cb);
+        void size_of_async(file_handle handle,
+            std::function<void(std::uint64_t, utils::async_error_info)> cb);
+        void sync_async(file_handle handle,
+            std::function<void(utils::async_error_info)> cb);
 
     private:
         archive();

@@ -34,6 +34,8 @@ DEF_SOURCE_GROUP(vefs UTILS "utils"
 
         "${_INCLUDE_DIR}/vefs/utils/unordered_map_mt.hpp"
 
+        "${_INCLUDE_DIR}/vefs/utils/async_error_info.hpp"
+
     SOURCES
         secure_ops.cpp
 
