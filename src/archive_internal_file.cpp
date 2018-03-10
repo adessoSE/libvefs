@@ -1,6 +1,8 @@
 #include "precompiled.hpp"
 #include "archive_internal_file.hpp"
 
+#include <vefs/detail/thread_pool.hpp>
+
 namespace vefs
 {
     archive::internal_file::internal_file(archive &owner, detail::basic_archive_file_meta &meta)

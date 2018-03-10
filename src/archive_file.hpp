@@ -6,6 +6,8 @@
 #include <shared_mutex>
 
 #include <vefs/archive.hpp>
+#include <vefs/detail/cache.hpp>
+#include <vefs/detail/tree_walker.hpp>
 #include <vefs/detail/basic_archive_file_meta.hpp>
 #include <vefs/utils/dirt_flag.hpp>
 

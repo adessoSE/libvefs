@@ -1,23 +1,13 @@
 #pragma once
 
-#include <map>
-#include <mutex>
 #include <atomic>
 #include <memory>
-#include <string>
-#include <limits>
-#include <optional>
 #include <string_view>
 
+#include <vefs/archive_fwd.hpp>
 #include <vefs/blob.hpp>
 #include <vefs/filesystem.hpp>
-#include <vefs/crypto/provider.hpp>
-#include <vefs/detail/sector_id.hpp>
-#include <vefs/detail/tree_walker.hpp>
-#include <vefs/detail/raw_archive.hpp>
-#include <vefs/detail/basic_archive_file_meta.hpp>
-#include <vefs/detail/cache.hpp>
-#include <vefs/detail/thread_pool.hpp>
+#include <vefs/detail/archive_file_id.hpp>
 #include <vefs/utils/ref_ptr.hpp>
 #include <vefs/utils/unordered_map_mt.hpp>
 
@@ -26,12 +16,10 @@ namespace vefs
 {
     class archive
     {
-        using raw_archive_file_ptr = std::unique_ptr<detail::basic_archive_file_meta>;
-
         class file_walker;
         class writer_task;
     public:
-        using create_tag = detail::raw_archive::create_tag;
+        enum class create_tag {};
         static constexpr auto create = create_tag{};
 
         class file;

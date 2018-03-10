@@ -16,9 +16,11 @@
 #include <boost/range/adaptor/reversed.hpp>
 #include <boost/iterator/iterator_facade.hpp>
 
+#include <vefs/detail/raw_archive.hpp>
+#include <vefs/detail/tree_walker.hpp>
+#include <vefs/detail/thread_pool.hpp>
 #include <vefs/utils/misc.hpp>
 #include <vefs/utils/bitset_overlay.hpp>
-#include <vefs/detail/tree_walker.hpp>
 
 #include "archive_file.hpp"
 #include "archive_file_lookup.hpp"
@@ -77,7 +79,8 @@ namespace vefs
         mark_dirty();
         auto archiveFile = fs->open(archivePath, file_open_mode::readwrite | file_open_mode::create | file_open_mode::truncate);
 
-        mArchive = std::make_unique<detail::raw_archive>(archiveFile, cryptoProvider, userPRK, create);
+        mArchive = std::make_unique<detail::raw_archive>(archiveFile, cryptoProvider,
+            userPRK, raw_archive::create_tag{});
 
         mFreeBlockIndexFile = free_block_list_file::create(*this,
             mArchive->free_sector_index_file(), create);

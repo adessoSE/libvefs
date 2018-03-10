@@ -52,6 +52,7 @@ endif()
 DEF_SOURCE_GROUP(vefs LIB "lib"
     HEADERS
         "${_INCLUDE_DIR}/vefs/archive.hpp"
+        "${_INCLUDE_DIR}/vefs/archive_fwd.hpp"
         "${_INCLUDE_DIR}/vefs/exceptions.hpp"
         "${_INCLUDE_DIR}/vefs/blob.hpp"
         "${_INCLUDE_DIR}/vefs/filesystem.hpp"

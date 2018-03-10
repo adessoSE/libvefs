@@ -3,6 +3,7 @@
 
 #include <cassert>
 
+#include <vefs/detail/thread_pool.hpp>
 #include <vefs/utils/ref_ptr.hpp>
 
 namespace vefs
