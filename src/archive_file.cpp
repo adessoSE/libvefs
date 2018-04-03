@@ -624,21 +624,31 @@ namespace vefs
 
         while (walker.position(0) > endPosition)
         {
-            auto it = access(walker.layer_position(0));
-            assert(it);
+            auto it = mCachedBlocks->try_access(walker.layer_position(0));
+            detail::sector_id toBeCollected;
 
+            if (it)
             {
                 std::lock_guard<std::shared_mutex> writeLock{ it->data_sync() };
 
-                auto sectorIdx = it->sector_id();
-                collectedIds.push_back(sectorIdx);
-                mOwner.mArchive->erase_sector(mData, sectorIdx);
+                toBeCollected = it->sector_id();
                 it.mark_clean();
 
                 auto tmp = it->parent();
                 it->update_parent({});
                 it = std::move(tmp);
             }
+            else
+            {
+                it = access(walker.layer_position(1));
+
+                auto offset = walker.offset(0);
+                auto ref = sector_reference_at(*it, offset);
+                toBeCollected = ref.reference;
+            }
+
+            collectedIds.push_back(toBeCollected);
+            mOwner.mArchive->erase_sector(mData, toBeCollected);
 
             // update all parent sectors affected by the removal of the current sector
             for (auto layer = 1; ; ++layer)
