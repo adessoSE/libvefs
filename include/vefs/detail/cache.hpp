@@ -384,7 +384,7 @@ namespace vefs::detail
         inline cache(notify_dirty_fn fn)
             : mClockHand{ 0 }
             , mNotifyDirty{ std::move(fn) }
-            , mKeyIndexMap{}
+            , mKeyIndexMap{ cacheLimit * 2 }
             , mEntries{}
             , mIndexKeyMap{}
             , mLookupAllocator{}
