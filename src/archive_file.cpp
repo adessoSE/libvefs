@@ -535,7 +535,7 @@ namespace vefs
                     write_sector_to_disk(std::move(sector));
                 }
             });
-            layer = layer == detail::lut::max_tree_depth ? 0 : layer + 1;
+            layer = (layer + 1) % (detail::lut::max_tree_depth + 1);
         } while (dirtyElements);
     }
 
@@ -625,6 +625,7 @@ namespace vefs
         while (walker.position(0) > endPosition)
         {
             auto it = access(walker.layer_position(0));
+            assert(it);
 
             {
                 std::lock_guard<std::shared_mutex> writeLock{ it->data_sync() };

@@ -202,6 +202,26 @@ namespace vefs
         BOOST_THROW_EXCEPTION(file_not_found{});
     }
 
+    std::optional<file_query_result> archive::query(const std::string_view filePath)
+    {
+        file_id id;
+        if (mIndex.find_fn(filePath, [&id](const detail::file_id &elem) { id = elem; }))
+        {
+            file_query_result result;
+            if (mFileHandles.find_fn(id, [&result](const auto &l)
+            {
+                const auto &meta = l->meta_data();
+                result.size = meta.size;
+            }))
+            {
+                result.allowed_flags
+                    = file_open_mode::readwrite | file_open_mode::truncate;
+                return result;
+            }
+        }
+        return std::nullopt;
+    }
+
     void archive::erase(std::string_view filePath)
     {
         file_id fid;

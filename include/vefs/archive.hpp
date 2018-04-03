@@ -2,6 +2,7 @@
 
 #include <atomic>
 #include <memory>
+#include <optional>
 #include <string_view>
 
 #include <vefs/archive_fwd.hpp>
@@ -15,6 +16,12 @@
 
 namespace vefs
 {
+    struct file_query_result
+    {
+        file_open_mode_bitset allowed_flags;
+        std::size_t size;
+    };
+
     class archive
     {
         class file_walker;
@@ -71,6 +78,7 @@ namespace vefs
         void sync_async(std::function<void(utils::async_error_info)> cb);
 
         file_handle open(const std::string_view filePath, const file_open_mode_bitset mode);
+        std::optional<file_query_result> query(const std::string_view filePath);
         void erase(std::string_view filePath);
         void read(file_handle handle, blob buffer, std::uint64_t readFilePos);
         void write(file_handle handle, blob_view data, std::uint64_t writeFilePos);

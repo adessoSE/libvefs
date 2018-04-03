@@ -143,7 +143,7 @@ namespace vefs
         auto ws = mWorkingSet.load(std::memory_order_acquire);
         if (!ws)
         {
-            // someone other notify_no... call was faster
+            // some other notify_no... call was faster
             return;
         }
 
