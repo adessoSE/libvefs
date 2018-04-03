@@ -109,7 +109,7 @@ namespace vefs
             {
                 freeSectorIt = grow_owner_impl(std::min(4u, num));
             }
-            auto[lastIdx, offset] = *freeSectorIt;
+            auto &[lastIdx, offset] = *freeSectorIt;
 
             auto i = 0ull;
             for (; num && i <= offset; ++i)
