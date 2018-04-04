@@ -15,6 +15,7 @@
 namespace vefs
 {
     class archive::file_lookup final
+        : private file_events
     {
         static constexpr std::uint32_t DeadBit = 1u << 31;
 
@@ -41,6 +42,10 @@ namespace vefs
 
         archive::file * create_working_set(archive &owner);
         void notify_no_external_references() const;
+
+        virtual void on_sector_write_suggestion(sector_handle sector) override;
+        virtual void on_root_sector_synced(detail::basic_archive_file_meta &rootMeta) override;
+        virtual void on_sector_synced(detail::sector_id physId, blob_view mac) override;
 
         mutable std::atomic<std::uint32_t> mRefs;
         mutable std::atomic<std::uint32_t> mExtRefs;

@@ -15,14 +15,16 @@ namespace vefs
         , public archive::file
     {
     public:
-        internal_file(archive &owner, detail::basic_archive_file_meta &meta);
-        internal_file(archive &owner, detail::basic_archive_file_meta &meta, create_tag);
+        internal_file(archive &owner, detail::basic_archive_file_meta &meta, file_events &hooks);
+        internal_file(archive &owner, detail::basic_archive_file_meta &meta,
+            file_events &hooks, create_tag);
 
         void dispose();
 
-    private:
+    protected:
         void on_dirty_sector(block_pool_t::handle sector);
 
+    private:
         std::shared_mutex mLifetimeSync;
         bool mDisposed;
     };

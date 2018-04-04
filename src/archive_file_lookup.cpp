@@ -105,29 +105,7 @@ namespace vefs
 
     archive::file * archive::file_lookup::create_working_set(archive &owner)
     {
-        // #TODO #ReplaceBandaid there must be a better way to manage the ownership for dirty writes
-        auto ws = new(&mWorkingSetStorage) archive::file(owner, mMeta, [this](auto sector)
-        {
-            std::shared_lock<std::shared_mutex> rguard{ mSync };
-            auto ws = mWorkingSet.load(std::memory_order_acquire);
-            if (!ws || !sector.is_dirty())
-            {
-                return;
-            }
-            auto maybe_self = make_ref_ptr(this, utils::ref_ptr_acquire);
-
-            ws->owner_ref().mOpsPool
-                ->exec([maybe_self = std::move(maybe_self), sector]()
-            {
-                std::shared_lock<std::shared_mutex> rguard{ maybe_self->mSync };
-                auto ws = maybe_self->mWorkingSet
-                    .load(std::memory_order_acquire);
-                if (ws && sector.is_dirty())
-                {
-                    ws->write_sector_to_disk(std::move(sector));
-                }
-            });
-        });
+        auto ws = new(&mWorkingSetStorage) archive::file(owner, mMeta, *this);
         mWorkingSet.store(ws, std::memory_order_release);
         return ws;
     }
@@ -187,5 +165,36 @@ namespace vefs
             }
         });
         //*/
+    }
+
+    void archive::file_lookup::on_sector_write_suggestion(sector_handle sector)
+    {
+        std::shared_lock<std::shared_mutex> rguard{ mSync };
+        auto ws = mWorkingSet.load(std::memory_order_acquire);
+        if (!ws || !sector.is_dirty())
+        {
+            return;
+        }
+        auto maybe_self = make_ref_ptr(this, utils::ref_ptr_acquire);
+
+        ws->owner_ref().mOpsPool
+            ->exec([maybe_self = std::move(maybe_self), sector]()
+        {
+            std::shared_lock<std::shared_mutex> rguard{ maybe_self->mSync };
+            auto ws = maybe_self->mWorkingSet
+                .load(std::memory_order_acquire);
+            if (ws && sector.is_dirty())
+            {
+                ws->write_sector_to_disk(std::move(sector));
+            }
+        });
+    }
+    void archive::file_lookup::on_root_sector_synced(
+        detail::basic_archive_file_meta &rootMeta)
+    {
+    }
+    void archive::file_lookup::on_sector_synced(detail::sector_id physId,
+        blob_view mac)
+    {
     }
 }

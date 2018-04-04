@@ -12,7 +12,8 @@
 namespace vefs
 {
     class archive::free_block_list_file final
-        : private archive::internal_file
+        : private file_events
+        , private archive::internal_file
     {
         using free_block_map = std::map<detail::sector_id, std::uint64_t>;
 
@@ -34,6 +35,10 @@ namespace vefs
     private:
         free_block_map::iterator grow_owner_impl(unsigned int num);
         void dealloc_sectors_impl(std::vector<detail::sector_id> sectors);
+
+        virtual void on_sector_write_suggestion(sector_handle sector) override;
+        virtual void on_root_sector_synced(detail::basic_archive_file_meta &rootMeta) override;
+        virtual void on_sector_synced(detail::sector_id physId, blob_view mac) override;
 
         std::mutex mFreeBlockSync;
         free_block_map mFreeBlockMap;

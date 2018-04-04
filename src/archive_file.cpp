@@ -62,18 +62,22 @@ namespace vefs
     }
 
     archive::file::file(archive & owner, detail::basic_archive_file_meta & data,
-        block_pool_t::notify_dirty_fn onDirty)
+        file_events &hooks)
         : mOwner{ owner }
+        , mHooks{ hooks }
         , mData{ data }
         , mCachedBlocks{}
         , mWriteFlag{}
     {
-        mCachedBlocks = std::make_unique<block_pool_t>(std::move(onDirty));
+        mCachedBlocks = std::make_unique<block_pool_t>([&hooks](auto sector)
+        {
+            hooks.on_sector_write_suggestion(std::move(sector));
+        });
     }
 
     archive::file::file(archive & owner, detail::basic_archive_file_meta & data,
-        block_pool_t::notify_dirty_fn onDirty, create_tag)
-        : file{ owner, data, std::move(onDirty) }
+        file_events &hooks, create_tag)
+        : file{ owner, data, hooks }
     {
         assert(mData.tree_depth == -1);
         access_or_append(detail::tree_position{ 0, 0 });
@@ -475,6 +479,8 @@ namespace vefs
                 ref.reference = sector->sector_id();
                 mac.copy_to(blob{ ref.mac });
                 parent.mark_dirty();
+
+                mHooks.on_sector_synced(ref.reference, mac);
             }
             else
             {
@@ -492,6 +498,8 @@ namespace vefs
 
                 mData.start_block_idx = sector->sector_id();
                 mac.copy_to(mData.start_block_mac_blob());
+
+                mHooks.on_root_sector_synced(mData);
             }
             break;
         }

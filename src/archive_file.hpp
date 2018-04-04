@@ -13,6 +13,8 @@
 
 namespace vefs
 {
+    class file_events;
+
     class archive::file
     {
         friend class archive;
@@ -59,10 +61,8 @@ namespace vefs
         using create_tag = archive::create_tag;
         static constexpr create_tag create = archive::create;
 
-        file(archive &owner, detail::basic_archive_file_meta &data,
-            block_pool_t::notify_dirty_fn onDirty);
-        file(archive &owner, detail::basic_archive_file_meta &data,
-            block_pool_t::notify_dirty_fn onDirty, create_tag);
+        file(archive &owner, detail::basic_archive_file_meta &data, file_events &hooks);
+        file(archive &owner, detail::basic_archive_file_meta &data, file_events &hooks, create_tag);
         ~file();
 
         sector::handle access(tree_position sectorPosition);
@@ -93,6 +93,7 @@ namespace vefs
 
 
         archive &mOwner;
+        file_events &mHooks;
         detail::basic_archive_file_meta &mData;
 
         // always lock the shrink_mutex first!
@@ -102,6 +103,17 @@ namespace vefs
         std::unique_ptr<block_pool_t> mCachedBlocks;
 
         utils::dirt_flag mWriteFlag;
+    };
+
+
+    class file_events
+    {
+    public:
+        using sector_handle = detail::cache_handle<archive::file::sector>;
+
+        virtual void on_sector_write_suggestion(sector_handle sector) = 0;
+        virtual void on_root_sector_synced(detail::basic_archive_file_meta &rootMeta) = 0;
+        virtual void on_sector_synced(detail::sector_id physId, blob_view mac) = 0;
     };
 }
 

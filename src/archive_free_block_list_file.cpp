@@ -21,7 +21,8 @@ namespace vefs
 
     archive::free_block_list_file::free_block_list_file(archive &owner,
         detail::basic_archive_file_meta &meta)
-        : archive::internal_file{ owner, meta }
+        : file_events{}
+        , archive::internal_file{ owner, meta, *this }
         , mFreeBlockSync{}
         , mFreeBlockMap{}
     {
@@ -68,7 +69,8 @@ namespace vefs
     }
     archive::free_block_list_file::free_block_list_file(archive &owner,
         detail::basic_archive_file_meta &meta, create_tag)
-        : archive::internal_file{ owner, meta }
+        : file_events{}
+        , archive::internal_file{ owner, meta, *this }
         , mFreeBlockSync{}
         , mFreeBlockMap{}
     {
@@ -261,5 +263,18 @@ namespace vefs
             current = next;
         }
         mFreeBlockMap.emplace(current, offset);
+    }
+
+    void archive::free_block_list_file::on_sector_write_suggestion(sector_handle sector)
+    {
+        on_dirty_sector(std::move(sector));
+    }
+    void archive::free_block_list_file::on_root_sector_synced(
+        detail::basic_archive_file_meta &rootMeta)
+    {
+    }
+    void archive::free_block_list_file::on_sector_synced(detail::sector_id physId,
+        blob_view mac)
+    {
     }
 }

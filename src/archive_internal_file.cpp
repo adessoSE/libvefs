@@ -5,19 +5,18 @@
 
 namespace vefs
 {
-    archive::internal_file::internal_file(archive &owner, detail::basic_archive_file_meta &meta)
+    archive::internal_file::internal_file(archive &owner,
+        detail::basic_archive_file_meta &meta, file_events &hooks)
         : std::enable_shared_from_this<archive::internal_file>{}
-        , archive::file{ owner, meta, [this](sector::handle sector)
-                                      { on_dirty_sector(std::move(sector)); } }
+        , archive::file{ owner, meta, hooks }
         , mLifetimeSync{}
         , mDisposed{ false }
     {
     }
-    archive::internal_file::internal_file(archive & owner, detail::basic_archive_file_meta & meta,
-        create_tag)
+    archive::internal_file::internal_file(archive & owner,
+        detail::basic_archive_file_meta & meta, file_events &hooks, create_tag)
         : std::enable_shared_from_this<archive::internal_file>{}
-        , archive::file{ owner, meta, [this](sector::handle sector)
-                                      { on_dirty_sector(std::move(sector)); }, create_tag{} }
+        , archive::file{ owner, meta, hooks, create_tag{} }
         , mLifetimeSync{}
         , mDisposed{ false }
     {
