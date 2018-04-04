@@ -381,10 +381,15 @@ namespace vefs::detail
         enum class preinit_storage_t {};
         static constexpr preinit_storage_t preinit_storage = preinit_storage_t{};
 
+        constexpr std::size_t derive_key_index_map_size(std::size_t limit)
+        {
+            return utils::div_ceil(utils::div_ceil(limit * 8, 5), 4) * 4;
+        }
+
         inline cache(notify_dirty_fn fn)
             : mClockHand{ 0 }
             , mNotifyDirty{ std::move(fn) }
-            , mKeyIndexMap{ cacheLimit * 2 }
+            , mKeyIndexMap{ derive_key_index_map_size(cacheLimit) }
             , mEntries{}
             , mIndexKeyMap{}
             , mLookupAllocator{}
