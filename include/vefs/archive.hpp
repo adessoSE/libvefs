@@ -8,9 +8,7 @@
 #include <vefs/archive_fwd.hpp>
 #include <vefs/blob.hpp>
 #include <vefs/filesystem.hpp>
-#include <vefs/detail/archive_file_id.hpp>
 #include <vefs/utils/ref_ptr.hpp>
-#include <vefs/utils/unordered_map_mt.hpp>
 #include <vefs/utils/async_error_info.hpp>
 
 
