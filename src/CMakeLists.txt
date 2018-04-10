@@ -39,6 +39,8 @@ DEF_SOURCE_GROUP(vefs UTILS "utils"
     SOURCES
         secure_ops.cpp
 
+        block_manager.hpp
+
         utf.hpp
         utf.cpp
 

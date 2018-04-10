@@ -407,19 +407,12 @@ namespace vefs
         while (data)
         {
             auto sector = access_or_append(writePos);
-            auto chunk = sector->data().slice(offset);
             writePos.position(writePos.position() + 1);
+
+            auto amountWritten = write(sector, data, offset);
             offset = 0;
-            {
-                std::lock_guard<std::shared_mutex> sectorLock{ sector->data_sync() };
 
-                data.copy_to(chunk);
-
-                sector.mark_dirty();
-                mWriteFlag.mark();
-
-            }
-            data.remove_prefix(chunk.size());
+            data.remove_prefix(amountWritten);
 
             auto newSize = std::min(
                 writePos.position() * detail::raw_archive::sector_payload_size, newMinSize
@@ -428,6 +421,32 @@ namespace vefs
             std::lock_guard<std::shared_mutex> integrityLock{ integrity_mutex };
             mData.size = std::max(mData.size, newSize);
         }
+    }
+
+    std::uint64_t archive::file::write(sector::handle &sector, blob_view data, std::uint64_t offset)
+    {
+        auto chunk = sector->data().slice(offset, data.size());
+
+        std::lock_guard<std::shared_mutex> sectorLock{ sector->data_sync() };
+
+        data.copy_to(chunk);
+
+        sector.mark_dirty();
+        mWriteFlag.mark();
+
+        return chunk.size();
+    }
+
+    std::uint64_t archive::file::write_no_lock(sector::handle & sector, blob_view data, std::uint64_t offset)
+    {
+        auto chunk = sector->data().slice(offset, data.size());
+
+        data.copy_to(chunk);
+
+        sector.mark_dirty();
+        mWriteFlag.mark();
+
+        return chunk.size();
     }
 
     void archive::file::write_sector_to_disk(sector::handle sector)
@@ -505,6 +524,11 @@ namespace vefs
         }
 
         sector.mark_clean();
+    }
+
+    std::unique_lock<std::shared_mutex> archive::file::lock_integrity()
+    {
+        return std::unique_lock<std::shared_mutex>{ integrity_mutex };
     }
 
     void archive::file::resize(std::uint64_t size)

@@ -6,6 +6,8 @@
 #include <vefs/detail/thread_pool.hpp>
 #include <vefs/utils/ref_ptr.hpp>
 
+#include "archive_index_file.hpp"
+
 namespace vefs
 {
     void archive::file_handle::add_reference()
@@ -18,32 +20,32 @@ namespace vefs
     }
 
 
-    archive::file_lookup::file_lookup(detail::basic_archive_file_meta &meta)
+    archive::file_lookup::file_lookup(detail::basic_archive_file_meta &meta,
+        int ibPos, int numBlocks)
         : mRefs{ 1 }
         , mExtRefs{ 0 }
         , mWorkingSet{}
         , mSync{}
+        , mIndexBlockPosition{ ibPos }
+        , mReservedIndexBlocks{ numBlocks }
         , mMeta{ std::move(meta) }
+        , mDirtyMetaData{ }
         , mWorkingSetStorage{}
     {
     }
     archive::file_lookup::file_lookup(detail::basic_archive_file_meta &meta,
-        archive &owner, file::create_tag)
-        : file_lookup{ meta }
+        archive &owner, file_handle &hOut, file::create_tag)
+        : file_lookup{ meta, -1, 0 }
     {
-        // #ReplaceBandaid
-        auto ws = create_working_set(owner);
-        add_reference();
+        auto ws = new(&mWorkingSetStorage) archive::file(owner, mMeta, *this, file::create);
+        mWorkingSet.store(ws, std::memory_order_release);
+
+        // basically this would happen if you called load() for an unloaded file
         add_ext_reference();
-        try
-        {
-            ws->access_or_append(detail::tree_position{ 0, 0 });
-        }
-        catch (...)
-        {
-            ext_release();
-            throw;
-        }
+        add_reference();
+        hOut = file_handle{ *this };
+
+        mDirtyMetaData.mark();
     }
     archive::file_lookup::~file_lookup()
     {
@@ -51,7 +53,8 @@ namespace vefs
         assert(!mWorkingSet);
     }
 
-    archive::file_handle archive::file_lookup::load(archive &owner)
+    auto archive::file_lookup::load(archive &owner)
+        -> file_handle
     {
         {
             std::shared_lock<std::shared_mutex> rguard{ mSync };
@@ -75,7 +78,23 @@ namespace vefs
         }
         return file_handle{ *this };
     }
-    bool archive::file_lookup::try_kill(archive &owner)
+    auto archive::file_lookup::try_load()
+        -> file_handle
+    {
+        auto oldState = mExtRefs.load(std::memory_order_acquire);
+        do
+        {
+            if (oldState == 0 || oldState & DeadBit)
+            {
+                return {};
+            }
+        } while (mExtRefs.compare_exchange_weak(oldState, oldState + 1,
+                    std::memory_order_acq_rel));
+
+        return file_handle{ *this };
+    }
+    auto archive::file_lookup::try_kill(archive &owner)
+        -> bool
     {
         // we only allow deletion of files which don't have any open file handles
         std::lock_guard<std::shared_mutex> wguard{ mSync };
@@ -190,11 +209,18 @@ namespace vefs
         });
     }
     void archive::file_lookup::on_root_sector_synced(
-        detail::basic_archive_file_meta &rootMeta)
+        [[maybe_unused]] detail::basic_archive_file_meta &rootMeta)
     {
+        mDirtyMetaData.mark();
+        if (auto ws = mWorkingSet.load(std::memory_order_acquire))
+        {
+            ws->mOwner.mArchiveIndexFile->notify_meta_update(
+                file_lookup_ptr{ this, utils::ref_ptr_acquire }, ws
+            );
+        }
     }
-    void archive::file_lookup::on_sector_synced(detail::sector_id physId,
-        blob_view mac)
+    void archive::file_lookup::on_sector_synced([[maybe_unused]] detail::sector_id physId,
+        [[maybe_unused]] blob_view mac)
     {
     }
 }

@@ -67,9 +67,11 @@ namespace vefs
 
         sector::handle access(tree_position sectorPosition);
         sector::handle access_or_append(tree_position position);
+        inline sector::handle try_access(tree_position key);
 
         void read(blob buffer, std::uint64_t readPos);
         void write(blob_view data, std::uint64_t writePos);
+        std::uint64_t write(sector::handle &sector, blob_view data, std::uint64_t offset);
 
         std::uint64_t size();
         void resize(std::uint64_t size);
@@ -82,6 +84,11 @@ namespace vefs
         archive & owner_ref();
 
         void write_sector_to_disk(sector::handle sector);
+
+        std::unique_lock<std::shared_mutex> lock_integrity();
+
+    protected:
+        std::uint64_t write_no_lock(sector::handle &sector, blob_view data, std::uint64_t offset);
 
     private:
         std::optional<file::sector::handle> access_impl(tree_position sectorPosition);
@@ -122,6 +129,11 @@ namespace vefs
     inline archive & archive::file::owner_ref()
     {
         return mOwner;
+    }
+
+    inline archive::file::sector::handle archive::file::try_access(tree_position key)
+    {
+        return mCachedBlocks->try_access(key);
     }
 
     inline std::uint64_t archive::file::size()

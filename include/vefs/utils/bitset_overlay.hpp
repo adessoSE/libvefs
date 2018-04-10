@@ -1,8 +1,11 @@
 #pragma once
 
 #include <cstddef>
+#include <cstdint>
 #include <cassert>
+#include <cstring>
 
+#include <array>
 #include <tuple>
 #include <limits>
 #include <type_traits>
@@ -64,10 +67,35 @@ namespace vefs::utils
 
             return begin[offset] & mask;
         }
+
+        template <typename Unit>
+        inline void set_n(Unit *begin, const std::size_t numBits)
+        {
+            using limits = std::numeric_limits<Unit>;
+            using byte_limits = std::numeric_limits<std::uint8_t>;
+
+            const auto dist = numBits / byte_limits::digits;
+            auto *const pend = reinterpret_cast<std::uint8_t *>(begin) + dist;
+
+            std::memset(begin, byte_limits::max(), dist);
+
+            if (const auto remaining = numBits % byte_limits::digits)
+            {
+                constexpr std::array<std::uint8_t, 8> lut = {
+                    0b0000'0000, 0b0000'0001, 0b0000'0011, 0b0000'0111,
+                    0b0000'1111, 0b0001'1111, 0b0011'1111, 0b0111'1111
+                };
+                *pend |= lut[remaining];
+            }
+        }
     }
+
+    class const_bitset_overlay;
 
     class bitset_overlay
     {
+        friend class const_bitset_overlay;
+
     public:
         using unit_type = std::size_t;
 
@@ -85,6 +113,11 @@ namespace vefs::utils
         void set(std::size_t bitpos, bool value)
         {
             bitset_ops::set(mBegin, bitpos, value);
+        }
+
+        void set_n(std::size_t num)
+        {
+            bitset_ops::set_n(mBegin, num);
         }
 
         void unset(std::size_t bitpos)
@@ -150,8 +183,42 @@ namespace vefs::utils
         {
             return reference{ *this, bitpos };
         }
+        bool operator[](std::size_t bitpos) const
+        {
+            return get(bitpos);
+        }
 
     private:
         unit_type *mBegin;
+    };
+
+    class const_bitset_overlay
+    {
+    public:
+        using unit_type = std::size_t;
+
+        const_bitset_overlay(blob_view data)
+            : mBegin(&data.as<unit_type>())
+        {
+            assert(data.size() >= sizeof(unit_type));
+            assert(data.size() % sizeof(unit_type) == 0);
+        }
+        const_bitset_overlay(bitset_overlay other)
+            : mBegin{ other.mBegin }
+        {
+        }
+
+        bool get(std::size_t bitpos) const
+        {
+            return bitset_ops::get(mBegin, bitpos);
+        }
+
+        bool operator[](std::size_t bitpos) const
+        {
+            return get(bitpos);
+        }
+
+    private:
+        const unit_type *mBegin;
     };
 }

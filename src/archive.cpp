@@ -36,10 +36,7 @@ namespace vefs
 {
 
     archive::archive()
-        : mIndex{}
-        , mFileHandles{}
-        , mOpsPool{ std::make_unique<detail::thread_pool>() }
-        , mDirty{ false }
+        : mOpsPool{ std::make_unique<detail::thread_pool>() }
     {
     }
 
@@ -64,7 +61,6 @@ namespace vefs
         try
         {
             mArchiveIndexFile = index_file::create(*this, mArchive->index_file());
-            read_archive_index();
         }
         catch (const boost::exception &exc)
         {
@@ -76,7 +72,6 @@ namespace vefs
         crypto::crypto_provider * cryptoProvider, blob_view userPRK, create_tag)
         : archive()
     {
-        mark_dirty();
         auto archiveFile = fs->open(archivePath, file_open_mode::readwrite | file_open_mode::create | file_open_mode::truncate);
 
         mArchive = std::make_unique<detail::raw_archive>(archiveFile, cryptoProvider,
@@ -89,10 +84,8 @@ namespace vefs
 
     archive::~archive()
     {
-        if (is_dirty())
-        {
-            sync();
-        }
+        sync();
+
         mArchiveIndexFile->dispose();
         mArchiveIndexFile = nullptr;
         mFreeBlockIndexFile->dispose();
@@ -102,19 +95,13 @@ namespace vefs
 
     void archive::sync()
     {
-        mark_clean();
-        for (auto &f : mFileHandles.lock_table())
-        {
-            if (auto fh = f.second->load(*this))
-            {
-                file_lookup::deref(fh)->sync();
-            }
-        }
-
         try
         {
-            write_archive_index();
-            mArchiveIndexFile->sync();
+            if (!mArchiveIndexFile->sync(true))
+            {
+                // no changes detected
+                return;
+            }
         }
         catch (const boost::exception &exc)
         {
@@ -147,104 +134,17 @@ namespace vefs
     archive::file_handle archive::open(const std::string_view filePath,
         const file_open_mode_bitset mode)
     {
-        file_id id;
-        file_lookup_ptr lookup;
-        file_handle result;
-
-        auto acquire_fn = [&lookup](const file_lookup_ptr &f)
-        {
-            lookup = f;
-        };
-
-        if (mIndex.find_fn(filePath, [&id](const detail::file_id &elem) { id = elem; }))
-        {
-            if (mFileHandles.find_fn(id, acquire_fn))
-            {
-                if (result = lookup->load(*this))
-                {
-                    return result;
-                }
-                lookup = nullptr;
-            }
-        }
-        if (mode % file_open_mode::create)
-        {
-            {
-                auto file = mArchive->create_file();
-                id = file->id;
-
-                // file will be moved from, so after this line file contains garbage
-                lookup = utils::make_ref_counted<file_lookup>(*file, *this, create);
-            }
-            result = lookup->load(*this);
-            lookup->ext_release();
-
-            if (!mFileHandles.insert(id, lookup))
-            {
-                BOOST_THROW_EXCEPTION(logic_error{});
-            }
-
-            if (!mIndex.insert(filePath, id))
-            {
-                // rollback, someone was faster
-                result = nullptr;
-                lookup->try_kill(*this);
-                mFileHandles.erase(id);
-
-                return open(filePath, mode);
-            }
-
-            mark_dirty();
-            return result;
-        }
-
-        // #TODO refine open failure exception
-        BOOST_THROW_EXCEPTION(file_not_found{});
+        return mArchiveIndexFile->open(filePath, mode);
     }
 
     std::optional<file_query_result> archive::query(const std::string_view filePath)
     {
-        file_id id;
-        if (mIndex.find_fn(filePath, [&id](const detail::file_id &elem) { id = elem; }))
-        {
-            file_query_result result;
-            if (mFileHandles.find_fn(id, [&result](const auto &l)
-            {
-                const auto &meta = l->meta_data();
-                result.size = meta.size;
-            }))
-            {
-                result.allowed_flags
-                    = file_open_mode::readwrite | file_open_mode::truncate;
-                return result;
-            }
-        }
-        return std::nullopt;
+        return mArchiveIndexFile->query(filePath);
     }
 
     void archive::erase(std::string_view filePath)
     {
-        file_id fid;
-        if (!mIndex.find_fn(filePath, [&fid](const detail::file_id &elem) { fid = elem; }))
-        {
-            BOOST_THROW_EXCEPTION(file_not_found{});
-        }
-
-        file_lookup_ptr lookup;
-        mFileHandles.find_fn(fid, [this, &lookup](const file_lookup_ptr &l)
-        {
-            lookup = l;
-        });
-        if (lookup)
-        {
-            if (!lookup->try_kill(*this))
-            {
-                BOOST_THROW_EXCEPTION(file_still_open{});
-            }
-            mIndex.erase(filePath);
-            mFileHandles.erase(fid);
-            mark_dirty();
-        }
+        mArchiveIndexFile->erase(filePath);
     }
 
     void archive::read(file_handle handle, blob buffer, std::uint64_t readFilePos)
@@ -294,7 +194,6 @@ namespace vefs
         }
 
         f->write(data, writeFilePos);
-        mark_dirty();
     }
 
     void archive::resize(file_handle handle, std::uint64_t size)
@@ -316,7 +215,6 @@ namespace vefs
         }
 
         f->resize(size);
-        mark_dirty();
     }
 
     std::uint64_t archive::size_of(file_handle handle)
@@ -468,7 +366,7 @@ namespace vefs
             cb(std::move(einfo));
         });
     }
-
+    /*
     void archive::read_archive_index()
     {
         using alloc_bitset_t = utils::bitset_overlay;
@@ -623,4 +521,5 @@ namespace vefs
 
         indexFile->resize(fileOffset);
     }
+    */
 }

@@ -17,17 +17,21 @@ namespace vefs
     class archive::file_lookup final
         : private file_events
     {
+        friend class archive::index_file;
+
         static constexpr std::uint32_t DeadBit = 1u << 31;
 
     public:
         static constexpr auto create = file::create;
 
-        file_lookup(detail::basic_archive_file_meta &meta);
-        file_lookup(detail::basic_archive_file_meta &meta, archive &owner, file::create_tag);
+        file_lookup(detail::basic_archive_file_meta &meta, int ibPos, int numBlocks);
+        file_lookup(detail::basic_archive_file_meta &meta, archive &owner,
+            file_handle &hOut, file::create_tag);
 
         inline detail::basic_archive_file_meta & meta_data();
-        file_handle load(archive &owner);
-        bool try_kill(archive &owner);
+        auto load(archive &owner) -> file_handle;
+        auto try_load() -> file_handle;
+        auto try_kill(archive &owner) -> bool;
 
         inline void add_reference() const;
         inline void release() const;
@@ -52,7 +56,12 @@ namespace vefs
         mutable std::atomic<archive::file *> mWorkingSet;
         mutable std::shared_mutex mSync;
 
+        int mIndexBlockPosition;
+        int mReservedIndexBlocks;
+
         detail::basic_archive_file_meta mMeta;
+        utils::dirt_flag mDirtyMetaData;
+
         std::aligned_storage_t<sizeof(archive::file), alignof(archive::file)> mWorkingSetStorage;
     };
 
