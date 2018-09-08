@@ -1,7 +1,19 @@
 
 set(_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/include")
 
-DEF_SOURCE_GROUP(vefs UTILS "utils"
+if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    set(OS_FILESYSTEM_SRC os_filesystem_linux.cpp)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    set(OS_FILESYSTEM_SRC os_filesystem_win.cpp)
+endif()
+
+add_library(vefs STATIC
+    ${vefs_SRC}
+
+    fileformat.proto
+)
+
+DEF_SOURCE_GROUP(vefs "utils"
     SOURCES
         # the precompiled.cpp _must_ be the first source file
         # due to cotire limitations
@@ -46,20 +58,13 @@ DEF_SOURCE_GROUP(vefs UTILS "utils"
         proto-helper.hpp
 )
 
-if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    set(OS_FILESYSTEM_SRC os_filesystem_linux.cpp)
-elseif(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-    set(OS_FILESYSTEM_SRC os_filesystem_win.cpp)
-endif()
-
-DEF_SOURCE_GROUP(vefs LIB "lib"
+DEF_SOURCE_GROUP(vefs "lib"
     HEADERS
         "${_INCLUDE_DIR}/vefs/archive.hpp"
         "${_INCLUDE_DIR}/vefs/archive_fwd.hpp"
         "${_INCLUDE_DIR}/vefs/exceptions.hpp"
         "${_INCLUDE_DIR}/vefs/blob.hpp"
         "${_INCLUDE_DIR}/vefs/filesystem.hpp"
-
 
     SOURCES
         archive.cpp
@@ -81,7 +86,7 @@ DEF_SOURCE_GROUP(vefs LIB "lib"
         exceptions.cpp
 )
 
-DEF_SOURCE_GROUP(vefs DETAIL "lib/detail"
+DEF_SOURCE_GROUP(vefs "lib/detail"
     HEADERS
         "${_INCLUDE_DIR}/vefs/detail/cache.hpp"
         "${_INCLUDE_DIR}/vefs/detail/thread_pool.hpp"
@@ -100,7 +105,7 @@ DEF_SOURCE_GROUP(vefs DETAIL "lib/detail"
         tree_walker.cpp
 )
 
-DEF_SOURCE_GROUP(vefs CRYPTO "crypto"
+DEF_SOURCE_GROUP(vefs "crypto"
     SOURCES
         sysrandom.cpp
         sysrandom.hpp
@@ -124,20 +129,20 @@ DEF_SOURCE_GROUP(vefs CRYPTO "crypto"
         "${_INCLUDE_DIR}/vefs/crypto/counter.hpp"
 )
 
-DEF_SOURCE_GROUP(vefs EXTERNAL_CUCKOO "ext/libcuckoo"
+DEF_SOURCE_GROUP(vefs "ext/libcuckoo"
     HEADERS
         "${_INCLUDE_DIR}/vefs/ext/libcuckoo/cuckoohash_config.hh"
         "${_INCLUDE_DIR}/vefs/ext/libcuckoo/cuckoohash_map.hh"
         "${_INCLUDE_DIR}/vefs/ext/libcuckoo/cuckoohash_util.hh"
         "${_INCLUDE_DIR}/vefs/ext/libcuckoo/libcuckoo_bucket_container.hh"
 )
-DEF_SOURCE_GROUP(vefs EXTERNAL_CQUEUE "ext/concurrentqueue"
+DEF_SOURCE_GROUP(vefs "ext/concurrentqueue"
     HEADERS
         "${_INCLUDE_DIR}/vefs/ext/concurrentqueue/concurrentqueue.h"
         "${_INCLUDE_DIR}/vefs/ext/concurrentqueue/blockingconcurrentqueue.h"
 )
 
-DEF_SOURCE_GROUP(vefs EXTERNAL_SPOOKYHASH "ext/SpookyV2"
+DEF_SOURCE_GROUP(vefs "ext/SpookyV2"
     HEADERS
         "${_INCLUDE_DIR}/vefs/utils/hash/detail/spooky.hpp"
         "${_INCLUDE_DIR}/vefs/utils/hash/detail/SpookyV2_impl.hpp"
@@ -145,13 +150,6 @@ DEF_SOURCE_GROUP(vefs EXTERNAL_SPOOKYHASH "ext/SpookyV2"
     SOURCES
         SpookyV2.cpp
 )
-
-add_library(vefs STATIC
-    ${vefs_SRC}
-
-    fileformat.proto
-)
-GROUP_FILES(vefs)
 
 protobuf_generate(TARGET vefs)
 
@@ -170,15 +168,20 @@ target_link_libraries(vefs
     PUBLIC
         advapi32
         Boost::system
-        OpenSSL::Crypto
-        botan
         libb2
         protobuf::libprotobuf
 )
 
+if (botan_FOUND)
+    target_link_libraries(vefs PUBLIC botan)
+endif()
+if (OpenSSL_FOUND)
+    target_link_libraries(vefs PUBLIC OpenSSL::Crypto)
+endif()
+
 if (MSVC)
-    set_source_files_properties(${_FILEPROTO_SRCS} PROPERTIES
-        COMPILE_FLAGS "/wd4146 /wd4125"
+    set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/fileformat.pb.cc" PROPERTIES
+        COMPILE_FLAGS "/wd4100 /wd4125 /wd4146"
     )
 endif()
 

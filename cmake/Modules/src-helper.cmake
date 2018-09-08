@@ -12,8 +12,10 @@
 ########################################################################
 # macro definitions
 
-macro(DEF_SOURCE_GROUP PROJECT_NAME VAR_NAME GROUP_NAME)
+macro(DEF_SOURCE_GROUP TARGET GROUP_NAME)
     unset(DSG_SUFFIX)
+    unset(_DSG_H)
+    unset(_DSG_S)
     foreach(it ${ARGN})
         if(it STREQUAL "HEADERS")
             set(DSG_SUFFIX H)
@@ -23,23 +25,21 @@ macro(DEF_SOURCE_GROUP PROJECT_NAME VAR_NAME GROUP_NAME)
             if (NOT DEFINED DSG_SUFFIX)
                 MESSAGE(FATAL_ERROR "DEF_SOURCE_GROUP wrong usage")
             endif()
-            list(APPEND "${PROJECT_NAME}_${VAR_NAME}_${DSG_SUFFIX}" "${it}")
+            list(APPEND "_DSG_${DSG_SUFFIX}" "${it}")
         endif()
     endforeach()
     unset(DSG_SUFFIX)
 
+    target_sources("${TARGET}" PRIVATE ${_DSG_H})
+    source_group("${GROUP_NAME}\\include" FILES ${_DSG_H})
+
+    target_sources("${TARGET}" PRIVATE ${_DSG_S})
+    source_group("${GROUP_NAME}\\src" FILES ${_DSG_S})
+
+    unset(_DSG_H)
+    unset(_DSG_S)
+
     set(${PROJECT_NAME}_${VAR_NAME} ${${PROJECT_NAME}_${VAR_NAME}_S} ${${PROJECT_NAME}_${VAR_NAME}_H})
     list(APPEND ${PROJECT_NAME}_SRC ${${PROJECT_NAME}_${VAR_NAME}})
     list(APPEND ${PROJECT_NAME}_GROUPS "${PROJECT_NAME}_${VAR_NAME}:${GROUP_NAME}")
-endmacro()
-
-macro(GROUP_FILES PROJECT_NAME)
-    foreach(SRC_GROUP ${${PROJECT_NAME}_GROUPS})
-        string(REPLACE ":" ";" SRC_GROUP_PAIR ${SRC_GROUP})
-        list(GET SRC_GROUP_PAIR 0 VAR_NAME)
-        list(GET SRC_GROUP_PAIR 1 GROUP_NAME)
-        string(REPLACE "/" "\\\\" GROUP_NAME "${GROUP_NAME}")
-        source_group("${GROUP_NAME}\\src" FILES ${${VAR_NAME}_S})
-        source_group("${GROUP_NAME}\\include" FILES ${${VAR_NAME}_H})
-    endforeach()
 endmacro()
