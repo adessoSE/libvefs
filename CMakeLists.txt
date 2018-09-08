@@ -10,7 +10,7 @@
 #     http://creativecommons.org/publicdomain/zero/1.0/
 #
 ########################################################################
-cmake_minimum_required(VERSION 3.9)
+cmake_minimum_required(VERSION 3.12)
 project(vefs VERSION 0.0.0)
 
 if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
@@ -49,28 +49,18 @@ include(cotire)
 
 find_package(libb2 REQUIRED CONFIG)
 
-option(OPENSSL_USE_STATIC_LIBS "Use static BoringSSL libraries" ON)
-find_package(OpenSSL 1.1.0 REQUIRED)
+find_package(OpenSSL 1.1.0)
+
+find_package(botan 2.8.0)
 
 # protobuf + protoc
-set(Protobuf_SRC_ROOT_FOLDER "$ENV{Protobuf_DIR}")
-find_package(Protobuf QUIET)
-if (NOT Protobuf_FOUND)
-    # try again with config mode
-    find_package(protobuf CONFIG REQUIRED)
-endif()
+find_package(protobuf CONFIG REQUIRED)
 
-option(Boost_USE_DEBUG_RUNTIME "Use debug boost libraries" ON)
-option(Boost_USE_STATIC_LIBS "Use static boost libraries" ON)
-find_package(Boost 1.66 REQUIRED COMPONENTS
+find_package(Boost 1.68 REQUIRED COMPONENTS
     system
     program_options
     unit_test_framework
 )
-add_definitions(-DBOOST_ALL_NO_LIB)
-if (NOT Boost_USE_STATIC_LIBS)
-	add_definitions(-DBOOST_ALL_DYN_LINK)
-endif()
 
 find_package(benchmark)
 
@@ -82,14 +72,9 @@ find_package(benchmark)
 set(CMAKE_C_STANDARD 11)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-if (CMAKE_VERSION VERSION_LESS "3.10" AND MSVC)
-    # workaround until cmake 3.10 gets available
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std:c++17")
-endif()
 
 # adjust compiler warning levels
 if (MSVC)
-    add_definitions(-D_CRT_SECURE_NO_WARNINGS -D_SCL_SECURE_NO_WARNINGS)
     if(${CMAKE_C_FLAGS} MATCHES "/W[0-4]")
         string(REGEX REPLACE "/W[0-4]" "/W4" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
     else()
@@ -102,8 +87,8 @@ if (MSVC)
     endif()
 
     # disable "structure was padded due to alignment specifier" warning
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /wd4324")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4324")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /wd4324 /D_CRT_SECURE_NO_WARNINGS /D_SCL_SECURE_NO_WARNINGS")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4324 /D_CRT_SECURE_NO_WARNINGS /D_SCL_SECURE_NO_WARNINGS")
 endif()
 
 if (GCC_COMPATIBLE)
@@ -116,7 +101,7 @@ endif()
 # additional compiler tweaks
 if (MSVC)
     # protobuf uses std::iterator within repeated_field.h
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /utf-8 /permissive- /D_SILENCE_CXX17_ITERATOR_BASE_CLASS_DEPRECATION_WARNING")
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /utf-8 /permissive-")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /utf-8 /permissive- /D_SILENCE_CXX17_ITERATOR_BASE_CLASS_DEPRECATION_WARNING")
 endif()
 

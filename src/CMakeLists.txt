@@ -1,4 +1,3 @@
-protobuf_generate_cpp(_FILEPROTO_SRCS _FILEPROTO_HDRS fileformat.proto)
 
 set(_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/include")
 
@@ -147,19 +146,14 @@ DEF_SOURCE_GROUP(vefs EXTERNAL_SPOOKYHASH "ext/SpookyV2"
         SpookyV2.cpp
 )
 
-DEF_SOURCE_GROUP(vefs PROTO "proto"
-    SOURCES
-        ${_FILEPROTO_SRCS}
-        fileformat.proto
-
-    HEADERS
-        ${_FILEPROTO_HDRS}
-)
-
 add_library(vefs STATIC
     ${vefs_SRC}
+
+    fileformat.proto
 )
 GROUP_FILES(vefs)
+
+protobuf_generate(TARGET vefs)
 
 target_compile_definitions(vefs
     PUBLIC
@@ -177,6 +171,7 @@ target_link_libraries(vefs
         advapi32
         Boost::system
         OpenSSL::Crypto
+        botan
         libb2
         protobuf::libprotobuf
 )
