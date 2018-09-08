@@ -15,8 +15,6 @@
 #include <vefs/utils/secure_allocator.hpp>
 #include <vefs/detail/basic_archive_file_meta.hpp>
 
-#include <boost/multiprecision/cpp_int.hpp>
-
 #include "proto-helper.hpp"
 #include "sysrandom.hpp"
 
@@ -347,28 +345,11 @@ namespace vefs::detail
         // determine which header to apply
         if (first && second)
         {
-            using boost::multiprecision::uint128_t;
-
-            const auto toBigInt = [](const std::string &data)
-            {
-                uint128_t store;
-                auto *begin = reinterpret_cast<const uint8_t *>(data.data());
-                auto *end = begin + 16;
-
-                import_bits(store, begin, end);
-                return store;
-            };
-
-            auto firstCtr = toBigInt(first->archivesecretcounter());
-            auto secondCtr = toBigInt(second->archivesecretcounter());
-
-            // please note that this likely isn't a constant time comparison
-            // so this can leak information about the archive secret counter
-            // in an online context.
-            // consider adapting constant time comparison, e.g. from there:
-            // https://github.com/chmike/cst_time_memcmp
-            auto cmp = firstCtr.compare(secondCtr);
-            if (!cmp)
+            auto cmp = mCryptoProvider->ct_compare(
+                blob_view{ first->archivesecretcounter() },
+                blob_view{ second->archivesecretcounter() }
+            );
+            if (0 == cmp)
             {
                 // both headers are at the same counter value which is an invalid
                 // state which cannot be produced by a conforming implementation

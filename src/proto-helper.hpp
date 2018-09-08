@@ -7,7 +7,7 @@
 
 #if defined BOOST_COMP_MSVC_AVAILABLE
 #pragma warning(push)
-#pragma warning(disable: 4146)
+#pragma warning(disable: 4146 4100)
 #endif
 
 #include "fileformat.pb.h"

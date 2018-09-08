@@ -74,5 +74,18 @@ namespace vefs::crypto::detail
         {
             utils::secure_memzero(out);
         }
+
+        virtual int ct_compare(blob_view l, blob_view r) const override
+        {
+            if (l.size() != r.size())
+            {
+                BOOST_THROW_EXCEPTION(std::invalid_argument{ "ct_compare requires the blobs to be the same size" });
+            }
+            else if (!l || !r)
+            {
+                BOOST_THROW_EXCEPTION(std::invalid_argument{ "ct_compare requires both blobs to return a non nullptr" });
+            }
+            return memcmp(l.data(), r.data(), l.size());
+        }
     };
 }

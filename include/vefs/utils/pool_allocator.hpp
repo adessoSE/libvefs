@@ -539,7 +539,7 @@ namespace vefs::utils
     public:
         inline bool owns(memory_allocation block)
         {
-            return block.size() <= elem_size
+            return block.size() <= avals::elem_size
                 && std::get<0>(block_info_of(reinterpret_cast<std::byte *>(block.raw()))) != -1;
         }
 
@@ -555,7 +555,7 @@ namespace vefs::utils
 
         inline void deallocate(memory_allocation block)
         {
-            assert(block.size() <= elem_size);
+            assert(block.size() <= avals::elem_size);
             auto ptr = reinterpret_cast<std::byte *>(block.raw());
             auto [blockIdx, blockPos] = block_info_of(ptr);
             assert(blockIdx != -1);

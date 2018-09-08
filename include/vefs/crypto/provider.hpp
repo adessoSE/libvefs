@@ -26,6 +26,8 @@ namespace vefs::crypto
 
         virtual void random_bytes(blob out) const = 0;
         virtual utils::secure_byte_array<16> generate_session_salt() const = 0;
+
+        virtual int ct_compare(blob_view l, blob_view r) const = 0;
     };
 
     crypto_provider * boringssl_aes_256_gcm_crypto_provider();
