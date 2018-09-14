@@ -115,9 +115,7 @@ DEF_SOURCE_GROUP(vefs "crypto"
         blake2.hpp
         boringssl_aead.hpp
 
-        crypto_provider.cpp
-        crypto_provider_debug.hpp
-        crypto_provider_boringssl.hpp
+        crypto_provider_debug.cpp
 
         kdf.cpp
 
@@ -130,6 +128,12 @@ DEF_SOURCE_GROUP(vefs "crypto"
 
         "${_INCLUDE_DIR}/vefs/crypto/counter.hpp"
 )
+if (OpenSSL_FOUND)
+    DEF_SOURCE_GROUP(vefs "crypto"
+        SOURCES
+            crypto_provider_boringssl.cpp
+    )
+endif()
 
 DEF_SOURCE_GROUP(vefs "ext/libcuckoo"
     HEADERS

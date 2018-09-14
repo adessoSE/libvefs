@@ -49,9 +49,11 @@ include(cotire)
 
 find_package(libb2 REQUIRED CONFIG)
 
+# _only_ boringssl is supported
 find_package(OpenSSL 1.1.0)
 
-find_package(botan 2.8.0)
+# botan provider is currently not implemented
+#find_package(botan 2.8.0)
 
 # protobuf + protoc
 find_package(protobuf CONFIG REQUIRED)
@@ -64,6 +66,9 @@ find_package(Boost 1.68 REQUIRED COMPONENTS
 
 find_package(benchmark)
 
+if (NOT (botan_FOUND OR OpenSSL_FOUND))
+    message(WARNING "no crypto provider library (BoringSSL, botan) could be found.")
+endif()
 
 ##########################################################################
 # compiler adjustments

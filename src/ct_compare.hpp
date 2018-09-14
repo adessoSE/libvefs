@@ -11,7 +11,7 @@
 namespace vefs::crypto::detail
 {
     // compares two little endian big nums in constant time
-    int ct_compare(blob_view l, blob_view r)
+    inline int ct_compare(blob_view l, blob_view r)
     {
         if (l.size() != r.size())
         {
