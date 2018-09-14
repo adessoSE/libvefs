@@ -110,6 +110,8 @@ DEF_SOURCE_GROUP(vefs "crypto"
         sysrandom.cpp
         sysrandom.hpp
 
+        ct_compare.hpp
+
         blake2.hpp
         boringssl_aead.hpp
 
