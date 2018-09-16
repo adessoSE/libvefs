@@ -27,7 +27,7 @@ namespace vefs::detail
             read(buffer, readFilePos, ec);
             cb(std::move(ec));
         };
-        return mOwner->ops_pool().exec_with_completion(std::move(task));
+        return mOwner->ops_pool().twoway_execute(std::move(task));
     }
 
     std::future<void> os_file::write_async(blob_view data, std::uint64_t writeFilePos,
@@ -39,7 +39,7 @@ namespace vefs::detail
             write(data, writeFilePos, ec);
             cb(std::move(ec));
         };
-        return mOwner->ops_pool().exec_with_completion(std::move(task));
+        return mOwner->ops_pool().twoway_execute(std::move(task));
     }
 
     std::future<void> os_file::sync_async(file::async_callback_fn callback)
@@ -50,7 +50,7 @@ namespace vefs::detail
             sync(ec);
             cb(std::move(ec));
         };
-        return mOwner->ops_pool().exec_with_completion(std::move(task));
+        return mOwner->ops_pool().twoway_execute(std::move(task));
     }
 
     std::future<void> os_file::resize_async(std::uint64_t newSize,
@@ -62,6 +62,6 @@ namespace vefs::detail
             resize(newSize, ec);
             cb(std::move(ec));
         };
-        return mOwner->ops_pool().exec_with_completion(std::move(task));
+        return mOwner->ops_pool().twoway_execute(std::move(task));
     }
 }

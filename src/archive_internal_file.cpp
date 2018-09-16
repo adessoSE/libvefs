@@ -30,7 +30,7 @@ namespace vefs
 
     void archive::internal_file::on_dirty_sector(block_pool_t::handle sector)
     {
-        mOwner.mOpsPool->exec([maybe_self = weak_from_this(), sector = std::move(sector)]()
+        mOwner.ops_pool().execute([maybe_self = weak_from_this(), sector = std::move(sector)]()
         {
             if (auto self = maybe_self.lock())
             {

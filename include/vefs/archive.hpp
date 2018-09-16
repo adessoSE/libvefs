@@ -10,6 +10,7 @@
 #include <vefs/filesystem.hpp>
 #include <vefs/utils/ref_ptr.hpp>
 #include <vefs/utils/async_error_info.hpp>
+#include <vefs/detail/thread_pool.hpp>
 
 
 namespace vefs
@@ -100,6 +101,7 @@ namespace vefs
 
     private:
         archive();
+        detail::thread_pool & ops_pool();
 
         void read_archive_index();
         void write_archive_index();
@@ -109,12 +111,17 @@ namespace vefs
         std::shared_ptr<index_file> mArchiveIndexFile;
         std::shared_ptr<free_block_list_file> mFreeBlockIndexFile;
 
-        std::unique_ptr<detail::thread_pool> mOpsPool;
+        detail::pooled_work_tracker mWorkTracker;
     };
 }
 
 namespace vefs
 {
+    inline detail::thread_pool & vefs::archive::ops_pool()
+    {
+        return mWorkTracker;
+    }
+
     inline archive::file_handle::file_handle() noexcept
         : mData{ nullptr }
     {

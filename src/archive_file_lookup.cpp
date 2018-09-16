@@ -153,7 +153,7 @@ namespace vefs
         /* #TODO async lookup close
 
         auto self = make_ref_ptr(const_cast<file_lookup *>(this), utils::ref_ptr_acquire);
-        owner.mOpsPool->exec([self = std::move(self)]()
+        owner.mOpsPool->execute([self = std::move(self)]()
         {
             std::unique_lock<std::shared_mutex> rguard{ self->mSync };
             if (self->mExtRefs.load(std::memory_order_acquire) != 0)
@@ -196,8 +196,8 @@ namespace vefs
         }
         auto maybe_self = make_ref_ptr(this, utils::ref_ptr_acquire);
 
-        ws->owner_ref().mOpsPool
-            ->exec([maybe_self = std::move(maybe_self), sector]()
+        ws->owner_ref().ops_pool()
+            .execute([maybe_self = std::move(maybe_self), sector]()
         {
             std::shared_lock<std::shared_mutex> rguard{ maybe_self->mSync };
             auto ws = maybe_self->mWorkingSet

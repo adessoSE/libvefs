@@ -5,23 +5,7 @@
 #include <boost/predef.h>
 #include "boost-unit-test.hpp"
 
-struct MemfsThreadPoolFixture
-{
-    MemfsThreadPoolFixture()
-    {
-        thread_pool = std::make_unique<vefs::detail::thread_pool>(4, "memfs");
-    }
-    ~MemfsThreadPoolFixture()
-    {
-        thread_pool.reset();
-    }
-
-    static std::unique_ptr<vefs::detail::thread_pool> thread_pool;
-};
-std::unique_ptr<vefs::detail::thread_pool> MemfsThreadPoolFixture::thread_pool;
-
-BOOST_TEST_GLOBAL_FIXTURE(MemfsThreadPoolFixture);
-
+#include <vefs/detail/thread_pool.hpp>
 
 namespace vefs::tests
 {
@@ -155,11 +139,6 @@ namespace vefs::tests
     }
 
 
-    memory_filesystem::memory_filesystem()
-        : opsPool(*MemfsThreadPoolFixture::thread_pool)
-    {
-    }
-
     file::ptr memory_filesystem::open(std::string_view filePath, file_open_mode_bitset mode, std::error_code & ec)
     {
         try
@@ -228,7 +207,7 @@ namespace vefs::tests
             read(buffer, readFilePos, ec);
             cb(std::move(ec));
         };
-        return mOwner->opsPool.exec_with_completion(std::move(task));
+        return vefs::detail::thread_pool::shared().twoway_execute(std::move(task));
     }
 
     std::future<void> memory_file::write_async(blob_view data, std::uint64_t writeFilePos,
@@ -240,7 +219,7 @@ namespace vefs::tests
             write(data, writeFilePos, ec);
             cb(std::move(ec));
         };
-        return mOwner->opsPool.exec_with_completion(std::move(task));
+        return vefs::detail::thread_pool::shared().twoway_execute(std::move(task));
     }
 
     std::future<void> memory_file::sync_async(file::async_callback_fn callback)
@@ -251,7 +230,7 @@ namespace vefs::tests
             sync(ec);
             cb(std::move(ec));
         };
-        return mOwner->opsPool.exec_with_completion(std::move(task));
+        return vefs::detail::thread_pool::shared().twoway_execute(std::move(task));
     }
 
     std::future<void> memory_file::resize_async(std::uint64_t newSize,
@@ -263,6 +242,6 @@ namespace vefs::tests
             resize(newSize, ec);
             cb(std::move(ec));
         };
-        return mOwner->opsPool.exec_with_completion(std::move(task));
+        return vefs::detail::thread_pool::shared().twoway_execute(std::move(task));
     }
 }

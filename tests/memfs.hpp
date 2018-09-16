@@ -10,7 +10,6 @@
 
 #include <vefs/exceptions.hpp>
 #include <vefs/filesystem.hpp>
-#include <vefs/detail/thread_pool.hpp>
 #include <vefs/utils/misc.hpp>
 #include <vefs/utils/secure_ops.hpp>
 #include <vefs/utils/unordered_map_mt.hpp>
@@ -175,8 +174,6 @@ namespace vefs::tests
         using relaxed_string_map
             = utils::unordered_string_map_mt<std::shared_ptr<memory_file::memory_holder>>;
 
-        memory_filesystem();
-
         static std::shared_ptr<memory_filesystem> create()
         {
             return std::make_shared<memory_filesystem>();
@@ -186,7 +183,6 @@ namespace vefs::tests
         virtual file::ptr open(std::string_view filePath, file_open_mode_bitset mode, std::error_code & ec) override;
         virtual void remove(std::string_view filePath) override;
 
-        vefs::detail::thread_pool &opsPool;
         relaxed_string_map files;
     };
 }

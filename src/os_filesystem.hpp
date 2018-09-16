@@ -57,7 +57,6 @@ namespace vefs::detail
     private:
         os_filesystem() = default;
 
-        detail::thread_pool mOpsPool;
         std::weak_ptr<os_filesystem> mSelf;
     };
 }
@@ -73,6 +72,6 @@ namespace vefs::detail
 
     inline detail::thread_pool & os_filesystem::ops_pool()
     {
-        return mOpsPool;
+        return thread_pool::shared();
     }
 }

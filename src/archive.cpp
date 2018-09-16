@@ -36,7 +36,7 @@ namespace vefs
 {
 
     archive::archive()
-        : mOpsPool{ std::make_unique<detail::thread_pool>() }
+        : mWorkTracker{ &thread_pool::shared() }
     {
     }
 
@@ -90,7 +90,7 @@ namespace vefs
         mArchiveIndexFile = nullptr;
         mFreeBlockIndexFile->dispose();
         mFreeBlockIndexFile = nullptr;
-        mOpsPool.reset();
+        mWorkTracker.wait();
     }
 
     void archive::sync()
@@ -121,7 +121,7 @@ namespace vefs
 
     void archive::sync_async(std::function<void(utils::async_error_info)> cb)
     {
-        mOpsPool->exec([this, cb = std::move(cb)]()
+        ops_pool().execute([this, cb = std::move(cb)]()
         {
             auto einfo = utils::async_error_context([&]()
             {
@@ -261,7 +261,7 @@ namespace vefs
 
     void archive::erase_async(std::string filePath, std::function<void(utils::async_error_info)> cb)
     {
-        mOpsPool->exec([this, filePath = std::move(filePath), cb = std::move(cb)]()
+        ops_pool().execute([this, filePath = std::move(filePath), cb = std::move(cb)]()
         {
             auto einfo = utils::async_error_context([&]()
             {
@@ -280,7 +280,7 @@ namespace vefs
                 << errinfo_param_misuse_description{ "the handle isn't valid" }
             );
         }
-        mOpsPool->exec([this, h = std::move(handle), buffer, readFilePos, cb = std::move(cb)]()
+        ops_pool().execute([this, h = std::move(handle), buffer, readFilePos, cb = std::move(cb)]()
         {
             auto einfo = utils::async_error_context([&]()
             {
@@ -299,7 +299,7 @@ namespace vefs
                 << errinfo_param_misuse_description{ "the handle isn't valid" }
             );
         }
-        mOpsPool->exec([this, h = std::move(handle), data, writeFilePos, cb = std::move(cb)]()
+        ops_pool().execute([this, h = std::move(handle), data, writeFilePos, cb = std::move(cb)]()
         {
             auto einfo = utils::async_error_context([&]()
             {
@@ -318,7 +318,7 @@ namespace vefs
                 << errinfo_param_misuse_description{ "the handle isn't valid" }
             );
         }
-        mOpsPool->exec([this, h = std::move(handle), size, cb = std::move(cb)]()
+        ops_pool().execute([this, h = std::move(handle), size, cb = std::move(cb)]()
         {
             auto einfo = utils::async_error_context([&]()
             {
@@ -337,7 +337,7 @@ namespace vefs
                 << errinfo_param_misuse_description{ "the handle isn't valid" }
             );
         }
-        mOpsPool->exec([this, h = std::move(handle), cb = std::move(cb)]()
+        ops_pool().execute([this, h = std::move(handle), cb = std::move(cb)]()
         {
             auto size = std::numeric_limits<std::uint64_t>::max();
             auto einfo = utils::async_error_context([&]()
@@ -357,7 +357,7 @@ namespace vefs
                 << errinfo_param_misuse_description{ "the handle isn't valid" }
             );
         }
-        mOpsPool->exec([this, h = std::move(handle), cb = std::move(cb)]()
+        ops_pool().execute([this, h = std::move(handle), cb = std::move(cb)]()
         {
             auto einfo = utils::async_error_context([&]()
             {
