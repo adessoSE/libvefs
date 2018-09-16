@@ -31,6 +31,7 @@ DEF_SOURCE_GROUP(vefs "utils"
         "${_INCLUDE_DIR}/vefs/utils/misc.hpp"
         "${_INCLUDE_DIR}/vefs/utils/ref_ptr.hpp"
         "${_INCLUDE_DIR}/vefs/utils/dirt_flag.hpp"
+        "${_INCLUDE_DIR}/vefs/utils/windows-proper.h"
 
         "${_INCLUDE_DIR}/vefs/utils/uuid.hpp"
         "${_INCLUDE_DIR}/vefs/utils/random.hpp"
@@ -90,6 +91,8 @@ DEF_SOURCE_GROUP(vefs "lib/detail"
     HEADERS
         "${_INCLUDE_DIR}/vefs/detail/cache.hpp"
         "${_INCLUDE_DIR}/vefs/detail/thread_pool.hpp"
+        "${_INCLUDE_DIR}/vefs/detail/thread_pool_win32.hpp"
+        "${_INCLUDE_DIR}/vefs/detail/thread_pool_gen.hpp"
 
         "${_INCLUDE_DIR}/vefs/detail/archive_file_id.hpp"
         "${_INCLUDE_DIR}/vefs/detail/basic_archive_file_meta.hpp"
@@ -101,6 +104,8 @@ DEF_SOURCE_GROUP(vefs "lib/detail"
 
     SOURCES
         thread_pool.cpp
+        thread_pool_gen.cpp
+        thread_pool_win32.cpp
         raw_archive.cpp
         tree_walker.cpp
 )
