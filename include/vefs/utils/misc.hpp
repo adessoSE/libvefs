@@ -9,6 +9,8 @@
 #include <boost/predef/compiler.h>
 #include <boost/preprocessor/cat.hpp>
 
+#include <vefs/exceptions.hpp>
+
 namespace vefs::utils
 {
     template <typename T>
