@@ -8,11 +8,11 @@
 
 #include <boost/predef.h>
 
+#include <vefs/utils/platform.hpp>
+
 
 namespace vefs::detail
 {
-    void set_current_thread_name(const std::string &name);
-
     namespace
     {
         inline std::string make_anonymous_pool_name()
@@ -97,7 +97,7 @@ namespace vefs::detail
     {
         {
             std::string threadName = mThreadPoolName + "; thread {" + std::to_string(id) + "}";
-            set_current_thread_name(threadName);
+            utils::set_current_thread_name(threadName);
         }
 
         for (;;)
@@ -120,85 +120,7 @@ namespace vefs::detail
     }
 }
 
-#if defined BOOST_OS_WINDOWS_AVAILABLE
 
-#include <vefs/utils/windows-proper.h>
-
-namespace vefs::detail
-{
-#pragma pack(push, 8)
-
-    void set_current_thread_name(const std::string &name)
-    {
-        // adapted from https://docs.microsoft.com/en-us/visualstudio/debugger/how-to-set-a-thread-name-in-native-code
-
-        constexpr DWORD MS_VC_EXCEPTION = 0x406D1388;
-
-        struct THREADNAME_INFO
-        {
-            DWORD dwType;     // Must be 0x1000.
-            LPCSTR szName;    // Pointer to name (in user addr space).
-            DWORD dwThreadID; // Thread ID (-1=caller thread).
-            DWORD dwFlags;    // Reserved for future use, must be zero.
-        } info {
-            0x1000,
-            name.c_str(),
-            static_cast<DWORD>(-1),
-            0
-        };
-
-        static_assert(std::is_pod_v<decltype(info)>);
-
-#pragma warning(push)
-#pragma warning(disable: 6320 6322)
-        __try
-        {
-            RaiseException(MS_VC_EXCEPTION, 0, sizeof(info) / sizeof(ULONG_PTR), (ULONG_PTR*)&info);
-        }
-        __except (EXCEPTION_EXECUTE_HANDLER)
-        {
-        }
-#pragma warning(pop)
-    }
-
-#pragma pack(pop)
-}
-
-#elif defined BOOST_OS_LINUX_AVAILABLE
-
-#include <pthread.h>
-
-namespace vefs::detail
-{
-    void set_current_thread_name(const std::string &name)
-    {
-        const auto id = pthread_self();
-        pthread_setname_np(id, name.c_str());
-    }
-}
-
-#elif defined BOOST_OS_MACOS_AVAILABLE
-
-#include <pthread.h>
-
-namespace vefs::detail
-{
-    void set_current_thread_name(const std::string &name)
-    {
-        pthread_setname_np(name.c_str());
-    }
-}
-
-#else
-
-namespace vefs::detail
-{
-    void set_current_thread_name(const std::string &name)
-    {
-    }
-}
-
-#endif
 
 
 

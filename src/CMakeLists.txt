@@ -31,6 +31,7 @@ DEF_SOURCE_GROUP(vefs "utils"
         "${_INCLUDE_DIR}/vefs/utils/misc.hpp"
         "${_INCLUDE_DIR}/vefs/utils/ref_ptr.hpp"
         "${_INCLUDE_DIR}/vefs/utils/dirt_flag.hpp"
+        "${_INCLUDE_DIR}/vefs/utils/platform.hpp"
         "${_INCLUDE_DIR}/vefs/utils/windows-proper.h"
 
         "${_INCLUDE_DIR}/vefs/utils/uuid.hpp"
@@ -49,6 +50,8 @@ DEF_SOURCE_GROUP(vefs "utils"
         "${_INCLUDE_DIR}/vefs/utils/async_error_info.hpp"
 
     SOURCES
+        platform.cpp
+
         secure_ops.cpp
 
         block_manager.hpp
