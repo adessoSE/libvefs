@@ -165,6 +165,11 @@ DEF_SOURCE_GROUP(vefs "ext/SpookyV2"
         SpookyV2.cpp
 )
 
+DEF_SOURCE_GROUP(vefs "ext/outcome"
+    HEADERS
+        "${_INCLUDE_DIR}/vefs/ext/outcome.hpp"
+)
+
 protobuf_generate(TARGET vefs)
 
 target_compile_definitions(vefs

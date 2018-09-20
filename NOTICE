@@ -1,6 +1,7 @@
 libvefs
 Copyright
-- 2017 adesso AG
+- 2017-2018 adesso AG
+- 2018 Henrik S. Gaßmann
 
 This project uses and distributes the source of Cameron Desrochers' concurrentqueue
 under the terms of the Boost Software License (http://www.boost.org/LICENSE_1_0.txt).
@@ -22,3 +23,7 @@ This project uses and distributes the source of Bob Jenkins Spooky Hash V2 imple
 which has been placed into the public domain.
 - src/SpookyV2.h
 - src/SpookyV2.cpp
+
+This project uses and distributes the source fo Niall Douglas outcome library
+under the terms of the Boost Software License (http://www.boost.org/LICENSE_1_0.txt).
+- include/vefs/ext/outcome.hpp
