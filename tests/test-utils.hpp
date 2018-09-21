@@ -1,6 +1,10 @@
 #pragma once
 
+#include <ostream>
 
+#include <fmt/format.h>
+
+#include <vefs/disappointment.hpp>
 #include <vefs/utils/random.hpp>
 
 struct test_rng : vefs::utils::xoroshiro128plus
@@ -14,3 +18,15 @@ struct test_rng : vefs::utils::xoroshiro128plus
     }
     using xoroshiro128plus::xoroshiro128plus;
 };
+
+namespace vefs
+{
+    std::ostream & operator<<(std::ostream &s, const error_info &info)
+    {
+        using namespace fmt::literals;
+        s << "{:v}"_format(info);
+    }
+
+}
+
+

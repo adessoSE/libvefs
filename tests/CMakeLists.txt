@@ -4,6 +4,7 @@ add_executable(vefs-tests
     boost-unit-test.hpp
     test-utils.hpp
 
+    disappointment-tests.cpp
     allocator-tests.cpp
     cache-tests.cpp
 
