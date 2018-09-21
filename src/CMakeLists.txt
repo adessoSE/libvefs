@@ -90,6 +90,19 @@ DEF_SOURCE_GROUP(vefs "lib"
         exceptions.cpp
 )
 
+DEF_SOURCE_GROUP(vefs "lib/disappointment"
+    HEADERS
+        "${_INCLUDE_DIR}/vefs/disappointment.hpp"
+        "${_INCLUDE_DIR}/vefs/disappointment/errc.hpp"
+        "${_INCLUDE_DIR}/vefs/disappointment/error_detail.hpp"
+        "${_INCLUDE_DIR}/vefs/disappointment/error_domain.hpp"
+        "${_INCLUDE_DIR}/vefs/disappointment/error_exception.hpp"
+        "${_INCLUDE_DIR}/vefs/disappointment/error_info.hpp"
+
+    SOURCES
+        disappointment.cpp
+)
+
 DEF_SOURCE_GROUP(vefs "lib/detail"
     HEADERS
         "${_INCLUDE_DIR}/vefs/detail/cache.hpp"

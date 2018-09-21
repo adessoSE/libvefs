@@ -66,6 +66,9 @@ find_package(Boost 1.68 REQUIRED COMPONENTS
 
 find_package(benchmark)
 
+# fmt library
+find_package(fmt CONFIG REQUIRED)
+
 if (NOT (botan_FOUND OR OpenSSL_FOUND))
     message(WARNING "no crypto provider library (BoringSSL, botan) could be found.")
 endif()

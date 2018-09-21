@@ -6361,7 +6361,6 @@ namespace detail
     {
     };
   }
-  template <class S, class P> inline void basic_outcome_failure_exception_from_error(...) = delete; // No specialisation for these error and exception types available!
 
   //! The failure observers implementation of `basic_outcome<R, S, P>`.
   template <class Base, class R, class S, class P, class NoValuePolicy> class basic_outcome_failure_observers : public Base
@@ -6394,6 +6393,7 @@ namespace detail
     }
   };
 
+  template <class S, class P> inline void basic_outcome_failure_exception_from_error(...) = delete; // No specialisation for these error and exception types available!
 } // namespace detail
 
 OUTCOME_V2_NAMESPACE_END
