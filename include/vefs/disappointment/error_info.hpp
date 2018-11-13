@@ -37,6 +37,154 @@ namespace vefs
     template <typename T>
     constexpr bool is_error_code_enum_v = is_error_code_enum<T>::value;
 
+    class error_info2
+    {
+    public:
+        raw_error_value xval;
+    };
+
+    class error final
+    {
+        class success_domain_t final
+            : public error_domain2
+        {
+            virtual auto name() const noexcept
+                -> std::string_view;
+            virtual auto message(raw_error_value handle, bool verbose) const noexcept
+                -> std::string_view;
+        };
+        static constexpr success_domain_t success_domain{};
+
+    public:
+        error() noexcept;
+        error(raw_error_value code, const error_domain2 &domain) noexcept;
+        error(std::unique_ptr<error_info2> complex, const error_domain2 &domain) noexcept;
+        template <typename T, std::enable_if_t<is_error_code_enum_v<T>, int> = 0>
+        error(T code) noexcept(noexcept(make_error_info(code)))
+            : error_info{ make_error_info(code) }
+        {
+        }
+
+        ~error() noexcept;
+
+        auto code() const noexcept
+            -> raw_error_value;
+        auto domain() const noexcept
+            -> const error_domain2 &;
+
+        bool has_info() const noexcept;
+        auto info() noexcept
+            -> error_info2 &;
+        auto info() const noexcept
+            -> const error_info2 &;
+        template <typename T>
+        auto info_as()
+            -> T &
+        {
+            return static_cast<T &>(info())
+        }
+        template <typename T>
+        auto info_as() const
+            -> const T &
+        {
+            return static_cast<const T &>(info());
+        }
+
+        explicit operator bool() const noexcept;
+
+
+
+    private:
+        static constexpr auto wrap_simple(raw_error_value value) noexcept
+            -> raw_error_value;
+        static constexpr auto unwrap_simple(raw_error_value wrapped) noexcept
+            -> raw_error_value;
+
+        const error_domain2 *mDomain;
+        raw_error_value mValue;
+    };
+
+
+
+    inline error::error() noexcept
+        : error{ raw_error_value{}, success_domain }
+    {
+    }
+    inline vefs::error::error(raw_error_value code, const error_domain2 &domain) noexcept
+        : mDomain{ &domain }
+        , mValue{ wrap_simple(code) }
+    {
+    }
+    inline error::error(std::unique_ptr<error_info2> complex, const error_domain2 & domain) noexcept
+        : mDomain{ &domain }
+        , mValue{ reinterpret_cast<raw_error_value>(complex.release()) }
+    {
+        assert(has_info());
+    }
+
+    inline error::~error() noexcept
+    {
+        if (has_info())
+        {
+            delete reinterpret_cast<error_info2 *>(mValue);
+        }
+    }
+
+    inline auto error::code() const noexcept
+        -> raw_error_value
+    {
+        if (has_info())
+        {
+            return info().xval;
+        }
+        else
+        {
+            return unwrap_simple(mValue);
+        }
+        return raw_error_value();
+    }
+
+    inline auto error::domain() const noexcept
+        -> const error_domain2 &
+    {
+        return *mDomain;
+    }
+
+    inline bool error::has_info() const noexcept
+    {
+        return (mValue & std::numeric_limits<raw_error_value>::max() - 1) == mValue;
+    }
+
+    inline auto error::info() noexcept
+        -> error_info2 &
+    {
+        return *reinterpret_cast<error_info2 *>(mValue);
+    }
+
+    inline auto error::info() const noexcept
+        -> const error_info2 &
+    {
+        return *reinterpret_cast<const error_info2 *>(mValue);
+    }
+
+    inline error::operator bool() const noexcept
+    {
+        return *mDomain != success_domain;
+    }
+
+    constexpr auto error::wrap_simple(raw_error_value value) noexcept
+        -> raw_error_value
+    {
+        return (value << 1) | 1;
+    }
+
+    constexpr auto error::unwrap_simple(raw_error_value wrapped) noexcept
+        -> raw_error_value
+    {
+        return wrapped >> 1;
+    }
+
+
     class error_info final
     {
         class success_domain_t final
