@@ -42,8 +42,8 @@ namespace vefs
         class success_domain_t final
             : public error_domain
         {
-            virtual std::string_view name() const noexcept override;
-            virtual std::string_view message(intptr_t value) const noexcept override;
+            std::string_view name() const noexcept override;
+            std::string_view message(intptr_t value) const noexcept override;
         };
         static constexpr success_domain_t success_domain_impl{};
 
@@ -53,7 +53,7 @@ namespace vefs
             using map_t = std::unordered_map<std::type_index, detail_ptr>;
 
             map_t mDetails;
-            int mInsertionFailures;
+            int mInsertionFailures{ 0 };
         };
         using additional_details_ptr = std::shared_ptr<additional_details>;
 
@@ -93,7 +93,7 @@ namespace vefs
     };
 
     constexpr error_info::error_info() noexcept
-        : error_info{ static_cast<value_type>(0), success_domain_impl }
+        : error_info{ value_type{0}, success_domain_impl }
     {
     }
     constexpr error_info::error_info(value_type code, const error_domain &domain) noexcept
@@ -176,7 +176,7 @@ namespace vefs
             ++ad->mInsertionFailures;
         }
 
-        return *this;
+        return ei;
     }
 
     template <typename T>
@@ -190,41 +190,85 @@ namespace fmt
     {
         using buffer = internal::buffer;
 
-        constexpr auto parse(string_view ctx)
+    public:
+        template <typename ParseContext>
+        constexpr auto parse(ParseContext &ctx)
             -> const char *
         {
-            using namespace std::string_view_literals;
+            constexpr auto errfmt = "invalid error_info formatter";
 
-            if (!ctx.size())
-            {
-                return ctx.data();
-            }
-            std::string_view part{ ctx.data(), ctx.size() };
-            const bool px = part[0] == ':';
-            auto xend = part.find('}');
-            part = part.substr(px, xend - px);
+            int state = 0;
+            auto xbegin = ctx.begin();
+            auto xit = xbegin;
+            auto xend = ctx.end();
 
-            if (!part.size())
+            // I would prefer a string_view based solution any time,
+            // but sadly the compiler/library support for constexpr string_views
+            // is rather scarce
+
+            while (xit != xend)
             {
-                return ctx.data();
+                const auto val = *xit;
+                switch (state)
+                {
+                case 0:
+                    switch (val)
+                    {
+                    case ':': // this should actually lead to a unique state but I'm lazy
+                        if (xit != xbegin)
+                        {
+                            ctx.on_error(errfmt);
+                        }
+                        break;
+
+                    case '}':
+                        xend = xit;
+                        continue;
+
+                    case '!':
+                        state = 1;
+                        break;
+
+                    case 'v':
+                        state = 2;
+                        verbose = true;
+                        break;
+
+                    default:
+                        ctx.on_error(errfmt);
+                        break;
+                    }
+                    break;
+
+                case 1:
+                    if (val != 'v')
+                    {
+                        ctx.on_error(errfmt);
+                    }
+                    state = 2;
+                    verbose = false;
+                    break;
+
+                case 2:
+                    if (val != '}')
+                    {
+                        ctx.on_error(errfmt);
+                    }
+                    xend = xit;
+                    continue;
+                }
+                ++xit;
             }
 
-            if (part == "!v"sv)
-            {
-                verbose = false;
-            }
-            else if (part == "v"sv)
-            {
-                verbose = true;
-            }
-            return ctx.data() + xend;
+            return xend;
         }
 
-        template <typename Buffer, typename ParseContext>
-        void format(Buffer &buf, const vefs::error_info &info, const ParseContext &)
+        template <typename FormatContext>
+        auto format(const vefs::error_info &info, FormatContext &ctx)
+            -> decltype(ctx.out())
         {
             auto str = info.diagnostic_information(verbose);
-            buf.append(str.cbegin(), str.cend());
+            return std::copy(str.cbegin(), str.cend(), ctx.out());
         }
 
         bool verbose = true;

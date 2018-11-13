@@ -86,19 +86,19 @@ namespace vefs
         try
         {
             using namespace fmt::literals;
-            std::string_view type{ typeid(error_detail<Tag, T>).name() };
+            std::string_view type{ typeid(Tag).name() };
             if (type.size() > 0)
             {
-                return "{{{}}}: {}"_format(type, mValue);
+                return { "[{}] = {}"_format(type, mValue), true };
             }
             else
             {
-                return "unknown type: {}"_format(mValue);
+                return { "unknown type: {}"_format(mValue), true };
             }
         }
         catch (...)
         {
-            return std::nullopt;
+            return { };
         }
     }
 }

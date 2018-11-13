@@ -15,7 +15,7 @@ namespace vefs
         error_exception() = delete;
         error_exception(error_info err) noexcept;
 
-        virtual const char * what() const noexcept override;
+        const char * what() const noexcept override;
 
     private:
         error_info mErr;

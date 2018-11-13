@@ -202,6 +202,7 @@ target_link_libraries(vefs
         Boost::system
         libb2
         protobuf::libprotobuf
+        fmt::fmt
 )
 
 if (botan_FOUND)

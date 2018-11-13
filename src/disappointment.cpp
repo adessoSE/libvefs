@@ -6,20 +6,44 @@ namespace vefs
     std::string_view error_info::success_domain_t::name() const noexcept
     {
         using namespace std::string_view_literals;
-        return "<success-domain>"sv;
+        return "success-domain"sv;
     }
     std::string_view error_info::success_domain_t::message(intptr_t value) const noexcept
     {
         using namespace std::string_view_literals;
         return value == 0
-            ? "<success>"sv
-            : "<invalid-success-code>"sv;
+            ? "success"sv
+            : "invalid-success-code"sv;
     }
 
     auto error_info::diagnostic_information(bool verbose) const
         -> std::string
     {
-        return "";
+        using namespace std::string_view_literals;
+
+        const auto domain = mDomain->name();
+        const auto errorDesc = mDomain->message(mValue);
+        if (verbose && mAD)
+        {
+            std::string msg;
+            msg.reserve(256);
+            const auto oit = std::back_inserter(msg);
+            fmt::format_to(oit, "{} => {}"sv, domain, errorDesc);
+
+            for (const auto &ad : mAD->mDetails)
+            {
+                const auto [det, success] = ad.second->stringify();
+                if (success)
+                {
+                    fmt::format_to(oit, "\n\t{}", det);
+                }
+            }
+            return msg;
+        }
+        else
+        {
+            return fmt::format(FMT_STRING("{} => {}"), domain, errorDesc);
+        }
     }
 
     const char * error_exception::what() const noexcept
@@ -32,7 +56,11 @@ namespace vefs
             }
             catch (const std::bad_alloc &)
             {
-                return "<failed to allocate the diagnostic information string>";
+                return "<error_exception|failed to allocate the diagnostic information string>";
+            }
+            catch (...)
+            {
+                return "<error_exception|failed to retrieve the diagnostic information from the error code>";
             }
         }
         return mErrDesc.c_str();
@@ -44,8 +72,8 @@ namespace vefs
     class archive_domain_type final
         : public error_domain
     {
-        virtual std::string_view name() const noexcept override;
-        virtual std::string_view message(intptr_t value) const noexcept override;
+        std::string_view name() const noexcept override;
+        std::string_view message(intptr_t value) const noexcept override;
     };
 
     std::string_view archive_domain_type::name() const noexcept
@@ -59,7 +87,7 @@ namespace vefs
     {
         using namespace std::string_view_literals;
 
-        auto code = archive_errc{ value };
+        const archive_errc code{ value };
         switch (code)
         {
         case vefs::archive_errc::invalid_prefix:

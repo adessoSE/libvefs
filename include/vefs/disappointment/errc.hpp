@@ -6,7 +6,7 @@ namespace vefs
 {
     class error_domain;
 
-    enum class archive_errc
+    enum class archive_errc : error_info::value_type
     {
         invalid_prefix = 1,
         oversized_static_header,

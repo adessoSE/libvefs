@@ -21,7 +21,7 @@ struct test_rng : vefs::utils::xoroshiro128plus
 
 namespace vefs
 {
-    std::ostream & operator<<(std::ostream &s, const error_info &info)
+    inline std::ostream & operator<<(std::ostream &s, const error_info &info)
     {
         using namespace fmt::literals;
         s << "{:v}"_format(info);

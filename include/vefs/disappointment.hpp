@@ -59,9 +59,13 @@ namespace vefs
 
     namespace ed
     {
-        using wrapped_error = error_detail<struct wrapped_error_tag, error_info>;
+        enum class wrapped_error_tag{};
+        using wrapped_error = error_detail<wrapped_error_tag, error_info>;
 
-        using error_code = error_detail<struct error_code_tag, std::error_code>;
-        using error_code_api_origin = error_detail<struct error_code_origin_tag, std::string_view>;
+        enum class error_code_tag{};
+        using error_code = error_detail<error_code_tag, std::error_code>;
+
+        enum class error_code_origin_tag{};
+        using error_code_api_origin = error_detail<error_code_origin_tag, std::string_view>;
     }
 }
