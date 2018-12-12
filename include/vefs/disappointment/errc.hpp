@@ -1,12 +1,10 @@
 #pragma once
 
-#include <vefs/disappointment/error_info.hpp>
+#include <vefs/disappointment/error.hpp>
 
 namespace vefs
 {
-    class error_domain;
-
-    enum class archive_errc : error_info::value_type
+    enum class archive_errc : error_code
     {
         invalid_prefix = 1,
         oversized_static_header,
@@ -22,8 +20,9 @@ namespace vefs
     const error_domain & archive_domain() noexcept;
 
 
-    inline error_info make_error_info(archive_errc errc) noexcept
+    inline auto make_error(archive_errc errc) noexcept
+        -> error
     {
-        return { static_cast<error_info::value_type>(errc), archive_domain() };
+        return { static_cast<error_code>(errc), archive_domain() };
     }
 }

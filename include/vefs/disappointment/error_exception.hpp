@@ -4,7 +4,7 @@
 #include <string>
 #include <stdexcept>
 
-#include <vefs/disappointment/error_info.hpp>
+#include <vefs/disappointment/error.hpp>
 
 namespace vefs
 {
@@ -13,16 +13,16 @@ namespace vefs
     {
     public:
         error_exception() = delete;
-        error_exception(error_info err) noexcept;
+        explicit error_exception(error err) noexcept;
 
         const char * what() const noexcept override;
 
     private:
-        error_info mErr;
+        mutable error mErr;
         mutable std::string mErrDesc;
     };
 
-    inline error_exception::error_exception(error_info err) noexcept
+    inline error_exception::error_exception(error err) noexcept
         : mErr{ std::move(err) }
         , mErrDesc{}
     {

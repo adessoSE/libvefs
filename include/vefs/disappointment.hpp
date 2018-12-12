@@ -7,9 +7,10 @@
 
 #include <vefs/ext/outcome.hpp>
 
+#include <vefs/disappointment/fwd.hpp>
 #include <vefs/disappointment/error_detail.hpp>
 #include <vefs/disappointment/error_domain.hpp>
-#include <vefs/disappointment/error_info.hpp>
+#include <vefs/disappointment/error.hpp>
 #include <vefs/disappointment/error_exception.hpp>
 #include <vefs/disappointment/errc.hpp>
 
@@ -55,12 +56,12 @@ namespace vefs
     }
 
     template <typename R>
-    using result = outcome::basic_result<R, error_info, detail::result_no_value_policy>;
+    using result = outcome::basic_result<R, error, detail::result_no_value_policy>;
 
     namespace ed
     {
         enum class wrapped_error_tag{};
-        using wrapped_error = error_detail<wrapped_error_tag, error_info>;
+        using wrapped_error = error_detail<wrapped_error_tag, error>;
 
         enum class error_code_tag{};
         using error_code = error_detail<error_code_tag, std::error_code>;

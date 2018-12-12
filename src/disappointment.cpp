@@ -3,42 +3,52 @@
 
 namespace vefs
 {
-    std::string_view error_info::success_domain_t::name() const noexcept
+    BOOST_NOINLINE error_info::error_info() noexcept
+        : mDetails{ }
+    {
+    }
+    BOOST_NOINLINE error_info::~error_info()
+    {
+    }
+
+    auto error::success_domain::name() const noexcept
+        -> std::string_view
     {
         using namespace std::string_view_literals;
         return "success-domain"sv;
     }
-    std::string_view error_info::success_domain_t::message(intptr_t value) const noexcept
+    auto error::success_domain::message(const error &, const error_code code) const noexcept
+        -> std::string_view
     {
         using namespace std::string_view_literals;
-        return value == 0
+        return code == 0
             ? "success"sv
             : "invalid-success-code"sv;
     }
+    const error::success_domain error::success_domain::sInstance;
+    auto error::success_domain::instance() noexcept
+        -> const error_domain &
+    {
+        return sInstance;
+    }
 
-    auto error_info::diagnostic_information(bool verbose) const
+    auto error::diagnostic_information(error_message_format format) const noexcept
         -> std::string
     {
         using namespace std::string_view_literals;
 
-        const auto domain = mDomain->name();
-        const auto errorDesc = mDomain->message(mValue);
-        if (verbose && mAD)
-        {
-            std::string msg;
-            msg.reserve(256);
-            const auto oit = std::back_inserter(msg);
-            fmt::format_to(oit, "{} => {}"sv, domain, errorDesc);
+        auto domain = mDomain->name();
+        auto errorDesc = mDomain->message(*this, code());
 
-            for (const auto &ad : mAD->mDetails)
-            {
-                const auto [det, success] = ad.second->stringify();
-                if (success)
-                {
-                    fmt::format_to(oit, "\n\t{}", det);
-                }
-            }
-            return msg;
+
+        if (format != error_message_format::simple && has_info())
+        {
+            error_info::diagnostics_buffer buffer;
+            fmt::format_to(buffer, "{} => {}", domain, errorDesc);
+
+            info()->diagnostic_information(buffer, "\n\t");
+
+            return to_string(buffer);
         }
         else
         {
@@ -52,7 +62,7 @@ namespace vefs
         {
             try
             {
-                mErrDesc = mErr.diagnostic_information();
+                mErrDesc = mErr.diagnostic_information(error_message_format::with_diagnostics);
             }
             catch (const std::bad_alloc &)
             {
@@ -69,26 +79,92 @@ namespace vefs
 
 namespace vefs
 {
+    class generic_domain_type final
+        : public error_domain
+    {
+        auto name() const noexcept
+            ->std::string_view override;
+        auto message(const error &, const error_code code) const noexcept
+            ->std::string_view override;
+    };
+
+    auto generic_domain_type::name() const noexcept
+        -> std::string_view
+    {
+        using namespace std::string_view_literals;
+
+        return "generic"sv;
+    }
+
+    auto generic_domain_type::message(const error &, const error_code value) const noexcept
+        -> std::string_view
+    {
+        using namespace std::string_view_literals;
+
+
+        switch (const errc code{ value }; code)
+        {
+        case errc::bad:
+            return "unexpected failure in third party code"sv;
+
+        case errc::invalid_argument:
+            return "a given function argument did not meet its requirements"sv;
+
+        case errc::key_already_exists:
+            return "the given key already existed in the collection"sv;
+
+        case errc::not_enough_memory:
+            return "could not allocate the required memory"sv;
+
+        case errc::not_supported:
+            return "the requested feature is not supported"sv;
+
+        case errc::result_out_of_range:
+            return "function not defined for the given arguments (result would be out of range)"sv;
+
+        case errc::user_object_copy_failed:
+            return "the function call failed due to an exception thrown by a user object copy ctor"sv;
+
+        default:
+            return "unknown generic error code"sv;
+        }
+    }
+
+    namespace
+    {
+        constexpr generic_domain_type generic_domain_v;
+    }
+
+    auto generic_domain() noexcept
+        -> const error_domain &
+    {
+        return generic_domain_v;
+    }
+
     class archive_domain_type final
         : public error_domain
     {
-        std::string_view name() const noexcept override;
-        std::string_view message(intptr_t value) const noexcept override;
+        auto name() const noexcept
+            -> std::string_view override;
+        auto message(const error &, const error_code code) const noexcept
+            -> std::string_view override;
     };
 
-    std::string_view archive_domain_type::name() const noexcept
+    auto archive_domain_type::name() const noexcept
+        -> std::string_view
     {
         using namespace std::string_view_literals;
 
         return "vefs-archive"sv;
     }
 
-    std::string_view archive_domain_type::message(intptr_t value) const noexcept
+    auto archive_domain_type::message(const error &, const error_code value) const noexcept
+        -> std::string_view
     {
         using namespace std::string_view_literals;
 
-        const archive_errc code{ value };
-        switch (code)
+
+        switch (const archive_errc code{ value }; code)
         {
         case vefs::archive_errc::invalid_prefix:
             return "the magic number at the beginning of the archive didn't match"sv;
@@ -130,7 +206,8 @@ namespace vefs
         constexpr archive_domain_type archive_domain_v;
     }
 
-    const error_domain & archive_domain() noexcept
+    auto archive_domain() noexcept
+        -> const error_domain &
     {
         return archive_domain_v;
     }
