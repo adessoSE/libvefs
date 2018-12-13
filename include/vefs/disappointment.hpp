@@ -56,8 +56,8 @@ namespace vefs
         };
     }
 
-    template <typename R>
-    using result = outcome::basic_result<R, error, detail::result_no_value_policy>;
+    template <typename R, typename E = error>
+    using result = outcome::basic_result<R, E, detail::result_no_value_policy>;
 
     namespace ed
     {
@@ -69,5 +69,11 @@ namespace vefs
 
         enum class error_code_origin_tag{};
         using error_code_api_origin = error_detail<error_code_origin_tag, std::string_view>;
+
+        enum class io_file_tag {};
+        using io_file = error_detail<io_file_tag, std::string>;
+
+        enum class archive_file_tag {};
+        using archive_file = error_detail<archive_file_tag, std::string>;
     }
 }
