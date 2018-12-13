@@ -1,6 +1,11 @@
 #include "precompiled.hpp"
 #include <vefs/disappointment.hpp>
 
+#include <ios>
+#include <mutex>
+#include <future>
+#include <unordered_map>
+
 namespace vefs
 {
     BOOST_NOINLINE error_info::error_info() noexcept
@@ -37,8 +42,9 @@ namespace vefs
     {
         using namespace std::string_view_literals;
 
-        auto domain = mDomain->name();
-        auto errorDesc = mDomain->message(*this, code());
+        decltype(auto) hDomain = domain();
+        auto domain = hDomain.name();
+        auto errorDesc = hDomain.message(*this, code());
 
 
         if (format != error_message_format::simple && has_info())
@@ -83,9 +89,12 @@ namespace vefs
         : public error_domain
     {
         auto name() const noexcept
-            ->std::string_view override;
+            -> std::string_view override;
         auto message(const error &, const error_code code) const noexcept
-            ->std::string_view override;
+            -> std::string_view override;
+
+    public:
+        constexpr generic_domain_type() noexcept = default;
     };
 
     auto generic_domain_type::name() const noexcept
@@ -93,7 +102,7 @@ namespace vefs
     {
         using namespace std::string_view_literals;
 
-        return "generic"sv;
+        return "generic-domain"sv;
     }
 
     auto generic_domain_type::message(const error &, const error_code value) const noexcept
@@ -132,7 +141,7 @@ namespace vefs
 
     namespace
     {
-        constexpr generic_domain_type generic_domain_v;
+        constexpr generic_domain_type generic_domain_v{};
     }
 
     auto generic_domain() noexcept
@@ -148,6 +157,9 @@ namespace vefs
             -> std::string_view override;
         auto message(const error &, const error_code code) const noexcept
             -> std::string_view override;
+
+    public:
+        constexpr archive_domain_type() noexcept = default;
     };
 
     auto archive_domain_type::name() const noexcept
@@ -155,7 +167,7 @@ namespace vefs
     {
         using namespace std::string_view_literals;
 
-        return "vefs-archive"sv;
+        return "vefs-archive-domain"sv;
     }
 
     auto archive_domain_type::message(const error &, const error_code value) const noexcept
@@ -203,12 +215,111 @@ namespace vefs
 
     namespace
     {
-        constexpr archive_domain_type archive_domain_v;
+        constexpr archive_domain_type archive_domain_v{};
     }
 
     auto archive_domain() noexcept
         -> const error_domain &
     {
         return archive_domain_v;
+    }
+}
+
+namespace vefs::adl::disappointment
+{
+    namespace
+    {
+        class std_adapter_domain final
+            : public error_domain
+        {
+        public:
+            constexpr std_adapter_domain(const std::error_category *impl) noexcept;
+
+        private:
+            auto name() const noexcept
+                ->std::string_view override;
+            auto message(const error &, const error_code code) const noexcept
+                ->std::string_view override;
+
+            const std::error_category * const mImpl;
+        };
+
+        constexpr std_adapter_domain::std_adapter_domain(const std::error_category *impl) noexcept
+            : mImpl{ impl }
+        {
+        }
+
+        auto std_adapter_domain::name() const noexcept
+            -> std::string_view
+        {
+            return mImpl->name();
+        }
+
+        auto std_adapter_domain::message(const error &, const error_code code) const noexcept
+            -> std::string_view
+        {
+            return mImpl->message(static_cast<int>(code));
+        }
+
+
+        const std_adapter_domain generic_cat_adapter{ &std::generic_category() };
+        const std_adapter_domain system_cat_adapter{ &std::system_category() };
+        const std_adapter_domain iostream_cat_adapter{ &std::iostream_category() };
+        const std_adapter_domain future_cat_adapter{ &std::future_category() };
+
+        std::mutex nonstandard_category_domain_map_sync{};
+        std::unordered_map<const std::error_category *, std::unique_ptr<std_adapter_domain>>
+            nonstandard_category_domain_map{ 8 };
+
+        auto adapt_domain(const std::error_category &cat) noexcept
+            -> const error_domain &
+        {
+            if (cat == std::generic_category())
+            {
+                return generic_cat_adapter;
+            }
+            if (cat == std::system_category())
+            {
+                return system_cat_adapter;
+            }
+            if (cat == std::future_category())
+            {
+                return future_cat_adapter;
+            }
+            if (cat == std::iostream_category())
+            {
+                return iostream_cat_adapter;
+            }
+
+            std::lock_guard lock{ nonstandard_category_domain_map_sync };
+            if (auto it = nonstandard_category_domain_map.find(&cat);
+                it != nonstandard_category_domain_map.end())
+            {
+                return *it->second;
+            }
+
+            return *nonstandard_category_domain_map.emplace(
+                &cat, std::make_unique<std_adapter_domain>(&cat)
+            ).first->second;
+        }
+    }
+
+    auto make_error(std::error_code ec, adl::disappointment::type) noexcept
+        -> error
+    {
+        static_assert(sizeof(int) <= sizeof(error_code));
+        return {
+            static_cast<error_code>(ec.value()),
+            adapt_domain(ec.category())
+        };
+    }
+
+    auto make_error(std::errc ec, adl::disappointment::type) noexcept
+        -> error
+    {
+        return {
+            static_cast<error_code>(ec),
+            generic_cat_adapter
+        };
     }
 }

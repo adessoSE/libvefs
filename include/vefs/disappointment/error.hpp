@@ -123,8 +123,8 @@ namespace vefs
         error() noexcept;
         error(error_code code, const error_domain &domain, error_info::ptr info = {}) noexcept;
         template <typename T, std::enable_if_t<is_error_compatible_v<T>, int> = 0>
-        error(T code) noexcept(noexcept(make_error(code)))
-            : error{ make_error(code) }
+        error(T code) noexcept(noexcept(make_error(code, adl::disappointment::type{})))
+            : error{ make_error(code, adl::disappointment::type{}) }
         {
         }
 
@@ -166,13 +166,15 @@ namespace vefs
 
 
     template <typename T>
-    auto make_error(...) noexcept->error = delete;
+    auto make_error(...) noexcept -> error = delete;
 
-    inline auto make_error(errc code) noexcept
+    inline auto make_error(errc code, adl::disappointment::type) noexcept
+        -> error
     {
         return error{ static_cast<error_code>(code), generic_domain() };
     }
-
+    template <>
+    struct is_error_compatible<errc> : std::true_type {};
 
     inline error::error() noexcept
         : mValue{ }

@@ -93,8 +93,16 @@ BOOST_AUTO_TEST_CASE(error_format_w_details)
     error info{ vefs::archive_errc::tag_mismatch };
     info << vefs::ed::error_code_api_origin{ "xyz-xapi()"sv };
 
-    BOOST_TEST("{}"_format(info) == "vefs-archive => decryption failed because the message tag didn't match\n"
+    BOOST_TEST("{}"_format(info) == "vefs-archive-domain => decryption failed because the message tag didn't match\n"
         "\t[enum vefs::ed::error_code_origin_tag] = xyz-xapi()"sv);
+}
+
+BOOST_AUTO_TEST_CASE(std_error_code_adaption)
+{
+    std::error_code ec = make_error_code(std::errc::message_size);
+    error conv{ ec };
+
+    BOOST_TEST(static_cast<int>(conv.code()) == ec.value());
 }
 
 BOOST_AUTO_TEST_SUITE_END()

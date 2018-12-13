@@ -20,7 +20,7 @@ namespace vefs
     const error_domain & archive_domain() noexcept;
 
 
-    inline auto make_error(archive_errc errc) noexcept
+    inline auto make_error(archive_errc errc, adl::disappointment::type) noexcept
         -> error
     {
         return { static_cast<error_code>(errc), archive_domain() };

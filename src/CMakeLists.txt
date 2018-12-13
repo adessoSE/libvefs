@@ -100,6 +100,7 @@ DEF_SOURCE_GROUP(vefs "lib/disappointment"
         "${_INCLUDE_DIR}/vefs/disappointment/error_exception.hpp"
         "${_INCLUDE_DIR}/vefs/disappointment/fwd.hpp"
         "${_INCLUDE_DIR}/vefs/disappointment/generic_errc.hpp"
+        "${_INCLUDE_DIR}/vefs/disappointment/std_adapter.hpp"
 
     SOURCES
         disappointment.cpp

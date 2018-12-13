@@ -13,6 +13,7 @@
 #include <vefs/disappointment/error.hpp>
 #include <vefs/disappointment/error_exception.hpp>
 #include <vefs/disappointment/errc.hpp>
+#include <vefs/disappointment/std_adapter.hpp>
 
 namespace vefs
 {

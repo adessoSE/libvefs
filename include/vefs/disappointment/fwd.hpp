@@ -24,6 +24,10 @@ namespace vefs
         with_diagnostics,
     };
 
+    namespace adl::disappointment
+    {
+        struct type final {};
+    }
 
     template <typename T, typename = void>
     struct is_error_compatible : std::false_type
@@ -32,9 +36,9 @@ namespace vefs
     template <typename T>
     struct is_error_compatible<T,
         std::enable_if_t<
-            std::is_same_v<decltype(make_error(std::declval<T>())), error>
+            std::is_same_v<decltype(make_error(std::declval<T>(), adl::disappointment::type{})), error>
         >
-    > : public std::true_type
+    > : std::true_type
     {
     };
 
