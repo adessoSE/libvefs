@@ -6,6 +6,9 @@
 #include <future>
 #include <unordered_map>
 
+#include <boost/predef.h>
+#include <boost/config.hpp>
+
 namespace vefs
 {
     BOOST_NOINLINE error_info::error_info() noexcept
@@ -321,5 +324,24 @@ namespace vefs::adl::disappointment
             static_cast<error_code>(ec),
             generic_cat_adapter
         };
+    }
+}
+
+#if defined BOOST_OS_WINDOWS_AVAILABLE
+#include <vefs/utils/windows-proper.h>
+#elif defined BOOST_OS_LINUX_AVAILABLE || defined BOOST_OS_MACOS_AVAILABLE
+#include <cerrno>
+#endif
+
+namespace vefs
+{
+    auto collect_system_error()
+        -> std::error_code
+    {
+#if defined BOOST_OS_WINDOWS_AVAILABLE
+        return std::error_code{ static_cast<int>(GetLastError()), std::system_category() };
+#elif defined BOOST_OS_LINUX_AVAILABLE || defined BOOST_OS_MACOS_AVAILABLE
+        return std::error_code{ errno, std::system_category() };
+#endif
     }
 }

@@ -17,28 +17,29 @@
 
 namespace vefs
 {
-    namespace outcome = ::outcome_v2_97cad4a6;
+    namespace outcome = ::outcome_v2_4995acdc;
 
     namespace detail
     {
         class result_no_value_policy
-            : private outcome::policy::all_narrow
+            : private outcome::policy::base
         {
+        public:
             //! Performs a narrow check of state, used in the assume_value() functions.
-            using outcome::policy::all_narrow::narrow_value_check;
+            using base::narrow_value_check;
 
             //! Performs a narrow check of state, used in the assume_error() functions.
-            using outcome::policy::all_narrow::narrow_error_check;
+            using base::narrow_error_check;
 
             //! Performs a wide check of state, used in the value() functions.
             template <class Impl>
             static constexpr void wide_value_check(Impl &&self)
             {
-                if (!self.have_value())
+                if (!base::_has_value(self))
                 {
-                    if (self.have_error())
+                    if (base::_has_error(self))
                     {
-                        throw error_exception{ self.assume_error() };
+                        throw error_exception{ base::_error(std::move(self)) };
                     }
                     throw outcome::bad_result_access("no value");
                 }
@@ -48,7 +49,7 @@ namespace vefs
             template <class Impl>
             static constexpr void wide_error_check(Impl &&self)
             {
-                if (!self.have_error())
+                if (!base::_has_error(self))
                 {
                     throw outcome::bad_result_access("no error");
                 }
@@ -76,4 +77,7 @@ namespace vefs
         enum class archive_file_tag {};
         using archive_file = error_detail<archive_file_tag, std::string>;
     }
+
+    auto collect_system_error()
+        -> std::error_code;
 }
