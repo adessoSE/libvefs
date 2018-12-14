@@ -10,21 +10,20 @@
 #include <vefs/utils/misc.hpp>
 
 #if defined BOOST_OS_WINDOWS_AVAILABLE
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
-#include <windows.h>
+#include <vefs/utils/windows-proper.h>
 
 #define RtlGenRandom SystemFunction036
 extern "C" BOOLEAN NTAPI RtlGenRandom(PVOID RandomBuffer, ULONG RandomBufferLength);
 
-void vefs::detail::random_bytes(blob buffer)
+vefs::result<void> vefs::detail::random_bytes(blob buffer) noexcept
 {
+    using namespace vefs;
+    using namespace std::string_view_literals;
+
     if (!buffer)
     {
-        BOOST_THROW_EXCEPTION(invalid_argument{}
-            << errinfo_param_name{ "buffer" }
-            << errinfo_param_misuse_description{ "n" }
-        );
+        return error{ errc::invalid_argument }
+            << ed::error_code_api_origin{ "random_bytes"sv };
     }
     do
     {
@@ -34,13 +33,14 @@ void vefs::detail::random_bytes(blob buffer)
 
         if (!RtlGenRandom(buffer.data(), portion))
         {
-            BOOST_THROW_EXCEPTION(vefs::crypto_failure{}
-                << vefs::make_system_errinfo_code()
-                << vefs::errinfo_api_function{ "SystemFunction036" });
+            return error{ collect_system_error() }
+                << ed::error_code_api_origin{ "SystemFunction036"sv };
         }
         buffer.remove_prefix(portion);
     }
     while (buffer);
+
+    return outcome::success();
 }
 
 #elif defined BOOST_OS_UNIX_AVAILABLE
@@ -54,99 +54,86 @@ void vefs::detail::random_bytes(blob buffer)
 #include <fcntl.h>
 #include <unistd.h>
 
-template <typename = void>
-struct has_getrandom
-    : std::false_type {};
+#if !__has_include(<sys/random.h>)
 
-template <>
-struct has_getrandom<std::void_t<decltype(getrandom(nullptr, 0, 0))>>
-    : std::true_type {};
-
-constexpr bool has_getrandom_v = has_getrandom::value;
-
-namespace
+vefs::result<void> vefs::detail::random_bytes(blob buffer) noexcept
 {
-    void random_bytes_device_impl(blob buffer)
-    {
-        int urandom = open("/dev/urandom", O_RDONLY);
-        if (urandom == -1)
-        {
-            std::error_code ec{ errno, std::system_category() };
-            BOOST_THROW_EXCEPTION(vefs::crypto_failure{}
-                << vefs::errinfo_code{ ec }
-                << vefs::errinfo_api_function{ "open" });
-        }
-        VEFS_SCOPE_EXIT{
-            close(urandom);
-        };
+    using namespace vefs;
+    using namespace std::string_view_literals;
 
-        while (buffer)
-        {
-            constexpr size_t max_portion = static_cast<size_t>(std::numeric_limits<ssize_t>::max());
-            const auto portion = std::min(max_portion, buffer.size());
-
-            ssize_t tmp = read(urandom, buffer.data(), portion);
-            if (tmp == -1)
-            {
-                std::error_code ec{ errno, std::system_category() };
-                BOOST_THROW_EXCEPTION(vefs::crypto_failure{}
-                    << vefs::errinfo_code{ ec }
-                    << vefs::errinfo_api_function{ "read" });
-            }
-            if (tmp == 0)
-            {
-                BOOST_THROW_EXCEPTION(vefs::crypto_failure{}
-                    << vefs::errinfo_api_function{ "read" });
-            }
-            buffer.remove_prefix(static_cast<size_t>(tmp));
-        }
-    }
-
-    template <typename tag>
-    void random_bytes_impl(blob buffer)
-    {
-        if constexpr (tag::value)
-        {
-            using ptr = std::add_pointer_t<std::void_t<tag>>;
-            while (buffer)
-            {
-                constexpr size_t max_portion = static_cast<size_t>(33554431);
-                const auto portion = std::min(max_portion, buffer.size());
-
-                ssize_t tmp = getrandom(static_cast<ptr>(buffer.data()), portion, 0);
-                if (tmp == -1)
-                {
-                    std::error_code ec{ errno, std::system_category() };
-                    BOOST_THROW_EXCEPTION(vefs::crypto_failure{}
-                        << vefs::errinfo_code{ ec }
-                        << vefs::errinfo_api_function{ "getrandom" });
-                }
-                if (tmp == 0)
-                {
-                    BOOST_THROW_EXCEPTION(vefs::crypto_failure{}
-                        << vefs::errinfo_api_function{ "getrandom" });
-                }
-                buffer.remove_prefix(static_cast<size_t>(tmp));
-            }
-        }
-        else
-        {
-            random_bytes_device_impl(buffer);
-        }
-    }
-}
-
-void vefs::detail::random_bytes(blob buffer)
-{
     if (!buffer)
     {
-        BOOST_THROW_EXCEPTION(invalid_argument{}
-            << errinfo_param_name{ "buffer" }
-            << errinfo_param_misuse_description{ "n" }
-        );
+        return error{ errc::invalid_argument }
+            << ed::error_code_api_origin{ "random_bytes"sv };
     }
-    random_bytes_impl<has_getrandom<>>(buffer);
+
+    int urandom = open("/dev/urandom", O_RDONLY);
+    if (urandom == -1)
+    {
+        return error{ collect_system_error() }
+            << ed::error_code_origin_tag{ "open(\"/dev/urandom\")"sv });
+    }
+    VEFS_SCOPE_EXIT{
+        close(urandom);
+    };
+
+    while (buffer)
+    {
+        constexpr size_t max_portion = static_cast<size_t>(std::numeric_limits<ssize_t>::max());
+        const auto portion = std::min(max_portion, buffer.size());
+
+        ssize_t tmp = read(urandom, buffer.data(), portion);
+        if (tmp == -1)
+        {
+            return error{ collect_system_error() }
+            << ed::error_code_origin_tag{ "read(\"/dev/urandom\")"sv });
+        }
+        if (tmp == 0)
+        {
+            return errc::bad
+                << ed::error_code_origin_tag{ "read(\"/dev/urandom\")"sv });
+        }
+        buffer.remove_prefix(static_cast<size_t>(tmp));
+    }
+    return outcome::success();
 }
+
+#else
+
+result<void> vefs::detail::random_bytes(blob buffer) noexcept
+{
+    using namespace vefs;
+    using namespace std::string_view_literals;
+
+    if (!buffer)
+    {
+        return error{ errc::invalid_argument }
+            << ed::error_code_api_origin{ "random_bytes"sv };
+    }
+
+    using ptr = std::add_pointer_t<std::void_t<tag>>;
+    while (buffer)
+    {
+        constexpr size_t max_portion = static_cast<size_t>(33554431);
+        const auto portion = std::min(max_portion, buffer.size());
+
+        ssize_t tmp = getrandom(static_cast<ptr>(buffer.data()), portion, 0);
+        if (tmp == -1)
+        {
+            return error{ collect_system_error() }
+                << ed::error_code_origin_tag{ "getrandom" };
+        }
+        if (tmp == 0)
+        {
+            return errc::bad
+                << ed::error_code_origin_tag{ "getrandom" };
+        }
+        buffer.remove_prefix(static_cast<size_t>(tmp));
+    }
+    return outcome::success();
+}
+
+#endif
 
 #else
 #error "platform::random is not implemented on your operating system"

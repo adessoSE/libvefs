@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cassert>
 
 #include <array>
 #include <mutex>
@@ -41,13 +42,7 @@ namespace vefs::crypto
     inline counter::counter(blob_view ctrState)
         : mCtrState()
     {
-        if (ctrState.size() != mCtrState.size())
-        {
-            BOOST_THROW_EXCEPTION(invalid_argument{}
-                << errinfo_param_name{ "ctrState" }
-                << errinfo_param_misuse_description{ "ctr state size mismatch" }
-            );
-        }
+        assert(ctrState.size() == mCtrState.size());
         ctrState.copy_to(blob{ mCtrState });
     }
 

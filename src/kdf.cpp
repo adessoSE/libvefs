@@ -5,29 +5,29 @@
 
 namespace vefs::crypto
 {
-    namespace
+    namespace detail
     {
-        template <typename T>
-        void kdf_impl(blob_view key, T domain, blob outputPRK)
+        result<void> kdf_impl(blob prk, blob_view inputKey, blob_view *domainIt, blob_view *domainEnd) noexcept
         {
-            detail::blake2xb(outputPRK.size(), key, detail::vefs_blake2b_personalization_view)
-                .update(domain)
-                .final(outputPRK);
+            blake2xb state{};
+
+            OUTCOME_TRY(state.init(prk.size(), inputKey, vefs_blake2b_personalization_view));
+            for (; domainIt != domainEnd; ++domainIt)
+            {
+                OUTCOME_TRY(state.update(*domainIt));
+            }
+            return state.final(prk);
         }
     }
 
-    void kdf(blob_view key, const std::vector<blob_view> &domain, blob outputPRK)
+    result<void> kdf(blob prk, blob_view inputKey, blob_view domain) noexcept
     {
-        kdf_impl(key, domain, outputPRK);
-    }
+        using namespace detail;
 
-    void kdf(blob_view key, std::initializer_list<blob_view> domain, blob outputPRK)
-    {
-        kdf_impl(key, domain, outputPRK);
-    }
+        blake2xb state{};
 
-    void kdf(blob_view key, blob_view domain, blob outputPRK)
-    {
-        kdf_impl(key, domain, outputPRK);
+        OUTCOME_TRY(state.init(prk.size(), inputKey, vefs_blake2b_personalization_view));
+        OUTCOME_TRY(state.update(domain));
+        return state.final(prk);
     }
 }

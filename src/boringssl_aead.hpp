@@ -15,7 +15,13 @@
 
 #include <vefs/blob.hpp>
 #include <vefs/exceptions.hpp>
+#include <vefs/disappointment.hpp>
 
+namespace vefs::ed
+{
+    struct openssl_error_tag {};
+    using openssl_error = error_detail<openssl_error_tag, std::string>;
+}
 
 namespace vefs::crypto::detail
 {
@@ -42,12 +48,9 @@ namespace vefs::crypto::detail
         return str;
     }
 
-    enum class errinfo_openssl_tag {};
-    using errinfo_openssl = boost::error_info<errinfo_openssl_tag, std::string>;
-
     inline auto make_openssl_errinfo(std::string desc = std::string{})
     {
-        return errinfo_openssl{ read_openssl_errors(desc) };
+        return ed::openssl_error{ read_openssl_errors(desc) };
     }
 
     class openssl_api_error
@@ -55,55 +58,43 @@ namespace vefs::crypto::detail
     {
     };
 
-    class boringssl_aead
+
+    inline std::size_t max_overhead(const EVP_AEAD *impl)
     {
-    public:
-        enum class scheme
-        {
-            aes_256_gcm,
-        };
+        return EVP_AEAD_max_overhead(impl);
+    }
+    inline std::size_t nonce_size(const EVP_AEAD *impl)
+    {
+        return EVP_AEAD_nonce_length(impl);
+    }
 
-    private:
-        static const EVP_AEAD * to_impl(scheme algorithm)
-        {
-            switch (algorithm)
-            {
-            case scheme::aes_256_gcm:
-                return EVP_aead_aes_256_gcm();
-
-            default:
-                BOOST_THROW_EXCEPTION(invalid_argument{}
-                    << errinfo_param_name{ "algorithm" }
-                    << errinfo_param_misuse_description{ "unknown aead scheme value" }
-                );
-            }
-        }
+    class boringssl_aead final
+    {
+        boringssl_aead() = default;
 
     public:
-        boringssl_aead(blob_view key, scheme algorithm = scheme::aes_256_gcm)
+        static result<boringssl_aead> create(blob_view key,
+            const EVP_AEAD *algorithm = EVP_aead_aes_256_gcm()) noexcept
         {
+            using namespace std::string_view_literals;
+
             ERR_clear_error();
 
-            const EVP_AEAD *impl = to_impl(algorithm);
-
-            if (key.size() != EVP_AEAD_key_length(impl))
+            if (key.size() != EVP_AEAD_key_length(algorithm))
             {
-                BOOST_THROW_EXCEPTION(invalid_argument{}
-                    << errinfo_param_name{ "key" }
-                    << errinfo_param_misuse_description{ "invalid key size" }
-                    << errinfo_api_function{ "EVP_AEAD_key_length" }
-                );
+                return errc::invalid_argument;
             }
 
-            if (!EVP_AEAD_CTX_init(&mCtx, impl,
-                    reinterpret_cast<const uint8_t *>(key.data()), key.size(),
-                    EVP_AEAD_DEFAULT_TAG_LENGTH, nullptr))
+            boringssl_aead ctx;
+            if (!EVP_AEAD_CTX_init(&ctx.mCtx, algorithm,
+                reinterpret_cast<const uint8_t *>(key.data()), key.size(),
+                EVP_AEAD_DEFAULT_TAG_LENGTH, nullptr))
             {
-                BOOST_THROW_EXCEPTION(openssl_api_error{}
-                    << errinfo_api_function{ "EVP_AEAD_CTX_init" }
-                    << make_openssl_errinfo()
-                );
+                return errc::bad
+                    << ed::error_code_api_origin{ "EVP_AEAD_CTX_init"sv }
+                    << make_openssl_errinfo();
             }
+            return std::move(ctx);
         }
         ~boringssl_aead()
         {
@@ -111,25 +102,12 @@ namespace vefs::crypto::detail
             EVP_AEAD_CTX_cleanup(&mCtx);
         }
 
-        std::size_t max_overhead() const
-        {
-            return EVP_AEAD_max_overhead(EVP_AEAD_CTX_aead(&mCtx));
-        }
-        static std::size_t max_overhead(scheme algorithm)
-        {
-            return EVP_AEAD_max_overhead(to_impl(algorithm));
-        }
-        std::size_t nonce_size() const
-        {
-            return EVP_AEAD_nonce_length(EVP_AEAD_CTX_aead(&mCtx));
-        }
-        static std::size_t nonce_size(scheme algorithm)
-        {
-            return EVP_AEAD_nonce_length(to_impl(algorithm));
-        }
 
-        void seal(blob out, blob &outTag, blob_view nonce, blob_view plain, blob_view ad = blob_view{}) const
+        result<void> seal(blob out, blob &outTag, blob_view nonce, blob_view plain, blob_view ad = blob_view{}) const
         {
+            using namespace std::string_view_literals;
+
+            // narrow contract violations
             if (!out)
             {
                 BOOST_THROW_EXCEPTION(invalid_argument{}
@@ -178,16 +156,18 @@ namespace vefs::crypto::detail
                 reinterpret_cast<const uint8_t *>(ad.data()), ad.size()
                 ))
             {
-                BOOST_THROW_EXCEPTION(openssl_api_error{}
-                    << errinfo_api_function{ "EVP_AEAD_CTX_seal_scatter" }
-                    << make_openssl_errinfo()
-                );
+                // #TODO appropriately wrap the boringssl packed error
+                return error{ errc::bad }
+                    << ed::error_code_api_origin{ "EVP_AEAD_CTX_seal_scatter"sv }
+                    << make_openssl_errinfo();
             }
 
             outTag = outTag.slice(0, outTagLen);
+
+            return outcome::success();
         }
 
-        bool open(blob out, blob_view nonce, blob_view ciphertext, blob_view authTag, blob_view ad = blob_view{})
+        result<void> open(blob out, blob_view nonce, blob_view ciphertext, blob_view authTag, blob_view ad = blob_view{})
         {
             if (!out)
             {
@@ -237,13 +217,22 @@ namespace vefs::crypto::detail
                 {
                     ERR_clear_error();
                     // parameters etc. were formally correct, but the message is _bad_
-                    return false;
+                    return archive_errc::tag_mismatch;
                 }
-                BOOST_THROW_EXCEPTION(openssl_api_error{}
-                    << errinfo_api_function{ "failed to open a msg for an unexpected reason" }
-                    << make_openssl_errinfo());
+                return error{ errc::bad }
+                    << ed::error_code_api_origin{ "EVP_AEAD_CTX_open_gather" }
+                    << make_openssl_errinfo();
             }
-            return true;
+            return outcome::success();
+        }
+
+        friend std::size_t max_overhead(const boringssl_aead &ctx)
+        {
+            return EVP_AEAD_max_overhead(EVP_AEAD_CTX_aead(&ctx.mCtx));
+        }
+        friend std::size_t nonce_size(const boringssl_aead &ctx)
+        {
+            return EVP_AEAD_nonce_length(EVP_AEAD_CTX_aead(&ctx.mCtx));
         }
 
     private:

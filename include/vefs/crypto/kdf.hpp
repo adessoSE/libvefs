@@ -2,41 +2,31 @@
 
 #include <cstddef>
 
-#include <vector>
+#include <array>
 #include <type_traits>
 #include <initializer_list>
 
 #include <vefs/blob.hpp>
+#include <vefs/disappointment.hpp>
 #include <vefs/utils/secure_array.hpp>
 
 namespace vefs::crypto
 {
-    void kdf(blob_view key, const std::vector<blob_view> &domain, blob outputPRK);
-    void kdf(blob_view key, std::initializer_list<blob_view> domain, blob outputPRK);
-    void kdf(blob_view key, blob_view domain, blob outputPRK);
-
-    template <typename... Args>
-    std::vector<std::byte> kdf(Args... args, std::size_t outputPRKSize)
+    namespace detal
     {
-        std::vector<std::byte> prk(outputPRKSize);
-        kdf(std::forward<Args>(args)..., blob{ prk });
-        return prk;
+        result<void> kdf_impl(blob prk, blob_view inputKey, blob_view *domainIt, blob_view *domainEnd) noexcept;
     }
 
-    template <std::size_t PrkSize,  typename... Args>
-    utils::secure_byte_array<PrkSize> kdf(Args... args)
-    {
-        utils::secure_byte_array<PrkSize> prk;
-        kdf(std::forward<Args>(args)..., blob{ prk });
-        return prk;
-    }
+    result<void> kdf(blob prk, blob_view inputKey, blob_view domain) noexcept;
 
-    template <std::size_t PrkSize>
-    utils::secure_byte_array<PrkSize> kdf(blob_view key, std::initializer_list<blob_view> domain)
+    template <typename... DomainParts>
+    result<void> kdf(blob prk, blob_view inputKey, const DomainParts &... parts)
     {
-        utils::secure_byte_array<PrkSize> prk;
-        kdf(key, domain, blob{ prk });
-        return prk;
+        std::array<blob_view, sizeof...(DomainParts)> lparts{ blob_view(parts)... };
+        auto begin = lparts.data();
+        auto end = begin + lparts.size();
+
+        return detal::kdf_impl(prk, inputKey, begin, end);
     }
 }
 

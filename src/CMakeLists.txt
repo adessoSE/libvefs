@@ -136,6 +136,7 @@ DEF_SOURCE_GROUP(vefs "crypto"
 
         ct_compare.hpp
 
+        blake2.cpp
         blake2.hpp
         boringssl_aead.hpp
 

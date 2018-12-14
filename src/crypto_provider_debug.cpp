@@ -11,20 +11,31 @@ namespace vefs::crypto::detail
     class debug_crypto_provider
         : public crypto_provider
     {
-        virtual void box_seal(blob ciphertext, blob mac, blob_view plaintext,
-            key_provider_fn keyProvider) const override;
+        result<void> box_seal(blob ciphertext, blob mac, blob_view keyMaterial,
+            blob_view plaintext) const noexcept override;
 
-        virtual bool box_open(blob plaintext, blob_view ciphertext, blob_view mac,
-            key_provider_fn keyProvider) const override;
+        result<void> box_open(blob plaintext, blob_view keyMaterial, blob_view ciphertext,
+            blob_view mac) const noexcept override;
 
-        virtual utils::secure_byte_array<16> generate_session_salt() const override;
+        utils::secure_byte_array<16> generate_session_salt() const override;
 
-        virtual void random_bytes(blob out) const override;
+        result<void> random_bytes(blob out) const noexcept override;
 
-        virtual int ct_compare(blob_view l, blob_view r) const override;
+        result<int> ct_compare(blob_view l, blob_view r) const noexcept override;
+
+    public:
+        static constexpr std::size_t key_material_size = blake2b::max_key_bytes;
+
+        constexpr debug_crypto_provider();
     };
 
-    void debug_crypto_provider::box_seal(blob ciphertext, blob mac, blob_view plaintext, key_provider_fn keyProvider) const
+    constexpr debug_crypto_provider::debug_crypto_provider()
+        : crypto_provider(debug_crypto_provider::key_material_size)
+    {
+    }
+
+    result<void> debug_crypto_provider::box_seal(blob ciphertext, blob mac, blob_view keyMaterial,
+        blob_view plaintext) const noexcept
     {
         //TODO: check whether buffers alias
 
@@ -33,48 +44,48 @@ namespace vefs::crypto::detail
             plaintext.copy_to(ciphertext);
         }
 
-        utils::secure_byte_array<blake2b::max_key_bytes> keyMem;
-        blob key{ keyMem };
-        keyProvider(key);
+        blake2b blakeCtx{};
+        OUTCOME_TRY(blakeCtx.init(std::min(mac.size(), blake2b::digest_bytes), keyMaterial,
+            vefs_blake2b_personalization_view));
 
-        blake2b blakeCtx{ std::min(mac.size(), blake2b::digest_bytes), key,
-            vefs_blake2b_personalization_view };
+        OUTCOME_TRY(blakeCtx.update(ciphertext));
+        OUTCOME_TRY(blakeCtx.final(mac.slice(0, blake2b::digest_bytes)));
 
-        blakeCtx.update(ciphertext)
-            .final(mac.slice(0, blake2b::digest_bytes));
         if (mac.size() > blake2b::digest_bytes)
         {
             utils::secure_memzero(mac.slice(blake2b::digest_bytes));
         }
+
+        return outcome::success();
     }
 
-    bool debug_crypto_provider::box_open(blob plaintext, blob_view ciphertext, blob_view mac, key_provider_fn keyProvider) const
+    result<void> debug_crypto_provider::box_open(blob plaintext, blob_view keyMaterial,
+        blob_view ciphertext, blob_view mac) const noexcept
     {
         //TODO: check whether buffers alias
 
-        utils::secure_byte_array<blake2b::max_key_bytes> keyMem;
-        blob key{ keyMem };
-        keyProvider(key);
+        blake2b blakeCtx{};
+        OUTCOME_TRY(blakeCtx.init(std::min(mac.size(), blake2b::digest_bytes), keyMaterial,
+            vefs_blake2b_personalization_view));
 
-        blake2b blakeCtx{ std::min(mac.size(), blake2b::digest_bytes), key,
-            vefs_blake2b_personalization_view };
+        OUTCOME_TRY(blakeCtx.update(ciphertext));
 
         std::vector<std::byte> cpMacMem{ mac.size(), std::byte{} };
         blob cpMac{ cpMacMem };
 
-        blakeCtx.update(ciphertext)
-            .final(cpMac.slice(0, blake2b::digest_bytes));
+        OUTCOME_TRY(blakeCtx.final(cpMac.slice(0, blake2b::digest_bytes)));
 
-        auto success = equal(cpMac, mac);
-        if (!success)
+        OUTCOME_TRYA(cmp, ct_compare(cpMac, mac));
+        if (cmp != 0)
         {
             utils::secure_memzero(plaintext);
+            return errc::bad; // #TODO replace with correct failure code
         }
         else if (ciphertext.data() != plaintext.data())
         {
             ciphertext.copy_to(plaintext);
         }
-        return success;
+        return outcome::success();
     }
 
     vefs::utils::secure_byte_array<16> debug_crypto_provider::generate_session_salt() const
@@ -82,12 +93,13 @@ namespace vefs::crypto::detail
         return {};
     }
 
-    void debug_crypto_provider::random_bytes(blob out) const
+    result<void> debug_crypto_provider::random_bytes(blob out) const noexcept
     {
         utils::secure_memzero(out);
+        return outcome::success();
     }
 
-    int debug_crypto_provider::ct_compare(blob_view l, blob_view r) const
+    result<int> debug_crypto_provider::ct_compare(blob_view l, blob_view r) const noexcept
     {
         return ::vefs::crypto::detail::ct_compare(l, r);
     }

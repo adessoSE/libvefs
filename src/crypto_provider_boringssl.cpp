@@ -15,54 +15,60 @@ namespace vefs::crypto::detail
     class boringssl_aes_256_gcm_provider
         : public crypto_provider
     {
-        static constexpr auto scheme = boringssl_aead::scheme::aes_256_gcm;
+        result<void> box_seal(blob ciphertext, blob mac, blob_view keyMaterial,
+            blob_view plaintext) const noexcept override;
 
-        virtual void box_seal(blob ciphertext, blob mac, blob_view plaintext,
-            key_provider_fn keyProvider) const override;
-        virtual bool box_open(blob plaintext, blob_view ciphertext, blob_view mac,
-            key_provider_fn keyProvider) const override;
+        result<void> box_open(blob plaintext, blob_view keyMaterial, blob_view ciphertext,
+            blob_view mac) const noexcept override;
 
-        virtual utils::secure_byte_array<16> generate_session_salt() const override;
-        virtual void random_bytes(blob out) const override;
-        virtual int ct_compare(blob_view l, blob_view r) const override;
+        utils::secure_byte_array<16> generate_session_salt() const override;
+
+        result<void> random_bytes(blob out) const noexcept override;
+
+        result<int> ct_compare(blob_view l, blob_view r) const noexcept override;
+
+    public:
+        static constexpr std::size_t key_material_size = 32 + 12;
+
+        constexpr boringssl_aes_256_gcm_provider()
+            : crypto_provider(boringssl_aes_256_gcm_provider::key_material_size)
+        {
+        }
     };
 
-    void boringssl_aes_256_gcm_provider::box_seal(blob ciphertext, blob mac, blob_view plaintext, key_provider_fn keyProvider) const
+    result<void> boringssl_aes_256_gcm_provider::box_seal(blob ciphertext, blob mac,
+        blob_view keyMaterial, blob_view plaintext) const noexcept
     {
-        utils::secure_byte_array<44> prkMem;
-        blob prk{ prkMem };
-        keyProvider(prk);
+        OUTCOME_TRYA(aead, boringssl_aead::create(keyMaterial.slice(0, 32)));
 
-        boringssl_aead aead{ prk.slice(0, 32), scheme };
-
-        aead.seal(ciphertext, mac, prk.slice(32, 12), plaintext);
+        return aead.seal(ciphertext, mac, keyMaterial.slice(32, 12), plaintext);
     }
 
-    bool boringssl_aes_256_gcm_provider::box_open(blob plaintext, blob_view ciphertext, blob_view mac, key_provider_fn keyProvider) const
+    result<void> boringssl_aes_256_gcm_provider::box_open(blob plaintext, blob_view keyMaterial,
+        blob_view ciphertext, blob_view mac) const noexcept
     {
-        utils::secure_byte_array<44> prkMem;
-        blob prk{ prkMem };
-        keyProvider(prk);
+        OUTCOME_TRYA(aead, boringssl_aead::create(keyMaterial.slice(0, 32)));
 
-        boringssl_aead aead{ prk.slice(0, 32), scheme };
-
-        return aead.open(plaintext, prk.slice(32, 12), ciphertext, mac);
+        return aead.open(plaintext, keyMaterial.slice(32, 12), ciphertext, mac);
     }
 
     vefs::utils::secure_byte_array<16> boringssl_aes_256_gcm_provider::generate_session_salt() const
     {
         using vefs::detail::random_bytes;
         utils::secure_byte_array<16> salt;
-        random_bytes(blob{ salt });
+        if (auto r = random_bytes(blob{ salt }); r.has_error())
+        {
+            throw error_exception{ r.error() };
+        }
         return salt;
     }
 
-    void boringssl_aes_256_gcm_provider::random_bytes(blob out) const
+    result<void> boringssl_aes_256_gcm_provider::random_bytes(blob out) const noexcept
     {
-        vefs::detail::random_bytes(out);
+        return vefs::detail::random_bytes(out);
     }
 
-    int boringssl_aes_256_gcm_provider::ct_compare(blob_view l, blob_view r) const
+    result<int> boringssl_aes_256_gcm_provider::ct_compare(blob_view l, blob_view r) const noexcept
     {
         return ::vefs::crypto::detail::ct_compare(l, r);
     }

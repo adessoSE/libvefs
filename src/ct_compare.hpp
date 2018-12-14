@@ -7,19 +7,16 @@
 #include <type_traits>
 
 #include <vefs/blob.hpp>
+#include <vefs/disappointment.hpp>
 
 namespace vefs::crypto::detail
 {
     // compares two little endian big nums in constant time
-    inline int ct_compare(blob_view l, blob_view r)
+    inline result<int> ct_compare(blob_view l, blob_view r) noexcept
     {
-        if (l.size() != r.size())
+        if (l.size() != r.size() || !l || !r)
         {
-            BOOST_THROW_EXCEPTION(std::invalid_argument{ "ct_compare requires the blobs to be the same size" });
-        }
-        if (!l || !r)
-        {
-            BOOST_THROW_EXCEPTION(std::invalid_argument{ "ct_compare requires both blobs to return a non nullptr" });
+            return errc::invalid_argument;
         }
 
         unsigned int gt = 0;
