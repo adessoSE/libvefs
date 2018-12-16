@@ -4,6 +4,7 @@
 #include <memory>
 
 #include <vefs/blob.hpp>
+#include <vefs/disappointment.hpp>
 #include <vefs/filesystem.hpp>
 
 #include <vefs/utils/secure_array.hpp>
@@ -11,6 +12,11 @@
 #include <vefs/crypto/counter.hpp>
 
 #include <vefs/detail/sector_id.hpp>
+
+namespace adesso::vefs
+{
+    class ArchiveHeader;
+}
 
 namespace vefs::detail
 {
@@ -30,26 +36,31 @@ namespace vefs::detail
         static constexpr size_t sector_size = 1 << 15;
         static constexpr size_t sector_payload_size = sector_size - (1 << 5);
 
-        std::uint64_t to_offset(sector_id id);
+        static constexpr auto to_offset(sector_id id) -> std::uint64_t;
+
+        static auto open(filesystem::ptr fs, std::string_view path,
+            crypto::crypto_provider *cryptoProvider, blob_view userPRK,
+            file_open_mode_bitset openMode)
+            -> result<std::unique_ptr<raw_archive>>;
 
         raw_archive(file::ptr archiveFile, crypto::crypto_provider *cryptoProvider, blob_view userPRK);
         raw_archive(file::ptr archiveFile, crypto::crypto_provider *cryptoProvider, blob_view userPRK,
             create_tag);
-        ~raw_archive();
+        ~raw_archive() = default;
 
-        void read_sector(blob buffer, const basic_archive_file_meta &file, sector_id sectorIdx,
-                         blob_view contentMAC);
-        void write_sector(blob ciphertextBuffer, blob mac, basic_archive_file_meta &file,
-                          sector_id sectorIdx, blob_view data);
-        void erase_sector(basic_archive_file_meta &file, sector_id sectorIdx);
+        result<void> read_sector(blob buffer, const basic_archive_file_meta &file,
+            sector_id sectorIdx, blob_view contentMAC);
+        result<void> write_sector(blob ciphertextBuffer, blob mac,
+            basic_archive_file_meta &file, sector_id sectorIdx, blob_view data);
+        result<void> erase_sector(basic_archive_file_meta &file, sector_id sectorIdx);
 
-        void update_header();
-        void update_static_header(blob_view newUserPRK);
+        result<void> update_header();
+        result<void> update_static_header(blob_view newUserPRK);
 
         // numSectors = number of sectors (i.e. including the master sector)
-        void resize(std::uint64_t numSectors);
+        result<void> resize(std::uint64_t numSectors);
         std::uint64_t size() const;
-        void sync();
+        result<void> sync();
 
         basic_archive_file_meta & index_file();
         basic_archive_file_meta & free_sector_index_file();
@@ -62,23 +73,20 @@ namespace vefs::detail
         crypto::atomic_counter & master_secret_counter();
         crypto::atomic_counter & journal_counter();
 
-        std::unique_ptr<basic_archive_file_meta> create_file();
+        result<std::unique_ptr<basic_archive_file_meta>> create_file();
 
     private:
         raw_archive(file::ptr archiveFile, crypto::crypto_provider *cryptoProvider);
 
-        void parse_static_archive_header(blob_view userPRK);
-        void parse_archive_header();
-        auto parse_archive_header(std::size_t position, std::size_t size);
+        result<void> parse_static_archive_header(blob_view userPRK);
+        result<void> parse_archive_header();
+        result<void> parse_archive_header(std::size_t position, std::size_t size,
+            adesso::vefs::ArchiveHeader &out);
 
-        void write_static_archive_header(blob_view userPRK);
+        result<void> write_static_archive_header(blob_view userPRK);
 
-        void initialize_file(basic_archive_file_meta &file);
+        result<void> initialize_file(basic_archive_file_meta &file);
 
-        void encrypt_sector(blob saltBuffer, blob ciphertextBuffer, blob mac, blob_view data,
-                            blob_view fileKey, crypto::atomic_counter & nonceCtr);
-
-        void write_sector_data(sector_id sectorIdx, blob_view sectorSalt, blob_view ciphertextBuffer);
 
         auto header_size(header_id which) const noexcept;
         auto header_offset(header_id which) const noexcept;
@@ -101,17 +109,28 @@ namespace vefs::detail
         size_t mArchiveHeaderOffset;
         header_id mHeaderSelector;
     };
+    static_assert(!std::is_default_constructible_v<raw_archive>);
+    static_assert(!std::is_copy_constructible_v<raw_archive>);
+    static_assert(!std::is_copy_assignable_v<raw_archive>);
+    static_assert(!std::is_move_constructible_v<raw_archive>);
+    static_assert(!std::is_move_assignable_v<raw_archive>);
 
-    inline std::uint64_t raw_archive::to_offset(sector_id id)
+    constexpr std::uint64_t raw_archive::to_offset(sector_id id)
     {
-        return static_cast<std::uint64_t>(id) << 15;
+        return static_cast<std::uint64_t>(id) * sector_size;
     }
 
-    inline void vefs::detail::raw_archive::resize(std::uint64_t numSectors)
+    inline result<void> vefs::detail::raw_archive::resize(std::uint64_t numSectors)
     {
-        mArchiveFile->resize(numSectors * sector_size);
+        std::error_code scode;
+        mArchiveFile->resize(numSectors * sector_size, scode);
+        if (scode)
+        {
+            return error{ scode };
+        }
         mNumSectors = numSectors;
-    }
+        return outcome::success();
+     }
     inline std::uint64_t raw_archive::size() const
     {
         return mNumSectors.load();

@@ -178,8 +178,9 @@ namespace vefs
     {
         using namespace std::string_view_literals;
 
+        const archive_errc code{ value };
 
-        switch (const archive_errc code{ value }; code)
+        switch (code)
         {
         case vefs::archive_errc::invalid_prefix:
             return "the magic number at the beginning of the archive didn't match"sv;
@@ -210,6 +211,9 @@ namespace vefs
 
         case vefs::archive_errc::free_sector_index_invalid_size:
             return "the free sector index has an invalid size"sv;
+
+        case archive_errc::unknown_format_version:
+            return "the given archive file is of an unknown version and therefore has an incompatible binary layout"sv;
 
         default:
             return "unknown vefs archive error code"sv;

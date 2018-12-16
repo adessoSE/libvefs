@@ -16,6 +16,7 @@ namespace vefs
         sector_reference_out_of_range,
         corrupt_index_entry,
         free_sector_index_invalid_size,
+        unknown_format_version,
     };
     const error_domain & archive_domain() noexcept;
 
