@@ -15,17 +15,40 @@ namespace vefs
         , public archive::file
     {
     public:
-        internal_file(archive &owner, detail::basic_archive_file_meta &meta, file_events &hooks);
-        internal_file(archive &owner, detail::basic_archive_file_meta &meta,
-            file_events &hooks, create_tag);
-
         void dispose();
 
     protected:
+        internal_file(archive &owner, detail::basic_archive_file_meta &meta, file_events &hooks);
+        template <typename T>
+        static auto open(archive &owner, detail::basic_archive_file_meta &meta)
+            -> result<std::shared_ptr<T>>;
+        template <typename T>
+        static auto create_new(archive &owner, detail::basic_archive_file_meta &meta)
+            -> result<std::shared_ptr<T>>;
+
         void on_dirty_sector(block_pool_t::handle sector);
 
     private:
         std::shared_mutex mLifetimeSync;
         bool mDisposed;
     };
+
+    template<typename T>
+    inline auto archive::internal_file::open(archive & owner, detail::basic_archive_file_meta & meta)
+        -> result<std::shared_ptr<T>>
+    {
+        auto self = std::make_shared<T>(owner, meta);
+        OUTCOME_TRY(self->parse_content());
+
+        return std::move(self);
+    }
+    template<typename T>
+    inline auto archive::internal_file::create_new(archive & owner, detail::basic_archive_file_meta & meta)
+        -> result<std::shared_ptr<T>>
+    {
+        auto self = std::make_shared<T>(owner, meta);
+        OUTCOME_TRY(self->create_self());
+
+        return std::move(self);
+    }
 }

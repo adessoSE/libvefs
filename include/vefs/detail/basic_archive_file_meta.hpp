@@ -59,6 +59,7 @@ namespace vefs::detail
         other.write_counter.store(crypto::counter{});
         other.start_block_idx = sector_id::master;
         other.start_block_mac = {};
+        other.id = {};
         other.size = 0;
         other.tree_depth = -1;
     }

@@ -26,62 +26,30 @@ namespace vefs
         , mFreeBlockSync{}
         , mFreeBlockMap{}
     {
-        using detail::sector_id;
-
-        if (mData.size % sizeof(RawFreeSectorRange) != 0)
-        {
-            BOOST_THROW_EXCEPTION(archive_corrupted{}
-                << errinfo_code{ archive_error_code::free_sector_index_invalid_size }
-            );
-        }
-
-        std::lock_guard<std::mutex> freeSectorLock{ mFreeBlockSync };
-        tree_position it{ 0 };
-
-        for (std::uint64_t consumed = 0; consumed < mData.size; )
-        {
-            auto sector = access(it);
-            it.position(it.position() + 1);
-
-            auto sectorBlob = sector->data_view();
-            if (mData.size - consumed < detail::raw_archive::sector_payload_size)
-            {
-                sectorBlob.slice(0, static_cast<std::size_t>(mData.size - consumed));
-            }
-            consumed += sectorBlob.size();
-
-            while (sectorBlob)
-            {
-                auto &freeSectorRange = sectorBlob.pop_front_as<RawFreeSectorRange>();
-                if (freeSectorRange.start_sector == sector_id::master)
-                {
-                    continue;
-                }
-
-                auto sectorId = static_cast<std::uint64_t>(freeSectorRange.start_sector);
-
-                auto offset = freeSectorRange.num_sectors - 1;
-                auto lastSector = sector_id{ sectorId + offset };
-
-                mFreeBlockMap.emplace_hint(mFreeBlockMap.cend(), lastSector, offset);
-            }
-        }
     }
-    archive::free_block_list_file::free_block_list_file(archive &owner,
-        detail::basic_archive_file_meta &meta, create_tag)
-        : file_events{}
-        , archive::internal_file{ owner, meta, *this }
-        , mFreeBlockSync{}
-        , mFreeBlockMap{}
-    {
-        tree_position rootPos{ 0 };
-        auto physId = alloc_sector();
-        auto entry = mCachedBlocks->access(rootPos, sector::handle{}, rootPos, physId);
-        std::get<sector::handle>(entry).mark_dirty();
 
-        mData.start_block_idx = physId;
-        mData.start_block_mac = {};
-        mData.tree_depth = 0;
+    auto archive::free_block_list_file::open(archive & owner, detail::basic_archive_file_meta &meta)
+        -> result<std::shared_ptr<free_block_list_file>>
+    {
+        return internal_file::open<free_block_list_file>(owner, meta);
+    }
+
+    auto archive::free_block_list_file::create_new(archive & owner, detail::basic_archive_file_meta &meta)
+        -> result<std::shared_ptr<free_block_list_file>>
+    {
+        auto self = std::make_shared<free_block_list_file>(owner, meta);
+
+        tree_position rootPos{ 0 };
+        auto physId = self->alloc_sector();
+        OUTCOME_TRY(entry,
+            self->mCachedBlocks->access_w_inplace_ctor(rootPos, sector::handle{}, rootPos, physId));
+        entry.mark_dirty();
+
+        self->mData.start_block_idx = physId;
+        self->mData.start_block_mac = {};
+        self->mData.tree_depth = 0;
+
+        return std::move(self);
     }
 
     std::vector<detail::sector_id> archive::free_block_list_file::alloc_sectors(unsigned int num)
@@ -227,6 +195,46 @@ namespace vefs
         }
 
         internal_file::sync();
+    }
+
+    auto vefs::archive::free_block_list_file::parse_content()
+        -> result<void>
+    {
+        using detail::sector_id;
+
+        if (mData.size % sizeof(RawFreeSectorRange) != 0)
+        {
+            return archive_errc::free_sector_index_invalid_size;
+        }
+
+        std::lock_guard<std::mutex> freeSectorLock{ mFreeBlockSync };
+        tree_position it{ 0 };
+
+        for (std::uint64_t consumed = 0; consumed < mData.size; )
+        {
+            OUTCOME_TRY(sectorHandle, access(it));
+            it.position(it.position() + 1);
+
+            auto sectorBlob = sectorHandle->data_view()
+                .slice(0, static_cast<std::size_t>(mData.size - consumed));
+            consumed += sectorBlob.size();
+
+            while (sectorBlob)
+            {
+                auto &freeSectorRange = sectorBlob.pop_front_as<RawFreeSectorRange>();
+                if (freeSectorRange.start_sector == sector_id::master)
+                {
+                    continue;
+                }
+
+                auto sectorId = static_cast<std::uint64_t>(freeSectorRange.start_sector);
+
+                auto offset = freeSectorRange.num_sectors - 1;
+                auto lastSector = sector_id{ sectorId + offset };
+
+                mFreeBlockMap.emplace_hint(mFreeBlockMap.cend(), lastSector, offset);
+            }
+        }
     }
 
     auto archive::free_block_list_file::grow_owner_impl(unsigned int num)

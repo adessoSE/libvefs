@@ -13,14 +13,6 @@ namespace vefs
         , mDisposed{ false }
     {
     }
-    archive::internal_file::internal_file(archive & owner,
-        detail::basic_archive_file_meta & meta, file_events &hooks, create_tag)
-        : std::enable_shared_from_this<archive::internal_file>{}
-        , archive::file{ owner, meta, hooks, create_tag{} }
-        , mLifetimeSync{}
-        , mDisposed{ false }
-    {
-    }
 
     void archive::internal_file::dispose()
     {

@@ -15,8 +15,10 @@ namespace vefs
         incompatible_proto,
         sector_reference_out_of_range,
         corrupt_index_entry,
+        index_entry_spanning_blocks,
         free_sector_index_invalid_size,
         unknown_format_version,
+        no_such_file,
     };
     const error_domain & archive_domain() noexcept;
 

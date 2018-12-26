@@ -34,13 +34,28 @@ using namespace vefs::detail;
 
 namespace vefs
 {
+    archive::file * deref(const archive::file_handle &handle)
+    {
+        assert(handle);
+        return handle.mData->mWorkingSet.load(std::memory_order_acquire);
+    }
 
     archive::archive()
         : mWorkTracker{ &thread_pool::shared() }
     {
     }
 
-    archive::archive(filesystem::ptr fs, std::string_view archivePath,
+	auto archive::open(filesystem::ptr fs, std::string_view archivePath,
+        crypto::crypto_provider * cryptoProvider, blob_view userPRK, file_open_mode_bitset openMode)
+        -> result<std::unique_ptr<archive>>
+	{
+        OUTCOME_TRY(primitives,
+            raw_archive::open(fs, archivePath, cryptoProvider, userPRK, openMode));
+
+
+	}
+
+	archive::archive(filesystem::ptr fs, std::string_view archivePath,
         crypto::crypto_provider *cryptoProvider, blob_view userPRK)
         : archive()
     {
@@ -60,7 +75,7 @@ namespace vefs
         }
         try
         {
-            mArchiveIndexFile = index_file::create(*this, mArchive->index_file());
+            mArchiveIndexFile = index_file::open(*this, mArchive->index_file());
         }
         catch (const boost::exception &exc)
         {
@@ -79,7 +94,7 @@ namespace vefs
 
         mFreeBlockIndexFile = free_block_list_file::create(*this,
             mArchive->free_sector_index_file(), create);
-        mArchiveIndexFile = index_file::create(*this, mArchive->index_file(), create);
+        mArchiveIndexFile = index_file::create_new(*this, mArchive->index_file(), create);
     }
 
     archive::~archive()

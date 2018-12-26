@@ -46,6 +46,19 @@ namespace vefs::detail
         const blob_view file_kdf_secret = "vefs/seed/FileSecret"_bv;
         const blob_view file_kdf_counter = "vefs/seed/FileSecretCounter"_bv;
 
+        thread_local utils::xoroshiro128plus fileid_prng = []()
+        {
+            std::array<std::uint64_t, 2> randomState;
+            auto rx = random_bytes(as_blob(randomState));
+            if (!rx)
+            {
+                throw error_exception{ rx.assume_error() };
+            }
+
+            return xoroshiro128plus{ randomState[0], randomState[1] };
+        }();
+        thread_local boost::uuids::basic_random_generator generate_fileid{ fileid_prng };
+
 #pragma pack(push, 1)
 
         struct StaticArchiveHeaderPrefix
@@ -95,30 +108,14 @@ namespace vefs::detail
         return outcome::success();
     }
 
-    result<std::unique_ptr<basic_archive_file_meta>> raw_archive::create_file()
+    auto raw_archive::create_file() noexcept
+        -> result<basic_archive_file_meta>
     {
-        using vefs::utils::xoroshiro128plus;
-        using boost::uuids::basic_random_generator;
-        const static auto create_engine = []()
-        {
-            std::array<std::uint64_t, 2> randomState;
-            auto rx = random_bytes(as_blob(randomState));
-            if (!rx)
-            {
-                throw error_exception{ rx.assume_error() };
-            }
+        basic_archive_file_meta file;
 
-            return xoroshiro128plus{ randomState[0], randomState[1] };
-        };
+        file.id = file_id{ generate_fileid() };
 
-        thread_local xoroshiro128plus engine = create_engine();
-        thread_local basic_random_generator<decltype(engine)> generate_id{ engine };
-
-        auto file = std::make_unique<basic_archive_file_meta>();
-
-        file->id = file_id{ generate_id() };
-
-        OUTCOME_TRY(initialize_file(*file));
+        OUTCOME_TRY(initialize_file(file));
 
         return std::move(file);
     }

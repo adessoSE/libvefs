@@ -73,7 +73,8 @@ namespace vefs::detail
         crypto::atomic_counter & master_secret_counter();
         crypto::atomic_counter & journal_counter();
 
-        result<std::unique_ptr<basic_archive_file_meta>> create_file();
+        auto create_file() noexcept
+            -> result<basic_archive_file_meta>;
 
     private:
         raw_archive(file::ptr archiveFile, crypto::crypto_provider *cryptoProvider);

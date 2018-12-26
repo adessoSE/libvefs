@@ -29,8 +29,6 @@ namespace vefs
 
             inline sector(handle parent, tree_position position,
                 detail::sector_id sectorId) noexcept;
-            inline sector(file &owner, handle parent, tree_position position,
-                detail::sector_id sectorId, blob_view mac);
 
             inline detail::sector_id sector_id() const;
             inline tree_position position() const;
@@ -58,45 +56,46 @@ namespace vefs
         using block_pool_t = detail::cache<tree_position, sector, 1 << 6>;
 
     public:
-        using create_tag = archive::create_tag;
-        static constexpr create_tag create = archive::create;
-
         file(archive &owner, detail::basic_archive_file_meta &data, file_events &hooks);
-        file(archive &owner, detail::basic_archive_file_meta &data, file_events &hooks, create_tag);
         ~file();
 
-        sector::handle access(tree_position sectorPosition);
-        sector::handle access_or_append(tree_position position);
-        inline sector::handle try_access(tree_position key);
+        auto access(tree_position sectorPosition)
+            -> result<sector::handle>;
+        auto access_or_append(tree_position position)
+            -> result<sector::handle>;
+        auto try_access(tree_position key)
+            -> sector::handle;
 
-        void read(blob buffer, std::uint64_t readPos);
-        void write(blob_view data, std::uint64_t writePos);
+        result<void> read(blob buffer, std::uint64_t readPos);
+        result<void> write(blob_view data, std::uint64_t writePos);
         std::uint64_t write(sector::handle &sector, blob_view data, std::uint64_t offset);
 
         std::uint64_t size();
-        void resize(std::uint64_t size);
+        result<void> resize(std::uint64_t size);
 
-        void sync();
+        result<void> sync();
         //bool is_dirty();
 
-        void erase_self();
+        result<void> create_self();
+        result<void> erase_self();
 
         archive & owner_ref();
 
-        void write_sector_to_disk(sector::handle sector);
+        result<void> write_sector_to_disk(sector::handle sector);
 
-        std::unique_lock<std::shared_mutex> lock_integrity();
+        auto lock_integrity() -> std::unique_lock<std::shared_mutex>;
 
     protected:
         std::uint64_t write_no_lock(sector::handle &sector, blob_view data, std::uint64_t offset);
 
     private:
-        std::optional<file::sector::handle> access_impl(tree_position sectorPosition);
+        auto access_impl(tree_position sectorPosition)
+            -> result<sector::handle>;
 
         // the caller is required to hold the shrink lock during the grow_file() call
-        void grow_file(std::uint64_t size);
+        result<void> grow_file(std::uint64_t size);
         // the caller is required to uniquely lock the shrink mutex during the call
-        void shrink_file(const std::uint64_t size);
+        result<void> shrink_file(const std::uint64_t size);
 
 
         archive &mOwner;
@@ -131,7 +130,8 @@ namespace vefs
         return mOwner;
     }
 
-    inline archive::file::sector::handle archive::file::try_access(tree_position key)
+    inline auto archive::file::try_access(tree_position key)
+        -> file::sector::handle
     {
         return mCachedBlocks->try_access(key);
     }
@@ -150,12 +150,6 @@ namespace vefs
         , mParent{ std::move(parent) }
         , mBlockData{}
     {
-    }
-    inline archive::file::sector::sector(file &owner, handle parent,
-        detail::tree_position position, detail::sector_id sectorId, blob_view mac)
-        : sector{ std::move(parent), position, sectorId }
-    {
-        owner.mOwner.mArchive->read_sector(data(), owner.mData, sectorId, mac);
     }
 
     inline detail::sector_id archive::file::sector::sector_id() const

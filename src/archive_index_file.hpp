@@ -19,6 +19,8 @@ namespace vefs
         : private file_events
         , public archive::internal_file
     {
+        friend class internal_file;
+
         using index_t = utils::unordered_string_map_mt<detail::file_id>;
         using handle_map_t = utils::unordered_map_mt<detail::file_id, file_lookup_ptr>;
 
@@ -43,33 +45,41 @@ namespace vefs
 
     public:
         index_file(archive &owner, detail::basic_archive_file_meta &meta);
-        index_file(archive &owner, detail::basic_archive_file_meta &meta, create_tag);
 
-        template <typename... Args>
-        static inline std::shared_ptr<archive::index_file> create(Args &&... args);
+        static auto open(archive &owner, detail::basic_archive_file_meta &meta)
+            -> result<std::shared_ptr<archive::index_file>>;
+        static auto create_new(archive &owner, detail::basic_archive_file_meta &meta)
+            -> result<std::shared_ptr<archive::index_file>>;
 
         auto open(const std::string_view filePath, const file_open_mode_bitset mode)
-            -> file_handle;
-        void erase(std::string_view filePath);
+            -> result<file_handle>;
+        auto erase(std::string_view filePath)
+            -> result<void>;
 
-        auto query(const std::string_view filePath) -> std::optional<file_query_result>;
+        auto query(const std::string_view filePath)
+            -> result<file_query_result>;
 
-        auto sync(bool full) -> bool;
-        auto sync_open_files() -> bool;
+        auto sync(bool full)
+            -> result<bool>;
+        auto sync_open_files()
+            -> result<bool>;
         void notify_meta_update(file_lookup_ptr lookup, file *ws);
 
     private:
+
         virtual void on_sector_write_suggestion(sector_handle sector) override;
         virtual void on_root_sector_synced(detail::basic_archive_file_meta &rootMeta) override;
         virtual void on_sector_synced(detail::sector_id physId, blob_view mac) override;
 
-        void parse_content();
+        auto parse_content()
+            -> result<void>;
 
         void dealloc_blocks(int first, int num);
 
-        void write_blocks(int indexBlockPos, blob_view data, bool updateAllocMap);
+        auto write_blocks(int indexBlockPos, blob_view data, bool updateAllocMap)
+            -> result<void>;
         auto write_blocks_impl(int mIndexBlockPos, blob_view data, bool updateAllocMap)
-            -> std::optional<std::tuple<int, blob_view>>;
+            -> result<std::tuple<int, blob_view>>;
         void write_block_header(sector_handle handle);
 
         index_t mIndex;
@@ -78,10 +88,4 @@ namespace vefs
         utils::block_manager<std::uint64_t> mFreeBlocks;
         utils::dirt_flag mDirtFlag;
     };
-
-    template<typename ...Args>
-    inline std::shared_ptr<archive::index_file> archive::index_file::create(Args &&... args)
-    {
-        return std::make_shared<archive::index_file>(std::forward<Args>(args)...);
-    }
 }

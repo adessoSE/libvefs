@@ -9,6 +9,7 @@
 #include <type_traits>
 #include <condition_variable>
 
+#include <vefs/disappointment.hpp>
 #include <vefs/utils/allocator.hpp>
 #include <vefs/utils/pool_allocator.hpp>
 #include <vefs/utils/unordered_map_mt.hpp>
@@ -35,7 +36,7 @@ namespace vefs::detail
             , mControl{ nullptr }
         {
         }
-        inline cache_handle(const cache_handle &other)
+        inline cache_handle(const cache_handle &other) noexcept
             : mData{ other.mData }
             , mControl{ other.mControl }
         {
@@ -59,7 +60,7 @@ namespace vefs::detail
             }
         }
 
-        inline cache_handle & operator=(const cache_handle &other)
+        inline cache_handle & operator=(const cache_handle &other) noexcept
         {
             if (*this)
             {
@@ -174,17 +175,17 @@ namespace vefs::detail::detail
         static constexpr state_type SecondChanceBit = DirtyBit >> 1;
         static constexpr state_type RefMask = ~(TombstoneBit | DirtyBit | SecondChanceBit);
 
-        constexpr cache_entry()
+        constexpr cache_entry() noexcept
             : mEntryState(TombstoneBit)
             , mValuePtr(nullptr)
         {
         }
 
-        inline bool is_dead() const
+        inline bool is_dead() const noexcept
         {
             return mEntryState.load(std::memory_order_acquire) & TombstoneBit;
         }
-        inline replacement_result try_start_replace()
+        inline replacement_result try_start_replace() noexcept
         {
             if (mEntryState.fetch_and(~SecondChanceBit, std::memory_order_acq_rel)
                 & SecondChanceBit)
@@ -212,13 +213,13 @@ namespace vefs::detail::detail
                 ? replacement_result::was_dead
                 : replacement_result::was_alive;
         }
-        inline cache_handle<T> finish_replace(bool success)
+        inline cache_handle<T> finish_replace(bool success) noexcept
         {
             const auto val = success ? one : TombstoneBit;
             mEntryState.store(val, std::memory_order_release);
             return success ? cache_handle<T>{ *this } : cache_handle<T>{};
         }
-        inline cache_handle<T> try_acquire()
+        inline cache_handle<T> try_acquire() noexcept
         {
             if (try_add_reference())
             {
@@ -227,7 +228,7 @@ namespace vefs::detail::detail
             }
             return {};
         }
-        inline cache_handle<T> try_peek()
+        inline cache_handle<T> try_peek() noexcept
         {
             if (try_add_reference())
             {
@@ -236,29 +237,29 @@ namespace vefs::detail::detail
             return {};
         }
 
-        inline bool is_dirty() const
+        inline bool is_dirty() const noexcept
         {
             return mEntryState.load(std::memory_order_acquire) & DirtyBit;
         }
-        inline bool mark_dirty()
+        inline bool mark_dirty() noexcept
         {
             return mEntryState.fetch_or(DirtyBit, std::memory_order_acq_rel) & DirtyBit;
         }
-        inline bool mark_clean()
+        inline bool mark_clean() noexcept
         {
             return !(mEntryState.fetch_and(~DirtyBit, std::memory_order_acq_rel) & DirtyBit);
         }
-        inline void add_reference()
+        inline void add_reference() noexcept
         {
             mEntryState.fetch_add(1, std::memory_order_release);
         }
-        inline void release()
+        inline void release() noexcept
         {
             mEntryState.fetch_sub(1, std::memory_order_release);
         }
 
     private:
-        inline bool try_add_reference()
+        inline bool try_add_reference() noexcept
         {
             return !(mEntryState.fetch_add(1, std::memory_order_acq_rel) & TombstoneBit);
         }
@@ -381,7 +382,7 @@ namespace vefs::detail
         enum class preinit_storage_t {};
         static constexpr preinit_storage_t preinit_storage = preinit_storage_t{};
 
-        constexpr std::size_t derive_key_index_map_size(std::size_t limit)
+        static constexpr std::size_t derive_key_index_map_size(std::size_t limit)
         {
             return utils::div_ceil(utils::div_ceil(limit * 8, 5), 4) * 4;
         }
@@ -389,7 +390,7 @@ namespace vefs::detail
         inline cache(notify_dirty_fn fn)
             : mClockHand{ }
             , mNotifyDirty{ std::move(fn) }
-            , mKeyIndexMap{ derive_key_index_map_size(cacheLimit) }
+            , mKeyIndexMap{ derive_key_index_map_size(max_entries) }
             , mEntries{}
             , mIndexKeyMap{}
             , mLookupAllocator{}
@@ -459,7 +460,7 @@ namespace vefs::detail
                 case lookup_state::initializing:
                     lptr->ready_condition.wait(lock, [&lptr]()
                     {
-                        return lptr->state == lookup_state::initializing;
+                        return lptr->state != lookup_state::initializing;
                     });
                     if (lptr->state != lookup_state::alive)
                     {
@@ -476,12 +477,12 @@ namespace vefs::detail
             return {};
         }
 
-        template <typename... ConstructorArgs>
-        inline std::tuple<bool, handle> access(const key_type &key,
-            ConstructorArgs&&... ctorArgs)
+        template <typename Ctor>
+        inline auto access(const key_type &key, Ctor &&ctor, bool &inserted) noexcept(noexcept(ctor(std::declval<void *>())))
+            -> result<handle>
         {
-            bool inserted = false;
             lookup_ptr lptr;
+            inserted = false;
 
             // we first try to find the cached value in order to avoid any
             // memory allocations when we have a cache hit.
@@ -499,41 +500,49 @@ namespace vefs::detail
             // the initialization, otherwise we need to inspect the lookup state
             if (!inserted)
             {
-                std::unique_lock<std::mutex> guard{ lptr->sync };
+                std::unique_lock guard{ lptr->sync };
 
-                while (lptr->state == lookup_state::initializing)
+                lptr->ready_condition.wait(guard, [&lptr]()
                 {
-                    lptr->ready_condition.wait(guard);
-                }
+                    return lptr->state != lookup_state::initializing;
+                });
 
                 if (lptr->state == lookup_state::alive)
                 {
                     if (auto valueHandle = mEntries[lptr->index].try_acquire())
                     {
-                        return { true, std::move(valueHandle) };
+                        return std::move(valueHandle);
                     }
                 }
 
+                inserted = true;
                 lptr->state = lookup_state::initializing;
             }
 
+            bool failed = false;
             // if we fail, we inform someone about it
-            VEFS_ERROR_EXIT{
+            VEFS_SCOPE_EXIT{
+                if (failed)
                 {
-                    std::lock_guard<std::mutex> guard{ lptr->sync };
-                    lptr->index = lookup::invalid;
-                    lptr->state = lookup_state::failed;
+                    {
+                        std::lock_guard<std::mutex> guard{ lptr->sync };
+                        lptr->index = lookup::invalid;
+                        lptr->state = lookup_state::failed;
+                    }
+                    lptr->ready_condition.notify_one();
                 }
-                lptr->ready_condition.notify_one();
             };
 
             // it's our turn to insert the element
             auto[index, modus] = aquire_tile();
             auto &entry = mEntries[index];
 
-            VEFS_ERROR_EXIT{
-                // discard the empty handle while avoiding compiler warnings
-                [[maybe_unused]] auto _ = entry.finish_replace(false);
+            VEFS_SCOPE_EXIT{
+                if (failed)
+                {
+                    // discard the empty handle while avoiding compiler warnings
+                    (void)entry.finish_replace(false);
+                }
             };
 
             void *memptr;
@@ -560,7 +569,8 @@ namespace vefs::detail
 
                 if (!alloc)
                 {
-                    BOOST_THROW_EXCEPTION(std::bad_alloc{});
+                    failed = true;
+                    return errc::not_enough_memory;
                 }
 
                 // prevent the newly allocated memory from leaking in case of
@@ -570,8 +580,39 @@ namespace vefs::detail
                     std::memory_order_release);
             }
 
-            // might throw
-            auto ptr = new(memptr) T(std::forward<ConstructorArgs>(ctorArgs)...);
+            T *ptr;
+            if constexpr (noexcept(ctor(std::declval<void *>())))
+            {
+                if (auto constructionResult = ctor(memptr))
+                {
+                    ptr = constructionResult.assume_value();
+                }
+                else
+                {
+                    failed = true;
+                    return std::move(constructionResult).as_failure();
+                }
+            }
+            else
+            {
+                try
+                {
+                    if (auto constructionResult = ctor(memptr))
+                    {
+                        ptr = std::move(constructionResult).assume_value();
+                    }
+                    else
+                    {
+                        failed = true;
+                        return std::move(constructionResult).as_failure();
+                    }
+                }
+                catch (...)
+                {
+                    failed = true;
+                    throw;
+                }
+            }
 
             entry.mValuePtr.store(ptr, std::memory_order_release);
             mIndexKeyMap[index] = key;
@@ -584,11 +625,29 @@ namespace vefs::detail
             }
             lptr->ready_condition.notify_all();
 
-            return { false, valueHandle };
+            return std::move(valueHandle);
+        }
+
+        template <typename Ctor>
+        inline auto access(const key_type &key, Ctor &&ctor)
+            noexcept(noexcept(ctor(std::declval<void *>())))
+            -> result<handle>
+        {
+            bool temporary = false;
+            return access(key, std::forward<Ctor>(ctor), temporary);
+        }
+
+        template <typename... CtorArgs>
+        inline auto access_w_inplace_ctor(const key_type &key, CtorArgs&&... args)
+            noexcept(noexcept(T{ std::forward<CtorArgs>(args)... }))
+            -> result<handle>
+        {
+            return access(key, [&](void *mem) noexcept(noexcept(T{ std::forward<CtorArgs>(args)... }))
+                -> result<T *> { return new(mem) T(std::forward<CtorArgs>(args)...); });
         }
 
         template <typename Fn>
-        inline bool for_dirty(Fn &&fn)
+        inline auto for_dirty(Fn &&fn) -> result<bool>
         {
             bool anyDirty = false;
             for (auto &e : mEntries)
@@ -596,7 +655,7 @@ namespace vefs::detail
                 if (auto h = e.try_peek(); h && h.is_dirty())
                 {
                     anyDirty = true;
-                    fn(std::move(h));
+                    OUTCOME_TRY(fn(std::move(h)));
                 }
             }
             return anyDirty;

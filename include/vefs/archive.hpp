@@ -7,6 +7,7 @@
 
 #include <vefs/archive_fwd.hpp>
 #include <vefs/blob.hpp>
+#include <vefs/disappointment.hpp>
 #include <vefs/filesystem.hpp>
 #include <vefs/utils/ref_ptr.hpp>
 #include <vefs/utils/async_error_info.hpp>
@@ -60,12 +61,19 @@ namespace vefs
 
             inline explicit operator bool() const;
 
+            friend file * deref(const file_handle &) noexcept;
+
         private:
             void add_reference();
             void release();
 
             file_lookup *mData;
         };
+
+        static auto open(filesystem::ptr fs, std::string_view archivePath,
+            crypto::crypto_provider *cryptoProvider, blob_view userPRK,
+            file_open_mode_bitset openMode)
+            -> result<std::unique_ptr<archive>>;
 
         archive(filesystem::ptr fs, std::string_view archivePath,
             crypto::crypto_provider *cryptoProvider, blob_view userPRK);
