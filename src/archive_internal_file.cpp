@@ -29,7 +29,8 @@ namespace vefs
                 std::shared_lock<std::shared_mutex> lifetimeLock{ self->mLifetimeSync };
                 if (!self->mDisposed)
                 {
-                    self->write_sector_to_disk(std::move(sector));
+                    // #TODO #async error reporting for cache eviction write failure
+                    (void)self->write_sector_to_disk(std::move(sector));
                 }
             }
         });

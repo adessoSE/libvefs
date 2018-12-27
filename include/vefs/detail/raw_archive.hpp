@@ -121,7 +121,8 @@ namespace vefs::detail
         return static_cast<std::uint64_t>(id) * sector_size;
     }
 
-    inline result<void> vefs::detail::raw_archive::resize(std::uint64_t numSectors)
+    inline auto vefs::detail::raw_archive::resize(std::uint64_t numSectors)
+        -> result<void>
     {
         std::error_code scode;
         mArchiveFile->resize(numSectors * sector_size, scode);

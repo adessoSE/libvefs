@@ -40,7 +40,7 @@ namespace vefs
         auto self = std::make_shared<free_block_list_file>(owner, meta);
 
         tree_position rootPos{ 0 };
-        auto physId = self->alloc_sector();
+        OUTCOME_TRY(physId, self->alloc_sector());
         OUTCOME_TRY(entry,
             self->mCachedBlocks->access_w_inplace_ctor(rootPos, sector::handle{}, rootPos, physId));
         entry.mark_dirty();
@@ -52,40 +52,42 @@ namespace vefs
         return std::move(self);
     }
 
-    std::vector<detail::sector_id> archive::free_block_list_file::alloc_sectors(unsigned int num)
+    auto archive::free_block_list_file::alloc_sectors(basic_range<detail::sector_id> dest)
+        -> result<void>
     {
         using detail::sector_id;
+        if (!dest)
+        {
+            return outcome::success();
+        }
 
-        std::vector<sector_id> allocated;
-        allocated.reserve(num);
+        auto out = dest.data();
+        const auto end = out + dest.size();
 
         std::lock_guard<std::mutex> allocLock{ mFreeBlockSync };
 
-        VEFS_ERROR_EXIT{
-            try
-            {
-                dealloc_sectors_impl(std::move(allocated));
-            }
-            catch (...)
-            {
-            }
-        };
-
         auto freeSectorIt = mFreeBlockMap.begin();
-        auto freeSectorRangeEnd = mFreeBlockMap.end();
-        while (num)
+        const auto freeSectorRangeEnd = mFreeBlockMap.end();
+        while (out != end)
         {
             if (freeSectorIt == freeSectorRangeEnd)
             {
-                freeSectorIt = grow_owner_impl(std::min(4u, num));
+                if (auto growrx = grow_owner_impl(std::min<std::ptrdiff_t>(4, end - out)))
+                {
+                    freeSectorIt = std::move(growrx).assume_value();
+                }
+                else
+                {
+                    dealloc_sectors_impl({ dest.data(), out - dest.data() });
+                    return std::move(growrx).as_failure();
+                }
             }
             auto &[lastIdx, offset] = *freeSectorIt;
 
-            auto i = 0ull;
-            for (; num && i <= offset; ++i)
+            std::uint64_t i{};
+            for (; out != end && i <= offset; ++i)
             {
-                allocated.push_back(sector_id{ static_cast<std::uint64_t>(lastIdx) - offset + i });
-                --num;
+                *out++ = sector_id{ static_cast<std::uint64_t>(lastIdx) - offset + i };
             }
 
             if (i > offset)
@@ -99,10 +101,23 @@ namespace vefs
         }
 
         mWriteFlag.mark();
-        return allocated;
+        return outcome::success();
     }
 
-    void archive::free_block_list_file::dealloc_sectors(std::vector<detail::sector_id> sectors)
+    void archive::free_block_list_file::dealloc_sector(detail::sector_id sector)
+    {
+        if (sector == detail::sector_id::master)
+        {
+            return;
+        }
+
+        std::lock_guard<std::mutex> allocLock{ mFreeBlockSync };
+
+        dealloc_sectors_impl({ &sector, 1 });
+        mWriteFlag.mark();
+    }
+
+    void archive::free_block_list_file::dealloc_sectors(basic_range<detail::sector_id> sectors)
     {
         using detail::sector_id;
 
@@ -111,30 +126,34 @@ namespace vefs
             return;
         }
 
-        std::sort(sectors.begin(), sectors.end());
-        auto newEnd = std::unique(sectors.begin(), sectors.end());
-        sectors.resize(std::distance(sectors.begin(), newEnd));
+        auto beg = sectors.data();
+        auto end = beg + sectors.size();
 
-        if (sectors.front() == sector_id::master)
+        // sort all sector ids to be freed
+        std::sort(beg, end);
+        // eliminate duplicate ids
+        sectors = sectors.slice(0, std::unique(beg, end) - beg);
+        // remove the master sector (=0) value (if necessary)
+        sectors = sectors.slice(sectors.front() == sector_id::master);
+
+        // range contained only zeroes
+        if (sectors.empty())
         {
-            sectors.erase(sectors.cbegin());
-            if (sectors.empty())
-            {
-                return;
-            }
+            return;
         }
 
         std::lock_guard<std::mutex> allocLock{ mFreeBlockSync };
 
-        dealloc_sectors_impl(std::move(sectors));
+        dealloc_sectors_impl(sectors);
         mWriteFlag.mark();
     }
 
-    void archive::free_block_list_file::sync()
+    auto archive::free_block_list_file::sync()
+        -> result<void>
     {
         if (!mWriteFlag.is_dirty())
         {
-            return;
+            return outcome::success();
         }
 
         using detail::sector_id;
@@ -153,9 +172,9 @@ namespace vefs
                 freeSectorLock.unlock();
                 {
                     std::unique_lock<std::shared_mutex> shrinkLock{ shrink_mutex };
-                    shrink_file(
+                    OUTCOME_TRY(shrink_file(
                         (mFreeBlockMap.size() + 2) * sizeof(RawFreeSectorRange)
-                    );
+                    ));
                 }
                 freeSectorLock.lock();
             }
@@ -166,9 +185,9 @@ namespace vefs
                 {
                     std::shared_lock<std::shared_mutex> shrinkLock{ shrink_mutex };
 
-                    grow_file(
+                    OUTCOME_TRY(grow_file(
                         mFreeBlockMap.size() * sizeof(RawFreeSectorRange)
-                    );
+                    ));
                 }
                 freeSectorLock.lock();
             }
@@ -183,21 +202,22 @@ namespace vefs
             entry.start_sector = sector_id{ static_cast<uint64_t>(lastId) - numPrev };
             entry.num_sectors = numPrev + 1;
 
-            write(entryView, writePos);
+            OUTCOME_TRY(write(entryView, writePos));
             writePos += entryView.size();
         }
 
         entry = {};
         while (writePos < mData.size)
         {
-            write(entryView, writePos);
+            OUTCOME_TRY(write(entryView, writePos));
             writePos += entryView.size();
         }
 
-        internal_file::sync();
+        OUTCOME_TRY(internal_file::sync());
+        return outcome::success();
     }
 
-    auto vefs::archive::free_block_list_file::parse_content()
+    auto archive::free_block_list_file::parse_content()
         -> result<void>
     {
         using detail::sector_id;
@@ -235,28 +255,31 @@ namespace vefs
                 mFreeBlockMap.emplace_hint(mFreeBlockMap.cend(), lastSector, offset);
             }
         }
+        return outcome::success();
     }
 
-    auto archive::free_block_list_file::grow_owner_impl(unsigned int num)
-        -> archive::free_block_list_file::free_block_map::iterator
+    auto archive::free_block_list_file::grow_owner_impl(std::uint64_t num)
+        -> result<free_block_map::iterator>
     {
         if (!num)
         {
-            return {};
+            return outcome::success();
         }
         // assuming mFreeBlockSync is held
         num -= 1;
         auto newLastSector = detail::sector_id{ mOwner.mArchive->size() + num };
-        mOwner.mArchive->resize(static_cast<std::uint64_t>(newLastSector) + 1);
+        OUTCOME_TRY(mOwner.mArchive->resize(static_cast<std::uint64_t>(newLastSector) + 1));
 
         return mFreeBlockMap.emplace_hint(mFreeBlockMap.cend(), newLastSector, num);
     }
 
-    void archive::free_block_list_file::dealloc_sectors_impl(std::vector<detail::sector_id> sectors)
+    void archive::free_block_list_file::dealloc_sectors_impl(basic_range<detail::sector_id> sectors)
     {
+        assert(!sectors.empty());
+
         auto current = sectors.front();
-        auto offset = 0ull;
-        for (auto it = ++sectors.cbegin(), end = sectors.cend(); it != end; ++it)
+        std::uint64_t offset = 0;
+        for (auto it = sectors.data() + 1, end = it + sectors.size(); it != end; ++it)
         {
             const auto next = *it;
             if (static_cast<std::uint64_t>(next) - static_cast<std::uint64_t>(current) == 1)

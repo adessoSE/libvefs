@@ -34,7 +34,7 @@ using namespace vefs::detail;
 
 namespace vefs
 {
-    archive::file * deref(const archive::file_handle &handle)
+    archive::file * deref(const archive::file_handle &handle) noexcept
     {
         assert(handle);
         return handle.mData->mWorkingSet.load(std::memory_order_acquire);
@@ -45,17 +45,17 @@ namespace vefs
     {
     }
 
-	auto archive::open(filesystem::ptr fs, std::string_view archivePath,
+    auto archive::open(filesystem::ptr fs, std::string_view archivePath,
         crypto::crypto_provider * cryptoProvider, blob_view userPRK, file_open_mode_bitset openMode)
         -> result<std::unique_ptr<archive>>
-	{
+    {
         OUTCOME_TRY(primitives,
             raw_archive::open(fs, archivePath, cryptoProvider, userPRK, openMode));
 
 
-	}
+    }
 
-	archive::archive(filesystem::ptr fs, std::string_view archivePath,
+    archive::archive(filesystem::ptr fs, std::string_view archivePath,
         crypto::crypto_provider *cryptoProvider, blob_view userPRK)
         : archive()
     {

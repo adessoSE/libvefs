@@ -281,11 +281,11 @@ namespace vefs
 
             if (requiredDepth > mData.tree_depth)
             {
-                auto physId = mOwner.mFreeBlockIndexFile->alloc_sector();
+                OUTCOME_TRY(physId, mOwner.mFreeBlockIndexFile->alloc_sector());
                 auto acres = mCachedBlocks->access_w_inplace_ctor(rootPos, parent, rootPos, physId);
                 if (!acres)
                 {
-                    mOwner.mFreeBlockIndexFile->dealloc_sectors({ physId });
+                    mOwner.mFreeBlockIndexFile->dealloc_sector(physId);
                     return acres.as_failure();
                 }
                 parent = std::move(acres).assume_value();
@@ -295,8 +295,7 @@ namespace vefs
                 {
                     // we got a cached sector entry, i.e. the previously
                     // allocated physical sector needs to be freed.
-                    mOwner.mFreeBlockIndexFile->dealloc_sectors({ physId });
-
+                    mOwner.mFreeBlockIndexFile->dealloc_sector(physId);
 
                     physId = parent->sector_id();
                 }
@@ -384,7 +383,7 @@ namespace vefs
             {
                 parentLock.unlock();
 
-                auto physId = mOwner.mFreeBlockIndexFile->alloc_sector();
+                OUTCOME_TRY(physId, mOwner.mFreeBlockIndexFile->alloc_sector());
                 sector::handle entry;
                 if (auto acres = mCachedBlocks->access_w_inplace_ctor(*it, parent, *it, physId))
                 {
@@ -392,13 +391,13 @@ namespace vefs
                 }
                 else
                 {
-                    mOwner.mFreeBlockIndexFile->dealloc_sectors({ physId });
+                    mOwner.mFreeBlockIndexFile->dealloc_sector(physId);
                     return std::move(acres).as_failure();
                 }
 
                 if (physId != entry->sector_id())
                 {
-                    mOwner.mFreeBlockIndexFile->dealloc_sectors({ physId });
+                    mOwner.mFreeBlockIndexFile->dealloc_sector(physId);
                 }
 
                 {
@@ -605,7 +604,7 @@ namespace vefs
 
         std::unique_lock integrityLock{ integrity_mutex };
         OUTCOME_TRY(mOwner.mArchive->erase_sector(mData, mData.start_block_idx));
-        mOwner.mFreeBlockIndexFile->dealloc_sectors({ mData.start_block_idx });
+        mOwner.mFreeBlockIndexFile->dealloc_sector(mData.start_block_idx);
         mData.tree_depth = -1;
         mData.start_block_idx = detail::sector_id::master;
         mData.start_block_mac = {};
@@ -800,7 +799,7 @@ namespace vefs
             mData.size = size;
         }
 
-        mOwner.mFreeBlockIndexFile->dealloc_sectors(std::move(collectedIds));
+        mOwner.mFreeBlockIndexFile->dealloc_sectors({ collectedIds.data(), collectedIds.size() });
         return outcome::success();
     }
 }

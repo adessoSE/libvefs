@@ -28,19 +28,24 @@ namespace vefs
 
         using internal_file::dispose;
 
-        inline auto alloc_sector();
-        std::vector<detail::sector_id> alloc_sectors(unsigned int num);
+        auto alloc_sector()
+            -> result<detail::sector_id>;
+        auto alloc_sectors(basic_range<detail::sector_id> dest)
+            -> result<void>;
 
-        void dealloc_sectors(std::vector<detail::sector_id> sectors);
+        void dealloc_sector(detail::sector_id sector);
+        void dealloc_sectors(basic_range<detail::sector_id> sectors);
 
-        void sync();
+        auto sync()
+            -> result<void>;
 
     private:
         auto parse_content()
             -> result<void>;
 
-        free_block_map::iterator grow_owner_impl(unsigned int num);
-        void dealloc_sectors_impl(std::vector<detail::sector_id> sectors);
+        auto grow_owner_impl(std::uint64_t num)
+            -> result<free_block_map::iterator>;
+        void dealloc_sectors_impl(basic_range<detail::sector_id> sectors);
 
         virtual void on_sector_write_suggestion(sector_handle sector) override;
         virtual void on_root_sector_synced(detail::basic_archive_file_meta &rootMeta) override;
@@ -51,7 +56,10 @@ namespace vefs
     };
 
     inline auto archive::free_block_list_file::alloc_sector()
+        -> result<detail::sector_id>
     {
-        return alloc_sectors(1).front();
+        detail::sector_id xmem;
+        OUTCOME_TRY(alloc_sectors({ &xmem, 1 }));
+        return xmem;
     }
 }
