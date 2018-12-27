@@ -82,9 +82,10 @@ namespace vefs
 
     inline void error_info::diagnostic_information(diagnostics_buffer &out, std::string_view detailFormat) const
     {
+        fmt::string_view wrappedFormat{ detailFormat };
         for (const auto &detail : mDetails)
         {
-            fmt::format_to(out, detailFormat);
+            fmt::format_to<fmt::string_view>(out, wrappedFormat);
             detail.second->stringify(out);
         }
     }
