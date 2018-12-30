@@ -6,6 +6,8 @@
 #include <vefs/utils/random.hpp>
 #include "memfs.hpp"
 
+#include "test-utils.hpp"
+
 using namespace std::string_view_literals;
 using namespace vefs::blob_literals;
 constexpr auto default_user_prk_raw
@@ -26,7 +28,8 @@ BOOST_AUTO_TEST_CASE(archive_create)
     auto fs = std::static_pointer_cast<filesystem>(memfs);
     auto cprov = crypto::debug_crypto_provider();
 
-    archive ac{ fs, default_archive_path, cprov, default_user_prk, archive::create };
+    auto openrx = archive::open(fs, default_archive_path, cprov, default_user_prk, file_open_mode::create);
+    TEST_RESULT(openrx);
 }
 
 BOOST_AUTO_TEST_CASE(archive_create_reopen)
@@ -38,10 +41,12 @@ BOOST_AUTO_TEST_CASE(archive_create_reopen)
     auto cprov = crypto::debug_crypto_provider();
 
     {
-        archive ac{ fs, default_archive_path, cprov, default_user_prk, archive::create };
+        auto openrx = archive::open(fs, default_archive_path, cprov, default_user_prk, file_open_mode::create);
+        TEST_RESULT_REQUIRE(openrx);
     }
     {
-        archive ac{ fs, default_archive_path, cprov, default_user_prk };
+        auto openrx = archive::open(fs, default_archive_path, cprov, default_user_prk, file_open_mode::readwrite);
+        TEST_RESULT(openrx);
     }
 }
 
@@ -54,12 +59,18 @@ BOOST_AUTO_TEST_CASE(archive_create_file)
     auto cprov = crypto::debug_crypto_provider();
 
     {
-        archive ac{ fs, default_archive_path, cprov, default_user_prk, archive::create };
-        ac.open(default_file_path, file_open_mode::readwrite | file_open_mode::create);
+        auto openrx = archive::open(fs, default_archive_path, cprov, default_user_prk, file_open_mode::readwrite | file_open_mode::create);
+        TEST_RESULT_REQUIRE(openrx);
+        auto ac = std::move(openrx).assume_value();
+        auto fopenrx = ac->open(default_file_path, file_open_mode::readwrite | file_open_mode::create);
+        TEST_RESULT_REQUIRE(fopenrx);
     }
     {
-        archive ac{ fs, default_archive_path, cprov, default_user_prk };
-        ac.open(default_file_path, file_open_mode::read);
+        auto openrx = archive::open(fs, default_archive_path, cprov, default_user_prk, file_open_mode::readwrite);
+        TEST_RESULT_REQUIRE(openrx);
+        auto ac = std::move(openrx).assume_value();
+        auto fopenrx = ac->open(default_file_path, file_open_mode::read);
+        TEST_RESULT_REQUIRE(fopenrx);
     }
 }
 
@@ -80,15 +91,25 @@ BOOST_AUTO_TEST_CASE(archive_readwrite)
     dataGenerator.fill(file);
 
     {
-        archive ac{ fs, default_archive_path, cprov, default_user_prk, archive::create };
-        auto id = ac.open(default_file_path, file_open_mode::readwrite | file_open_mode::create);
-        ac.write(id, file, pos);
+        auto openrx = archive::open(fs, default_archive_path, cprov, default_user_prk, file_open_mode::create);
+        TEST_RESULT_REQUIRE(openrx);
+        auto ac = std::move(openrx).assume_value();
+        auto fileOpenRx = ac->open(default_file_path, file_open_mode::readwrite | file_open_mode::create);
+        TEST_RESULT_REQUIRE(fileOpenRx);
+        auto hFile = std::move(fileOpenRx).assume_value();
+
+        TEST_RESULT(ac->write(hFile, file, pos));
     }
     {
-        archive ac{ fs, default_archive_path, cprov, default_user_prk };
-        auto id = ac.open(default_file_path, file_open_mode::read);
+        auto openrx = archive::open(fs, default_archive_path, cprov, default_user_prk, file_open_mode::readwrite);
+        TEST_RESULT_REQUIRE(openrx);
+        auto ac = std::move(openrx).assume_value();
+        auto fileOpenRx = ac->open(default_file_path, file_open_mode::read);
+        TEST_RESULT_REQUIRE(fileOpenRx);
+        auto hFile = std::move(fileOpenRx).assume_value();
+
         auto readBuffer = std::make_unique<file_type>();
-        ac.read(id, blob{ *readBuffer }, pos);
+        TEST_RESULT(ac->read(hFile, blob{ *readBuffer }, pos));
 
         BOOST_TEST(mismatch(file, blob_view{ *readBuffer }) == file.size());
     }
@@ -112,19 +133,34 @@ BOOST_AUTO_TEST_CASE(archive_file_shrink)
     dataGenerator.fill(file);
 
     {
-        archive ac{ fs, default_archive_path, cprov, default_user_prk, archive::create };
-        auto id = ac.open(default_file_path, file_open_mode::readwrite | file_open_mode::create);
-        ac.write(id, file, pos);
+        auto openrx = archive::open(fs, default_archive_path, cprov, default_user_prk, file_open_mode::create);
+        TEST_RESULT_REQUIRE(openrx);
+        auto ac = std::move(openrx).assume_value();
+        auto fileOpenRx = ac->open(default_file_path, file_open_mode::readwrite | file_open_mode::create);
+        TEST_RESULT_REQUIRE(fileOpenRx);
+        auto hFile = std::move(fileOpenRx).assume_value();
+
+        TEST_RESULT(ac->write(hFile, file, pos));
     }
     {
-        archive ac{ fs, default_archive_path, cprov, default_user_prk };
-        auto id = ac.open(default_file_path, file_open_mode::readwrite);
-        ac.resize(id, 2 * detail::raw_archive::sector_payload_size);
+        auto openrx = archive::open(fs, default_archive_path, cprov, default_user_prk, file_open_mode::readwrite);
+        TEST_RESULT_REQUIRE(openrx);
+        auto ac = std::move(openrx).assume_value();
+        auto fopenrx = ac->open(default_file_path, file_open_mode::readwrite);
+        TEST_RESULT_REQUIRE(fopenrx);
+        auto hFile = std::move(fopenrx).assume_value();
+
+        TEST_RESULT(ac->resize(hFile, 2 * detail::raw_archive::sector_payload_size));
     }
     {
-        archive ac{ fs, default_archive_path, cprov, default_user_prk };
-        auto id = ac.open(default_file_path, file_open_mode::readwrite);
-        ac.resize(id, 0);
+        auto openrx = archive::open(fs, default_archive_path, cprov, default_user_prk, file_open_mode::readwrite);
+        TEST_RESULT_REQUIRE(openrx);
+        auto ac = std::move(openrx).assume_value();
+        auto fopenrx = ac->open(default_file_path, file_open_mode::readwrite);
+        TEST_RESULT_REQUIRE(fopenrx);
+        auto hFile = std::move(fopenrx).assume_value();
+
+        TEST_RESULT(ac->resize(hFile, 0));
     }
 }
 
@@ -145,13 +181,21 @@ BOOST_AUTO_TEST_CASE(archive_file_erase)
     dataGenerator.fill(file);
 
     {
-        archive ac{ fs, default_archive_path, cprov, default_user_prk, archive::create };
-        auto id = ac.open(default_file_path, file_open_mode::readwrite | file_open_mode::create);
-        ac.write(id, file, pos);
+        auto openrx = archive::open(fs, default_archive_path, cprov, default_user_prk, file_open_mode::create);
+        TEST_RESULT_REQUIRE(openrx);
+        auto ac = std::move(openrx).assume_value();
+        auto fileOpenRx = ac->open(default_file_path, file_open_mode::readwrite | file_open_mode::create);
+        TEST_RESULT_REQUIRE(fileOpenRx);
+        auto hFile = std::move(fileOpenRx).assume_value();
+
+        TEST_RESULT(ac->write(hFile, file, pos));
     }
     {
-        archive ac{ fs, default_archive_path, cprov, default_user_prk };
-        ac.erase(default_file_path);
+        auto openrx = archive::open(fs, default_archive_path, cprov, default_user_prk, file_open_mode::readwrite);
+        TEST_RESULT_REQUIRE(openrx);
+        auto ac = std::move(openrx).assume_value();
+
+        TEST_RESULT(ac->erase(default_file_path));
     }
 }
 
@@ -172,18 +216,29 @@ BOOST_AUTO_TEST_CASE(archive_empty_userprk)
     dataGenerator.fill(file);
 
     {
-        archive ac{ fs, default_archive_path, cprov, blob_view{}, archive::create };
-        auto id = ac.open(default_file_path, file_open_mode::readwrite | file_open_mode::create);
-        ac.write(id, file, pos);
-        BOOST_TEST_REQUIRE(ac.size_of(id) == file.size() + pos);
+        auto openrx = archive::open(fs, default_archive_path, cprov, default_user_prk, file_open_mode::create);
+        TEST_RESULT_REQUIRE(openrx);
+        auto ac = std::move(openrx).assume_value();
+        auto fileOpenRx = ac->open(default_file_path, file_open_mode::readwrite | file_open_mode::create);
+        TEST_RESULT_REQUIRE(fileOpenRx);
+        auto hFile = std::move(fileOpenRx).assume_value();
+
+        TEST_RESULT(ac->write(hFile, file, pos));
+
+        BOOST_TEST_REQUIRE(ac->size_of(hFile).value() == file.size() + pos);
     }
     {
-        archive ac{ fs, default_archive_path, cprov, blob_view{} };
-        auto id = ac.open(default_file_path, file_open_mode::read);
-        BOOST_TEST_REQUIRE(ac.size_of(id) == file.size() + pos);
+        auto openrx = archive::open(fs, default_archive_path, cprov, default_user_prk, file_open_mode::readwrite);
+        TEST_RESULT_REQUIRE(openrx);
+        auto ac = std::move(openrx).assume_value();
+        auto fopenrx = ac->open(default_file_path, file_open_mode::readwrite);
+        TEST_RESULT_REQUIRE(fopenrx);
+        auto hFile = std::move(fopenrx).assume_value();
+
+        BOOST_TEST_REQUIRE(ac->size_of(hFile).value() == file.size() + pos);
 
         auto readBuffer = std::make_unique<file_type>();
-        ac.read(id, blob{ *readBuffer }, pos);
+        TEST_RESULT_REQUIRE(ac->read(hFile, blob{ *readBuffer }, pos));
 
         BOOST_TEST(mismatch(file, blob_view{ *readBuffer }) == file.size());
     }
@@ -206,22 +261,30 @@ BOOST_AUTO_TEST_CASE(archive_query)
     dataGenerator.fill(file);
 
     {
-        archive ac{ fs, default_archive_path, cprov, blob_view{}, archive::create };
-        auto id = ac.open(default_file_path, file_open_mode::readwrite | file_open_mode::create);
-        ac.write(id, file, pos);
-        BOOST_TEST_REQUIRE(ac.size_of(id) == file.size() + pos);
+        auto openrx = archive::open(fs, default_archive_path, cprov, default_user_prk, file_open_mode::create);
+        TEST_RESULT_REQUIRE(openrx);
+        auto ac = std::move(openrx).assume_value();
+        auto fileOpenRx = ac->open(default_file_path, file_open_mode::readwrite | file_open_mode::create);
+        TEST_RESULT_REQUIRE(fileOpenRx);
+        auto hFile = std::move(fileOpenRx).assume_value();
+
+        TEST_RESULT(ac->write(hFile, file, pos));
+
+        BOOST_TEST_REQUIRE(ac->size_of(hFile).value() == file.size() + pos);
     }
     BOOST_TEST_PASSPOINT();
     {
-        archive ac{ fs, default_archive_path, cprov, blob_view{} };
+        auto openrx = archive::open(fs, default_archive_path, cprov, default_user_prk, file_open_mode::readwrite);
+        TEST_RESULT_REQUIRE(openrx);
+        auto ac = std::move(openrx).assume_value();
 
-        BOOST_TEST(!ac.query("somerandomfilename/asdflsdfmasfw/sadfaöjksdfn"));
-        BOOST_TEST(!ac.query("somerandomfilename/asdflsdfmasfw/sadfaöjksdfn"));
+        BOOST_TEST(!ac->query("somerandomfilename/asdflsdfmasfw/sadfaöjksdfn"));
+        BOOST_TEST(!ac->query("somerandomfilename/asdflsdfmasfw/sadfaöjksdfn"));
 
-        auto result = ac.query(default_file_path);
+        auto result = ac->query(default_file_path);
         BOOST_TEST_REQUIRE(result.has_value());
 
-        BOOST_TEST(result->size == file.size() + pos);
+        BOOST_TEST(result.assume_value().size == file.size() + pos);
     }
 }
 
@@ -240,68 +303,74 @@ BOOST_AUTO_TEST_CASE(sqlite_bridge_regression_1)
     utils::xoroshiro128plus dataGenerator{ 0 };
 
     {
-        std::shared_ptr<archive> ac = std::make_shared<archive>(fs, "./xyz.vefs",
-            cprov, blob_view{}, archive::create);
+        auto openrx = archive::open(fs, "./xyz.vefs", cprov, blob_view{},
+            file_open_mode::readwrite | file_open_mode::create);
+        TEST_RESULT_REQUIRE(openrx);
+        auto ac = std::move(openrx).assume_value();
 
-        auto f = ac->open("blob-test-journal", file_open_mode::readwrite | file_open_mode::create);
-
-        dataGenerator.fill(fileData);
-        ac->write(f, fileData, 0);
-
-        dataGenerator.fill(fileData);
-        ac->write(f, fileData, 8192);
+        auto fopenrx = ac->open("blob-test-journal", file_open_mode::readwrite | file_open_mode::create);
+        TEST_RESULT_REQUIRE(fopenrx);
+        auto f = std::move(fopenrx).assume_value();
 
         dataGenerator.fill(fileData);
-        ac->write(f, fileData, 2*8192);
+        TEST_RESULT_REQUIRE(ac->write(f, fileData, 0));
 
         dataGenerator.fill(fileData);
-        ac->write(f, fileData, 3 * 8192);
+        TEST_RESULT_REQUIRE(ac->write(f, fileData, 8192));
 
         dataGenerator.fill(fileData);
-        ac->write(f, fileData, 4*8192);
+        TEST_RESULT_REQUIRE(ac->write(f, fileData, 2*8192));
 
-        ac->sync(f);
+        dataGenerator.fill(fileData);
+        TEST_RESULT_REQUIRE(ac->write(f, fileData, 3 * 8192));
+
+        dataGenerator.fill(fileData);
+        TEST_RESULT_REQUIRE(ac->write(f, fileData, 4*8192));
+
+        TEST_RESULT_REQUIRE(ac->sync(f));
         f = nullptr;
 
-        ac->erase("blob-test-journal");
+        TEST_RESULT_REQUIRE(ac->erase("blob-test-journal"));
 
 
-        f = ac->open("blob-test-journal", file_open_mode::readwrite | file_open_mode::create);
-
-        dataGenerator.fill(fileData);
-        ac->write(f, fileData, 0);
-
-        dataGenerator.fill(fileData);
-        ac->write(f, fileData, 8192);
+        fopenrx = ac->open("blob-test-journal", file_open_mode::readwrite | file_open_mode::create);
+        TEST_RESULT_REQUIRE(fopenrx);
+        f = std::move(fopenrx).assume_value();
 
         dataGenerator.fill(fileData);
-        ac->write(f, fileData, 2 * 8192);
+        TEST_RESULT_REQUIRE(ac->write(f, fileData, 0));
 
         dataGenerator.fill(fileData);
-        ac->write(f, fileData, 3 * 8192);
+        TEST_RESULT_REQUIRE(ac->write(f, fileData, 8192));
 
         dataGenerator.fill(fileData);
-        ac->write(f, fileData, 4 * 8192);
-
-
-        dataGenerator.fill(fileData);
-        ac->write(f, fileData, 32772);
+        TEST_RESULT_REQUIRE(ac->write(f, fileData, 2 * 8192));
 
         dataGenerator.fill(fileData);
-        ac->write(f, fileData.slice(0, 4), 40964);
-        ac->write(f, fileData.slice(4, 4), 40968);
+        TEST_RESULT_REQUIRE(ac->write(f, fileData, 3 * 8192));
 
         dataGenerator.fill(fileData);
-        ac->write(f, fileData, 40972);
+        TEST_RESULT_REQUIRE(ac->write(f, fileData, 4 * 8192));
 
 
         dataGenerator.fill(fileData);
-        ac->write(f, fileData.slice(0, 4), 49164);
+        TEST_RESULT_REQUIRE(ac->write(f, fileData, 32772));
 
-        ac->sync(f);
+        dataGenerator.fill(fileData);
+        TEST_RESULT_REQUIRE(ac->write(f, fileData.slice(0, 4), 40964));
+        TEST_RESULT_REQUIRE(ac->write(f, fileData.slice(4, 4), 40968));
+
+        dataGenerator.fill(fileData);
+        TEST_RESULT_REQUIRE(ac->write(f, fileData, 40972));
+
+
+        dataGenerator.fill(fileData);
+        TEST_RESULT_REQUIRE(ac->write(f, fileData.slice(0, 4), 49164));
+
+        TEST_RESULT_REQUIRE(ac->sync(f));
         f = nullptr;
 
-        ac->erase("blob-test-journal");
+        TEST_RESULT_REQUIRE(ac->erase("blob-test-journal"));
     }
 
 }
