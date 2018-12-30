@@ -135,7 +135,7 @@ namespace vefs::detail
     {
         // no read only support as of now
         openMode |= file_open_mode::readwrite;
-        auto create = openMode % file_open_mode::create;
+        const auto create = openMode % file_open_mode::create;
         if (create)
         {
             openMode |= file_open_mode::truncate;
@@ -223,7 +223,7 @@ namespace vefs::detail
         secure_vector<std::byte> staticHeaderHeap;
 
         auto staticHeader = archivePrefix.static_header_length <= staticHeaderStack.size()
-            ? blob{ staticHeaderStack }
+            ? blob{ staticHeaderStack }.slice(0, archivePrefix.static_header_length)
             : (staticHeaderHeap.resize(archivePrefix.static_header_length), blob{ staticHeaderHeap });
 
         mArchiveFile->read(staticHeader, sizeof(StaticArchiveHeaderPrefix), scode);
@@ -290,9 +290,6 @@ namespace vefs::detail
             encryptedHeaderPart, blob_view{ archiveHeaderPrefix->header_mac }));
 
 
-        auto headerMsg = std::make_optional<ArchiveHeader>();
-        VEFS_ERROR_EXIT{ erase_secrets(*headerMsg); };
-
         if (!parse_blob(out, headerAndPadding.slice(sizeof(ArchiveHeaderPrefix),
                         archiveHeaderPrefix->header_length)))
         {
@@ -302,10 +299,10 @@ namespace vefs::detail
 
         // the archive is corrupted if the header message doesn't pass parameter validation
         // simple write failures and incomplete writes are catched by the AE construction
-        if (headerMsg->archivesecretcounter().size() != 16
-            || headerMsg->journalcounter().size() != 16
-            || !headerMsg->has_archiveindex()
-            || !headerMsg->has_freeblockindex())
+        if (out.archivesecretcounter().size() != 16
+            || out.journalcounter().size() != 16
+            || !out.has_archiveindex()
+            || !out.has_freeblockindex())
         {
             erase_secrets(out);
             return error{ archive_errc::incompatible_proto };

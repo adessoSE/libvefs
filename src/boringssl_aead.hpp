@@ -73,6 +73,31 @@ namespace vefs::crypto::detail
         boringssl_aead() = default;
 
     public:
+        boringssl_aead(const boringssl_aead &) = delete;
+        boringssl_aead(boringssl_aead &&other) noexcept
+            : mCtx{ other.mCtx }
+        {
+            other.mCtx.aead = nullptr;
+            other.mCtx.aead_state = nullptr;
+            other.mCtx.tag_len = 0;
+        }
+        boringssl_aead & operator=(const boringssl_aead &) = delete;
+        boringssl_aead & operator=(boringssl_aead &&other) noexcept
+        {
+            if (mCtx.aead_state)
+            {
+                ERR_clear_error();
+                EVP_AEAD_CTX_cleanup(&mCtx);
+            }
+            mCtx.aead = other.mCtx.aead;
+            mCtx.aead_state = other.mCtx.aead_state;
+            mCtx.tag_len = other.mCtx.tag_len;
+            other.mCtx.aead = nullptr;
+            other.mCtx.aead_state = nullptr;
+            other.mCtx.tag_len = 0;
+            return *this;
+        }
+
         static result<boringssl_aead> create(blob_view key,
             const EVP_AEAD *algorithm = EVP_aead_aes_256_gcm()) noexcept
         {
@@ -98,8 +123,11 @@ namespace vefs::crypto::detail
         }
         ~boringssl_aead()
         {
-            ERR_clear_error();
-            EVP_AEAD_CTX_cleanup(&mCtx);
+            if (mCtx.aead_state)
+            {
+                ERR_clear_error();
+                EVP_AEAD_CTX_cleanup(&mCtx);
+            }
         }
 
 

@@ -79,7 +79,7 @@ namespace vefs::crypto::detail
         if (cmp != 0)
         {
             utils::secure_memzero(plaintext);
-            return errc::bad; // #TODO replace with correct failure code
+            return archive_errc::tag_mismatch;
         }
         else if (ciphertext.data() != plaintext.data())
         {
