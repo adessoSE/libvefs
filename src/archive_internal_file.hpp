@@ -20,10 +20,10 @@ namespace vefs
     protected:
         internal_file(archive &owner, detail::basic_archive_file_meta &meta, file_events &hooks);
         template <typename T>
-        static auto open(archive &owner, detail::basic_archive_file_meta &meta)
+        static auto open(archive &owner)
             -> result<std::shared_ptr<T>>;
         template <typename T>
-        static auto create_new(archive &owner, detail::basic_archive_file_meta &meta)
+        static auto create_new(archive &owner)
             -> result<std::shared_ptr<T>>;
 
         void on_dirty_sector(block_pool_t::handle sector);
@@ -34,19 +34,19 @@ namespace vefs
     };
 
     template<typename T>
-    inline auto archive::internal_file::open(archive & owner, detail::basic_archive_file_meta & meta)
+    inline auto archive::internal_file::open(archive & owner)
         -> result<std::shared_ptr<T>>
     {
-        auto self = std::make_shared<T>(owner, meta);
+        auto self = std::make_shared<T>(owner);
         OUTCOME_TRY(self->parse_content());
 
         return std::move(self);
     }
     template<typename T>
-    inline auto archive::internal_file::create_new(archive & owner, detail::basic_archive_file_meta & meta)
+    inline auto archive::internal_file::create_new(archive & owner)
         -> result<std::shared_ptr<T>>
     {
-        auto self = std::make_shared<T>(owner, meta);
+        auto self = std::make_shared<T>(owner);
         OUTCOME_TRY(self->create_self());
 
         return std::move(self);

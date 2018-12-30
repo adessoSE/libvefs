@@ -45,6 +45,12 @@ namespace vefs
     {
     }
 
+    archive::archive(std::unique_ptr<detail::raw_archive> primitives)
+        : mWorkTracker{ &thread_pool::shared() }
+        , mArchive{ std::move(primitives) }
+    {
+    }
+
     auto archive::open(filesystem::ptr fs, std::string_view archivePath,
         crypto::crypto_provider * cryptoProvider, blob_view userPRK, file_open_mode_bitset openMode)
         -> result<std::unique_ptr<archive>>
@@ -52,54 +58,53 @@ namespace vefs
         OUTCOME_TRY(primitives,
             raw_archive::open(fs, archivePath, cryptoProvider, userPRK, openMode));
 
+        std::unique_ptr<archive> arc{ new archive(std::move(primitives)) };
 
-    }
-
-    archive::archive(filesystem::ptr fs, std::string_view archivePath,
-        crypto::crypto_provider *cryptoProvider, blob_view userPRK)
-        : archive()
-    {
-        auto archiveFile = fs->open(archivePath, file_open_mode::readwrite);
-
-        mArchive = std::make_unique<detail::raw_archive>(std::move(archiveFile), cryptoProvider, userPRK);
-
-        try
+        const auto createNew = openMode % file_open_mode::create;
+        if (createNew)
         {
-            mFreeBlockIndexFile = free_block_list_file::create(*this,
-                mArchive->free_sector_index_file());
+            if (auto fblrx = free_block_list_file::create_new(*arc))
+            {
+                arc->mFreeBlockIndexFile = std::move(fblrx).assume_value();
+            }
+            else
+            {
+                return std::move(fblrx).as_failure();
+            }
+            if (auto aixrx = index_file::create_new(*arc))
+            {
+                arc->mArchiveIndexFile = std::move(aixrx).assume_value();
+            }
+            else
+            {
+                return std::move(aixrx).as_failure();
+            }
         }
-        catch (const boost::exception &exc)
+        else
         {
-            exc << errinfo_archive_file{ "[free-sector-index]" };
-            throw;
+            if (auto fblrx = free_block_list_file::open(*arc))
+            {
+                arc->mFreeBlockIndexFile = std::move(fblrx).assume_value();
+            }
+            else
+            {
+                return std::move(fblrx).as_failure();
+            }
+            if (auto aixrx = index_file::open(*arc))
+            {
+                arc->mArchiveIndexFile = std::move(aixrx).assume_value();
+            }
+            else
+            {
+                return std::move(aixrx).as_failure();
+            }
         }
-        try
-        {
-            mArchiveIndexFile = index_file::open(*this, mArchive->index_file());
-        }
-        catch (const boost::exception &exc)
-        {
-            exc << errinfo_archive_file{ "[archive-index]" };
-            throw;
-        }
-    }
-    archive::archive(filesystem::ptr fs, std::string_view archivePath,
-        crypto::crypto_provider * cryptoProvider, blob_view userPRK, create_tag)
-        : archive()
-    {
-        auto archiveFile = fs->open(archivePath, file_open_mode::readwrite | file_open_mode::create | file_open_mode::truncate);
-
-        mArchive = std::make_unique<detail::raw_archive>(archiveFile, cryptoProvider,
-            userPRK, raw_archive::create_tag{});
-
-        mFreeBlockIndexFile = free_block_list_file::create(*this,
-            mArchive->free_sector_index_file(), create);
-        mArchiveIndexFile = index_file::create_new(*this, mArchive->index_file(), create);
+        return std::move(arc);
     }
 
     archive::~archive()
     {
-        sync();
+        (void)sync();
 
         mArchiveIndexFile->dispose();
         mArchiveIndexFile = nullptr;
@@ -108,30 +113,18 @@ namespace vefs
         mWorkTracker.wait();
     }
 
-    void archive::sync()
+    auto archive::sync()
+        -> result<void>
     {
-        try
+        OUTCOME_TRY(changes, mArchiveIndexFile->sync(true));
+        if (!changes)
         {
-            if (!mArchiveIndexFile->sync(true))
-            {
-                // no changes detected
-                return;
-            }
+            return outcome::success();
         }
-        catch (const boost::exception &exc)
-        {
-            exc << errinfo_archive_file{ "[archive-index]" };
-        }
-        try
-        {
-            mFreeBlockIndexFile->sync();
-        }
-        catch (const boost::exception &exc)
-        {
-            exc << errinfo_archive_file{ "[free-sector-index]" };
-        }
-        mArchive->update_header();
-        mArchive->sync();
+
+        OUTCOME_TRY(mFreeBlockIndexFile->sync());
+        OUTCOME_TRY(mArchive->update_header());
+        return mArchive->sync();
     }
 
     void archive::sync_async(std::function<void(utils::async_error_info)> cb)
@@ -140,138 +133,116 @@ namespace vefs
         {
             auto einfo = utils::async_error_context([&]()
             {
-                sync();
+                // #TODO #async error handling
+                (void)sync();
             });
             cb(std::move(einfo));
         });
     }
 
-    archive::file_handle archive::open(const std::string_view filePath,
-        const file_open_mode_bitset mode)
+    auto archive::open(const std::string_view filePath, const file_open_mode_bitset mode)
+        -> result<archive::file_handle>
     {
         return mArchiveIndexFile->open(filePath, mode);
     }
 
-    std::optional<file_query_result> archive::query(const std::string_view filePath)
+    auto archive::query(const std::string_view filePath)
+        -> result<file_query_result>
     {
         return mArchiveIndexFile->query(filePath);
     }
 
-    void archive::erase(std::string_view filePath)
+    auto archive::erase(std::string_view filePath)
+        -> result<void>
     {
-        mArchiveIndexFile->erase(filePath);
+        return mArchiveIndexFile->erase(filePath);
     }
 
-    void archive::read(file_handle handle, blob buffer, std::uint64_t readFilePos)
+    auto archive::read(file_handle handle, blob buffer, std::uint64_t readFilePos)
+        -> result<void>
     {
         if (!buffer)
         {
-            return;
+            return outcome::success();
         }
         if (!handle)
         {
-            BOOST_THROW_EXCEPTION(invalid_argument{}
-                << errinfo_param_name{ "handle" }
-                << errinfo_param_misuse_description{ "the handle isn't valid" }
-            );
+            return errc::invalid_argument;
         }
         auto f = file_lookup::deref(handle);
         if (&f->owner_ref() != this)
         {
-            BOOST_THROW_EXCEPTION(invalid_argument{}
-                << errinfo_param_name{ "handle" }
-                << errinfo_param_misuse_description{ "the handle doesn't belong this archive" }
-            );
+            return errc::invalid_argument;
         }
-        f->read(buffer, readFilePos);
+        return f->read(buffer, readFilePos);
     }
 
-    void archive::write(file_handle handle, blob_view data, std::uint64_t writeFilePos)
+    auto archive::write(file_handle handle, blob_view data, std::uint64_t writeFilePos)
+        -> result<void>
     {
         if (!data)
         {
-            return;
+            return outcome::success();
         }
         if (!handle)
         {
-            BOOST_THROW_EXCEPTION(invalid_argument{}
-                << errinfo_param_name{ "handle" }
-                << errinfo_param_misuse_description{ "the handle isn't valid" }
-            );
+            return errc::invalid_argument;
         }
         auto f = file_lookup::deref(handle);
         if (&f->owner_ref() != this)
         {
-            BOOST_THROW_EXCEPTION(invalid_argument{}
-                << errinfo_param_name{ "handle" }
-                << errinfo_param_misuse_description{ "the handle doesn't belong this archive" }
-            );
+            return errc::invalid_argument;
         }
 
-        f->write(data, writeFilePos);
+        return f->write(data, writeFilePos);
     }
 
-    void archive::resize(file_handle handle, std::uint64_t size)
+    auto archive::resize(file_handle handle, std::uint64_t size)
+        -> result<void>
     {
         if (!handle)
         {
-            BOOST_THROW_EXCEPTION(invalid_argument{}
-                << errinfo_param_name{ "handle" }
-                << errinfo_param_misuse_description{ "the handle isn't valid" }
-            );
+            return errc::invalid_argument;
         }
         auto f = file_lookup::deref(handle);
         if (&f->owner_ref() != this)
         {
-            BOOST_THROW_EXCEPTION(invalid_argument{}
-                << errinfo_param_name{ "handle" }
-                << errinfo_param_misuse_description{ "the handle doesn't belong this archive" }
-            );
+            return errc::invalid_argument;
         }
 
-        f->resize(size);
+        return f->resize(size);
     }
 
-    std::uint64_t archive::size_of(file_handle handle)
+    auto archive::size_of(file_handle handle)
+        -> result<std::uint64_t>
     {
         if (!handle)
         {
-            BOOST_THROW_EXCEPTION(invalid_argument{}
-                << errinfo_param_name{ "handle" }
-                << errinfo_param_misuse_description{ "the handle isn't valid" }
-            );
+            return errc::invalid_argument;
         }
         auto f = file_lookup::deref(handle);
         if (&f->owner_ref() != this)
         {
-            BOOST_THROW_EXCEPTION(invalid_argument{}
-                << errinfo_param_name{ "handle" }
-                << errinfo_param_misuse_description{ "the handle doesn't belong this archive" }
-            );
+            return errc::invalid_argument;
         }
 
         return f->size();
     }
 
-    void archive::sync(file_handle handle)
+    auto archive::sync(file_handle handle)
+        -> result<void>
     {
         if (!handle)
         {
-            BOOST_THROW_EXCEPTION(invalid_argument{}
-                << errinfo_param_name{ "handle" }
-                << errinfo_param_misuse_description{ "the handle isn't valid" }
-            );
+            return errc::invalid_argument;
         }
         auto f = file_lookup::deref(handle);
         if (&f->owner_ref() != this)
         {
-            BOOST_THROW_EXCEPTION(invalid_argument{}
-                << errinfo_param_name{ "handle" }
-                << errinfo_param_misuse_description{ "the handle doesn't belong this archive" }
-            );
+            return errc::invalid_argument;
         }
 
-        f->sync();
+        return f->sync();
     }
 
     void archive::erase_async(std::string filePath, std::function<void(utils::async_error_info)> cb)
@@ -357,7 +328,7 @@ namespace vefs
             auto size = std::numeric_limits<std::uint64_t>::max();
             auto einfo = utils::async_error_context([&]()
             {
-                size = size_of(std::move(h));
+                size = size_of(std::move(h)).value();
             });
             cb(size, std::move(einfo));
         });

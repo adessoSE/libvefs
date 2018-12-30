@@ -5,6 +5,7 @@
 #include <new>
 #include <atomic>
 #include <memory>
+#include <ostream>
 #include <algorithm>
 #include <typeindex>
 #include <functional>
@@ -482,4 +483,14 @@ namespace fmt
 
         vefs::error_message_format error_format = vefs::error_message_format::with_diagnostics;
     };
+}
+
+namespace vefs
+{
+    inline auto operator<<(std::ostream &s, const error &e)
+        -> std::ostream &
+    {
+        s << fmt::format(FMT_STRING("{}"), e);
+        return s;
+    }
 }

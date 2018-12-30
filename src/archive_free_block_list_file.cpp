@@ -19,25 +19,24 @@ namespace vefs
 #pragma pack(pop)
     }
 
-    archive::free_block_list_file::free_block_list_file(archive &owner,
-        detail::basic_archive_file_meta &meta)
+    archive::free_block_list_file::free_block_list_file(archive &owner)
         : file_events{}
-        , archive::internal_file{ owner, meta, *this }
+        , archive::internal_file{ owner, owner.mArchive->free_sector_index_file(), *this }
         , mFreeBlockSync{}
         , mFreeBlockMap{}
     {
     }
 
-    auto archive::free_block_list_file::open(archive & owner, detail::basic_archive_file_meta &meta)
+    auto archive::free_block_list_file::open(archive & owner)
         -> result<std::shared_ptr<free_block_list_file>>
     {
-        return internal_file::open<free_block_list_file>(owner, meta);
+        return internal_file::open<free_block_list_file>(owner);
     }
 
-    auto archive::free_block_list_file::create_new(archive & owner, detail::basic_archive_file_meta &meta)
+    auto archive::free_block_list_file::create_new(archive &owner)
         -> result<std::shared_ptr<free_block_list_file>>
     {
-        auto self = std::make_shared<free_block_list_file>(owner, meta);
+        auto self = std::make_shared<free_block_list_file>(owner);
 
         tree_position rootPos{ 0 };
         OUTCOME_TRY(physId, self->alloc_sector());
@@ -78,7 +77,7 @@ namespace vefs
                 }
                 else
                 {
-                    dealloc_sectors_impl({ dest.data(), out - dest.data() });
+                    dealloc_sectors_impl({ dest.data(), static_cast<std::size_t>(out - dest.data()) });
                     return std::move(growrx).as_failure();
                 }
             }

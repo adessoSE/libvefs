@@ -44,11 +44,11 @@ namespace vefs
         }
 
     public:
-        index_file(archive &owner, detail::basic_archive_file_meta &meta);
+        index_file(archive &owner);
 
-        static auto open(archive &owner, detail::basic_archive_file_meta &meta)
+        static auto open(archive &owner)
             -> result<std::shared_ptr<archive::index_file>>;
-        static auto create_new(archive &owner, detail::basic_archive_file_meta &meta)
+        static auto create_new(archive &owner)
             -> result<std::shared_ptr<archive::index_file>>;
 
         auto open(const std::string_view filePath, const file_open_mode_bitset mode)

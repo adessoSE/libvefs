@@ -19,11 +19,11 @@ namespace vefs
         using free_block_map = std::map<detail::sector_id, std::uint64_t>;
 
     public:
-        free_block_list_file(archive &owner, detail::basic_archive_file_meta &meta);
+        free_block_list_file(archive &owner);
 
-        static auto open(archive &owner, detail::basic_archive_file_meta &meta)
+        static auto open(archive &owner)
             -> result<std::shared_ptr<free_block_list_file>>;
-        static auto create_new(archive &owner, detail::basic_archive_file_meta &meta)
+        static auto create_new(archive &owner)
             -> result<std::shared_ptr<free_block_list_file>>;
 
         using internal_file::dispose;

@@ -12,7 +12,7 @@
 
 namespace vefs::crypto
 {
-    namespace detal
+    namespace detail
     {
         result<void> kdf_impl(blob prk, blob_view inputKey, blob_view *domainIt, blob_view *domainEnd) noexcept;
     }
@@ -26,7 +26,7 @@ namespace vefs::crypto
         auto begin = lparts.data();
         auto end = begin + lparts.size();
 
-        return detal::kdf_impl(prk, inputKey, begin, end);
+        return detail::kdf_impl(prk, inputKey, begin, end);
     }
 }
 

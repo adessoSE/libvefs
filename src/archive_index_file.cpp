@@ -10,9 +10,9 @@
 
 namespace vefs
 {
-    archive::index_file::index_file(archive &owner, detail::basic_archive_file_meta &meta)
+    archive::index_file::index_file(archive &owner)
         : file_events{}
-        , archive::internal_file{ owner, meta, *this }
+        , archive::internal_file{ owner, owner.mArchive->index_file(), *this }
         , mIndex{}
         , mIOSync{}
         , mFileHandles{}
@@ -20,15 +20,15 @@ namespace vefs
         , mDirtFlag{}
     {
     }
-    auto archive::index_file::open(archive & owner, detail::basic_archive_file_meta &meta)
+    auto archive::index_file::open(archive & owner)
         -> result<std::shared_ptr<archive::index_file>>
     {
-        return internal_file::open<index_file>(owner, meta);
+        return internal_file::open<index_file>(owner);
     }
-    auto archive::index_file::create_new(archive & owner, detail::basic_archive_file_meta &meta)
+    auto archive::index_file::create_new(archive & owner)
         -> result<std::shared_ptr<archive::index_file>>
     {
-        OUTCOME_TRY(self, internal_file::create_new<index_file>(owner, meta));;
+        OUTCOME_TRY(self, internal_file::create_new<index_file>(owner));;
 
         OUTCOME_TRY(self->resize(detail::raw_archive::sector_payload_size));;
         self->mFreeBlocks.dealloc(0, blocks_per_sector);

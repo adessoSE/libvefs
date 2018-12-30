@@ -74,24 +74,28 @@ namespace vefs
             crypto::crypto_provider *cryptoProvider, blob_view userPRK,
             file_open_mode_bitset openMode)
             -> result<std::unique_ptr<archive>>;
-
-        archive(filesystem::ptr fs, std::string_view archivePath,
-            crypto::crypto_provider *cryptoProvider, blob_view userPRK);
-        archive(filesystem::ptr fs, std::string_view archivePath,
-            crypto::crypto_provider *cryptoProvider, blob_view userPRK, create_tag);
         ~archive();
 
-        void sync();
+        auto sync()
+            -> result<void>;
         void sync_async(std::function<void(utils::async_error_info)> cb);
 
-        file_handle open(const std::string_view filePath, const file_open_mode_bitset mode);
-        std::optional<file_query_result> query(const std::string_view filePath);
-        void erase(std::string_view filePath);
-        void read(file_handle handle, blob buffer, std::uint64_t readFilePos);
-        void write(file_handle handle, blob_view data, std::uint64_t writeFilePos);
-        void resize(file_handle handle, std::uint64_t size);
-        std::uint64_t size_of(file_handle handle);
-        void sync(file_handle handle);
+        auto open(const std::string_view filePath, const file_open_mode_bitset mode)
+            -> result<file_handle>;
+        auto query(const std::string_view filePath)
+            -> result<file_query_result>;
+        auto erase(std::string_view filePath)
+            -> result<void>;
+        auto read(file_handle handle, blob buffer, std::uint64_t readFilePos)
+            -> result<void>;
+        auto write(file_handle handle, blob_view data, std::uint64_t writeFilePos)
+            -> result<void>;
+        auto resize(file_handle handle, std::uint64_t size)
+            -> result<void>;
+        auto size_of(file_handle handle)
+            -> result<std::uint64_t>;
+        auto sync(file_handle handle)
+            -> result<void>;
 
 
         void erase_async(std::string filePath,
@@ -109,10 +113,8 @@ namespace vefs
 
     private:
         archive();
+        archive(std::unique_ptr<detail::raw_archive> primitives);
         detail::thread_pool & ops_pool();
-
-        void read_archive_index();
-        void write_archive_index();
 
         std::unique_ptr<detail::raw_archive> mArchive;
 
