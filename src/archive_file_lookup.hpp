@@ -22,11 +22,11 @@ namespace vefs
         static constexpr std::uint32_t DeadBit = 1u << 31;
 
     public:
-        file_lookup(detail::basic_archive_file_meta &&meta, int ibPos, int numBlocks);
+        file_lookup(detail::basic_archive_file_meta &&meta, std::string name, int ibPos, int numBlocks);
 
-        static auto open(detail::basic_archive_file_meta &&meta, int ibPos, int numBlocks)
+        static auto open(detail::basic_archive_file_meta &&meta, std::string name, int ibPos, int numBlocks)
             -> result<utils::ref_ptr<file_lookup>>;
-        static auto create(archive &owner)
+        static auto create(archive &owner, std::string name)
             -> result<std::tuple<utils::ref_ptr<file_lookup>, file_handle>>;
 
         inline detail::basic_archive_file_meta & meta_data();
@@ -41,6 +41,8 @@ namespace vefs
         inline void release() const;
         inline void add_ext_reference() const;
         inline void ext_release() const;
+
+        const std::string &name() const noexcept;
 
 
         inline static file * deref(const file_handle &handle);
@@ -68,6 +70,7 @@ namespace vefs
 
         detail::basic_archive_file_meta mMeta;
         utils::dirt_flag mDirtyMetaData;
+        const std::string mName;
 
         std::aligned_storage_t<sizeof(archive::file), alignof(archive::file)> mWorkingSetStorage;
     };
@@ -100,6 +103,11 @@ namespace vefs
             // #TODO what shall be done?
             (void)notify_no_external_references();
         }
+    }
+
+    inline const std::string & archive::file_lookup::name() const noexcept
+    {
+        return mName;
     }
 
     inline archive::file * archive::file_lookup::deref(const file_handle &handle)

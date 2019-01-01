@@ -10,7 +10,6 @@
 #include <vefs/disappointment.hpp>
 #include <vefs/filesystem.hpp>
 #include <vefs/utils/ref_ptr.hpp>
-#include <vefs/utils/async_error_info.hpp>
 #include <vefs/detail/thread_pool.hpp>
 
 
@@ -61,6 +60,9 @@ namespace vefs
 
             inline explicit operator bool() const;
 
+            inline auto value() const noexcept
+                -> file_lookup *;
+
             friend file * deref(const file_handle &) noexcept;
 
         private:
@@ -78,7 +80,7 @@ namespace vefs
 
         auto sync()
             -> result<void>;
-        void sync_async(std::function<void(utils::async_error_info)> cb);
+        void sync_async(std::function<void(op_outcome<void>)> cb);
 
         auto open(const std::string_view filePath, const file_open_mode_bitset mode)
             -> result<file_handle>;
@@ -99,17 +101,17 @@ namespace vefs
 
 
         void erase_async(std::string filePath,
-            std::function<void(utils::async_error_info)> cb);
+            std::function<void(op_outcome<void>)> cb);
         void read_async(file_handle handle, blob buffer, std::uint64_t readFilePos,
-            std::function<void(utils::async_error_info)> cb);
+            std::function<void(op_outcome<void>)> cb);
         void write_async(file_handle handle, blob_view data, std::uint64_t writeFilePos,
-            std::function<void(utils::async_error_info)> cb);
+            std::function<void(op_outcome<void>)> cb);
         void resize_async(file_handle handle, std::uint64_t size,
-            std::function<void(utils::async_error_info)> cb);
+            std::function<void(op_outcome<void>)> cb);
         void size_of_async(file_handle handle,
-            std::function<void(std::uint64_t, utils::async_error_info)> cb);
+            std::function<void(op_outcome<std::uint64_t>)> cb);
         void sync_async(file_handle handle,
-            std::function<void(utils::async_error_info)> cb);
+            std::function<void(op_outcome<void>)> cb);
 
     private:
         archive();
@@ -204,6 +206,12 @@ namespace vefs
     inline archive::file_handle::operator bool() const
     {
         return mData != nullptr;
+    }
+
+    inline auto archive::file_handle::value() const noexcept
+        -> file_lookup *
+    {
+        return mData;
     }
 
     inline bool operator==(const archive::file_handle &lhs, const archive::file_handle &rhs)

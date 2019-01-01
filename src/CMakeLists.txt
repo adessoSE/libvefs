@@ -47,8 +47,6 @@ DEF_SOURCE_GROUP(vefs "utils"
 
         "${_INCLUDE_DIR}/vefs/utils/unordered_map_mt.hpp"
 
-        "${_INCLUDE_DIR}/vefs/utils/async_error_info.hpp"
-
     SOURCES
         platform.cpp
 

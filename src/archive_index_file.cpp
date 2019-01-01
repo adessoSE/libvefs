@@ -69,7 +69,7 @@ namespace vefs
         {
             file_handle result;
 
-            if (auto crx = file_lookup::create(mOwner))
+            if (auto crx = file_lookup::create(mOwner, std::string{ filePath }))
             {
                 std::tie(lookup, result) = std::move(crx).assume_value();
                 id = lookup->meta_data().id;
@@ -384,7 +384,9 @@ namespace vefs
                 }
 
                 auto currentId = currentFile.id;
-                auto lookup = file_lookup::open(std::move(currentFile), startBlock, numBlocks).value();
+                auto lookup = file_lookup::open(
+                    std::move(currentFile), descriptor.filepath(), startBlock, numBlocks
+                ).value();
 
 
                 mIndex.insert_or_assign(descriptor.filepath(), currentId);

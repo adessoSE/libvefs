@@ -21,7 +21,7 @@ namespace vefs
 
 
     archive::file_lookup::file_lookup(detail::basic_archive_file_meta &&meta,
-        int ibPos, int numBlocks)
+        std::string name, int ibPos, int numBlocks)
         : mRefs{ 1 }
         , mExtRefs{ 0 }
         , mWorkingSet{}
@@ -30,21 +30,22 @@ namespace vefs
         , mReservedIndexBlocks{ numBlocks }
         , mMeta{ std::move(meta) }
         , mDirtyMetaData{ }
+        , mName{ std::move(name) }
         , mWorkingSetStorage{}
     {
     }
 
-	auto archive::file_lookup::open(detail::basic_archive_file_meta &&meta, int ibPos, int numBlocks)
+    auto archive::file_lookup::open(detail::basic_archive_file_meta &&meta, std::string name, int ibPos, int numBlocks)
         -> result<utils::ref_ptr<file_lookup>>
-	{
-		return utils::make_ref_counted<file_lookup>(std::move(meta), ibPos, numBlocks);
-	}
-    auto archive::file_lookup::create(archive &owner)
+    {
+        return utils::make_ref_counted<file_lookup>(std::move(meta), std::move(name), ibPos, numBlocks);
+    }
+    auto archive::file_lookup::create(archive &owner, std::string name)
         -> result<std::tuple<utils::ref_ptr<file_lookup>, file_handle>>
     {
         OUTCOME_TRY(fileMeta, owner.mArchive->create_file());
 
-        auto self = utils::make_ref_counted<file_lookup>(std::move(fileMeta), -1, 0);
+        auto self = utils::make_ref_counted<file_lookup>(std::move(fileMeta), std::move(name), -1, 0);
         OUTCOME_TRY(ws, self->create_working_set(owner));
 
         // basically this would happen if you called load() for an unloaded file

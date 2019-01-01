@@ -130,7 +130,8 @@ namespace vefs
             file::sector::handle sector;
             if (static_cast<uint64_t>(physId) >= mOwner.mArchive->size())
             {
-                return archive_errc::sector_reference_out_of_range;
+                return error{ archive_errc::sector_reference_out_of_range }
+                    << ed::sector_idx{physId};
             }
 
             const auto currentPosition = *pathIterator;
@@ -141,6 +142,7 @@ namespace vefs
                     readResult.has_failure())
                 {
                     std::destroy_at(xsec);
+                    readResult.assume_error() << ed::sector_idx{ physId };
                     return std::move(readResult).as_failure();
                 }
                 return xsec;
@@ -158,7 +160,8 @@ namespace vefs
                 const auto nTreeDepth = mData.tree_depth;
                 if (nTreeDepth < sectorPosition.layer())
                 {
-                    return archive_errc::sector_reference_out_of_range;
+                    return error{ archive_errc::sector_reference_out_of_range }
+                        << ed::wrapped_error{ std::move(entry).assume_error() };
                 }
                 if (treeDepth > nTreeDepth)
                 {
@@ -178,7 +181,8 @@ namespace vefs
                         path.offset(sectorPosition.layer()));
                     if (ref.reference == sector_id::master)
                     {
-                        return archive_errc::sector_reference_out_of_range;
+                        return error{ archive_errc::sector_reference_out_of_range }
+                            << ed::wrapped_error{ std::move(entry).assume_error() };
                     }
                     if (!equal(blob_view{ mac }, blob_view{ ref.mac }))
                     {
@@ -191,7 +195,6 @@ namespace vefs
                 {
                     return errc::device_busy;
                 }
-                // #TODO add additional information like failed file_sector_id
                 return std::move(entry).as_failure();
             }
 
@@ -207,7 +210,8 @@ namespace vefs
             // this will happen if we read past the end of the file
             if (physId == sector_id::master)
             {
-                return archive_errc::sector_reference_out_of_range;
+                return error{ archive_errc::sector_reference_out_of_range }
+                    << ed::sector_idx{ sector_id::master };
             }
 
             parentSector = std::move(sector);
@@ -226,6 +230,12 @@ namespace vefs
             if (auto sector = access_impl(sectorPosition);
                 !sector.has_error() || sector.assume_error() != errc::device_busy)
             {
+                if (sector.has_error())
+                {
+                    sector.assume_error()
+                        << ed::sector_tree_position{ sectorPosition }
+                        << ed::archive_file_id{ mData.id };
+                }
                 return std::move(sector);
             }
             // continue to loop until it either fails with an error which

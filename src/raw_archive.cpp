@@ -417,7 +417,7 @@ namespace vefs::detail
 
         if (!serialize_to_blob(msg, header))
         {
-            return errc::bad;
+            return archive_errc::protobuf_serialization_failed;
         }
 
         secure_byte_array<44> key;
@@ -460,23 +460,30 @@ namespace vefs::detail
         mArchiveFile->read(sectorSalt, sectorOffset, scode);
         if (scode)
         {
-            return error{ scode };
+            return error{ scode }
+                << ed::sector_idx{ sectorIdx };
         }
         mArchiveFile->read(buffer, sectorOffset + sectorSalt.size(), scode);
         if (scode)
         {
-            return error{ scode };
+            return error{ scode }
+                << ed::sector_idx{ sectorIdx };
         }
 
         secure_byte_array<44> sectorKeyNonce;
         OUTCOME_TRY(crypto::kdf(blob{ sectorKeyNonce },
             file.secret_view(), sector_kdf_prk, sectorSalt));
 
-        return mCryptoProvider->box_open(buffer, blob_view{ sectorKeyNonce },
-            buffer, contentMAC);
+        if (auto decrx = mCryptoProvider->box_open(buffer, blob_view{ sectorKeyNonce },
+            buffer, contentMAC); decrx.has_failure())
+        {
+            return std::move(decrx).assume_error()
+                << ed::sector_idx{ sectorIdx };
+        }
+        return outcome::success();
     }
 
-    result<void> vefs::detail::raw_archive::write_sector(blob ciphertextBuffer, blob mac,
+    result<void> detail::raw_archive::write_sector(blob ciphertextBuffer, blob mac,
         basic_archive_file_meta &file, sector_id sectorIdx, blob_view data)
     {
         constexpr auto sectorIdxLimit = std::numeric_limits<std::uint64_t>::max() / sector_size;
@@ -504,20 +511,24 @@ namespace vefs::detail
         secure_byte_array<44> sectorKeyNonce;
         OUTCOME_TRY(crypto::kdf(blob{ sectorKeyNonce }, file.secret_view(), sector_kdf_prk, salt));
 
-        OUTCOME_TRY(mCryptoProvider->box_seal(ciphertextBuffer, mac,
-            blob_view{ sectorKeyNonce }, data));
+        VEFS_TRY_INJECT(mCryptoProvider->box_seal(ciphertextBuffer, mac,
+            blob_view{ sectorKeyNonce }, data),
+            ed::sector_idx{ sectorIdx }
+        );
 
         const auto sectorOffset = to_offset(sectorIdx);
         std::error_code scode;
         mArchiveFile->write(blob_view{ salt }, sectorOffset, scode);
         if (scode)
         {
-            return error{ scode };
+            return error{ scode }
+                << ed::sector_idx{ sectorIdx };
         }
         mArchiveFile->write(ciphertextBuffer, sectorOffset + salt.size(), scode);
         if (scode)
         {
-            return error{ scode };
+            return error{ scode }
+                << ed::sector_idx{ sectorIdx };
         }
 
         return outcome::success();
@@ -574,7 +585,7 @@ namespace vefs::detail
         prefix->header_length = static_cast<std::uint32_t>(headerMsg.ByteSizeLong());
         if (!serialize_to_blob(blob{ headerMem }.slice(sizeof(ArchiveHeaderPrefix), prefix->header_length), headerMsg))
         {
-            return errc::bad;
+            return archive_errc::protobuf_serialization_failed;
         }
 
         OUTCOME_TRY(crypto::kdf(blob{ prefix->header_salt }, blob_view{ secretCtr },
@@ -585,14 +596,17 @@ namespace vefs::detail
             archive_header_kdf_prk, prefix->header_salt));
 
         blob encryptedHeader = blob{ headerMem }.slice(prefix->unencrypted_prefix_size);
-        OUTCOME_TRY(mCryptoProvider->box_seal(encryptedHeader, blob{ prefix->header_mac },
-            blob_view{ headerKeyNonce }, encryptedHeader));
+        VEFS_TRY_INJECT(mCryptoProvider->box_seal(encryptedHeader, blob{ prefix->header_mac },
+            blob_view{ headerKeyNonce }, encryptedHeader),
+            ed::archive_file{ "[archive-header]" }
+        );
 
         std::error_code scode;
         mArchiveFile->write(blob_view{ headerMem }, headerOffset, scode);
         if (scode)
         {
-            return error{ scode };
+            return error{ scode }
+                << ed::archive_file{ "[archive-header]" };
         }
         return outcome::success();
     }
