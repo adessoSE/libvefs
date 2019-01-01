@@ -113,8 +113,9 @@ namespace vefs
     {
         using namespace std::string_view_literals;
 
+        const errc code{ value };
 
-        switch (const errc code{ value }; code)
+        switch (code)
         {
         case errc::bad:
             return "unexpected failure in third party code"sv;
@@ -136,6 +137,21 @@ namespace vefs
 
         case errc::user_object_copy_failed:
             return "the function call failed due to an exception thrown by a user object copy ctor"sv;
+
+        case errc::device_busy:
+            return "the requested resource is currently unavailable, try again"sv;
+
+        case errc::still_in_use:
+            return "the entry could not be removed, because it is still referenced"sv;
+
+        case errc::not_loaded:
+            return "the requested resource is not loaded anymore and needs to be reloaded"sv;
+
+        case errc::entry_was_disposed:
+            return "the object has already been disposed"sv;
+
+        case errc::no_more_data:
+            return "all available data has been consumed"sv;
 
         default:
             return "unknown generic error code"sv;
@@ -215,6 +231,15 @@ namespace vefs
         case archive_errc::unknown_format_version:
             return "the given archive file is of an unknown version and therefore has an incompatible binary layout"sv;
 
+        case archive_errc::index_entry_spanning_blocks:
+            return "the archive index contained an entry which spanned multiple blocks"sv;
+
+        case archive_errc::no_such_file:
+            return "no file has been found under the given name"sv;
+
+        case archive_errc::protobuf_serialization_failed:
+            return "the protobuf message could not be encoded"sv;
+
         default:
             return "unknown vefs archive error code"sv;
         }
@@ -230,6 +255,12 @@ namespace vefs
     {
         return archive_domain_v;
     }
+}
+
+namespace vefs::ed
+{
+    enum class message_cache_tag;
+    using message_cache = error_detail<message_cache_tag, std::string>;
 }
 
 namespace vefs::adl::disappointment
@@ -262,10 +293,39 @@ namespace vefs::adl::disappointment
             return mImpl->name();
         }
 
-        auto std_adapter_domain::message(const error &, const error_code code) const noexcept
+        auto std_adapter_domain::message(const error &e, const error_code code) const noexcept
             -> std::string_view
         {
-            return mImpl->message(static_cast<int>(code));
+            using namespace std::string_view_literals;
+            if (e.ensure_allocated())
+            {
+                return "<std_adapter_domain failed to allocate the error info object>"sv;
+            }
+            auto msgcache = e.info()->detail<ed::message_cache>();
+            if (!msgcache)
+            {
+                std::string msg;
+                try
+                {
+                    msg = mImpl->message(static_cast<int>(code));;
+                }
+                catch (const std::bad_alloc &)
+                {
+                    return "<std_adapter_domain failed to allocate the message buffer>"sv;
+                }
+                catch (...)
+                {
+                    return "<std_adapter_domain failed to retrieve the message for an unknown reason>"sv;
+                }
+
+                if (e.info()->try_add_detail(ed::message_cache{ std::move(msg) }))
+                {
+                    return "<std_adapter_domain failed to allocate the message cache detail>"sv;
+                }
+                msgcache = e.info()->detail<ed::message_cache>();
+            }
+
+            return *msgcache;
         }
 
 

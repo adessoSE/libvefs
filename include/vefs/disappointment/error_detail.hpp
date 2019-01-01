@@ -33,7 +33,7 @@ namespace vefs
 
     template <typename Tag, typename T>
     class error_detail final
-        : public detail::error_detail_base
+        : public vefs::detail::error_detail_base
     {
         void stringify(format_buffer &out) const noexcept override;
         auto stringify() const

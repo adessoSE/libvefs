@@ -10,6 +10,8 @@
 
 #include <boost/io/ios_state.hpp>
 
+#include <vefs/disappointment/error_detail.hpp>
+
 namespace vefs::detail
 {
     enum class sector_id : std::uint64_t
@@ -17,68 +19,45 @@ namespace vefs::detail
         master = 0,
     };
 
-    constexpr std::size_t sector_id_string_size
-        = 2 + (std::numeric_limits< std::underlying_type_t<sector_id> >::digits >> 2);
-    constexpr const char *sector_id_string_fmt = "0x%.16llx";
-
     inline bool operator<(sector_id lhs, sector_id rhs)
     {
         return static_cast<std::uint64_t>(lhs) < static_cast<std::uint64_t>(rhs);
     }
+}
 
-    template <class CharT, class Traits>
-    inline std::basic_ostream<CharT, Traits> & operator<<(std::basic_ostream<CharT, Traits> &ostr, sector_id sid)
+namespace fmt
+{
+    template <>
+    struct formatter<vefs::detail::sector_id>
     {
-        using raw_type = std::underlying_type_t<sector_id>;
-        using limits = std::numeric_limits<raw_type>;
-        constexpr auto hexDigits = limits::digits >> 2;
-        constexpr auto fillChar = static_cast<CharT>('0');
-        constexpr auto hexPrefix0 = static_cast<CharT>('0');
-        constexpr auto hexPrefix1 = static_cast<CharT>('x');
+        template <typename ParseContext>
+        constexpr auto parse(ParseContext &ctx)
+        {
+            return ctx.begin();
+        }
 
-        boost::io::ios_flags_saver flags{ ostr };
-        boost::io::ios_width_saver width{ ostr };
-        boost::io::ios_fill_saver fill{ ostr };
+        template <typename FormatContext>
+        auto format(const vefs::detail::sector_id id, FormatContext &ctx)
+        {
+            using itype = std::underlying_type_t<vefs::detail::sector_id>;
+            return format_to(ctx.begin(), "SIDX:{:04x}", static_cast<itype>(id));
+        }
+    };
+}
 
-        return ostr << std::hex << std::right << std::setfill(fillChar) << std::setw(hexDigits)
-            << hexPrefix0 << hexPrefix1 << static_cast<raw_type>(sid);
-    }
-
-    inline void to_string(sector_id id, std::string &out, std::size_t position = {})
+namespace vefs::detail
+{
+    template <typename CharT, typename Traits>
+    inline auto operator<<(std::basic_ostream<CharT, Traits> &ostr, sector_id sid)
+        -> std::basic_ostream<CharT, Traits> &
     {
-        char saved;
-        const auto size = position + sector_id_string_size;
-        bool append = out.size() <= size;
-        if (append)
-        {
-            out.resize(size + 1, '\0');
-        }
-        else
-        {
-            saved = out[size];
-        }
-
-        snprintf(out.data() + position, out.size() - position,
-            sector_id_string_fmt, static_cast<std::underlying_type_t<sector_id>>(id));
-
-        if (append)
-        {
-            out.pop_back();
-        }
-        else
-        {
-            out[size] = saved;
-        }
+        fmt::print(ostr, "{}", sid);
+        return ostr;
     }
+}
 
-    inline std::string to_string(sector_id id)
-    {
-        std::string buffer(sector_id_string_size + 1, '\0');
-
-        snprintf(buffer.data(), buffer.size(),
-            sector_id_string_fmt, static_cast<std::underlying_type_t<sector_id>>(id));
-
-        buffer.pop_back(); // pop null terminator written by snprintf
-        return buffer;
-    }
+namespace vefs::ed
+{
+    enum class sector_idx_tag {};
+    using sector_idx = error_detail<sector_idx_tag, detail::sector_id>;
 }

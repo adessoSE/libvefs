@@ -19,6 +19,7 @@ namespace vefs
         free_sector_index_invalid_size,
         unknown_format_version,
         no_such_file,
+        protobuf_serialization_failed,
     };
     const error_domain & archive_domain() noexcept;
 

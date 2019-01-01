@@ -40,7 +40,7 @@ namespace vefs
 
         template <typename ErrorDetail>
         auto detail() const
-            -> utils::aliasing_ref_ptr<const typename ErrorDetail::value_type, error_info>;
+            -> utils::aliasing_ref_ptr<const typename ErrorDetail::value_type, const error_info>;
         template <typename ErrorDetail>
         auto try_add_detail(ErrorDetail &&detail) noexcept
             -> vefs::error;
@@ -69,11 +69,14 @@ namespace vefs
 
     template <typename ErrorDetail>
     inline auto error_info::detail() const
-        -> utils::aliasing_ref_ptr<const typename ErrorDetail::value_type, error_info>
+        -> utils::aliasing_ref_ptr<const typename ErrorDetail::value_type, const error_info>
     {
         if (auto it = mDetails.find(typeid(ErrorDetail)); it != mDetails.end())
         {
-            return { &static_cast<ErrorDetail *>(it->second.get()).value(), utils::ref_ptr{ this } };
+            return {
+                &static_cast<ErrorDetail *>(it->second.get())->value(),
+                utils::ref_ptr{ this, utils::ref_ptr_acquire }
+            };
         }
         else
         {
@@ -143,11 +146,9 @@ namespace vefs
             -> const error_domain &;
 
         bool has_info() const noexcept;
-        auto info() noexcept
-            -> const error_info::ptr &;
         auto info() const noexcept
-            -> utils::ref_ptr<const error_info>;
-        auto ensure_allocated() noexcept
+            -> const error_info::ptr &;
+        auto ensure_allocated() const noexcept
             -> error;
 
 
@@ -162,7 +163,7 @@ namespace vefs
 
     private:
         error_code mValue;
-        error_info::ptr mInfo;
+        mutable error_info::ptr mInfo;
         const error_domain *mDomain;
     };
 
@@ -314,19 +315,13 @@ namespace vefs
         return mInfo.operator bool();
     }
 
-    inline auto error::info() noexcept
-        -> const error_info::ptr &
-    {
-        return mInfo;
-    }
-
     inline auto error::info() const noexcept
-        -> utils::ref_ptr<const error_info>
+        ->  const error_info::ptr &
     {
         return mInfo;
     }
 
-    inline auto error::ensure_allocated() noexcept
+    inline auto error::ensure_allocated() const noexcept
         -> error
     {
         if (!has_info())

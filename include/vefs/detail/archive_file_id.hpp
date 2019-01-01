@@ -2,6 +2,8 @@
 
 #include <cstddef>
 
+#include <fmt/format.h>
+
 #include <vefs/blob.hpp>
 #include <vefs/exceptions.hpp>
 #include <vefs/utils/uuid.hpp>
@@ -73,4 +75,39 @@ namespace std
         : vefs::utils::hash::default_weak_std<vefs::detail::file_id>
     {
     };
+}
+
+namespace fmt
+{
+    template <>
+    struct formatter<vefs::detail::file_id>
+    {
+        template <typename ParseContext>
+        constexpr auto parse(ParseContext &ctx)
+        {
+            return ctx.begin();
+        }
+
+        template <typename FormatContext>
+        auto format(const vefs::detail::file_id &fid, FormatContext &ctx)
+        {
+            decltype(auto) id = fid.as_uuid();
+            auto out = ctx.begin();
+            for (auto i = 0; i < id.static_size(); ++i)
+            {
+                out = format_to(out, "{:02X}", id.data[i]);
+                if (i == 3 || i == 5 || i == 7 || i == 9)
+                {
+                    *out++ = '-';
+                }
+            }
+            return out;
+        }
+    };
+}
+
+namespace vefs::ed
+{
+    enum class archive_file_id_tag {};
+    using archive_file_id = error_detail<archive_file_id_tag, vefs::detail::file_id>;
 }

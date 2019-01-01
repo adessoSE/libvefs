@@ -8,8 +8,11 @@
 #include <limits>
 #include <functional>
 
+#include <fmt/format.h>
+
 #include <boost/iterator/iterator_facade.hpp>
 
+#include <vefs/disappointment/error_detail.hpp>
 #include <vefs/utils/hash/default_weak.hpp>
 #include <vefs/detail/raw_archive.hpp>
 #include <vefs/detail/tree_lut.hpp>
@@ -465,4 +468,29 @@ namespace vefs::detail
     }
 
     #pragma endregion
+}
+
+namespace fmt
+{
+    template <>
+    struct formatter<vefs::detail::tree_position>
+    {
+        template <typename ParseContext>
+        constexpr auto parse(ParseContext &ctx)
+        {
+            return ctx.begin();
+        }
+
+        template <typename FormatContext>
+        auto format(const vefs::detail::tree_position &tp, FormatContext &ctx)
+        {
+            return format_to(ctx.begin(), "(L{}, P{:#04x})", tp.layer(), tp.position());
+        }
+    };
+}
+
+namespace vefs::ed
+{
+    enum class sector_tree_position_tag {};
+    using sector_tree_position = error_detail<sector_tree_position_tag, detail::tree_position>;
 }
