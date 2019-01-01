@@ -9,6 +9,8 @@
 #include <boost/predef.h>
 #include <boost/config.hpp>
 
+#include <vefs/exceptions.hpp>
+
 namespace vefs
 {
     BOOST_NOINLINE error_info::error_info() noexcept
@@ -407,5 +409,11 @@ namespace vefs
 #elif defined BOOST_OS_LINUX_AVAILABLE || defined BOOST_OS_MACOS_AVAILABLE
         return std::error_code{ errno, std::system_category() };
 #endif
+    }
+
+    auto make_system_errinfo_code()
+        -> errinfo_code
+    {
+        return errinfo_code{ collect_system_error() };
     }
 }

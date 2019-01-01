@@ -53,11 +53,6 @@ namespace vefs::crypto::detail
         return ed::openssl_error{ read_openssl_errors(desc) };
     }
 
-    class openssl_api_error
-        : public virtual crypto_failure
-    {
-    };
-
 
     inline std::size_t max_overhead(const EVP_AEAD *impl)
     {

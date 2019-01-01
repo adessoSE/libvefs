@@ -85,7 +85,6 @@ DEF_SOURCE_GROUP(vefs "lib"
         os_filesystem.hpp
         os_filesystem.cpp
         ${OS_FILESYSTEM_SRC}
-        exceptions.cpp
 )
 
 DEF_SOURCE_GROUP(vefs "lib/disappointment"

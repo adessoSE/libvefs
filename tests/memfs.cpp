@@ -5,6 +5,7 @@
 #include <boost/predef.h>
 #include "boost-unit-test.hpp"
 
+#include <vefs/disappointment.hpp>
 #include <vefs/detail/thread_pool.hpp>
 
 namespace vefs::tests
@@ -192,8 +193,7 @@ namespace vefs::tests
         if (!files.erase(filePath))
         {
             //TODO: set error code
-            BOOST_THROW_EXCEPTION(io_error{}
-                << errinfo_code{ memvefs_code::file_not_found });
+            throw error_exception(error(std::errc::no_such_file_or_directory));
         }
     }
 

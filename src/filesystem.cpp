@@ -3,7 +3,7 @@
 
 #include <functional>
 
-#include <vefs/exceptions.hpp>
+#include <vefs/disappointment.hpp>
 
 namespace vefs
 {
@@ -13,9 +13,7 @@ namespace vefs
         read(buffer, readFilePos, ec);
         if (ec)
         {
-            BOOST_THROW_EXCEPTION(io_error{}
-                << errinfo_code{ ec }
-            );
+            throw error_exception(error(ec));
         }
     }
 
@@ -25,9 +23,7 @@ namespace vefs
         write(data, writeFilePos, ec);
         if (ec)
         {
-            BOOST_THROW_EXCEPTION(io_error{}
-                << errinfo_code{ ec }
-            );
+            throw error_exception(error(ec));
         }
     }
 
@@ -37,9 +33,7 @@ namespace vefs
         sync(ec);
         if (ec)
         {
-            BOOST_THROW_EXCEPTION(io_error{}
-                << errinfo_code{ ec }
-            );
+            throw error_exception(error(ec));
         }
     }
 
@@ -49,9 +43,7 @@ namespace vefs
         auto result = size(ec);
         if (ec)
         {
-            BOOST_THROW_EXCEPTION(io_error{}
-                << errinfo_code{ ec }
-            );
+            throw error_exception(error(ec));
         }
         return result;
     }
@@ -62,9 +54,7 @@ namespace vefs
         resize(newSize, ec);
         if (ec)
         {
-            BOOST_THROW_EXCEPTION(io_error{}
-                << errinfo_code{ ec }
-            );
+            throw error_exception(error(ec));
         }
     }
 
@@ -74,9 +64,7 @@ namespace vefs
         auto result = open(filePath, mode, ec);
         if (ec)
         {
-            BOOST_THROW_EXCEPTION(io_error{}
-                << errinfo_code{ ec }
-            );
+            throw error_exception(error(ec));
         }
         return result;
     }
