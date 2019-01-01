@@ -52,8 +52,9 @@ int main(int argc, char* argv[])
         std::array<std::byte, 32> prk{};
         if (cmd == "create")
         {
-            auto ac = std::make_unique<vefs::archive>(fs, apath,
-                cprov, vefs::blob_view{ prk }, vefs::archive::create);
+            auto ac = vefs::archive::open(fs, apath,
+                cprov, vefs::blob_view{ prk },
+                vefs::file_open_mode::readwrite | vefs::file_open_mode::create);
         }
     }
     return 0;
