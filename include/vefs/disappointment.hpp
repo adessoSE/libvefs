@@ -50,7 +50,7 @@ namespace vefs
     namespace detail
     {
         class result_no_value_policy
-            : private outcome::policy::base
+            : public outcome::policy::base
         {
         public:
             //! Performs a narrow check of state, used in the assume_value() functions.
@@ -83,13 +83,63 @@ namespace vefs
                 }
             }
         };
+
+        class outcome_no_value_policy
+            : public outcome::policy::base
+        {
+        public:
+            //! Performs a narrow check of state, used in the assume_value() functions.
+            using base::narrow_value_check;
+
+            //! Performs a narrow check of state, used in the assume_error() functions.
+            using base::narrow_error_check;
+
+            using base::narrow_exception_check;
+
+            //! Performs a wide check of state, used in the value() functions.
+            template <class Impl>
+            static constexpr void wide_value_check(Impl &&self)
+            {
+                if (!base::_has_value(self))
+                {
+                    if (base::_has_error(self))
+                    {
+                        throw error_exception{ base::_error(std::forward<Impl>(self)) };
+                    }
+                    if (base::_has_exception(self))
+                    {
+                        std::rethrow_exception(base::_exception(std::forward<Impl>(self)));
+                    }
+                    throw outcome::bad_result_access("no value");
+                }
+            }
+
+            //! Performs a wide check of state, used in the error() functions.
+            template <class Impl>
+            static constexpr void wide_error_check(Impl &&self)
+            {
+                if (!base::_has_error(self))
+                {
+                    throw outcome::bad_outcome_access("no error");
+                }
+            }
+
+            template <class Impl>
+            static constexpr void wide_exception_check(Impl &&self)
+            {
+                if (!base::_has_exception(self))
+                {
+                    throw outcome::bad_outcome_access("no exception");
+                }
+            }
+        };
     }
 
     template <typename R, typename E = error>
     using result = outcome::basic_result<R, E, detail::result_no_value_policy>;
 
     template <typename R, typename E = error>
-    using op_outcome = outcome::outcome<R, E, std::exception_ptr, detail::result_no_value_policy>;
+    using op_outcome = outcome::outcome<R, E, std::exception_ptr, detail::outcome_no_value_policy>;
 
     template <typename T, typename InjectFn>
     auto inject(result<T> rx, InjectFn &&injectFn)
