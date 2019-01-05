@@ -210,4 +210,4 @@ namespace vefs
         -> std::error_code;
 }
 
-#define VEFS_TRY_INJECT(stmt, injected) OUTCOME_TRY(vefs::inject((stmt), [&](auto &e) { e << (injected); }))
+#define VEFS_TRY_INJECT(stmt, injected) OUTCOME_TRY(vefs::inject((stmt), [&](auto &e) { e << injected ; }))
