@@ -20,6 +20,7 @@ namespace vefs
         unknown_format_version,
         no_such_file,
         protobuf_serialization_failed,
+        wrong_user_prk,
     };
     const error_domain & archive_domain() noexcept;
 

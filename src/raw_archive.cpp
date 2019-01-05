@@ -182,8 +182,12 @@ namespace vefs::detail
         }
         else
         {
-            OUTCOME_TRY(archive->parse_static_archive_header(userPRK));
-            OUTCOME_TRY(archive->parse_archive_header());
+            VEFS_TRY_INJECT(archive->parse_static_archive_header(userPRK),
+                ed::archive_file{ "[archive-static-header]" }
+                << ed::sector_idx{ sector_id::master });
+            VEFS_TRY_INJECT(archive->parse_archive_header(),
+                ed::archive_file{ "[archive-header]" }
+                << ed::sector_idx{ sector_id::master });
         }
         return std::move(archive);
     }
@@ -237,8 +241,17 @@ namespace vefs::detail
         secure_byte_array<44> keyNonce;
         OUTCOME_TRY(crypto::kdf(blob{ keyNonce }, userPRK, archivePrefix.static_header_salt));
 
-        OUTCOME_TRY(mCryptoProvider->box_open(staticHeader, blob_view{ keyNonce },
-            staticHeader, blob_view{ archivePrefix.static_header_mac }));
+        if (auto rx = mCryptoProvider->box_open(staticHeader, blob_view{ keyNonce },
+            staticHeader, blob_view{ archivePrefix.static_header_mac });
+            rx.has_failure())
+        {
+            if (rx.has_error() && rx.assume_error() == archive_errc::tag_mismatch)
+            {
+                return error{ archive_errc::wrong_user_prk }
+                    << ed::wrapped_error{ std::move(rx).assume_error() };
+            }
+            return std::move(rx).as_failure();
+        }
 
         adesso::vefs::StaticArchiveHeader staticHeaderMsg;
         VEFS_SCOPE_EXIT { erase_secrets(staticHeaderMsg); };

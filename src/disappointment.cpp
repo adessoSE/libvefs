@@ -242,6 +242,9 @@ namespace vefs
         case archive_errc::protobuf_serialization_failed:
             return "the protobuf message could not be encoded"sv;
 
+        case archive_errc::wrong_user_prk:
+            return "the given archive key is not valid for this archive or the archive head has been corrupted"sv;
+
         default:
             return "unknown vefs archive error code"sv;
         }
