@@ -71,7 +71,7 @@ namespace vefs
         {
             if (freeSectorIt == freeSectorRangeEnd)
             {
-                if (auto growrx = grow_owner_impl(std::min<std::ptrdiff_t>(4, end - out)))
+                if (auto growrx = grow_owner_impl(std::max<std::ptrdiff_t>(4, end - out)))
                 {
                     freeSectorIt = std::move(growrx).assume_value();
                 }
@@ -278,7 +278,7 @@ namespace vefs
 
         auto current = sectors.front();
         std::uint64_t offset = 0;
-        for (auto it = sectors.data() + 1, end = it + sectors.size(); it != end; ++it)
+        for (auto it = sectors.data() + 1, end = it + sectors.size() - 1; it != end; ++it)
         {
             const auto next = *it;
             if (static_cast<std::uint64_t>(next) - static_cast<std::uint64_t>(current) == 1)
