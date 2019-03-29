@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <utility>
 #include <stdexcept>
 #include <type_traits>
 
@@ -71,25 +72,21 @@ namespace vefs::crypto::detail
         boringssl_aead(const boringssl_aead &) = delete;
         boringssl_aead(boringssl_aead &&other) noexcept
             : mCtx{ other.mCtx }
+            , mInitialized{ other.mInitialized }
         {
-            other.mCtx.aead = nullptr;
-            other.mCtx.aead_state = nullptr;
-            other.mCtx.tag_len = 0;
+            memset(&other.mCtx, 0, sizeof(other.mCtx));
         }
         boringssl_aead & operator=(const boringssl_aead &) = delete;
         boringssl_aead & operator=(boringssl_aead &&other) noexcept
         {
-            if (mCtx.aead_state)
+            if (mInitialized)
             {
                 ERR_clear_error();
                 EVP_AEAD_CTX_cleanup(&mCtx);
             }
-            mCtx.aead = other.mCtx.aead;
-            mCtx.aead_state = other.mCtx.aead_state;
-            mCtx.tag_len = other.mCtx.tag_len;
-            other.mCtx.aead = nullptr;
-            other.mCtx.aead_state = nullptr;
-            other.mCtx.tag_len = 0;
+            memcpy(&mCtx, &other.mCtx, sizeof(mCtx));
+            memset(&other.mCtx, 0, sizeof(other.mCtx));
+            mInitialized = std::exchange(other.mInitialized, false);
             return *this;
         }
 
@@ -114,11 +111,12 @@ namespace vefs::crypto::detail
                     << ed::error_code_api_origin{ "EVP_AEAD_CTX_init"sv }
                     << make_openssl_errinfo();
             }
+            ctx.mInitialized = true;
             return std::move(ctx);
         }
         ~boringssl_aead()
         {
-            if (mCtx.aead_state)
+            if (mInitialized)
             {
                 ERR_clear_error();
                 EVP_AEAD_CTX_cleanup(&mCtx);
@@ -260,5 +258,6 @@ namespace vefs::crypto::detail
 
     private:
         EVP_AEAD_CTX mCtx;
+        bool mInitialized{ false };
     };
 }
