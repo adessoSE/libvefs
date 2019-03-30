@@ -1,189 +1,184 @@
 
-set(_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/include")
-
 if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    set(OS_FILESYSTEM_SRC os_filesystem_linux.cpp)
+    set(OS_FILESYSTEM_SRC src/os_filesystem_linux.cpp)
 elseif(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-    set(OS_FILESYSTEM_SRC os_filesystem_win.cpp)
+    set(OS_FILESYSTEM_SRC src/os_filesystem_win.cpp)
 endif()
 
-add_library(vefs STATIC
-    ${vefs_SRC}
-
-    fileformat.proto
-)
+add_library(vefs STATIC)
 
 DEF_SOURCE_GROUP(vefs "utils"
     SOURCES
         # the precompiled.cpp _must_ be the first source file
         # due to cotire limitations
-        precompiled.cpp
-        precompiled.hpp
+        src/precompiled.cpp
+        src/precompiled.hpp
 
     HEADERS
-        ../vefs.natvis
-        "${_INCLUDE_DIR}/vefs/utils/allocator.hpp"
-        "${_INCLUDE_DIR}/vefs/utils/pool_allocator.hpp"
-        "${_INCLUDE_DIR}/vefs/utils/secure_ops.hpp"
-        "${_INCLUDE_DIR}/vefs/utils/secure_array.hpp"
-        "${_INCLUDE_DIR}/vefs/utils/secure_allocator.hpp"
+        vefs.natvis
+        include/vefs/utils/allocator.hpp
+        include/vefs/utils/pool_allocator.hpp
+        include/vefs/utils/secure_ops.hpp
+        include/vefs/utils/secure_array.hpp
+        include/vefs/utils/secure_allocator.hpp
 
-        "${_INCLUDE_DIR}/vefs/utils/misc.hpp"
-        "${_INCLUDE_DIR}/vefs/utils/ref_ptr.hpp"
-        "${_INCLUDE_DIR}/vefs/utils/dirt_flag.hpp"
-        "${_INCLUDE_DIR}/vefs/utils/platform.hpp"
-        "${_INCLUDE_DIR}/vefs/utils/windows-proper.h"
+        include/vefs/utils/misc.hpp
+        include/vefs/utils/ref_ptr.hpp
+        include/vefs/utils/dirt_flag.hpp
+        include/vefs/utils/platform.hpp
+        include/vefs/utils/windows-proper.h
 
-        "${_INCLUDE_DIR}/vefs/utils/uuid.hpp"
-        "${_INCLUDE_DIR}/vefs/utils/random.hpp"
+        include/vefs/utils/uuid.hpp
+        include/vefs/utils/random.hpp
 
-        "${_INCLUDE_DIR}/vefs/utils/enum_bitset.hpp"
-        "${_INCLUDE_DIR}/vefs/utils/bit_scan.hpp"
-        "${_INCLUDE_DIR}/vefs/utils/bitset_overlay.hpp"
+        include/vefs/utils/enum_bitset.hpp
+        include/vefs/utils/bit_scan.hpp
+        include/vefs/utils/bitset_overlay.hpp
 
-        "${_INCLUDE_DIR}/vefs/utils/hash/algorithm_tag.hpp"
-        "${_INCLUDE_DIR}/vefs/utils/hash/default_weak.hpp"
-        "${_INCLUDE_DIR}/vefs/utils/hash/detail/std_adaptor.hpp"
+        include/vefs/utils/hash/algorithm_tag.hpp
+        include/vefs/utils/hash/default_weak.hpp
+        include/vefs/utils/hash/detail/std_adaptor.hpp
 
-        "${_INCLUDE_DIR}/vefs/utils/unordered_map_mt.hpp"
+        include/vefs/utils/unordered_map_mt.hpp
 
     SOURCES
-        platform.cpp
+        src/platform.cpp
 
-        secure_ops.cpp
+        src/secure_ops.cpp
 
-        block_manager.hpp
+        src/block_manager.hpp
 
-        utf.hpp
-        utf.cpp
+        src/utf.hpp
+        src/utf.cpp
 
-        proto-helper.hpp
+        src/proto-helper.hpp
 )
 
 DEF_SOURCE_GROUP(vefs "lib"
     HEADERS
-        "${_INCLUDE_DIR}/vefs/archive.hpp"
-        "${_INCLUDE_DIR}/vefs/archive_fwd.hpp"
-        "${_INCLUDE_DIR}/vefs/exceptions.hpp"
-        "${_INCLUDE_DIR}/vefs/blob.hpp"
-        "${_INCLUDE_DIR}/vefs/filesystem.hpp"
+        include/vefs/archive.hpp
+        include/vefs/archive_fwd.hpp
+        include/vefs/exceptions.hpp
+        include/vefs/blob.hpp
+        include/vefs/filesystem.hpp
 
     SOURCES
-        archive.cpp
-        archive_file.hpp
-        archive_file.cpp
-        archive_file_lookup.hpp
-        archive_file_lookup.cpp
-        archive_free_block_list_file.hpp
-        archive_free_block_list_file.cpp
-        archive_index_file.hpp
-        archive_index_file.cpp
-        archive_internal_file.hpp
-        archive_internal_file.cpp
+        src/archive.cpp
+        src/archive_file.hpp
+        src/archive_file.cpp
+        src/archive_file_lookup.hpp
+        src/archive_file_lookup.cpp
+        src/archive_free_block_list_file.hpp
+        src/archive_free_block_list_file.cpp
+        src/archive_index_file.hpp
+        src/archive_index_file.cpp
+        src/archive_internal_file.hpp
+        src/archive_internal_file.cpp
 
-        filesystem.cpp
-        os_filesystem.hpp
-        os_filesystem.cpp
+        src/filesystem.cpp
+        src/os_filesystem.hpp
+        src/os_filesystem.cpp
         ${OS_FILESYSTEM_SRC}
 )
 
 DEF_SOURCE_GROUP(vefs "lib/disappointment"
     HEADERS
-        "${_INCLUDE_DIR}/vefs/disappointment.hpp"
-        "${_INCLUDE_DIR}/vefs/disappointment/errc.hpp"
-        "${_INCLUDE_DIR}/vefs/disappointment/error.hpp"
-        "${_INCLUDE_DIR}/vefs/disappointment/error_detail.hpp"
-        "${_INCLUDE_DIR}/vefs/disappointment/error_domain.hpp"
-        "${_INCLUDE_DIR}/vefs/disappointment/error_exception.hpp"
-        "${_INCLUDE_DIR}/vefs/disappointment/fwd.hpp"
-        "${_INCLUDE_DIR}/vefs/disappointment/generic_errc.hpp"
-        "${_INCLUDE_DIR}/vefs/disappointment/std_adapter.hpp"
+        include/vefs/disappointment.hpp
+        include/vefs/disappointment/errc.hpp
+        include/vefs/disappointment/error.hpp
+        include/vefs/disappointment/error_detail.hpp
+        include/vefs/disappointment/error_domain.hpp
+        include/vefs/disappointment/error_exception.hpp
+        include/vefs/disappointment/fwd.hpp
+        include/vefs/disappointment/generic_errc.hpp
+        include/vefs/disappointment/std_adapter.hpp
 
     SOURCES
-        disappointment.cpp
+        src/disappointment.cpp
 )
 
 DEF_SOURCE_GROUP(vefs "lib/detail"
     HEADERS
-        "${_INCLUDE_DIR}/vefs/detail/cache.hpp"
-        "${_INCLUDE_DIR}/vefs/detail/thread_pool.hpp"
-        "${_INCLUDE_DIR}/vefs/detail/thread_pool_win32.hpp"
-        "${_INCLUDE_DIR}/vefs/detail/thread_pool_gen.hpp"
+        include/vefs/detail/cache.hpp
+        include/vefs/detail/thread_pool.hpp
+        include/vefs/detail/thread_pool_win32.hpp
+        include/vefs/detail/thread_pool_gen.hpp
 
-        "${_INCLUDE_DIR}/vefs/detail/archive_file_id.hpp"
-        "${_INCLUDE_DIR}/vefs/detail/basic_archive_file_meta.hpp"
-        "${_INCLUDE_DIR}/vefs/detail/journal.hpp"
-        "${_INCLUDE_DIR}/vefs/detail/raw_archive.hpp"
-        "${_INCLUDE_DIR}/vefs/detail/sector_id.hpp"
-        "${_INCLUDE_DIR}/vefs/detail/tree_lut.hpp"
-        "${_INCLUDE_DIR}/vefs/detail/tree_walker.hpp"
+        include/vefs/detail/archive_file_id.hpp
+        include/vefs/detail/basic_archive_file_meta.hpp
+        include/vefs/detail/journal.hpp
+        include/vefs/detail/raw_archive.hpp
+        include/vefs/detail/sector_id.hpp
+        include/vefs/detail/tree_lut.hpp
+        include/vefs/detail/tree_walker.hpp
 
     SOURCES
-        thread_pool.cpp
-        thread_pool_gen.cpp
-        thread_pool_win32.cpp
-        raw_archive.cpp
-        tree_walker.cpp
+        src/thread_pool.cpp
+        src/thread_pool_gen.cpp
+        src/thread_pool_win32.cpp
+        src/raw_archive.cpp
+        src/tree_walker.cpp
 )
 
 DEF_SOURCE_GROUP(vefs "crypto"
     SOURCES
-        sysrandom.cpp
-        sysrandom.hpp
+        src/sysrandom.cpp
+        src/sysrandom.hpp
 
-        ct_compare.hpp
+        src/ct_compare.hpp
 
-        blake2.cpp
-        blake2.hpp
-        boringssl_aead.hpp
+        src/blake2.cpp
+        src/blake2.hpp
+        src/boringssl_aead.hpp
 
-        crypto_provider_debug.cpp
+        src/crypto_provider_debug.cpp
 
-        kdf.cpp
+        src/kdf.cpp
 
-        counter.cpp
+        src/counter.cpp
 
     HEADERS
-        "${_INCLUDE_DIR}/vefs/crypto/provider.hpp"
+        include/vefs/crypto/provider.hpp
 
-        "${_INCLUDE_DIR}/vefs/crypto/kdf.hpp"
+        include/vefs/crypto/kdf.hpp
 
-        "${_INCLUDE_DIR}/vefs/crypto/counter.hpp"
+        include/vefs/crypto/counter.hpp
 )
 if (OpenSSL_FOUND)
     DEF_SOURCE_GROUP(vefs "crypto"
         SOURCES
-            crypto_provider_boringssl.cpp
+            src/crypto_provider_boringssl.cpp
     )
 endif()
 
 DEF_SOURCE_GROUP(vefs "ext/libcuckoo"
     HEADERS
-        "${_INCLUDE_DIR}/vefs/ext/libcuckoo/cuckoohash_config.hh"
-        "${_INCLUDE_DIR}/vefs/ext/libcuckoo/cuckoohash_map.hh"
-        "${_INCLUDE_DIR}/vefs/ext/libcuckoo/cuckoohash_util.hh"
-        "${_INCLUDE_DIR}/vefs/ext/libcuckoo/libcuckoo_bucket_container.hh"
+        include/vefs/ext/libcuckoo/cuckoohash_config.hh
+        include/vefs/ext/libcuckoo/cuckoohash_map.hh
+        include/vefs/ext/libcuckoo/cuckoohash_util.hh
+        include/vefs/ext/libcuckoo/libcuckoo_bucket_container.hh
 )
 DEF_SOURCE_GROUP(vefs "ext/concurrentqueue"
     HEADERS
-        "${_INCLUDE_DIR}/vefs/ext/concurrentqueue/concurrentqueue.h"
-        "${_INCLUDE_DIR}/vefs/ext/concurrentqueue/blockingconcurrentqueue.h"
+        include/vefs/ext/concurrentqueue/concurrentqueue.h
+        include/vefs/ext/concurrentqueue/blockingconcurrentqueue.h
 )
 
 DEF_SOURCE_GROUP(vefs "ext/SpookyV2"
     HEADERS
-        "${_INCLUDE_DIR}/vefs/utils/hash/detail/spooky.hpp"
-        "${_INCLUDE_DIR}/vefs/utils/hash/detail/SpookyV2_impl.hpp"
+        include/vefs/utils/hash/detail/spooky.hpp
+        include/vefs/utils/hash/detail/SpookyV2_impl.hpp
 
     SOURCES
-        SpookyV2.cpp
+        src/SpookyV2.cpp
 )
 
 DEF_SOURCE_GROUP(vefs "ext/outcome"
     HEADERS
-        "${_INCLUDE_DIR}/vefs/ext/outcome.hpp"
+        include/vefs/ext/outcome.hpp
 )
 
+target_sources(vefs PRIVATE fileformat.proto)
 protobuf_generate(TARGET vefs)
 
 target_compile_definitions(vefs
@@ -194,7 +189,7 @@ target_include_directories(vefs
     PRIVATE
         $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
     PUBLIC
-        $<BUILD_INTERFACE:${_INCLUDE_DIR}>
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
 )
 target_link_libraries(vefs
@@ -224,10 +219,40 @@ endif()
 # cotire config
 set_target_properties(vefs PROPERTIES
     COTIRE_ADD_UNITY_BUILD FALSE
-    COTIRE_CXX_PREFIX_HEADER_INIT "precompiled.hpp"
+    COTIRE_CXX_PREFIX_HEADER_INIT "src/precompiled.hpp"
 )
 
 cotire(vefs)
+
+##########################################################################
+# test target
+add_executable(vefs-tests
+    tests/vefs-tests.cpp
+    tests/boost-unit-test.hpp
+    tests/test-utils.hpp
+
+    tests/disappointment-tests.cpp
+    tests/allocator-tests.cpp
+    tests/cache-tests.cpp
+
+    tests/osfilesystem-tests.cpp
+    tests/memfs.cpp
+    tests/memfs-tests.cpp
+    tests/memfs.hpp
+
+    tests/raw_archive-tests.cpp
+    tests/archive-tests.cpp
+
+    tests/blob-tests.cpp
+    tests/crypto_provider-tests.cpp
+)
+target_link_libraries(vefs-tests
+    PUBLIC
+        vefs
+        Boost::unit_test_framework
+)
+add_test(NAME vefs-tests COMMAND vefs-tests)
+
 
 ##########################################################################
 # install targets

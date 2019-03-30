@@ -12,7 +12,7 @@
 ########################################################################
 
 add_executable(vefs-bench
-    benchmarks.cpp
+    src/benchmarks.cpp
 )
 target_link_libraries(vefs-bench
     PUBLIC

@@ -1,6 +1,6 @@
 
 add_executable(vefs-cli
-    vefs-cli.cpp
+    src/vefs-cli.cpp
 )
 
 target_link_libraries(vefs-cli
