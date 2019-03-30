@@ -2,4 +2,8 @@
 /build
 
 # visual studio cmake config
-CMakeSettings.json
+/CMakeSettings.json
+# visual studio settings
+/.vs/
+# visual studio code settings
+/.vscode/
