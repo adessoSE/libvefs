@@ -1,10 +1,26 @@
 #include "boost-unit-test.hpp"
 #include <boost/throw_exception.hpp>
 
-#include <vefs/crypto/provider.hpp>
+#include <openssl/err.h>
+
 #include <google/protobuf/stubs/common.h>
 
+#include <vefs/crypto/provider.hpp>
+
 using namespace boost::unit_test;
+
+// BoringSSL manually allocates TLS storage on first use
+// which yields false positive memory leaks
+// therefore we force the initialization of these structures to happen
+// before the leak detector takes the baseline snapshot
+struct BoringSslTlsFixture
+{
+    BoringSslTlsFixture()
+    {
+        ERR_clear_error();
+    }
+};
+BoringSslTlsFixture BoringSslTlsInitializer;
 
 struct ProtobufShutdownFixture
 {
@@ -14,7 +30,6 @@ struct ProtobufShutdownFixture
     }
 };
 BOOST_TEST_GLOBAL_FIXTURE(ProtobufShutdownFixture);
-
 
 // we can't use the macros to specify the module name, because the
 // defining header is already included in the precompiled header...
@@ -28,7 +43,7 @@ bool init_unit_test()
 
 // this way we don't have to care about whether Boost.Test was compiled with
 // BOOST_TEST_ALTERNATIVE_INIT_API defined or not.
-test_suite * init_unit_test_suite(int /*argc*/, char* /*argv*/[])
+test_suite *init_unit_test_suite(int /*argc*/, char * /*argv*/[])
 {
     if (!init_unit_test())
     {
