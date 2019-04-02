@@ -99,8 +99,8 @@ namespace vefs::utils
     public:
         using unit_type = std::size_t;
 
-        bitset_overlay(blob data)
-            : mBegin(&data.as<unit_type>())
+        bitset_overlay(rw_dynblob data)
+            : mBegin(reinterpret_cast<unit_type *>(data.data())) // #UB-Alignment
         {
             assert(data.size() >= sizeof(unit_type));
             assert(data.size() % sizeof(unit_type) == 0);
@@ -197,8 +197,8 @@ namespace vefs::utils
     public:
         using unit_type = std::size_t;
 
-        const_bitset_overlay(blob_view data)
-            : mBegin(&data.as<unit_type>())
+        const_bitset_overlay(ro_dynblob data)
+            : mBegin(reinterpret_cast<const unit_type *>(data.data())) // #UB-Alignment
         {
             assert(data.size() >= sizeof(unit_type));
             assert(data.size() % sizeof(unit_type) == 0);

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <cstring>
 
 #include <limits>
 #include <type_traits>
@@ -30,13 +31,12 @@ namespace vefs::utils::detail
     {
     };
     template <typename T>
-    struct has_BitScanForward64<T, std::void_t<decltype(_BitScanForward64(nullptr, std::declval<T>()))>>
-        : std::true_type
+    struct has_BitScanForward64<
+        T, std::void_t<decltype(_BitScanForward64(nullptr, std::declval<T>()))>> : std::true_type
     {
     };
     template <typename T>
     constexpr bool has_BitScanForward64_v = has_BitScanForward64<T>::value;
-
 
     template <typename T, typename = void>
     struct has_builtin_ffs : std::false_type
@@ -50,7 +50,6 @@ namespace vefs::utils::detail
     template <typename T>
     constexpr bool has_builtin_ffs_v = has_builtin_ffs<T>::value;
 
-
     template <typename T, typename = void>
     struct has_builtin_ffsll : std::false_type
     {
@@ -62,7 +61,7 @@ namespace vefs::utils::detail
     };
     template <typename T>
     constexpr bool has_builtin_ffsll_v = has_builtin_ffsll<T>::value;
-}
+} // namespace vefs::utils::detail
 
 namespace vefs::utils
 {
@@ -86,7 +85,7 @@ namespace vefs::utils
             pos = static_cast<std::size_t>(__builtin_ffs(data)) - 1;
             return pos != std::numeric_limits<std::size_t>::max();
         }
-        else if constexpr (has_BitScanForward64_v<T>  && sizeof(T) <= 8)
+        else if constexpr (has_BitScanForward64_v<T> && sizeof(T) <= 8)
         {
             unsigned long pos_impl;
             _BitScanForward64(&pos_impl, data);
@@ -114,22 +113,24 @@ namespace vefs::utils
         else
         {
             // in case T is greater than std::size_t
-            constexpr std::size_t num_parts
-                = (sizeof(data) + sizeof(std::size_t) - 1) / sizeof(std::size_t);
-            union
-            {
-                T raw;
-                std::size_t parts[num_parts];
-            } access;
-            if constexpr (sizeof(data) % sizeof(std::size_t) != 0)
-            {
-                access.parts[num_parts - 1] = std::size_t{};
-            }
-            access.raw = data;
+            constexpr std::size_t num_parts =
+                (sizeof(data) + sizeof(std::size_t) - 1) / sizeof(std::size_t);
 
             for (auto i = 0; i < num_parts; ++i)
             {
-                if (bit_scan(pos, access.parts[i]))
+                std::size_t mem{0};
+                if constexpr (sizeof(data) % sizeof(std::size_t) != 0)
+                {
+                    const auto last = i == num_parts - 1;
+                    std::memcpy(&mem, &data + i * sizeof(std::size_t),
+                                last ? sizeof(data) % sizeof(std::size_t) : sizeof(std::size_t));
+                }
+                else
+                {
+                    std::memcpy(&mem, &data + i * sizeof(std::size_t), sizeof(std::size_t));
+                }
+
+                if (bit_scan(pos, mem))
                 {
                     pos += i * std::numeric_limits<std::size_t>::digits;
                     return true;
@@ -138,4 +139,4 @@ namespace vefs::utils
             return false;
         }
     }
-}
+} // namespace vefs::utils

@@ -3,16 +3,16 @@
 #include <cstdint>
 
 #include <memory>
-#include <string>
 #include <shared_mutex>
+#include <string>
 
 #include <vefs/blob.hpp>
-#include <vefs/utils/uuid.hpp>
-#include <vefs/utils/secure_array.hpp>
-#include <vefs/utils/hash/default_weak.hpp>
 #include <vefs/crypto/counter.hpp>
 #include <vefs/detail/archive_file_id.hpp>
 #include <vefs/detail/sector_id.hpp>
+#include <vefs/utils/hash/default_weak.hpp>
+#include <vefs/utils/secure_array.hpp>
+#include <vefs/utils/uuid.hpp>
 
 namespace vefs::detail
 {
@@ -21,18 +21,18 @@ namespace vefs::detail
         basic_archive_file_meta() = default;
         inline basic_archive_file_meta(basic_archive_file_meta &&other);
 
-        blob_view secret_view() const
+        auto secret_view() const -> ro_blob<32>
         {
-            return blob_view{ secret };
+            return {secret};
         }
 
-        blob start_block_mac_blob()
+        auto start_block_mac_blob() -> rw_blob<16>
         {
-            return blob{ start_block_mac };
+            return {start_block_mac};
         }
-        blob_view start_block_mac_blob() const
+        auto start_block_mac_blob() const -> ro_blob<16>
         {
-            return blob_view{ start_block_mac };
+            return {start_block_mac};
         }
 
         utils::secure_byte_array<32> secret;
@@ -47,13 +47,13 @@ namespace vefs::detail
     };
 
     inline basic_archive_file_meta::basic_archive_file_meta(basic_archive_file_meta &&other)
-        : secret{ other.secret }
-        , write_counter{ other.write_counter.load().value() }
-        , start_block_mac{ other.start_block_mac }
-        , id{ other.id }
-        , start_block_idx{ other.start_block_idx }
-        , size{ other.size }
-        , tree_depth{ other.tree_depth }
+        : secret{other.secret}
+        , write_counter{other.write_counter.load().value()}
+        , start_block_mac{other.start_block_mac}
+        , id{other.id}
+        , start_block_idx{other.start_block_idx}
+        , size{other.size}
+        , tree_depth{other.tree_depth}
     {
         other.secret = {};
         other.write_counter.store(crypto::counter{});
@@ -63,4 +63,4 @@ namespace vefs::detail
         other.size = 0;
         other.tree_depth = -1;
     }
-}
+} // namespace vefs::detail

@@ -1,11 +1,11 @@
 #pragma once
 
-#include <cstddef>
 #include <cassert>
+#include <cstddef>
 
 #include <array>
-#include <mutex>
 #include <atomic>
+#include <mutex>
 #include <stdexcept>
 
 #include <vefs/blob.hpp>
@@ -18,20 +18,20 @@ namespace vefs::crypto
     {
     public:
         static constexpr std::size_t state_size = 16;
-        using state = utils::secure_byte_array<state_size>;
+        using state = utils::secure_array<std::size_t, state_size / sizeof(std::size_t)>;
 
         counter() = default;
         explicit counter(state ctrState);
-        explicit counter(blob_view ctrState);
+        explicit counter(ro_blob<state_size> ctrState);
 
-        const state & value() const noexcept;
-        blob_view view() const noexcept;
+        const state &value() const noexcept;
+        auto view() const noexcept -> ro_blob<state_size>;
         void increment();
-        counter & operator++();
+        counter &operator++();
         counter operator++(int);
 
     private:
-        alignas(std::size_t) state mCtrState;
+        state mCtrState;
     };
 
     inline counter::counter(state ctrState)
@@ -39,24 +39,23 @@ namespace vefs::crypto
     {
     }
 
-    inline counter::counter(blob_view ctrState)
+    inline counter::counter(ro_blob<state_size> ctrState)
         : mCtrState()
     {
-        assert(ctrState.size() == mCtrState.size());
-        ctrState.copy_to(blob{ mCtrState });
+        copy(ctrState, as_writable_bytes(as_span(mCtrState)));
     }
 
-    inline const counter::state & counter::value() const noexcept
+    inline const counter::state &counter::value() const noexcept
     {
         return mCtrState;
     }
 
-    inline blob_view counter::view() const noexcept
+    inline auto counter::view() const noexcept -> ro_blob<state_size>
     {
-        return blob_view{ mCtrState };
+        return as_bytes(as_span(mCtrState));
     }
 
-    inline counter& counter::operator++()
+    inline counter &counter::operator++()
     {
         increment();
         return *this;
@@ -64,7 +63,7 @@ namespace vefs::crypto
 
     inline counter counter::operator++(int)
     {
-        counter current{ *this };
+        counter current{*this};
         increment();
         return current;
     }
@@ -79,7 +78,7 @@ namespace vefs::crypto
     {
         return !(lhs == rhs);
     }
-}
+} // namespace vefs::crypto
 
 namespace std
 {
@@ -103,7 +102,7 @@ namespace std
             , mAccessMutex()
         {
         }
-        atomic(vefs::blob_view ctrState) noexcept
+        atomic(vefs::ro_blob<value_type::state_size> ctrState) noexcept
             : mImpl(ctrState)
             , mAccessMutex()
         {
@@ -118,12 +117,12 @@ namespace std
 
         void store(value_type desired, std::memory_order = std::memory_order_seq_cst) noexcept
         {
-            guard_t lock{ mAccessMutex };
+            std::lock_guard lock{mAccessMutex};
             mImpl = desired;
         }
         value_type load(std::memory_order = std::memory_order_seq_cst) const noexcept
         {
-            guard_t lock{ mAccessMutex };
+            std::lock_guard lock{mAccessMutex};
             return mImpl;
         }
 
@@ -133,22 +132,22 @@ namespace std
         }
         value_type operator=(value_type desired) noexcept
         {
-            guard_t lock{ mAccessMutex };
+            std::lock_guard lock{mAccessMutex};
             return mImpl = desired;
         }
-        atomic & operator=(const atomic &) = delete;
+        atomic &operator=(const atomic &) = delete;
 
         value_type exchange(value_type desired, std::memory_order = std::memory_order_seq_cst) noexcept
         {
-            guard_t lock{ mAccessMutex };
-            value_type old{ mImpl };
+            std::lock_guard lock{mAccessMutex};
+            value_type old{mImpl};
             mImpl = desired;
             return old;
         }
         bool compare_exchange_weak(const value_type &expected, value_type desired,
-            std::memory_order = std::memory_order_seq_cst) noexcept
+                                   std::memory_order = std::memory_order_seq_cst) noexcept
         {
-            guard_t lock{ mAccessMutex };
+            std::lock_guard lock{mAccessMutex};
             const auto success = mImpl == expected;
             if (success)
             {
@@ -157,34 +156,32 @@ namespace std
             return success;
         }
         bool compare_exchange_strong(const value_type &expected, value_type desired,
-            std::memory_order = std::memory_order_seq_cst) noexcept
+                                     std::memory_order = std::memory_order_seq_cst) noexcept
         {
             return compare_exchange_weak(expected, desired);
         }
 
         value_type fetch_increment() noexcept
         {
-            guard_t lock{ mAccessMutex };
+            std::lock_guard lock{mAccessMutex};
             return mImpl++;
         }
         value_type operator++() noexcept
         {
-            guard_t lock{ mAccessMutex };
+            std::lock_guard lock{mAccessMutex};
             return ++mImpl;
         }
         value_type operator++(int) noexcept
         {
-            guard_t lock{ mAccessMutex };
+            std::lock_guard lock{mAccessMutex};
             return mImpl++;
         }
 
     private:
-        using guard_t = std::lock_guard<std::mutex>;
-
         vefs::crypto::counter mImpl;
         mutable std::mutex mAccessMutex;
     };
-}
+} // namespace std
 
 namespace vefs::crypto
 {

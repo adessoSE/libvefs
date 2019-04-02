@@ -69,17 +69,17 @@ namespace vefs
 
         virtual void on_sector_write_suggestion(sector_handle sector) override;
         virtual void on_root_sector_synced(detail::basic_archive_file_meta &rootMeta) override;
-        virtual void on_sector_synced(detail::sector_id physId, blob_view mac) override;
+        virtual void on_sector_synced(detail::sector_id physId, ro_blob<16> mac) override;
 
         auto parse_content()
             -> result<void>;
 
         void dealloc_blocks(int first, int num);
 
-        auto write_blocks(int indexBlockPos, blob_view data, bool updateAllocMap)
+        auto write_blocks(int indexBlockPos, ro_dynblob data, bool updateAllocMap)
             -> result<void>;
-        auto write_blocks_impl(int mIndexBlockPos, blob_view data, bool updateAllocMap)
-            -> result<std::tuple<int, blob_view>>;
+        auto write_blocks_impl(int mIndexBlockPos, ro_dynblob data, bool updateAllocMap)
+            -> result<std::tuple<int, ro_dynblob>>;
         void write_block_header(sector_handle handle);
 
         index_t mIndex;

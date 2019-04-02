@@ -7,7 +7,7 @@
 
 namespace vefs::utils
 {
-    void secure_memzero(blob data)
+    void secure_memzero(rw_dynblob data)
     {
         if (data)
         {

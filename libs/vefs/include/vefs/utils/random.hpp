@@ -19,7 +19,7 @@ namespace vefs::utils
             : s(init)
         {
         }
-        template<class Sseq>
+        template <class Sseq>
         inline splitmix64(Sseq &init)
         {
             seed<Sseq>(init);
@@ -30,12 +30,12 @@ namespace vefs::utils
         {
             s = init;
         }
-        template<class Sseq>
+        template <class Sseq>
         inline void seed(Sseq &init)
         {
-            (void)init;
-            std::uint32_t *temp = reinterpret_cast<std::uint32_t *>(&s);
-            init.generate(temp, temp + (sizeof(s) / sizeof(std::uint32_t)));
+            std::array<typename Sseq::result_type, 2> data;
+            init.generate(data.begin(), data.end());
+            s = static_cast<std::uint64_t>(data[0]) | (static_cast<std::uint64_t>(data[1]) << 32);
         }
 
         inline result_type operator()()
@@ -63,7 +63,6 @@ namespace vefs::utils
             return std::numeric_limits<result_type>::max();
         }
 
-
     private:
         std::uint64_t s;
     };
@@ -79,13 +78,13 @@ namespace vefs::utils
         {
             seed(init);
         }
-        template<class Sseq>
+        template <class Sseq>
         inline xoroshiro128plus(Sseq &init)
         {
             seed<Sseq>(init);
         }
         constexpr xoroshiro128plus(std::uint64_t s1, std::uint64_t s2)
-            : s{ s1, s2 }
+            : s{s1, s2}
         {
         }
         xoroshiro128plus(const xoroshiro128plus &) = default;
@@ -97,12 +96,13 @@ namespace vefs::utils
             s[0] = spreader();
             s[1] = spreader();
         }
-        template<class Sseq>
+        template <class Sseq>
         inline void seed(Sseq &init)
         {
-            (void)init;
-            std::uint32_t *temp = reinterpret_cast<std::uint32_t *>(&s);
-            init.generate(temp, temp + (sizeof(s) / sizeof(std::uint32_t)));
+            std::array<typename Sseq::result_type, 4> data;
+            init.generate(data.begin(), data.end());
+            s[0] = static_cast<std::uint64_t>(data[0]) | (static_cast<std::uint64_t>(data[1]) << 32);
+            s[1] = static_cast<std::uint64_t>(data[2]) | (static_cast<std::uint64_t>(data[3]) << 32);
         }
         inline void seed(std::uint64_t s1, std::uint64_t s2)
         {
@@ -118,21 +118,19 @@ namespace vefs::utils
 
             s1 ^= s0;
             s[0] = rotl(s0, 55) ^ s1 ^ (s1 << 14); // a, b
-            s[1] = rotl(s1, 36); // c
+            s[1] = rotl(s1, 36);                   // c
 
             return result;
         }
 
-        void fill(blob buffer)
+        void fill(const rw_dynblob dest)
         {
-            while (buffer.size() >= sizeof(result_type))
+            auto rem(dest);
+            while (rem)
             {
-                buffer.pop_front_as<result_type>() = (*this)();
-            }
-            if (buffer.size())
-            {
-                auto tmp = (*this)();
-                as_blob_view(tmp).copy_to(buffer);
+                auto v = this->operator()();
+                copy(ro_blob_cast(v), rem);
+                rem = rem.subspan(std::min(sizeof(v), rem.size()));
             }
         }
 
@@ -145,7 +143,7 @@ namespace vefs::utils
 
                 s1 ^= s0;
                 s[0] = rotl(s0, 55) ^ s1 ^ (s1 << 14); // a, b
-                s[1] = rotl(s1, 36); // c
+                s[1] = rotl(s1, 36);                   // c
             }
         }
 
@@ -166,4 +164,4 @@ namespace vefs::utils
 
         std::uint64_t s[2];
     };
-}
+} // namespace vefs::utils

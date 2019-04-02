@@ -1,5 +1,5 @@
-#include "precompiled.hpp"
 #include "blake2.hpp"
+#include "precompiled.hpp"
 
 namespace vefs::crypto::detail
 {
@@ -17,7 +17,7 @@ namespace vefs::crypto::detail
         return outcome::success();
     }
 
-    result<void> blake2b::init(std::size_t digestSize, blob_view key) noexcept
+    result<void> blake2b::init(std::size_t digestSize, ro_dynblob key) noexcept
     {
         if (!digestSize || digestSize < 16 || digestSize > block_bytes)
         {
@@ -35,15 +35,12 @@ namespace vefs::crypto::detail
         return outcome::success();
     }
 
-    result<void> blake2b::init(std::size_t digestSize, blob_view key, blob_view personalisation) noexcept
+    result<void> blake2b::init(std::size_t digestSize, ro_dynblob key,
+                               ro_blob<personal_bytes> personalisation) noexcept
     {
         if (!digestSize || digestSize < 16 || digestSize > block_bytes)
         {
             return blake2_errc::invalid_digest_size;
-        }
-        if (!personalisation || personalisation.size() != sizeof(std::declval<blake2b_param>().personal))
-        {
-            return blake2_errc::invalid_personalization_size;
         }
         if (key.size() > max_key_bytes)
         {
@@ -61,9 +58,9 @@ namespace vefs::crypto::detail
         param.xof_length = 0;
         param.node_depth = 0;
         param.inner_length = 0;
-        fill_blob(blob{ param.reserved });
-        fill_blob(blob{ param.salt });
-        personalisation.copy_to(blob{ param.personal });
+        fill_blob(as_writable_bytes(span(param.reserved)));
+        fill_blob(as_writable_bytes(span(param.salt)));
+        copy(personalisation, as_writable_bytes(span(param.personal)));
 
         if (blake2b_init_param(&mState, &param))
         {
@@ -78,7 +75,7 @@ namespace vefs::crypto::detail
         return outcome::success();
     }
 
-    result<void> blake2b::update(blob_view data) noexcept
+    result<void> blake2b::update(ro_dynblob data) noexcept
     {
         if (blake2b_update(&mState, data.data(), data.size()))
         {
@@ -87,7 +84,7 @@ namespace vefs::crypto::detail
         return outcome::success();
     }
 
-    result<void> blake2b::final(blob digest) noexcept
+    result<void> blake2b::final(rw_dynblob digest) noexcept
     {
         if (blake2b_final(&mState, digest.data(), digest.size()))
         {
@@ -95,7 +92,6 @@ namespace vefs::crypto::detail
         }
         return outcome::success();
     }
-
 
     result<void> blake2xb::init(std::size_t digestSize) noexcept
     {
@@ -111,7 +107,7 @@ namespace vefs::crypto::detail
         return outcome::success();
     }
 
-    result<void> blake2xb::init(std::size_t digestSize, blob_view key) noexcept
+    result<void> blake2xb::init(std::size_t digestSize, ro_dynblob key) noexcept
     {
         if (!digestSize || digestSize > variable_digest_length)
         {
@@ -129,13 +125,14 @@ namespace vefs::crypto::detail
         return outcome::success();
     }
 
-    result<void> blake2xb::init(std::size_t digestSize, blob_view key, blob_view personalisation) noexcept
+    result<void> blake2xb::init(std::size_t digestSize, ro_dynblob key,
+                                ro_blob<personal_bytes> personalisation) noexcept
     {
         if (!digestSize || digestSize > variable_digest_length)
         {
             return blake2_errc::invalid_digest_size;
         }
-        if (!personalisation || personalisation.size() != sizeof(std::declval<blake2b_param>().personal))
+        if (!personalisation)
         {
             return blake2_errc::invalid_personalization_size;
         }
@@ -155,9 +152,9 @@ namespace vefs::crypto::detail
         param.xof_length = static_cast<uint32_t>(digestSize);
         param.node_depth = 0;
         param.inner_length = 0;
-        fill_blob(blob{ param.reserved });
-        fill_blob(blob{ param.salt });
-        personalisation.copy_to(blob{ param.personal });
+        fill_blob(as_writable_bytes(span(param.reserved)));
+        fill_blob(as_writable_bytes(span(param.salt)));
+        copy(personalisation, as_writable_bytes(span(param.personal)));
 
         if (blake2b_init_param(mState.S, &param))
         {
@@ -172,7 +169,7 @@ namespace vefs::crypto::detail
         return outcome::success();
     }
 
-    result<void> blake2xb::update(blob_view data) noexcept
+    result<void> blake2xb::update(ro_dynblob data) noexcept
     {
         if (blake2xb_update(&mState, data.data(), data.size()))
         {
@@ -181,7 +178,7 @@ namespace vefs::crypto::detail
         return outcome::success();
     }
 
-    result<void> blake2xb::final(blob digest) noexcept
+    result<void> blake2xb::final(rw_dynblob digest) noexcept
     {
         if (blake2xb_final(&mState, digest.data(), digest.size()))
         {
@@ -190,24 +187,20 @@ namespace vefs::crypto::detail
         return outcome::success();
     }
 
-
     namespace
     {
-        class blake2_error_domain_type
-            : public error_domain
+        class blake2_error_domain_type : public error_domain
         {
         public:
             constexpr blake2_error_domain_type() noexcept = default;
 
-            auto name() const noexcept
-                -> std::string_view override;
+            auto name() const noexcept -> std::string_view override;
             auto message(const error &e, const error_code code) const noexcept
                 -> std::string_view override;
         };
         constexpr blake2_error_domain_type blake2_error_domain_v{};
 
-        auto blake2_error_domain_type::name() const noexcept
-            -> std::string_view
+        auto blake2_error_domain_type::name() const noexcept -> std::string_view
         {
             using namespace std::string_view_literals;
             return "libb2-error-domain"sv;
@@ -248,11 +241,10 @@ namespace vefs::crypto::detail
                 return "unknown value"sv;
             }
         }
-    }
+    } // namespace
 
-    auto blake2_error_domain() noexcept
-        -> const error_domain &
+    auto blake2_error_domain() noexcept -> const error_domain &
     {
         return blake2_error_domain_v;
     }
-}
+} // namespace vefs::crypto::detail

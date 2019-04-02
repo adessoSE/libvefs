@@ -3,10 +3,10 @@
 #include <cstddef>
 
 #include <array>
+#include <list>
 #include <memory>
 #include <mutex>
 #include <system_error>
-#include <list>
 
 #include <vefs/exceptions.hpp>
 #include <vefs/filesystem.hpp>
@@ -67,9 +67,9 @@ namespace vefs::tests
                     mData = std::move(o.mData);
                 }
 
-                blob data() noexcept
+                auto data() noexcept -> rw_blob<chunk_size>
                 {
-                    return blob{*mData};
+                    return rw_blob<chunk_size>{*mData};
                 }
 
             private:
@@ -109,7 +109,7 @@ namespace vefs::tests
                         const auto fraction = size % chunk_size;
                         if (fraction)
                         {
-                            utils::secure_memzero(mChunks.back().data().slice(fraction));
+                            utils::secure_memzero(mChunks.back().data().subspan(fraction));
                         }
                     }
                     mCurrentSize = size;
@@ -126,7 +126,7 @@ namespace vefs::tests
             {
                 if (!size)
                 {
-                    fn(blob{});
+                    fn(rw_dynblob{});
                     return;
                 }
 
@@ -145,19 +145,19 @@ namespace vefs::tests
                 if (endIdx - beginIdx <= 1)
                 {
                     // the area to be processed is contained within the same chunk
-                    fn(it->data().slice(offset % chunk_size, size));
+                    fn(it->data().subspan(offset % chunk_size, size));
                 }
                 else
                 {
                     iter_t end = it;
                     std::advance(end, endIdx - beginIdx - 1);
 
-                    fn((it++)->data().slice(offset % chunk_size));
+                    fn((it++)->data().subspan(offset % chunk_size));
                     for (; it != end; ++it)
                     {
                         fn(it->data());
                     }
-                    fn(it->data().slice(0, (offset + size) % chunk_size));
+                    fn(it->data().subspan(0, (offset + size) % chunk_size));
                 }
             }
 
@@ -175,12 +175,12 @@ namespace vefs::tests
         {
         }
 
-        virtual void read(blob buffer, std::uint64_t readFilePos, std::error_code &ec) override;
-        virtual std::future<void> read_async(blob buffer, std::uint64_t readFilePos,
+        virtual void read(rw_dynblob buffer, std::uint64_t readFilePos, std::error_code &ec) override;
+        virtual std::future<void> read_async(rw_dynblob buffer, std::uint64_t readFilePos,
                                              async_callback_fn callback) override;
 
-        virtual void write(blob_view data, std::uint64_t writeFilePos, std::error_code &ec) override;
-        virtual std::future<void> write_async(blob_view data, std::uint64_t writeFilePos,
+        virtual void write(ro_dynblob data, std::uint64_t writeFilePos, std::error_code &ec) override;
+        virtual std::future<void> write_async(ro_dynblob data, std::uint64_t writeFilePos,
                                               async_callback_fn callback) override;
 
         virtual void sync(std::error_code &ec) override;

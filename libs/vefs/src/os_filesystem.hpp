@@ -23,11 +23,11 @@ namespace vefs::detail
         os_file(std::shared_ptr<os_filesystem> owner, os_handle fileHandle);
         ~os_file();
 
-        void read(blob buffer, std::uint64_t readFilePos, std::error_code& ec) override;
-        std::future<void> read_async(blob buffer, std::uint64_t readFilePos,
+        void read(rw_dynblob buffer, std::uint64_t readFilePos, std::error_code &ec) override;
+        std::future<void> read_async(rw_dynblob buffer, std::uint64_t readFilePos,
             async_callback_fn callback) override;
-        void write(blob_view data, std::uint64_t writeFilePos, std::error_code& ec) override;
-        std::future<void> write_async(blob_view data, std::uint64_t writeFilePos,
+        void write(ro_dynblob data, std::uint64_t writeFilePos, std::error_code &ec) override;
+        std::future<void> write_async(ro_dynblob data, std::uint64_t writeFilePos,
             async_callback_fn callback) override;
         void sync(std::error_code& ec) override;
         std::future<void> sync_async(async_callback_fn callback) override;

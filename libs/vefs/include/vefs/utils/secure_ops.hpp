@@ -7,11 +7,16 @@
 
 namespace vefs::utils
 {
-    void secure_memzero(blob data);
+    void secure_memzero(rw_dynblob data);
 
-    template <typename T, std::enable_if_t<std::is_trivially_destructible_v<T>, int> = 0>
+    template <typename T>
     void secure_data_erase(T &data)
     {
-        secure_memzero(blob{ reinterpret_cast<std::byte *>(&data), sizeof(T) });
+        if constexpr (!std::is_trivially_destructible_v<T>)
+        {
+            std::destroy_at(&data);
+        }
+        rw_dynblob storage = rw_blob_cast(data);
+        secure_memzero(storage);
     }
-}
+} // namespace vefs::utils

@@ -11,9 +11,7 @@
 
 using namespace std::string_view_literals;
 using namespace vefs::blob_literals;
-constexpr auto default_user_prk_raw
-    = 0x0000'0000'0000'0000'0000'0000'0000'0000'0000'0000'0000'0000'0000'0000'0000'0000_as_bytes;
-constexpr auto default_user_prk = vefs::blob_view{ default_user_prk_raw };
+constexpr std::array<std::byte, 32> default_user_prk{};
 static_assert(default_user_prk.size() == 32);
 
 constexpr auto default_archive_path = "./test-archive.vefs"sv;
@@ -86,7 +84,7 @@ BOOST_AUTO_TEST_CASE(archive_readwrite)
     constexpr std::uint64_t pos = detail::raw_archive::sector_payload_size * 2 - 1;
     using file_type = std::array<std::byte, (1 << 17) * 3 - 1>;
     auto bigFile = std::make_unique<file_type>();
-    blob file{ *bigFile };
+    span file{ *bigFile };
 
     utils::xoroshiro128plus dataGenerator{ 0 };
     dataGenerator.fill(file);
@@ -110,9 +108,9 @@ BOOST_AUTO_TEST_CASE(archive_readwrite)
         auto hFile = std::move(fileOpenRx).assume_value();
 
         auto readBuffer = std::make_unique<file_type>();
-        TEST_RESULT(ac->read(hFile, blob{ *readBuffer }, pos));
+        TEST_RESULT(ac->read(hFile, span{ *readBuffer }, pos));
 
-        BOOST_TEST(mismatch(file, blob_view{ *readBuffer }) == file.size());
+        BOOST_TEST(mismatch_distance(file, span{ *readBuffer }) == file.size());
     }
 }
 
@@ -128,7 +126,7 @@ BOOST_AUTO_TEST_CASE(archive_file_shrink)
     constexpr std::uint64_t pos = detail::raw_archive::sector_payload_size * 2 - 1;
     using file_type = std::array<std::byte, (1 << 17) * 3 - 1>;
     auto bigFile = std::make_unique<file_type>();
-    blob file{ *bigFile };
+    span file{ *bigFile };
 
     utils::xoroshiro128plus dataGenerator{ 0 };
     dataGenerator.fill(file);
@@ -176,7 +174,7 @@ BOOST_AUTO_TEST_CASE(archive_file_erase)
     constexpr std::uint64_t pos = detail::raw_archive::sector_payload_size * 2 - 1;
     using file_type = std::array<std::byte, (1 << 17) * 3 - 1>;
     auto bigFile = std::make_unique<file_type>();
-    blob file{ *bigFile };
+    span file{ *bigFile };
 
     utils::xoroshiro128plus dataGenerator{ 0 };
     dataGenerator.fill(file);
@@ -211,7 +209,7 @@ BOOST_AUTO_TEST_CASE(archive_empty_userprk)
     constexpr std::uint64_t pos = detail::raw_archive::sector_payload_size * 2 - 1;
     using file_type = std::array<std::byte, (1 << 17) * 3 - 1>;
     auto bigFile = std::make_unique<file_type>();
-    blob file{ *bigFile };
+    span file{ *bigFile };
 
     utils::xoroshiro128plus dataGenerator{ 0 };
     dataGenerator.fill(file);
@@ -239,9 +237,9 @@ BOOST_AUTO_TEST_CASE(archive_empty_userprk)
         BOOST_TEST_REQUIRE(ac->size_of(hFile).value() == file.size() + pos);
 
         auto readBuffer = std::make_unique<file_type>();
-        TEST_RESULT_REQUIRE(ac->read(hFile, blob{ *readBuffer }, pos));
+        TEST_RESULT_REQUIRE(ac->read(hFile, span{ *readBuffer }, pos));
 
-        BOOST_TEST(mismatch(file, blob_view{ *readBuffer }) == file.size());
+        BOOST_TEST(mismatch_distance(file, span{ *readBuffer }) == file.size());
     }
 }
 
@@ -256,7 +254,7 @@ BOOST_AUTO_TEST_CASE(archive_query)
     constexpr std::uint64_t pos = detail::raw_archive::sector_payload_size * 2 - 1;
     using file_type = std::array<std::byte, (1 << 17) * 3 - 1>;
     auto bigFile = std::make_unique<file_type>();
-    blob file{ *bigFile };
+    span file{ *bigFile };
 
     utils::xoroshiro128plus dataGenerator{ 0 };
     dataGenerator.fill(file);
@@ -299,12 +297,12 @@ BOOST_AUTO_TEST_CASE(sqlite_bridge_regression_1)
 
     using file_type = std::array<std::byte, 8192>;
     auto fileDataStorage = std::make_unique<file_type>();
-    blob fileData{ *fileDataStorage };
+    span fileData{ *fileDataStorage };
 
     utils::xoroshiro128plus dataGenerator{ 0 };
 
     {
-        auto openrx = archive::open(fs, "./xyz.vefs", cprov, blob_view{},
+        auto openrx = archive::open(fs, "./xyz.vefs", cprov, default_user_prk,
             file_open_mode::readwrite | file_open_mode::create);
         TEST_RESULT_REQUIRE(openrx);
         auto ac = std::move(openrx).assume_value();
@@ -358,15 +356,15 @@ BOOST_AUTO_TEST_CASE(sqlite_bridge_regression_1)
         TEST_RESULT_REQUIRE(ac->write(f, fileData, 32772));
 
         dataGenerator.fill(fileData);
-        TEST_RESULT_REQUIRE(ac->write(f, fileData.slice(0, 4), 40964));
-        TEST_RESULT_REQUIRE(ac->write(f, fileData.slice(4, 4), 40968));
+        TEST_RESULT_REQUIRE(ac->write(f, fileData.subspan(0, 4), 40964));
+        TEST_RESULT_REQUIRE(ac->write(f, fileData.subspan(4, 4), 40968));
 
         dataGenerator.fill(fileData);
         TEST_RESULT_REQUIRE(ac->write(f, fileData, 40972));
 
 
         dataGenerator.fill(fileData);
-        TEST_RESULT_REQUIRE(ac->write(f, fileData.slice(0, 4), 49164));
+        TEST_RESULT_REQUIRE(ac->write(f, fileData.subspan(0, 4), 49164));
 
         TEST_RESULT_REQUIRE(ac->sync(f));
         f = nullptr;

@@ -12,11 +12,11 @@ namespace vefs::utils::hash::detail
     class spooky
     {
     public:
-        inline static void compute(vefs::blob_view data, std::uint32_t &hash);
-        inline static void compute(vefs::blob_view data, std::uint64_t &hash);
+        inline static void compute(vefs::ro_dynblob data, std::uint32_t &hash);
+        inline static void compute(vefs::ro_dynblob data, std::uint64_t &hash);
 
         inline void init();
-        inline void update(vefs::blob_view data);
+        inline void update(vefs::ro_dynblob data);
 
         inline void final(std::uint32_t &hash);
         inline void final(std::uint64_t &hash);
@@ -25,11 +25,11 @@ namespace vefs::utils::hash::detail
         impl::SpookyHash mState;
     };
 
-    inline void spooky::compute(vefs::blob_view data, std::uint32_t &hash)
+    inline void spooky::compute(vefs::ro_dynblob data, std::uint32_t &hash)
     {
         hash = impl::SpookyHash::Hash32(data.data(), data.size(), 0);
     }
-    inline void spooky::compute(vefs::blob_view data, std::uint64_t &hash)
+    inline void spooky::compute(vefs::ro_dynblob data, std::uint64_t &hash)
     {
         hash = impl::SpookyHash::Hash64(data.data(), data.size(), 0);
     }
@@ -39,7 +39,7 @@ namespace vefs::utils::hash::detail
         mState.Init(0, 0);
     }
 
-    inline void spooky::update(vefs::blob_view data)
+    inline void spooky::update(vefs::ro_dynblob data)
     {
         mState.Update(data.data(), data.size());
     }

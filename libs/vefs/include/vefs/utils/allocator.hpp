@@ -1,16 +1,16 @@
 #pragma once
 
 #include <cassert>
+#include <cerrno>
 #include <cstddef>
 #include <cstdint>
-#include <cerrno>
 
+#include <algorithm>
 #include <array>
-#include <limits>
 #include <atomic>
+#include <limits>
 #include <memory>
 #include <optional>
-#include <algorithm>
 #include <system_error>
 
 #include <boost/predef.h>
@@ -25,8 +25,8 @@
 #endif
 
 #include <vefs/blob.hpp>
-#include <vefs/utils/misc.hpp>
 #include <vefs/utils/bit_scan.hpp>
+#include <vefs/utils/misc.hpp>
 
 namespace vefs::utils::detail
 {
@@ -36,10 +36,11 @@ namespace vefs::utils::detail
         static constexpr std::size_t alignment = ALIGNMENT;
         static constexpr std::size_t elem_size = ELEM_SIZE;
 
-        static constexpr std::size_t adj_elem_size = div_ceil(std::max(elem_size, std::size_t{ 1 }), alignment) * alignment;
+        static constexpr std::size_t adj_elem_size =
+            div_ceil(std::max(elem_size, std::size_t{1}), alignment) * alignment;
         static constexpr std::size_t adj_elem_overhead = adj_elem_size - elem_size;
     };
-}
+} // namespace vefs::utils::detail
 
 namespace vefs::utils
 {
@@ -55,11 +56,11 @@ namespace vefs::utils
         {
         }
 
-        inline void * raw() const
+        inline void *raw() const
         {
             return mStart;
         }
-        inline void * raw_end() const
+        inline void *raw_end() const
         {
             return mEnd;
         }
@@ -68,13 +69,13 @@ namespace vefs::utils
             return static_cast<std::size_t>(std::distance(mStart, mEnd));
         }
 
-        inline blob data() const
+        inline rw_dynblob data() const
         {
-            return blob{ mStart, size() };
+            return rw_dynblob{mStart, size()};
         }
-        inline blob_view view() const
+        inline ro_dynblob view() const
         {
-            return blob_view{ mStart, size() };
+            return ro_dynblob{mStart, size()};
         }
 
     private:
@@ -112,11 +113,12 @@ namespace vefs::utils
             {
                 if (errno != ENOMEM)
                 {
-                    BOOST_THROW_EXCEPTION(std::system_error(errno, std::generic_category(), "failed to allocate memory due to an unexpected error"));
+                    BOOST_THROW_EXCEPTION(std::system_error(errno, std::generic_category(),
+                                                            "failed to allocate memory due to an unexpected error"));
                 }
                 return failed_allocation;
             }
-            return { { ptr, size } };
+            return {{ptr, size}};
         }
         [[nodiscard]] inline maybe_allocation reallocate(const memory_allocation memblock, const std::size_t newSize)
         {
@@ -133,11 +135,12 @@ namespace vefs::utils
             {
                 if (errno != ENOMEM)
                 {
-                    BOOST_THROW_EXCEPTION(std::system_error(errno, std::generic_category(), "failed to allocate memory due to an unexpected error"));
+                    BOOST_THROW_EXCEPTION(std::system_error(errno, std::generic_category(),
+                                                            "failed to allocate memory due to an unexpected error"));
                 }
                 return failed_allocation;
             }
-            return { { ptr, newSize } };
+            return {{ptr, newSize}};
         }
         inline void deallocate(memory_allocation memblock)
         {
@@ -159,7 +162,8 @@ namespace vefs::utils
                 void *tmp = nullptr;
                 if (auto merrno = posix_memalign(&tmp, size, alignment); merrno != 0)
                 {
-                    BOOST_THROW_EXCEPTION(std::system_error(merrno, std::generic_category(), "failed to allocate memory due to an unexpected error"));
+                    BOOST_THROW_EXCEPTION(std::system_error(merrno, std::generic_category(),
+                                                            "failed to allocate memory due to an unexpected error"));
                 }
             }
             else
@@ -169,12 +173,13 @@ namespace vefs::utils
                 {
                     if (errno != ENOMEM)
                     {
-                        BOOST_THROW_EXCEPTION(std::system_error(errno, std::generic_category(), "failed to allocate memory due to an unexpected error"));
+                        BOOST_THROW_EXCEPTION(std::system_error(
+                            errno, std::generic_category(), "failed to allocate memory due to an unexpected error"));
                     }
                     return failed_allocation;
                 }
             }
-            return { { ptr, size } };
+            return {{ptr, size}};
         }
         [[nodiscard]] inline maybe_allocation reallocate(const memory_allocation memblock, const std::size_t newSize)
         {
@@ -191,11 +196,12 @@ namespace vefs::utils
             {
                 if (errno != ENOMEM)
                 {
-                    BOOST_THROW_EXCEPTION(std::system_error(errno, std::generic_category(), "failed to allocate memory due to an unexpected error"));
+                    BOOST_THROW_EXCEPTION(std::system_error(errno, std::generic_category(),
+                                                            "failed to allocate memory due to an unexpected error"));
                 }
                 return failed_allocation;
             }
-            return { { ptr, newSize } };
+            return {{ptr, newSize}};
         }
         inline void deallocate(memory_allocation memblock)
         {
@@ -206,7 +212,8 @@ namespace vefs::utils
 
 #if defined BOOST_COMP_MSVC_AVAILABLE
 #pragma warning(push)
-#pragma warning(disable: 4584) // class appearing multiple times in the inheritance hierarchy which is intended in this case
+#pragma warning(                                                                                                       \
+    disable : 4584) // class appearing multiple times in the inheritance hierarchy which is intended in this case
 #endif
 
     template <typename Primary, typename... Fallbacks>
@@ -295,16 +302,13 @@ namespace vefs::utils
         }
 
     public:
-        static constexpr std::size_t alignment
-            = std::min({ Primary::alignment, Fallbacks::alignment... });
+        static constexpr std::size_t alignment = std::min({Primary::alignment, Fallbacks::alignment...});
 
-        [[nodiscard]]
-        inline maybe_allocation allocate(const std::size_t size)
+        [[nodiscard]] inline maybe_allocation allocate(const std::size_t size)
         {
             return octopus_allocator::allocate<Primary, Fallbacks...>(size);
         }
-        [[nodiscard]]
-        inline maybe_allocation reallocate(const memory_allocation memblock, const std::size_t size)
+        [[nodiscard]] inline maybe_allocation reallocate(const memory_allocation memblock, const std::size_t size)
         {
             return octopus_allocator::reallocate<Primary, Fallbacks...>(memblock, size);
         }
@@ -335,12 +339,12 @@ namespace vefs::utils
         friend class alloc_std_adaptor;
 
         template <typename U, typename V, typename Allocator>
-        friend bool operator==(const alloc_std_adaptor<U, Allocator>& lhs, const alloc_std_adaptor<V, Allocator>& rhs);
+        friend bool operator==(const alloc_std_adaptor<U, Allocator> &lhs, const alloc_std_adaptor<V, Allocator> &rhs);
 
     public:
         // this is problematic if alloc_std_adaptor is part of T
         // I ran into this issue, when using it in conjunction with std::allocate_shared
-        //static_assert(alignof(T) <= impl_t::alignment);
+        // static_assert(alignof(T) <= impl_t::alignment);
 
         using value_type = T;
         using impl_handle = std::shared_ptr<impl_t>;
@@ -351,58 +355,57 @@ namespace vefs::utils
         using is_always_equal = std::false_type;
 
         inline alloc_std_adaptor()
-            : mAllocator{ std::make_shared<impl_t>() }
+            : mAllocator{std::make_shared<impl_t>()}
         {
         }
         inline alloc_std_adaptor(impl_handle h)
-            : mAllocator{ std::move(h) }
+            : mAllocator{std::move(h)}
         {
             assert(mAllocator);
         }
         inline alloc_std_adaptor(const alloc_std_adaptor &other)
-            : alloc_std_adaptor{ other.mAllocator }
+            : alloc_std_adaptor{other.mAllocator}
         {
         }
         inline alloc_std_adaptor(alloc_std_adaptor &&other)
-            : alloc_std_adaptor{ other.mAllocator }
+            : alloc_std_adaptor{other.mAllocator}
         {
         }
         template <typename U>
         inline alloc_std_adaptor(const alloc_std_adaptor<U, impl_t> &other)
-            : alloc_std_adaptor{ other.mAllocator }
+            : alloc_std_adaptor{other.mAllocator}
         {
         }
         template <typename U>
         inline alloc_std_adaptor(alloc_std_adaptor<U, impl_t> &&other)
-            : alloc_std_adaptor{ other.mAllocator }
+            : alloc_std_adaptor{other.mAllocator}
         {
         }
 
-        inline alloc_std_adaptor & operator=(const alloc_std_adaptor &other)
+        inline alloc_std_adaptor &operator=(const alloc_std_adaptor &other)
         {
             mAllocator = other.mAllocator;
             return *this;
         }
-        inline alloc_std_adaptor & operator=(alloc_std_adaptor &&other)
+        inline alloc_std_adaptor &operator=(alloc_std_adaptor &&other)
         {
             mAllocator = other.mAllocator;
             return *this;
         }
         template <typename U>
-        inline alloc_std_adaptor & operator=(const alloc_std_adaptor<U, impl_t> &other)
+        inline alloc_std_adaptor &operator=(const alloc_std_adaptor<U, impl_t> &other)
         {
             mAllocator = other.mAllocator;
             return *this;
         }
         template <typename U>
-        inline alloc_std_adaptor & operator=(alloc_std_adaptor<U, impl_t> &&other)
+        inline alloc_std_adaptor &operator=(alloc_std_adaptor<U, impl_t> &&other)
         {
             mAllocator = other.mAllocator;
             return *this;
         }
 
-        [[nodiscard]]
-        inline value_type * allocate(std::size_t n)
+        [[nodiscard]] inline value_type *allocate(std::size_t n)
         {
             if (n > std::numeric_limits<std::size_t>::max() / sizeof(T))
             {
@@ -416,9 +419,9 @@ namespace vefs::utils
             BOOST_THROW_EXCEPTION(std::bad_alloc{});
         }
 
-        inline void deallocate(T* p, std::size_t n)
+        inline void deallocate(T *p, std::size_t n)
         {
-            mAllocator->deallocate({ reinterpret_cast<std::byte *>(p), n * sizeof(T) });
+            mAllocator->deallocate({reinterpret_cast<std::byte *>(p), n * sizeof(T)});
         }
 
         friend void swap(alloc_std_adaptor &l, alloc_std_adaptor &r) noexcept
@@ -428,7 +431,7 @@ namespace vefs::utils
         }
 
         template <typename U>
-        inline bool operator==(const alloc_std_adaptor<U, Allocator>& rhs) const noexcept
+        inline bool operator==(const alloc_std_adaptor<U, Allocator> &rhs) const noexcept
         {
             return mAllocator == rhs.mAllocator;
         }
@@ -438,8 +441,9 @@ namespace vefs::utils
     };
 
     template <typename T, typename U, typename Allocator>
-    inline bool operator!=(const alloc_std_adaptor<T, Allocator>& lhs, const alloc_std_adaptor<U, Allocator>& rhs) noexcept
+    inline bool operator!=(const alloc_std_adaptor<T, Allocator> &lhs,
+                           const alloc_std_adaptor<U, Allocator> &rhs) noexcept
     {
         return !(lhs == rhs);
     }
-}
+} // namespace vefs::utils

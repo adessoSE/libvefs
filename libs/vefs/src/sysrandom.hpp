@@ -5,5 +5,5 @@
 
 namespace vefs::detail
 {
-    result<void> random_bytes(blob buffer) noexcept;
+    result<void> random_bytes(rw_dynblob buffer) noexcept;
 }

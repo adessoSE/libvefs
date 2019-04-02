@@ -115,7 +115,7 @@ namespace vefs::crypto
 
     void counter::increment()
     {
-        auto p = reinterpret_cast<std::size_t *>(mCtrState.data());
+        auto p = mCtrState.data();
         auto first_carry = add_carry<std::size_t>(0, *p, 1, p);
         increment_impl<state_size - sizeof(*p)>(p + 1, first_carry);
     }

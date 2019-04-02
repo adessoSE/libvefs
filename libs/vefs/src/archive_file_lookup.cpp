@@ -230,7 +230,7 @@ namespace vefs
         }
     }
     void archive::file_lookup::on_sector_synced([[maybe_unused]] detail::sector_id physId,
-        [[maybe_unused]] blob_view mac)
+        [[maybe_unused]] ro_blob<16> mac)
     {
     }
 }

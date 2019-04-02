@@ -52,7 +52,7 @@ namespace vefs
     }
 
     auto archive::open(filesystem::ptr fs, std::string_view archivePath,
-        crypto::crypto_provider * cryptoProvider, blob_view userPRK, file_open_mode_bitset openMode)
+        crypto::crypto_provider * cryptoProvider, ro_blob<32> userPRK, file_open_mode_bitset openMode)
         -> result<std::unique_ptr<archive>>
     {
         OUTCOME_TRY(primitives,
@@ -161,7 +161,7 @@ namespace vefs
         return mArchiveIndexFile->erase(filePath);
     }
 
-    auto archive::read(file_handle handle, blob buffer, std::uint64_t readFilePos)
+    auto archive::read(file_handle handle, rw_dynblob buffer, std::uint64_t readFilePos)
         -> result<void>
     {
         if (!buffer)
@@ -187,7 +187,7 @@ namespace vefs
         return std::move(readrx);
     }
 
-    auto archive::write(file_handle handle, blob_view data, std::uint64_t writeFilePos)
+    auto archive::write(file_handle handle, ro_dynblob data, std::uint64_t writeFilePos)
         -> result<void>
     {
         if (!data)
@@ -286,7 +286,7 @@ namespace vefs
         });
     }
 
-    void archive::read_async(file_handle handle, blob buffer, std::uint64_t readFilePos, std::function<void(op_outcome<void>)> cb)
+    void archive::read_async(file_handle handle, rw_dynblob buffer, std::uint64_t readFilePos, std::function<void(op_outcome<void>)> cb)
     {
         if (!handle)
         {
@@ -305,7 +305,7 @@ namespace vefs
         });
     }
 
-    void archive::write_async(file_handle handle, blob_view data, std::uint64_t writeFilePos, std::function<void(op_outcome<void>)> cb)
+    void archive::write_async(file_handle handle, ro_dynblob data, std::uint64_t writeFilePos, std::function<void(op_outcome<void>)> cb)
     {
         if (!handle)
         {

@@ -18,7 +18,7 @@ namespace vefs::detail
     {
     }
 
-    std::future<void> os_file::read_async(blob buffer, std::uint64_t readFilePos,
+    std::future<void> os_file::read_async(rw_dynblob buffer, std::uint64_t readFilePos,
         file::async_callback_fn callback)
     {
         auto task = [this, buffer, readFilePos, cb = std::move(callback)]()
@@ -30,7 +30,7 @@ namespace vefs::detail
         return mOwner->ops_pool().twoway_execute(std::move(task));
     }
 
-    std::future<void> os_file::write_async(blob_view data, std::uint64_t writeFilePos,
+    std::future<void> os_file::write_async(ro_dynblob data, std::uint64_t writeFilePos,
         file::async_callback_fn callback)
     {
         auto task = [this, data, writeFilePos, cb = std::move(callback)]()

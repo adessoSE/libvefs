@@ -5,12 +5,10 @@
 
 #include <vefs/utils/secure_ops.hpp>
 
-
 namespace vefs::utils
 {
     template <typename T>
-    class secure_allocator
-        : public std::allocator<T>
+    class secure_allocator : public std::allocator<T>
     {
     public:
         template <typename U>
@@ -25,11 +23,11 @@ namespace vefs::utils
 
         void deallocate(T *p, std::size_t num)
         {
-            secure_memzero(blob{ reinterpret_cast<blob::pointer>(p), num * sizeof(T) });
+            secure_memzero(as_writable_bytes(span(p, num)));
             std::allocator<T>::deallocate(p, num);
         }
     };
 
     template <typename T>
     using secure_vector = std::vector<T, secure_allocator<T>>;
-}
+} // namespace vefs::utils

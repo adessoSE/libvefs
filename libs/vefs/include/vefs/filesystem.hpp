@@ -34,14 +34,14 @@ namespace vefs
 
         virtual ~file() = default;
 
-        virtual void read(blob buffer, std::uint64_t readFilePos);
-        virtual void read(blob buffer, std::uint64_t readFilePos, std::error_code &ec) = 0;
-        virtual std::future<void> read_async(blob buffer, std::uint64_t readFilePos,
+        virtual void read(rw_dynblob buffer, std::uint64_t readFilePos);
+        virtual void read(rw_dynblob buffer, std::uint64_t readFilePos, std::error_code &ec) = 0;
+        virtual std::future<void> read_async(rw_dynblob buffer, std::uint64_t readFilePos,
             async_callback_fn callback) = 0;
 
-        virtual void write(blob_view data, std::uint64_t writeFilePos);
-        virtual void write(blob_view data, std::uint64_t writeFilePos, std::error_code &ec) = 0;
-        virtual std::future<void> write_async(blob_view data, std::uint64_t writeFilePos,
+        virtual void write(ro_dynblob data, std::uint64_t writeFilePos);
+        virtual void write(ro_dynblob data, std::uint64_t writeFilePos, std::error_code &ec) = 0;
+        virtual std::future<void> write_async(ro_dynblob data, std::uint64_t writeFilePos,
             async_callback_fn callback) = 0;
 
         virtual void sync();

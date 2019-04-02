@@ -1,5 +1,5 @@
-#include "precompiled.hpp"
 #include "os_filesystem.hpp"
+#include "precompiled.hpp"
 
 #include <vefs/disappointment.hpp>
 #include <vefs/utils/misc.hpp>
@@ -11,7 +11,6 @@
 #define NOMINMAX
 #include <windows.h>
 
-
 namespace vefs::detail
 {
     os_file::~os_file()
@@ -19,7 +18,7 @@ namespace vefs::detail
         CloseHandle(mFile);
     }
 
-    void os_file::read(blob buffer, std::uint64_t readFilePos, std::error_code& ec)
+    void os_file::read(rw_dynblob buffer, std::uint64_t readFilePos, std::error_code &ec)
     {
         ULARGE_INTEGER splitter;
         splitter.QuadPart = readFilePos;
@@ -36,20 +35,18 @@ namespace vefs::detail
                 std::min<std::uint64_t>(std::numeric_limits<DWORD>::max(), buffer.size()));
             DWORD bytesRead = 0;
 
-            if (!ReadFile(mFile, buffer.data(), portion, &bytesRead, &overlapped)
-                || !bytesRead)
+            if (!ReadFile(mFile, buffer.data(), portion, &bytesRead, &overlapped) || !bytesRead)
             {
                 ec.assign(GetLastError(), std::system_category());
                 return;
             }
 
             splitter.QuadPart += bytesRead;
-            buffer.remove_prefix(bytesRead);
+            buffer = buffer.subspan(bytesRead);
         }
     }
 
-    void os_file::write(blob_view data, std::uint64_t writeFilePos,
-        std::error_code& ec)
+    void os_file::write(ro_dynblob data, std::uint64_t writeFilePos, std::error_code &ec)
     {
         ULARGE_INTEGER splitter;
         splitter.QuadPart = writeFilePos;
@@ -66,19 +63,19 @@ namespace vefs::detail
                 std::min<std::size_t>(std::numeric_limits<DWORD>::max(), data.size()));
             DWORD bytesWritten = 0;
 
-            if (!WriteFile(mFile, data.data(), portion, &bytesWritten, &overlapped)
-                || !bytesWritten)
+            if (!WriteFile(mFile, data.data(), portion, &bytesWritten, &overlapped) ||
+                !bytesWritten)
             {
                 ec.assign(GetLastError(), std::system_category());
                 return;
             }
 
             splitter.QuadPart += bytesWritten;
-            data.remove_prefix(bytesWritten);
+            data = data.subspan(bytesWritten);
         }
     }
 
-    void os_file::sync(std::error_code& ec)
+    void os_file::sync(std::error_code &ec)
     {
         if (!FlushFileBuffers(mFile))
         {
@@ -87,7 +84,7 @@ namespace vefs::detail
         }
     }
 
-    std::uint64_t os_file::size(std::error_code& ec)
+    std::uint64_t os_file::size(std::error_code &ec)
     {
         LARGE_INTEGER fileSize;
         if (!GetFileSizeEx(mFile, &fileSize))
@@ -98,12 +95,12 @@ namespace vefs::detail
         return static_cast<std::uint64_t>(fileSize.QuadPart);
     }
 
-    void os_file::resize(std::uint64_t newSize, std::error_code& ec)
+    void os_file::resize(std::uint64_t newSize, std::error_code &ec)
     {
         LARGE_INTEGER winSize;
         winSize.QuadPart = static_cast<std::int64_t>(newSize);
 
-        std::lock_guard<std::mutex> sync{ mFileMutex };
+        std::lock_guard<std::mutex> sync{mFileMutex};
         if (!SetFilePointerEx(mFile, winSize, nullptr, FILE_BEGIN))
         {
             ec.assign(GetLastError(), std::system_category());
@@ -115,7 +112,6 @@ namespace vefs::detail
             return;
         }
     }
-
 
     inline uint32_t derive_access_mode(file_open_mode_bitset mode)
     {
@@ -142,14 +138,15 @@ namespace vefs::detail
         return OPEN_EXISTING;
     }
 
-    file::ptr os_filesystem::open(std::string_view filePath,
-        file_open_mode_bitset mode, std::error_code& ec)
+    file::ptr os_filesystem::open(std::string_view filePath, file_open_mode_bitset mode,
+                                  std::error_code &ec)
     {
         auto u16FilePath = utf::utf8_to_utf16(filePath);
 
-        os_handle file = CreateFileW(reinterpret_cast<const wchar_t *>(u16FilePath.c_str()),
-            derive_access_mode(mode), 0, nullptr, derive_creation_mode(mode),
-            FILE_FLAG_POSIX_SEMANTICS | FILE_FLAG_RANDOM_ACCESS, nullptr);
+        os_handle file =
+            CreateFileW(reinterpret_cast<const wchar_t *>(u16FilePath.c_str()),
+                        derive_access_mode(mode), 0, nullptr, derive_creation_mode(mode),
+                        FILE_FLAG_POSIX_SEMANTICS | FILE_FLAG_RANDOM_ACCESS, nullptr);
 
         if (file == INVALID_HANDLE_VALUE)
         {
@@ -157,7 +154,10 @@ namespace vefs::detail
             return {};
         }
 
-        VEFS_ERROR_EXIT{ CloseHandle(file); };
+        VEFS_ERROR_EXIT
+        {
+            CloseHandle(file);
+        };
 
         return std::make_shared<os_file>(mSelf.lock(), file);
     }
@@ -169,8 +169,8 @@ namespace vefs::detail
         if (!DeleteFileW(reinterpret_cast<const wchar_t *>(u16FilePath.c_str())))
         {
             throw error_exception(error(collect_system_error())
-                << ed::error_code_api_origin("DeleteFileW")
-                << ed::io_file(std::string{ filePath }));
+                                  << ed::error_code_api_origin("DeleteFileW")
+                                  << ed::io_file(std::string{filePath}));
         }
     }
-}
+} // namespace vefs::detail
