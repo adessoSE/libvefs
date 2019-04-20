@@ -16,8 +16,6 @@ DEF_SOURCE_GROUP(vefs "utils"
 
     HEADERS
         vefs.natvis
-        include/vefs/utils/allocator.hpp
-        include/vefs/utils/pool_allocator.hpp
         include/vefs/utils/secure_ops.hpp
         include/vefs/utils/secure_array.hpp
         include/vefs/utils/secure_allocator.hpp
@@ -118,6 +116,20 @@ DEF_SOURCE_GROUP(vefs "lib/detail"
         src/thread_pool_win32.cpp
         src/raw_archive.cpp
         src/tree_walker.cpp
+)
+
+DEF_SOURCE_GROUP(vefs "lib/allocator"
+    HEADERS
+        include/vefs/allocator/alignment.hpp
+        include/vefs/allocator/allocation.hpp
+        include/vefs/allocator/multi_pool_mt.hpp
+        include/vefs/allocator/octopus.hpp
+        include/vefs/allocator/pool_mt.hpp
+        include/vefs/allocator/std_adapter.hpp
+        include/vefs/allocator/system.hpp
+
+        include/vefs/allocator/atomic_ring_counter.hpp
+        include/vefs/allocator/atomic_resource_counter.hpp
 )
 
 DEF_SOURCE_GROUP(vefs "crypto"

@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <exception>
+#include <functional>
 #include <stdexcept>
 #include <string_view>
 #include <type_traits>
@@ -56,7 +57,7 @@ namespace vefs::utils
         return std::array<std::byte, sizeof...(Values)>{std::byte{Values}...};
     }
     template <typename... Ts>
-    constexpr auto make_byte_array(Ts&&... ts) -> std::array<std::byte, sizeof...(Ts)>
+    constexpr auto make_byte_array(Ts &&... ts) -> std::array<std::byte, sizeof...(Ts)>
     {
         static_assert((... && std::is_integral_v<Ts>));
         if ((... || (static_cast<std::make_unsigned_t<Ts>>(ts) > 0xFFu)))
@@ -66,52 +67,19 @@ namespace vefs::utils
         return {static_cast<std::byte>(ts)...};
     }
 
-#if BOOST_COMP_MSVC >= BOOST_VERSION_NUMBER(19, 12, 0)
-    // workaround for
-    // https://developercommunity.visualstudio.com/content/problem/162879/migrating-from-vs2017-154-to-155-causes-internal-e.html
-    namespace detail
+    template <typename R, typename Fn, std::size_t... is, typename... Args>
+    constexpr auto sequence_init(Fn &&initFn, std::index_sequence<is...>, Args &&... args) -> R
     {
-        template <typename R>
-        struct error_code_scope
-        {
-            template <typename F, typename... Args>
-            inline static decltype(auto) eval(F &&f, Args &&... args)
-            {
-                std::error_code ec;
-                decltype(auto) result = f(std::forward<Args>(args)..., ec);
-                if (ec)
-                {
-                    BOOST_THROW_EXCEPTION(std::system_error(ec));
-                }
-                return result;
-            }
-        };
-
-        template <>
-        struct error_code_scope<void>
-        {
-            template <typename F, typename... Args>
-            inline static void eval(F &&f, Args &&... args)
-            {
-                std::error_code ec;
-                f(std::forward<Args>(args)..., ec);
-                if (ec)
-                {
-                    BOOST_THROW_EXCEPTION(std::system_error(ec));
-                }
-            }
-        };
-    } // namespace detail
-
-    template <typename F, typename... Args>
-    inline decltype(auto) error_code_scope(F &&f, Args &&... args)
-    {
-        return detail::error_code_scope<decltype(
-            f(std::forward<Args>(args)...,
-              std::declval<std::error_code &>()))>::eval(std::forward<F>(f),
-                                                         std::forward<Args>(args)...);
+        return R{initFn(args..., is)...};
     }
-#else
+
+    template <typename R, std::size_t N, typename Fn, typename... Args>
+    constexpr auto sequence_init(Fn &&initFn, Args &&... args) -> R
+    {
+        return sequence_init<R>(std::forward<Fn>(initFn), std::make_index_sequence<N>{},
+                                std::forward<Args>(args)...);
+    }
+
     template <typename F, typename... Args>
     inline decltype(auto) error_code_scope(F &&f, Args &&... args)
     {
@@ -134,7 +102,6 @@ namespace vefs::utils
             return result;
         }
     }
-#endif
 
     template <typename Fn>
     struct scope_guard

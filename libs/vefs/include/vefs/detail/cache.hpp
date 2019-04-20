@@ -1,17 +1,23 @@
 #pragma once
 
 #include <array>
-#include <mutex>
-#include <memory>
 #include <atomic>
-#include <optional>
-#include <functional>
-#include <type_traits>
 #include <condition_variable>
+#include <functional>
+#include <memory>
+#include <mutex>
+#include <new>
+#include <optional>
+#include <type_traits>
+#include <utility>
 
+#include <boost/thread/mutex.hpp>
+
+#include <vefs/allocator/octopus.hpp>
+#include <vefs/allocator/pool_mt.hpp>
+#include <vefs/allocator/std_adapter.hpp>
+#include <vefs/allocator/system.hpp>
 #include <vefs/disappointment.hpp>
-#include <vefs/utils/allocator.hpp>
-#include <vefs/utils/pool_allocator.hpp>
 #include <vefs/utils/unordered_map_mt.hpp>
 
 namespace vefs::detail::detail
@@ -32,13 +38,13 @@ namespace vefs::detail
         using element_type = std::remove_extent_t<T>;
 
         constexpr cache_handle() noexcept
-            : mData{ nullptr }
-            , mControl{ nullptr }
+            : mData{nullptr}
+            , mControl{nullptr}
         {
         }
         inline cache_handle(const cache_handle &other) noexcept
-            : mData{ other.mData }
-            , mControl{ other.mControl }
+            : mData{other.mData}
+            , mControl{other.mControl}
         {
             if (*this)
             {
@@ -46,8 +52,8 @@ namespace vefs::detail
             }
         }
         constexpr cache_handle(cache_handle &&other) noexcept
-            : mData{ other.mData }
-            , mControl{ other.mControl }
+            : mData{other.mData}
+            , mControl{other.mControl}
         {
             other.mData = nullptr;
             other.mControl = nullptr;
@@ -60,7 +66,7 @@ namespace vefs::detail
             }
         }
 
-        inline cache_handle & operator=(const cache_handle &other) noexcept
+        inline cache_handle &operator=(const cache_handle &other) noexcept
         {
             if (*this)
             {
@@ -74,7 +80,7 @@ namespace vefs::detail
             }
             return *this;
         }
-        inline cache_handle & operator=(cache_handle &&other) noexcept
+        inline cache_handle &operator=(cache_handle &&other) noexcept
         {
             if (*this)
             {
@@ -86,7 +92,7 @@ namespace vefs::detail
             other.mControl = nullptr;
             return *this;
         }
-        inline cache_handle & operator=(std::nullptr_t) noexcept
+        inline cache_handle &operator=(std::nullptr_t) noexcept
         {
             if (*this)
             {
@@ -102,16 +108,16 @@ namespace vefs::detail
             return mControl;
         }
 
-        inline element_type * get() const noexcept
+        inline element_type *get() const noexcept
         {
             return mData;
         }
 
-        inline element_type & operator*() const noexcept
+        inline element_type &operator*() const noexcept
         {
             return *mData;
         }
-        inline element_type * operator->() const noexcept
+        inline element_type *operator->() const noexcept
         {
             return mData;
         }
@@ -148,8 +154,7 @@ namespace vefs::detail
         element_type *mData;
         entry_type *mControl;
     };
-}
-
+} // namespace vefs::detail
 
 namespace vefs::detail::detail
 {
@@ -187,8 +192,8 @@ namespace vefs::detail::detail
         }
         inline replacement_result try_start_replace() noexcept
         {
-            if (mEntryState.fetch_and(~SecondChanceBit, std::memory_order_acq_rel)
-                & SecondChanceBit)
+            if (mEntryState.fetch_and(~SecondChanceBit, std::memory_order_acq_rel) &
+                SecondChanceBit)
             {
                 // respect second chance
                 return replacement_result::failed;
@@ -201,30 +206,28 @@ namespace vefs::detail::detail
                 // it is a non dirty tombstone
                 if (current != 0 && (current & DirtyTombstone) != TombstoneBit)
                 {
-                    return current == DirtyBit
-                        ? replacement_result::dirty
-                        : replacement_result::failed;
+                    return current == DirtyBit ? replacement_result::dirty
+                                               : replacement_result::failed;
                 }
 
-            } while (!mEntryState.compare_exchange_weak(current, DirtyTombstone,
-                        std::memory_order_acq_rel, std::memory_order_acquire));
+            } while (!mEntryState.compare_exchange_weak(
+                current, DirtyTombstone, std::memory_order_acq_rel, std::memory_order_acquire));
 
-            return current & TombstoneBit
-                ? replacement_result::was_dead
-                : replacement_result::was_alive;
+            return current & TombstoneBit ? replacement_result::was_dead
+                                          : replacement_result::was_alive;
         }
         inline cache_handle<T> finish_replace(bool success) noexcept
         {
             const auto val = success ? one : TombstoneBit;
             mEntryState.store(val, std::memory_order_release);
-            return success ? cache_handle<T>{ *this } : cache_handle<T>{};
+            return success ? cache_handle<T>{*this} : cache_handle<T>{};
         }
         inline cache_handle<T> try_acquire() noexcept
         {
             if (try_add_reference())
             {
                 mEntryState.fetch_or(SecondChanceBit, std::memory_order_release);
-                return { *this };
+                return {*this};
             }
             return {};
         }
@@ -232,7 +235,7 @@ namespace vefs::detail::detail
         {
             if (try_add_reference())
             {
-                return { *this };
+                return {*this};
             }
             return {};
         }
@@ -265,9 +268,8 @@ namespace vefs::detail::detail
         }
 
     public:
-
-        std::atomic<state_type> mEntryState{ state_traits::max() };
-        std::atomic<T *> mValuePtr{ nullptr };
+        std::atomic<state_type> mEntryState{state_traits::max()};
+        std::atomic<T *> mValuePtr{nullptr};
     };
 
     enum class cache_lookup_state
@@ -291,24 +293,24 @@ namespace vefs::detail::detail
         inline cache_lookup()
             : sync{}
             , ready_condition{}
-            , index{ invalid }
-            , state{ cache_lookup_state::initializing }
+            , index{invalid}
+            , state{cache_lookup_state::initializing}
         {
         }
     };
 
     using cache_lookup_ptr = std::shared_ptr<cache_lookup>;
-}
+} // namespace vefs::detail::detail
 
 namespace vefs::detail
 {
     template <typename T>
     inline cache_handle<T>::cache_handle(entry_type &entry) noexcept
-        : mData{ entry.mValuePtr.load(std::memory_order_acquire) }
-        , mControl{ &entry }
+        : mData{entry.mValuePtr.load(std::memory_order_acquire)}
+        , mControl{&entry}
     {
     }
-}
+} // namespace vefs::detail
 
 namespace std
 {
@@ -324,7 +326,7 @@ namespace std
             return lhs.owner_before(rhs);
         }
     };
-}
+} // namespace std
 
 namespace vefs::detail
 {
@@ -332,9 +334,8 @@ namespace vefs::detail
     using cache_default_map = utils::unordered_map_mt<Key, T>;
 
     template <typename Key, typename T, std::size_t cacheLimit,
-        typename InstanceAllocator = utils::system_allocator<alignof(T)>,
-        template<typename, typename> typename CacheMap = cache_default_map
-    >
+              typename InstanceAllocator = system_allocator<alignof(T)>,
+              template <typename, typename> typename CacheMap = cache_default_map>
     class cache
     {
         using entry_index = std::size_t;
@@ -353,22 +354,17 @@ namespace vefs::detail
         using lookup_state = detail::cache_lookup_state;
         using lookup_ptr = detail::cache_lookup_ptr;
 
-        using lookup_allocator_t = utils::alloc_std_adaptor<lookup,
-            utils::octopus_allocator<
-                utils::pool_allocator_mt<
-                    sizeof(lookup) + 4*sizeof(std::size_t), max_entries + 16,
-                    utils::default_system_allocator
-                >,
-                utils::default_system_allocator
-            >
-        >;
+        using lookup_allocator_t = alloc_std_adaptor<
+            lookup, octopus_allocator<pool_allocator_mt<sizeof(lookup) + 4 * sizeof(std::size_t),
+                                                        max_entries + 16, default_system_allocator>,
+                                      default_system_allocator>>;
 
         using key_index_map = CacheMap<key_type, lookup_ptr>;
         using index_key_map = std::array<key_type, max_entries>;
 
         using cache_table = std::array<entry_type, max_entries>;
 
-        using ring_counter = utils::detail::atomic_ring_counter<max_entries>;
+        using ring_counter = atomic_ring_counter<max_entries>;
 
         inline lookup_ptr create_lookup()
         {
@@ -379,7 +375,9 @@ namespace vefs::detail
         using handle = cache_handle<value_type>;
         using notify_dirty_fn = std::function<void(handle)>;
 
-        enum class preinit_storage_t {};
+        enum class preinit_storage_t
+        {
+        };
         static constexpr preinit_storage_t preinit_storage = preinit_storage_t{};
 
         static constexpr std::size_t derive_key_index_map_size(std::size_t limit)
@@ -388,9 +386,9 @@ namespace vefs::detail
         }
 
         inline cache(notify_dirty_fn fn)
-            : mClockHand{ }
-            , mNotifyDirty{ std::move(fn) }
-            , mKeyIndexMap{ derive_key_index_map_size(max_entries) }
+            : mClockHand{}
+            , mNotifyDirty{std::move(fn)}
+            , mKeyIndexMap{derive_key_index_map_size(max_entries)}
             , mEntries{}
             , mIndexKeyMap{}
             , mLookupAllocator{}
@@ -398,22 +396,26 @@ namespace vefs::detail
         {
         }
         inline cache(notify_dirty_fn fn, preinit_storage_t)
-            : cache{ std::move(fn) }
+            : cache{std::move(fn)}
         {
             try
             {
                 for (auto &e : mEntries)
                 {
-                    utils::maybe_allocation alloc
-                        = mInstanceAllocator.allocate(instance_alloc_size);
+                    allocation_result allocrx = mInstanceAllocator.allocate(instance_alloc_size);
 
-                    if (!alloc)
+                    if (allocrx.has_error())
                     {
-                        BOOST_THROW_EXCEPTION(std::bad_alloc{});
+                        if (allocrx.assume_error() == errc::not_enough_memory)
+                        {
+
+                            BOOST_THROW_EXCEPTION(std::bad_alloc{});
+                        }
+                        throw error_exception{std::move(allocrx).assume_error()};
                     }
 
-                    e.mValuePtr.store(reinterpret_cast<T*>(alloc->raw()),
-                        std::memory_order_release);
+                    e.mValuePtr.store(reinterpret_cast<T *>(allocrx->raw()),
+                                      std::memory_order_release);
                 }
             }
             catch (...)
@@ -423,7 +425,7 @@ namespace vefs::detail
                     if (auto ptr = e.mValuePtr.load(std::memory_order_acquire))
                     {
                         auto bptr = reinterpret_cast<std::byte *>(ptr);
-                        mInstanceAllocator.deallocate({ bptr, instance_alloc_size });
+                        mInstanceAllocator.deallocate({bptr, instance_alloc_size});
                         e.mValuePtr.store(nullptr, std::memory_order_release);
                     }
                 }
@@ -437,31 +439,25 @@ namespace vefs::detail
                 if (auto ptr = e.mValuePtr.load(std::memory_order_acquire))
                 {
                     auto bptr = reinterpret_cast<std::byte *>(ptr);
-                    mInstanceAllocator.deallocate({ bptr, instance_alloc_size });
+                    mInstanceAllocator.deallocate({bptr, instance_alloc_size});
                     e.mValuePtr.store(nullptr, std::memory_order_release);
                 }
             }
         }
 
-        [[nodiscard]]
-        inline handle try_access(const key_type &key)
+        [[nodiscard]] inline handle try_access(const key_type &key)
         {
             lookup_ptr lptr;
-            mKeyIndexMap.find_fn(key, [&lptr](const lookup_ptr &l)
-            {
-                lptr = l;
-            });
+            mKeyIndexMap.find_fn(key, [&lptr](const lookup_ptr &l) { lptr = l; });
 
             if (lptr)
             {
-                std::unique_lock<std::mutex> lock{ lptr->sync };
+                std::unique_lock<std::mutex> lock{lptr->sync};
                 switch (lptr->state)
                 {
                 case lookup_state::initializing:
-                    lptr->ready_condition.wait(lock, [&lptr]()
-                    {
-                        return lptr->state != lookup_state::initializing;
-                    });
+                    lptr->ready_condition.wait(
+                        lock, [&lptr]() { return lptr->state != lookup_state::initializing; });
                     if (lptr->state != lookup_state::alive)
                     {
                         break;
@@ -478,7 +474,8 @@ namespace vefs::detail
         }
 
         template <typename Ctor>
-        inline auto access(const key_type &key, Ctor &&ctor, bool &inserted) noexcept(noexcept(ctor(std::declval<void *>())))
+        inline auto access(const key_type &key, Ctor &&ctor,
+                           bool &inserted) noexcept(noexcept(ctor(std::declval<void *>())))
             -> result<handle>
         {
             lookup_ptr lptr;
@@ -489,23 +486,22 @@ namespace vefs::detail
             if (!mKeyIndexMap.find_fn(key, [&lptr](const lookup_ptr &l) { lptr = l; }))
             {
                 lptr = create_lookup();
-                inserted = mKeyIndexMap.uprase_fn(key, [&lptr](const lookup_ptr &l)
-                {
-                    lptr = l;
-                    return false;
-                }, lptr);
+                inserted = mKeyIndexMap.uprase_fn(key,
+                                                  [&lptr](const lookup_ptr &l) {
+                                                      lptr = l;
+                                                      return false;
+                                                  },
+                                                  lptr);
             }
 
             // if we inserted the lookup element, we are already responsible for
             // the initialization, otherwise we need to inspect the lookup state
             if (!inserted)
             {
-                std::unique_lock guard{ lptr->sync };
+                std::unique_lock guard{lptr->sync};
 
-                lptr->ready_condition.wait(guard, [&lptr]()
-                {
-                    return lptr->state != lookup_state::initializing;
-                });
+                lptr->ready_condition.wait(
+                    guard, [&lptr]() { return lptr->state != lookup_state::initializing; });
 
                 if (lptr->state == lookup_state::alive)
                 {
@@ -521,11 +517,12 @@ namespace vefs::detail
 
             bool failed = false;
             // if we fail, we inform someone about it
-            VEFS_SCOPE_EXIT{
+            VEFS_SCOPE_EXIT
+            {
                 if (failed)
                 {
                     {
-                        std::lock_guard<std::mutex> guard{ lptr->sync };
+                        std::lock_guard<std::mutex> guard{lptr->sync};
                         lptr->index = lookup::invalid;
                         lptr->state = lookup_state::failed;
                     }
@@ -534,10 +531,11 @@ namespace vefs::detail
             };
 
             // it's our turn to insert the element
-            auto[index, modus] = aquire_tile();
+            auto [index, modus] = aquire_tile();
             auto &entry = mEntries[index];
 
-            VEFS_SCOPE_EXIT{
+            VEFS_SCOPE_EXIT
+            {
                 if (failed)
                 {
                     // discard the empty handle while avoiding compiler warnings
@@ -564,20 +562,18 @@ namespace vefs::detail
             }
             else
             {
-                utils::maybe_allocation alloc
-                    = mInstanceAllocator.allocate(instance_alloc_size);
+                allocation_result alloc = mInstanceAllocator.allocate(instance_alloc_size);
 
-                if (!alloc)
+                if (alloc.has_error())
                 {
                     failed = true;
-                    return errc::not_enough_memory;
+                    return std::move(alloc).assume_error();
                 }
 
                 // prevent the newly allocated memory from leaking in case of
                 // a constructor exception
-                memptr = alloc->raw();
-                entry.mValuePtr.store(reinterpret_cast<T *>(memptr),
-                    std::memory_order_release);
+                memptr = alloc.assume_value().raw();
+                entry.mValuePtr.store(reinterpret_cast<T *>(memptr), std::memory_order_release);
             }
 
             T *ptr;
@@ -619,7 +615,7 @@ namespace vefs::detail
             auto valueHandle = entry.finish_replace(true);
 
             {
-                std::lock_guard<std::mutex> guard{ lptr->sync };
+                std::lock_guard<std::mutex> guard{lptr->sync};
                 lptr->state = lookup_state::alive;
                 lptr->index = index;
             }
@@ -629,8 +625,8 @@ namespace vefs::detail
         }
 
         template <typename Ctor>
-        inline auto access(const key_type &key, Ctor &&ctor)
-            noexcept(noexcept(ctor(std::declval<void *>())))
+        inline auto access(const key_type &key,
+                           Ctor &&ctor) noexcept(noexcept(ctor(std::declval<void *>())))
             -> result<handle>
         {
             bool temporary = false;
@@ -638,12 +634,12 @@ namespace vefs::detail
         }
 
         template <typename... CtorArgs>
-        inline auto access_w_inplace_ctor(const key_type &key, CtorArgs&&... args)
-            noexcept(noexcept(T{ std::forward<CtorArgs>(args)... }))
-            -> result<handle>
+        inline auto access_w_inplace_ctor(const key_type &key, CtorArgs &&... args) noexcept(
+            noexcept(T{std::forward<CtorArgs>(args)...})) -> result<handle>
         {
-            return access(key, [&](void *mem) noexcept(noexcept(T{ std::forward<CtorArgs>(args)... }))
-                -> result<T *> { return new(mem) T(std::forward<CtorArgs>(args)...); });
+            return access(
+                key, [&](void *mem) noexcept(noexcept(T{std::forward<CtorArgs>(args)...}))
+                         ->result<T *> { return new (mem) T(std::forward<CtorArgs>(args)...); });
         }
 
         template <typename Fn>
@@ -664,7 +660,7 @@ namespace vefs::detail
     private:
         inline std::tuple<entry_index, detail::replacement_result> aquire_tile()
         {
-            for (auto i = 0; ; ++i)
+            for (auto i = 0;; ++i)
             {
                 auto next = mClockHand.fetch_next();
                 auto &entry = mEntries[next];
@@ -675,7 +671,7 @@ namespace vefs::detail
                 case detail::replacement_result::was_alive:
                     cleanup_tile(next);
                 case detail::replacement_result::was_dead:
-                    return { next, result };
+                    return {next, result};
 
                 case detail::replacement_result::dirty:
                     if (mNotifyDirty)
@@ -701,15 +697,14 @@ namespace vefs::detail
         inline void cleanup_tile(entry_index tileIdx)
         {
             const auto &key = mIndexKeyMap[tileIdx];
-            mKeyIndexMap.erase_fn(key, [this](lookup_ptr &oldptr)
-            {
+            mKeyIndexMap.erase_fn(key, [this](lookup_ptr &oldptr) {
                 {
-                    std::lock_guard<std::mutex> guard{ oldptr->sync };
+                    std::lock_guard<std::mutex> guard{oldptr->sync};
                     oldptr->state = lookup_state::failed;
                 }
                 oldptr->ready_condition.notify_all();
 
-                std::weak_ptr<lookup> weakref{ oldptr };
+                std::weak_ptr<lookup> weakref{oldptr};
                 oldptr.reset();
                 return !(oldptr = weakref.lock());
             });
@@ -723,4 +718,4 @@ namespace vefs::detail
         lookup_allocator_t mLookupAllocator;
         allocator_t mInstanceAllocator;
     };
-}
+} // namespace vefs::detail
