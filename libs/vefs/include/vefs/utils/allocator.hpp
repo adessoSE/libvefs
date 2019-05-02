@@ -40,7 +40,7 @@ namespace vefs::utils::detail
             div_ceil(std::max(elem_size, std::size_t{1}), alignment) * alignment;
         static constexpr std::size_t adj_elem_overhead = adj_elem_size - elem_size;
     };
-} // namespace vefs::utils::detail
+} 
 
 namespace vefs::utils
 {

@@ -51,7 +51,7 @@ namespace vefs::detail
         explicit constexpr operator bool() const noexcept;
 
     private:
-        // 8b layer pos + 56b sector position on that layer
+        // 8bit layer pos + 56bit sector position on that layer
         storage_type mLayerPosition;
     };
 
@@ -66,6 +66,7 @@ namespace vefs::detail
         struct waypoint
         {
             std::uint64_t absolute;
+            // position within layer
             int offset;
         };
         using waypoint_array = std::array<waypoint, lut::max_tree_depth + 2>;
@@ -142,8 +143,16 @@ namespace vefs::detail
 {
     #pragma region tree_position implementation
 
+    /**
+     * adds the layer to position. The schema is layer_bits | position_bits.
+     * #Todo rename?
+     */
     constexpr auto tree_position::combine(std::uint64_t position, int layer)
         -> storage_type
+    /**
+    * adds the layer to position
+    * @Todo rename?
+    */
     {
         return (static_cast<storage_type>(layer) << layer_offset) | (position & position_mask);
     }
@@ -152,6 +161,12 @@ namespace vefs::detail
         : mLayerPosition{ std::numeric_limits<storage_type>::max() }
     {
     }
+
+    /**
+     * sets the current position inside the tree
+     * @param position inside the layer
+     * @param layer layer number
+     */
     constexpr tree_position::tree_position(std::uint64_t position, int layer) noexcept
         : mLayerPosition{ combine(position, layer) }
     {
@@ -194,6 +209,9 @@ namespace vefs::detail
         return tree_position{ position() / lut::references_per_sector, layer() + 1 };
     }
 
+     /**
+     * @return the offset of the parent node within the sector
+     */
     inline constexpr int tree_position::parent_array_offset() const
     {
         return position() % lut::references_per_sector;

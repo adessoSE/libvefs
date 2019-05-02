@@ -245,6 +245,7 @@ add_executable(vefs-tests
 
     tests/blob-tests.cpp
     tests/crypto_provider-tests.cpp
+    tests/tree_lut-tests.cpp
 )
 target_link_libraries(vefs-tests
     PUBLIC
