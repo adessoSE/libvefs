@@ -17,7 +17,7 @@ namespace vefs::utils
     namespace bitset_ops
     {
         template <typename Unit>
-        inline std::tuple<std::size_t, Unit> offset_and_mask_of(std::size_t bitpos)
+        constexpr std::tuple<std::size_t, Unit> offset_and_mask_of(std::size_t bitpos)
         {
             static_assert(std::is_unsigned_v<Unit>);
 

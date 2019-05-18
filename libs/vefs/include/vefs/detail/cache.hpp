@@ -11,8 +11,6 @@
 #include <type_traits>
 #include <utility>
 
-#include <boost/thread/mutex.hpp>
-
 #include <vefs/allocator/octopus.hpp>
 #include <vefs/allocator/pool_mt.hpp>
 #include <vefs/allocator/std_adapter.hpp>
@@ -52,11 +50,9 @@ namespace vefs::detail
             }
         }
         constexpr cache_handle(cache_handle &&other) noexcept
-            : mData{other.mData}
-            , mControl{other.mControl}
+            : mData{std::exchange(other.mData, nullptr)}
+            , mControl{std::exchange(other.mControl, nullptr)}
         {
-            other.mData = nullptr;
-            other.mControl = nullptr;
         }
         ~cache_handle()
         {
@@ -86,10 +82,8 @@ namespace vefs::detail
             {
                 mControl->release();
             }
-            mData = other.mData;
-            other.mData = nullptr;
-            mControl = other.mControl;
-            other.mControl = nullptr;
+            mData = std::exchange(other.mData, nullptr);
+            mControl = std::exchange(other.mControl, nullptr);
             return *this;
         }
         inline cache_handle &operator=(std::nullptr_t) noexcept
@@ -169,15 +163,24 @@ namespace vefs::detail::detail
     template <typename T>
     struct cache_entry
     {
-        using state_type = std::size_t;
+        friend class cache_handle<T>;
+
+        using state_type = unsigned int;
         using state_traits = std::numeric_limits<state_type>;
 
         static constexpr state_type one = 1;
 
+        // indicates that the cache entry is not alive
         static constexpr state_type TombstoneBit = one << (state_traits::digits - 1);
+        // indicates that the entry has been modified and needs synchronization
+        // i.e. the entry is not available for replacement even though no active references exist
         static constexpr state_type DirtyBit = TombstoneBit >> 1;
+        // indicates that someone is currently initializing this entry
+        // i.e. its dead (= tombstone) but is not available (= dirty)
         static constexpr state_type DirtyTombstone = TombstoneBit | DirtyBit;
+        // if this bit is set a second chance must be granted (regardless of the ref count)
         static constexpr state_type SecondChanceBit = DirtyBit >> 1;
+        // the remaining bits are used for reference counting
         static constexpr state_type RefMask = ~(TombstoneBit | DirtyBit | SecondChanceBit);
 
         constexpr cache_entry() noexcept
@@ -190,22 +193,23 @@ namespace vefs::detail::detail
         {
             return mEntryState.load(std::memory_order_acquire) & TombstoneBit;
         }
-        inline replacement_result try_start_replace() noexcept
+        inline auto try_start_replace() noexcept -> replacement_result
         {
-            if (mEntryState.fetch_and(~SecondChanceBit, std::memory_order_acq_rel) &
-                SecondChanceBit)
+            state_type current = mEntryState.fetch_and(~SecondChanceBit, std::memory_order_acq_rel);
+            if (current & SecondChanceBit)
             {
                 // respect second chance
                 return replacement_result::failed;
             }
 
-            state_type current = mEntryState.load(std::memory_order_acquire);
             do
             {
                 // we only allow replacement if this state is zero or
                 // it is a non dirty tombstone
-                if (current != 0 && (current & DirtyTombstone) != TombstoneBit)
+                if (!(current == 0 || (current & TombstoneBit && !(current & DirtyBit))))
                 {
+                    // notify the owner if this entry is ((not referenced and dirty)) but not dead
+                    // which usually is a good time to consider synchronizing this entry
                     return current == DirtyBit ? replacement_result::dirty
                                                : replacement_result::failed;
                 }
@@ -216,13 +220,13 @@ namespace vefs::detail::detail
             return current & TombstoneBit ? replacement_result::was_dead
                                           : replacement_result::was_alive;
         }
-        inline cache_handle<T> finish_replace(bool success) noexcept
+        inline auto finish_replace(bool success) noexcept -> cache_handle<T>
         {
-            const auto val = success ? one : TombstoneBit;
+            const auto val = success ? one | SecondChanceBit : TombstoneBit;
             mEntryState.store(val, std::memory_order_release);
             return success ? cache_handle<T>{*this} : cache_handle<T>{};
         }
-        inline cache_handle<T> try_acquire() noexcept
+        inline auto try_acquire() noexcept -> cache_handle<T>
         {
             if (try_add_reference())
             {
@@ -231,7 +235,7 @@ namespace vefs::detail::detail
             }
             return {};
         }
-        inline cache_handle<T> try_peek() noexcept
+        inline auto try_peek() noexcept -> cache_handle<T>
         {
             if (try_add_reference())
             {
@@ -382,6 +386,8 @@ namespace vefs::detail
 
         static constexpr std::size_t derive_key_index_map_size(std::size_t limit)
         {
+            // ((limit * 8 / 5) / 4) * 4
+            // reserving 160% of slots needed rounded by the number of slots in a bucket
             return utils::div_ceil(utils::div_ceil(limit * 8, 5), 4) * 4;
         }
 
@@ -522,7 +528,7 @@ namespace vefs::detail
                 if (failed)
                 {
                     {
-                        std::lock_guard<std::mutex> guard{lptr->sync};
+                        std::lock_guard guard{lptr->sync};
                         lptr->index = lookup::invalid;
                         lptr->state = lookup_state::failed;
                     }
