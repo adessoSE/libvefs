@@ -11,10 +11,10 @@ namespace vefs::crypto
         {
             blake2xb state{};
 
-            OUTCOME_TRY(state.init(prk.size(), inputKey, vefs_blake2b_personalization_view));
+            BOOST_OUTCOME_TRY(state.init(prk.size(), inputKey, vefs_blake2b_personalization_view));
             for (auto &part : domain)
             {
-                OUTCOME_TRY(state.update(part));
+                BOOST_OUTCOME_TRY(state.update(part));
             }
             return state.final(prk);
         }
@@ -26,8 +26,8 @@ namespace vefs::crypto
 
         blake2xb state{};
 
-        OUTCOME_TRY(state.init(prk.size(), inputKey, vefs_blake2b_personalization_view));
-        OUTCOME_TRY(state.update(domain));
+        BOOST_OUTCOME_TRY(state.init(prk.size(), inputKey, vefs_blake2b_personalization_view));
+        BOOST_OUTCOME_TRY(state.update(domain));
         return state.final(prk);
     }
 }

@@ -21,9 +21,18 @@
 #include <string_view>
 #include <type_traits>
 #include <system_error>
+                   
+#if defined BOOST_COMP_MSVC_AVAILABLE
+#pragma warning(push, 3)
+#endif
 
 #include <boost/predef.h>
 #include <boost/exception/all.hpp>
+#include <boost/outcome.hpp>
+       
+#if defined BOOST_COMP_MSVC_AVAILABLE
+#pragma warning(pop)
+#endif
 
 #include <vefs/ext/libcuckoo/cuckoohash_map.hh>
 #include <vefs/ext/concurrentqueue/concurrentqueue.h>

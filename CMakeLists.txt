@@ -27,10 +27,6 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clan
     set(GXX_COMPATIBLE 1)
 endif()
 
-if (MSVC AND MSVC_VERSION LESS 1911)
-    message(FATAL_ERROR "Needs at least MSVC 19.11 / VS 2017 Update 3")
-endif()
-
 
 ##########################################################################
 # options
@@ -49,8 +45,7 @@ include(cotire)
 
 find_package(libb2 REQUIRED CONFIG)
 
-# _only_ boringssl is supported
-find_package(OpenSSL 1.1.0)
+find_package(boringssl REQUIRED CONFIG)
 
 # botan provider is currently not implemented
 #find_package(botan 2.8.0)
@@ -69,7 +64,7 @@ find_package(benchmark)
 # fmt library
 find_package(fmt CONFIG REQUIRED)
 
-if (NOT (botan_FOUND OR OpenSSL_FOUND))
+if (NOT (botan_FOUND OR boringssl_FOUND))
     message(WARNING "no crypto provider library (BoringSSL, botan) could be found.")
 endif()
 

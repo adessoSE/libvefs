@@ -657,7 +657,7 @@ namespace vefs::detail
                 if (auto h = e.try_peek(); h && h.is_dirty())
                 {
                     anyDirty = true;
-                    OUTCOME_TRY(fn(std::move(h)));
+                    BOOST_OUTCOME_TRY(fn(std::move(h)));
                 }
             }
             return anyDirty;

@@ -5,7 +5,7 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Windows")
     set(OS_FILESYSTEM_SRC src/os_filesystem_win.cpp)
 endif()
 
-add_library(vefs STATIC)
+add_library(vefs)
 
 DEF_SOURCE_GROUP(vefs "utils"
     SOURCES
@@ -156,7 +156,7 @@ DEF_SOURCE_GROUP(vefs "crypto"
 
         include/vefs/crypto/counter.hpp
 )
-if (OpenSSL_FOUND)
+if (boringssl_FOUND)
     DEF_SOURCE_GROUP(vefs "crypto"
         SOURCES
             src/crypto_provider_boringssl.cpp
@@ -183,11 +183,6 @@ DEF_SOURCE_GROUP(vefs "ext/SpookyV2"
 
     SOURCES
         src/SpookyV2.cpp
-)
-
-DEF_SOURCE_GROUP(vefs "ext/outcome"
-    HEADERS
-        include/vefs/ext/outcome.hpp
 )
 
 target_sources(vefs PRIVATE fileformat.proto)
@@ -217,8 +212,8 @@ target_link_libraries(vefs
 if (botan_FOUND)
     target_link_libraries(vefs PUBLIC botan)
 endif()
-if (OpenSSL_FOUND)
-    target_link_libraries(vefs PUBLIC OpenSSL::Crypto)
+if (boringssl_FOUND)
+    target_link_libraries(vefs PUBLIC boringssl::crypto)
 endif()
 
 if (MSVC)
