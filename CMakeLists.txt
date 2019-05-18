@@ -10,7 +10,7 @@
 #     http://creativecommons.org/publicdomain/zero/1.0/
 #
 ########################################################################
-cmake_minimum_required(VERSION 3.12)
+cmake_minimum_required(VERSION 3.13)
 project(vefs VERSION 0.0.0)
 
 if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
@@ -18,7 +18,7 @@ if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
 endif()
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/Modules/")
+set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/tools/cmake/")
 
 if (CMAKE_C_COMPILER_ID STREQUAL "GNU" OR CMAKE_C_COMPILER_ID STREQUAL "Clang")
     set(GCC_COMPATIBLE 1)
@@ -58,7 +58,7 @@ find_package(OpenSSL 1.1.0)
 # protobuf + protoc
 find_package(protobuf CONFIG REQUIRED)
 
-find_package(Boost 1.68 REQUIRED COMPONENTS
+find_package(Boost 1.70 REQUIRED COMPONENTS
     system
     program_options
     unit_test_framework
@@ -138,20 +138,18 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
 ##########################################################################
 # the actual library project
-add_subdirectory(src)
-add_subdirectory(src/cli)
-if (benchmark_FOUND)
-    add_subdirectory(benchmark)
-endif()
-
-##########################################################################
 enable_testing()
-add_subdirectory(tests)
+
+add_subdirectory(libs/vefs)
+add_subdirectory(libs/vefs-cli)
+if (benchmark_FOUND)
+    add_subdirectory(extras/benchmark)
+endif()
 
 
 ##########################################################################
 # install targets
-configure_file(cmake/vefs-config.cmake
+configure_file(tools/vefs-config.cmake
     "${CMAKE_CURRENT_BINARY_DIR}/vefs-config.cmake"
     COPYONLY
 )
@@ -170,5 +168,3 @@ install(FILES
         "${CMAKE_CURRENT_BINARY_DIR}/vefs-config-version.cmake"
     DESTINATION cmake
 )
-
-install(DIRECTORY include DESTINATION .)

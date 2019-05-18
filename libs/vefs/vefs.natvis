@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
+
+    <!-- sexpr::basic_node -->
+    <Type Name="vefs::span&lt;*&gt;" Priority="MediumHigh">
+        <DisplayString Condition="mSize == 0">{{ empty range }}</DisplayString>
+        <DisplayString>{{ size={mSize} }}</DisplayString>
+        <Expand>
+            <Item Name="[size]" ExcludeView="simple">mSize</Item>
+            <ArrayItems>
+                <Size>mSize</Size>
+                <ValuePointer>mData</ValuePointer>
+            </ArrayItems>
+        </Expand>
+    </Type>
+    <Type Name="vefs::span&lt;*&gt;" Priority="Medium">
+        <DisplayString>{{ static_size={$T2} }}</DisplayString>
+        <Expand>
+            <Item Name="[size]" ExcludeView="simple">$T2</Item>
+            <ArrayItems>
+                <Size>$T2</Size>
+                <ValuePointer>mData</ValuePointer>
+            </ArrayItems>
+        </Expand>
+    </Type>
+    <Type Name="vefs::span&lt;*,0&gt;" Priority="High">
+        <DisplayString>{{ static empty range }}</DisplayString>
+    </Type>
+
+    <Type Name="vefs::span&lt;char ,*&gt;" Priority="MediumHigh">
+        <DisplayString Condition="mSize == 0">{{ empty char range }}</DisplayString>
+        <DisplayString>{{ size={mSize}, data={mData,[mSize]s8} }}</DisplayString>
+        <StringView>mData,[mSize]s8</StringView>
+        <Expand>
+            <Item Name="[size]" ExcludeView="simple">mSize</Item>
+            <ArrayItems>
+                <Size>mSize</Size>
+                <ValuePointer>mData</ValuePointer>
+            </ArrayItems>
+        </Expand>
+    </Type>
+    <Type Name="vefs::span&lt;char ,*&gt;" Priority="Medium">
+        <DisplayString>{{ static_size={$T1}, data={mData,[$T1]s8} }}</DisplayString>
+        <StringView>mData,[$T1]s8</StringView>
+        <Expand>
+            <Item Name="[size]" ExcludeView="simple">$T1</Item>
+            <ArrayItems>
+                <Size>$T1</Size>
+                <ValuePointer>mData</ValuePointer>
+            </ArrayItems>
+        </Expand>
+    </Type>
+    <Type Name="vefs::span&lt;char const,*&gt;" Priority="MediumHigh">
+        <DisplayString Condition="mSize == 0">{{ empty char range }}</DisplayString>
+        <DisplayString>{{ size={mSize}, data={mData,[mSize]s8} }}</DisplayString>
+        <StringView>mData,[mSize]s8</StringView>
+        <Expand>
+            <Item Name="[size]" ExcludeView="simple">mSize</Item>
+            <ArrayItems>
+                <Size>mSize</Size>
+                <ValuePointer>mData</ValuePointer>
+            </ArrayItems>
+        </Expand>
+    </Type>
+    <Type Name="vefs::span&lt;char const ,*&gt;" Priority="Medium">
+        <DisplayString>{{ static_size={$T1}, data={mData,[$T1]s8} }}</DisplayString>
+        <StringView>mData,[$T1]s8</StringView>
+        <Expand>
+            <Item Name="[size]" ExcludeView="simple">$T1</Item>
+            <ArrayItems>
+                <Size>$T1</Size>
+                <ValuePointer>mData</ValuePointer>
+            </ArrayItems>
+        </Expand>
+    </Type>
+
+    <Type Name="vefs::detail::file_sector_id">
+        <DisplayString>{{ tree-position={mLayerPosition}; file-id={mFileId} }}</DisplayString>
+        <Expand>
+            <Item Name="[tree_position]">mLayerPosition</Item>
+            <Item Name="[file]">mFileId</Item>
+        </Expand>
+    </Type>
+
+    <Type Name="vefs::detail::detail::cache_entry&lt;*&gt;">
+        <DisplayString Condition="(mEntryState._My_val &amp; TombstoneBit) != 0">{{ dead }}</DisplayString>
+        <DisplayString Condition="(mEntryState._My_val &amp; DirtyBit) != 0">{{ dirty; refs = { mEntryState._My_val &amp; RefMask } }}</DisplayString>
+        <DisplayString>{{ clean; refs={ mEntryState._My_val &amp; RefMask }; second chance={ (mEntryState._My_val &amp; SecondChanceBit) != 0 } }}</DisplayString>
+        <Expand>
+            <Item Name="[dead]">(mEntryState._My_val &amp; TombstoneBit) != 0</Item>
+            <Item Name="[dirty]">(mEntryState._My_val &amp; DirtyBit) != 0</Item>
+            <Item Name="[reference count]">mEntryState._My_val &amp; RefMask</Item>
+            <Item Name="[data]">mValuePtr</Item>
+        </Expand>
+    </Type>
+    <Type Name="vefs::detail::cache_handle&lt;*&gt;">
+        <DisplayString Condition="mControl == 0">empty</DisplayString>
+        <DisplayString>{mData}</DisplayString>
+        <Expand HideRawView="true">
+            <Item Name="[data]">mData</Item>
+            <Item Name="[control]">mControl</Item>
+        </Expand>
+    </Type>
+
+    <Type Name="vefs::detail::file_id">
+        <DisplayString>{mId}</DisplayString>
+    </Type>
+    <Type Name="vefs::detail::tree_position">
+        <DisplayString>{{ layer={static_cast&lt;unsigned short&gt;(mLayerPosition &gt;&gt; 56)}; position={mLayerPosition &amp; 0x00FFFFFFFFFFFFFF} }}</DisplayString>
+        <Expand>
+            <Item Name="[layer]">static_cast&lt;unsigned short&gt;(mLayerPosition &gt;&gt; 56)</Item>
+            <Item Name="[position]">mLayerPosition &amp; 0x00FFFFFFFFFFFFFF</Item>
+        </Expand>
+    </Type>
+</AutoVisualizer>
