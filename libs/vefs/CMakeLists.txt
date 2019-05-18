@@ -207,6 +207,7 @@ target_include_directories(vefs
 target_link_libraries(vefs
     PUBLIC
         advapi32
+        Boost::boost
         Boost::system
         libb2
         protobuf::libprotobuf

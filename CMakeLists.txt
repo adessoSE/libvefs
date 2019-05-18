@@ -58,7 +58,7 @@ find_package(OpenSSL 1.1.0)
 # protobuf + protoc
 find_package(protobuf CONFIG REQUIRED)
 
-find_package(Boost 1.68 REQUIRED COMPONENTS
+find_package(Boost 1.70 REQUIRED COMPONENTS
     system
     program_options
     unit_test_framework
