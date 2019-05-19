@@ -163,19 +163,6 @@ if (boringssl_FOUND)
     )
 endif()
 
-DEF_SOURCE_GROUP(vefs "ext/libcuckoo"
-    HEADERS
-        include/vefs/ext/libcuckoo/cuckoohash_config.hh
-        include/vefs/ext/libcuckoo/cuckoohash_map.hh
-        include/vefs/ext/libcuckoo/cuckoohash_util.hh
-        include/vefs/ext/libcuckoo/libcuckoo_bucket_container.hh
-)
-DEF_SOURCE_GROUP(vefs "ext/concurrentqueue"
-    HEADERS
-        include/vefs/ext/concurrentqueue/concurrentqueue.h
-        include/vefs/ext/concurrentqueue/blockingconcurrentqueue.h
-)
-
 DEF_SOURCE_GROUP(vefs "ext/SpookyV2"
     HEADERS
         include/vefs/utils/hash/detail/spooky.hpp
@@ -207,6 +194,9 @@ target_link_libraries(vefs
         libb2
         protobuf::libprotobuf
         fmt::fmt
+
+        concurrentqueue
+        cuckoohash
 )
 
 if (botan_FOUND)
@@ -218,7 +208,7 @@ endif()
 
 if (MSVC)
     set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/fileformat.pb.cc" PROPERTIES
-        COMPILE_FLAGS "/wd4100 /wd4125 /wd4146"
+        COMPILE_FLAGS "/wd4100 /wd4125 /wd4127 /wd4146 /wd4244"
     )
 endif()
 
@@ -264,9 +254,9 @@ add_test(NAME vefs-tests COMMAND vefs-tests)
 
 ##########################################################################
 # install targets
-install(TARGETS vefs EXPORT vefs-targets
+install(TARGETS vefs concurrentqueue cuckoohash EXPORT vefs-targets
     RUNTIME DESTINATION bin/$<CONFIG>
     LIBRARY DESTINATION lib/$<CONFIG>
     ARCHIVE DESTINATION lib/$<CONFIG>
-    INCLUDES DESTINATION include
 )
+install(DIRECTORY include/ DESTINATION include COMPONENT core)

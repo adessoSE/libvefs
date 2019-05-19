@@ -68,6 +68,9 @@ if (NOT (botan_FOUND OR boringssl_FOUND))
     message(WARNING "no crypto provider library (BoringSSL, botan) could be found.")
 endif()
 
+# additional in repository dependencies
+add_subdirectory(external)
+
 ##########################################################################
 # compiler adjustments
 
@@ -136,7 +139,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 enable_testing()
 
 add_subdirectory(libs/vefs)
-add_subdirectory(libs/vefs-cli)
+#add_subdirectory(libs/vefs-cli)
 if (benchmark_FOUND)
     add_subdirectory(extras/benchmark)
 endif()
@@ -149,12 +152,12 @@ configure_file(tools/vefs-config.cmake
     COPYONLY
 )
 
-install(EXPORT vefs-targets DESTINATION cmake)
+install(EXPORT vefs-targets DESTINATION cmake COMPONENT core)
 
 include(CMakePackageConfigHelpers)
 write_basic_package_version_file(
     "${CMAKE_CURRENT_BINARY_DIR}/vefs-config-version.cmake"
-    VERSION ${VEFS_VERSION}
+    VERSION "${VEFS_VERSION}"
     COMPATIBILITY ExactVersion
 )
 
@@ -162,4 +165,5 @@ install(FILES
         "${CMAKE_CURRENT_BINARY_DIR}/vefs-config.cmake"
         "${CMAKE_CURRENT_BINARY_DIR}/vefs-config-version.cmake"
     DESTINATION cmake
+    COMPONENT core
 )

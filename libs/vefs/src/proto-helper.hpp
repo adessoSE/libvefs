@@ -6,8 +6,8 @@
 #include <vefs/utils/secure_ops.hpp>
 
 #if defined BOOST_COMP_MSVC_AVAILABLE
-#pragma warning(push)
-#pragma warning(disable : 4146 4100)
+#pragma warning(push, 3)
+#pragma warning(disable : 4244)
 #endif
 
 #include "fileformat.pb.h"

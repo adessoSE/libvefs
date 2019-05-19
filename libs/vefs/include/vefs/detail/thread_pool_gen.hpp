@@ -8,7 +8,7 @@
 #include <string_view>
 
 #include <vefs/detail/thread_pool.hpp>
-#include <vefs/ext/concurrentqueue/blockingconcurrentqueue.h>
+#include <moodycamel/blockingconcurrentqueue.h>
 
 namespace vefs::detail
 {
