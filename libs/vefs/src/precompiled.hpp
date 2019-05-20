@@ -23,9 +23,19 @@
 #include <system_error>
 
 #include <boost/predef.h>
-#include <boost/exception/all.hpp>
 
-#include <vefs/ext/libcuckoo/cuckoohash_map.hh>
-#include <vefs/ext/concurrentqueue/concurrentqueue.h>
+#if defined BOOST_COMP_MSVC_AVAILABLE
+#pragma warning(push, 3)
+#endif
+
+#include <boost/exception/all.hpp>   
+#include <boost/outcome.hpp>
+       
+#if defined BOOST_COMP_MSVC_AVAILABLE
+#pragma warning(pop)
+#endif
+
+#include <cuckoohash_map.hh>
+#include <moodycamel/concurrentqueue.h>
 
 #endif

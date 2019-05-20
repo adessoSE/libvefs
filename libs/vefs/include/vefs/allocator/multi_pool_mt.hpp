@@ -266,7 +266,7 @@ namespace vefs::detail
                                         ALIGNMENT>::allocate(const std::size_t size)
         -> allocation_result
     {
-        OUTCOME_TRY(alloc, intr_allocate(size));
+        BOOST_OUTCOME_TRY(alloc, intr_allocate(size));
         return std::get<memory_allocation>(alloc);
     }
 

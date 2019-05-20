@@ -55,7 +55,7 @@ namespace vefs
         crypto::crypto_provider * cryptoProvider, ro_blob<32> userPRK, file_open_mode_bitset openMode)
         -> result<std::unique_ptr<archive>>
     {
-        OUTCOME_TRY(primitives,
+        BOOST_OUTCOME_TRY(primitives,
             raw_archive::open(fs, archivePath, cryptoProvider, userPRK, openMode));
 
         std::unique_ptr<archive> arc{ new archive(std::move(primitives)) };
@@ -120,7 +120,7 @@ namespace vefs
     auto archive::sync()
         -> result<void>
     {
-        OUTCOME_TRY(changes, mArchiveIndexFile->sync(true));
+        BOOST_OUTCOME_TRY(changes, mArchiveIndexFile->sync(true));
         if (!changes)
         {
             return outcome::success();

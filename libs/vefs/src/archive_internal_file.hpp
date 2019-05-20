@@ -38,7 +38,7 @@ namespace vefs
         -> result<std::shared_ptr<T>>
     {
         auto self = std::make_shared<T>(owner);
-        OUTCOME_TRY(self->parse_content());
+        BOOST_OUTCOME_TRY(self->parse_content());
 
         return std::move(self);
     }
@@ -47,7 +47,7 @@ namespace vefs
         -> result<std::shared_ptr<T>>
     {
         auto self = std::make_shared<T>(owner);
-        OUTCOME_TRY(self->create_self());
+        BOOST_OUTCOME_TRY(self->create_self());
 
         return std::move(self);
     }
