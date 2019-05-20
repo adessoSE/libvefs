@@ -201,12 +201,10 @@ namespace vefs
     }
 
     inline error::error(error && other) noexcept
-        : mValue{ other.mValue }
-        , mInfo{ std::move(other.mInfo) }
-        , mDomain{ other.mDomain }
+        : mValue{ std::exchange(other.mValue, 0) }
+        , mInfo{ std::exchange(other.mInfo, nullptr) }
+        , mDomain{ std::exchange(other.mDomain, nullptr) }
     {
-        other.mDomain = nullptr;
-        other.mValue = 0;
     }
 
     inline error & error::operator=(const error & other) noexcept
@@ -219,11 +217,9 @@ namespace vefs
 
     inline error & error::operator=(error && other) noexcept
     {
-        mDomain = other.mDomain;
-        mValue = other.mValue;
-        mInfo = std::move(other.mInfo);
-        other.mDomain = nullptr;
-        other.mValue = 0;
+        mValue = std::exchange(other.mValue, 0);
+        mInfo = std::exchange(other.mInfo, nullptr);
+        mDomain = std::exchange(other.mDomain, nullptr);
         return *this;
     }
 

@@ -7,7 +7,7 @@
 
 namespace vefs
 {
-    void file::read(blob buffer, std::uint64_t readFilePos)
+    void file::read(rw_dynblob buffer, std::uint64_t readFilePos)
     {
         std::error_code ec;
         read(buffer, readFilePos, ec);
@@ -17,7 +17,7 @@ namespace vefs
         }
     }
 
-    void file::write(blob_view data, std::uint64_t writeFilePos)
+    void file::write(ro_dynblob data, std::uint64_t writeFilePos)
     {
         std::error_code ec;
         write(data, writeFilePos, ec);
@@ -68,4 +68,4 @@ namespace vefs
         }
         return result;
     }
-}
+} // namespace vefs

@@ -5,7 +5,18 @@
 
 #include <fmt/time.h>
 
-#include <vefs/ext/outcome.hpp>
+#include <boost/predef.h>
+
+#if defined BOOST_COMP_MSVC_AVAILABLE
+#pragma warning(push, 3)
+#pragma warning(disable : 6285)
+#endif
+
+#include <boost/outcome.hpp>
+
+#if defined BOOST_COMP_MSVC_AVAILABLE
+#pragma warning(pop)
+#endif
 
 #include <vefs/disappointment/fwd.hpp>
 #include <vefs/disappointment/error_detail.hpp>
@@ -45,7 +56,7 @@ namespace fmt
 
 namespace vefs
 {
-    namespace outcome = ::outcome_v2_4995acdc;
+    namespace outcome = boost::outcome_v2;
 
     namespace detail
     {
@@ -210,4 +221,4 @@ namespace vefs
         -> std::error_code;
 }
 
-#define VEFS_TRY_INJECT(stmt, injected) OUTCOME_TRY(vefs::inject((stmt), [&](auto &e) { e << injected ; }))
+#define VEFS_TRY_INJECT(stmt, injected) BOOST_OUTCOME_TRY(vefs::inject((stmt), [&](auto &e) { e << injected ; }))

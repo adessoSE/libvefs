@@ -2,6 +2,7 @@
 
 #include <cassert>
 #include <exception>
+#include <functional>
 #include <stdexcept>
 #include <string_view>
 #include <type_traits>
@@ -21,16 +22,14 @@ namespace vefs::utils
         return dividend / divisor + (dividend % divisor != 0);
     }
     template <typename T, typename U>
-    constexpr auto div_ceil(T dividend, U divisor)
-        -> std::common_type_t<T, U>
+    constexpr auto div_ceil(T dividend, U divisor) -> std::common_type_t<T, U>
     {
         using common_t = std::common_type_t<T, U>;
         return div_ceil(static_cast<common_t>(dividend), static_cast<common_t>(divisor));
     }
 
     template <typename T, typename U>
-    constexpr auto mod(T k, U n)
-        -> std::common_type_t<T, U>
+    constexpr auto mod(T k, U n) -> std::common_type_t<T, U>
     {
         assert(n > 0);
 
@@ -55,56 +54,34 @@ namespace vefs::utils
     template <std::uint8_t... Values>
     constexpr auto make_byte_array()
     {
-        return std::array<std::byte, sizeof...(Values)>{
-            std::byte{ Values }...
-        };
+        return std::array<std::byte, sizeof...(Values)>{std::byte{Values}...};
+    }
+    template <typename... Ts>
+    constexpr auto make_byte_array(Ts &&... ts) -> std::array<std::byte, sizeof...(Ts)>
+    {
+        static_assert((... && std::is_integral_v<Ts>));
+        if ((... || (static_cast<std::make_unsigned_t<Ts>>(ts) > 0xFFu)))
+        {
+            throw std::logic_error("tried to make a byte with a value > 0xFF");
+        }
+        return {static_cast<std::byte>(ts)...};
     }
 
-#if BOOST_COMP_MSVC >= BOOST_VERSION_NUMBER(19, 12, 0)
-    // workaround for https://developercommunity.visualstudio.com/content/problem/162879/migrating-from-vs2017-154-to-155-causes-internal-e.html
-    namespace detail
+    template <typename R, typename Fn, std::size_t... is, typename... Args>
+    constexpr auto sequence_init(Fn &&initFn, std::index_sequence<is...>, Args &&... args) -> R
     {
-        template <typename R>
-        struct error_code_scope
-        {
-            template <typename F, typename... Args>
-            inline static decltype(auto) eval(F &&f, Args&&... args)
-            {
-                std::error_code ec;
-                decltype(auto) result = f(std::forward<Args>(args)..., ec);
-                if (ec)
-                {
-                    BOOST_THROW_EXCEPTION(std::system_error(ec));
-                }
-                return result;
-            }
-        };
+        return R{initFn(args..., is)...};
+    }
 
-        template <>
-        struct error_code_scope<void>
-        {
-            template <typename F, typename... Args>
-            inline static void eval(F &&f, Args&&... args)
-            {
-                std::error_code ec;
-                f(std::forward<Args>(args)..., ec);
-                if (ec)
-                {
-                    BOOST_THROW_EXCEPTION(std::system_error(ec));
-                }
-            }
-        };
+    template <typename R, std::size_t N, typename Fn, typename... Args>
+    constexpr auto sequence_init(Fn &&initFn, Args &&... args) -> R
+    {
+        return sequence_init<R>(std::forward<Fn>(initFn), std::make_index_sequence<N>{},
+                                std::forward<Args>(args)...);
     }
 
     template <typename F, typename... Args>
-    inline decltype(auto) error_code_scope(F &&f, Args&&... args)
-    {
-        return detail::error_code_scope<decltype(f(std::forward<Args>(args)..., std::declval<std::error_code &>()))>
-            ::eval(std::forward<F>(f), std::forward<Args>(args)...);
-    }
-#else
-    template <typename F, typename... Args>
-    inline decltype(auto) error_code_scope(F &&f, Args&&... args)
+    inline decltype(auto) error_code_scope(F &&f, Args &&... args)
     {
         std::error_code ec;
         if constexpr (std::is_void_v<decltype(f(std::forward<Args>(args)..., ec))>)
@@ -125,7 +102,6 @@ namespace vefs::utils
             return result;
         }
     }
-#endif
 
     template <typename Fn>
     struct scope_guard
@@ -185,36 +161,33 @@ namespace vefs::utils
     }
 
 #define VEFS_ANONYMOUS_VAR(id) BOOST_PP_CAT(id, __LINE__)
-#define VEFS_SCOPE_EXIT auto VEFS_ANONYMOUS_VAR(_scope_exit_guard_) \
-                            = ::vefs::utils::on_exit_scope{} + [&]()
-#define VEFS_ERROR_EXIT auto VEFS_ANONYMOUS_VAR(_error_exit_guard_) \
-                            = ::vefs::utils::on_error_exit{} + [&]()
+#define VEFS_SCOPE_EXIT                                                                            \
+    auto VEFS_ANONYMOUS_VAR(_scope_exit_guard_) = ::vefs::utils::on_exit_scope{} + [&]()
+#define VEFS_ERROR_EXIT                                                                            \
+    auto VEFS_ANONYMOUS_VAR(_error_exit_guard_) = ::vefs::utils::on_error_exit{} + [&]()
 
-}
+} // namespace vefs::utils
 
 namespace vefs::utils::detail
 {
     constexpr bool is_hex_digit(char c)
     {
-        return c >= '0' && c <= '9'
-            || c >= 'a' && c <= 'f'
-            || c >= 'A' && c <= 'F';
+        return c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F';
     }
 
     constexpr std::byte parse_hex_digit(char digit)
     {
         auto value = static_cast<int>(digit);
-        return static_cast<std::byte>(
-            (value - '0') * (value >= '0' && value <= '9')
-            + (value + 10 - 'a') * (value >= 'a' && value <= 'f')
-            + (value + 10 - 'A') * (value >= 'A' && value <= 'F')
-        );
+        return static_cast<std::byte>((value - '0') * (value >= '0' && value <= '9') +
+                                      (value + 10 - 'a') * (value >= 'a' && value <= 'f') +
+                                      (value + 10 - 'A') * (value >= 'A' && value <= 'F'));
     }
 
     template <char First, std::size_t ArrSize>
     constexpr std::size_t parse_hex(std::array<std::byte, ArrSize> &out, std::size_t parsedSize)
     {
-        static_assert(!First && First, "a byte array sequence must be defined by an even number of hex digits");
+        static_assert(!First && First,
+                      "a byte array sequence must be defined by an even number of hex digits");
         return ~static_cast<size_t>(0);
     }
 
@@ -227,7 +200,7 @@ namespace vefs::utils::detail
         static_assert(fCat || First == '\'');
         static_assert(sCat || Second == '\'');
 
-        if constexpr(fCat && sCat)
+        if constexpr (fCat && sCat)
         {
             out[parsedSize++] = parse_hex_digit(First) << 4 | parse_hex_digit(Second);
 
@@ -242,21 +215,21 @@ namespace vefs::utils::detail
         }
         else
         {
-            return parse_hex<First == '\'' ? Second : First, Chars...>(out, parsedSize);
+            return parse_hex < First == '\'' ? Second : First, Chars... > (out, parsedSize);
         }
     }
 
     template <char First, char Second, char... Chars>
-    constexpr std::tuple<std::array<std::byte, sizeof...(Chars)/2>, std::size_t> parse_hex()
+    constexpr std::tuple<std::array<std::byte, sizeof...(Chars) / 2>, std::size_t> parse_hex()
     {
         static_assert(First == '0' && (Second == 'x' || Second == 'X'));
 
-        std::array<std::byte, sizeof...(Chars)/2> storage = {};
+        std::array<std::byte, sizeof...(Chars) / 2> storage = {};
 
         auto numBytes = parse_hex<Chars...>(storage, 0);
-        return { storage, numBytes };
+        return {storage, numBytes};
     }
-}
+} // namespace vefs::utils::detail
 
 namespace vefs
 {
@@ -285,5 +258,5 @@ namespace vefs
                 return result;
             }
         }
-    }
-}
+    } // namespace blob_literals
+} // namespace vefs

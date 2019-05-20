@@ -1,5 +1,5 @@
-#include "precompiled.hpp"
 #include "sysrandom.hpp"
+#include "precompiled.hpp"
 
 #include <stdexcept>
 #include <type_traits>
@@ -15,15 +15,14 @@
 #define RtlGenRandom SystemFunction036
 extern "C" BOOLEAN NTAPI RtlGenRandom(PVOID RandomBuffer, ULONG RandomBufferLength);
 
-vefs::result<void> vefs::detail::random_bytes(blob buffer) noexcept
+vefs::result<void> vefs::detail::random_bytes(rw_dynblob buffer) noexcept
 {
     using namespace vefs;
     using namespace std::string_view_literals;
 
     if (!buffer)
     {
-        return error{ errc::invalid_argument }
-            << ed::error_code_api_origin{ "random_bytes"sv };
+        return error{errc::invalid_argument} << ed::error_code_api_origin{"random_bytes"sv};
     }
     do
     {
@@ -33,12 +32,11 @@ vefs::result<void> vefs::detail::random_bytes(blob buffer) noexcept
 
         if (!RtlGenRandom(buffer.data(), portion))
         {
-            return error{ collect_system_error() }
-                << ed::error_code_api_origin{ "SystemFunction036"sv };
+            return error{collect_system_error()}
+                   << ed::error_code_api_origin{"SystemFunction036"sv};
         }
-        buffer.remove_prefix(portion);
-    }
-    while (buffer);
+        buffer = buffer.subspan(portion);
+    } while (buffer);
 
     return outcome::success();
 }
@@ -49,22 +47,21 @@ vefs::result<void> vefs::detail::random_bytes(blob buffer) noexcept
 #include <sys/random.h>
 #endif
 
-#include <sys/types.h>
-#include <sys/stat.h>
 #include <fcntl.h>
+#include <sys/stat.h>
+#include <sys/types.h>
 #include <unistd.h>
 
 #if !__has_include(<sys/random.h>)
 
-vefs::result<void> vefs::detail::random_bytes(blob buffer) noexcept
+vefs::result<void> vefs::detail::random_bytes(rw_dynblob buffer) noexcept
 {
     using namespace vefs;
     using namespace std::string_view_literals;
 
     if (!buffer)
     {
-        return error{ errc::invalid_argument }
-            << ed::error_code_api_origin{ "random_bytes"sv };
+        return error{errc::invalid_argument} << ed::error_code_api_origin{"random_bytes"sv};
     }
 
     int urandom = open("/dev/urandom", O_RDONLY);
@@ -73,7 +70,8 @@ vefs::result<void> vefs::detail::random_bytes(blob buffer) noexcept
         return error{ collect_system_error() }
             << ed::error_code_origin_tag{ "open(\"/dev/urandom\")"sv });
     }
-    VEFS_SCOPE_EXIT{
+    VEFS_SCOPE_EXIT
+    {
         close(urandom);
     };
 
@@ -93,22 +91,21 @@ vefs::result<void> vefs::detail::random_bytes(blob buffer) noexcept
             return errc::bad
                 << ed::error_code_origin_tag{ "read(\"/dev/urandom\")"sv });
         }
-        buffer.remove_prefix(static_cast<size_t>(tmp));
+        buffer = buffer.subspan(static_cast<size_t>(tmp));
     }
     return outcome::success();
 }
 
 #else
 
-result<void> vefs::detail::random_bytes(blob buffer) noexcept
+result<void> vefs::detail::random_bytes(rw_dynblob buffer) noexcept
 {
     using namespace vefs;
     using namespace std::string_view_literals;
 
     if (!buffer)
     {
-        return error{ errc::invalid_argument }
-            << ed::error_code_api_origin{ "random_bytes"sv };
+        return error{errc::invalid_argument} << ed::error_code_api_origin{"random_bytes"sv};
     }
 
     using ptr = std::add_pointer_t<std::void_t<tag>>;
@@ -120,15 +117,13 @@ result<void> vefs::detail::random_bytes(blob buffer) noexcept
         ssize_t tmp = getrandom(static_cast<ptr>(buffer.data()), portion, 0);
         if (tmp == -1)
         {
-            return error{ collect_system_error() }
-                << ed::error_code_origin_tag{ "getrandom" };
+            return error{collect_system_error()} << ed::error_code_origin_tag{"getrandom"};
         }
         if (tmp == 0)
         {
-            return errc::bad
-                << ed::error_code_origin_tag{ "getrandom" };
+            return errc::bad << ed::error_code_origin_tag{"getrandom"};
         }
-        buffer.remove_prefix(static_cast<size_t>(tmp));
+        buffer = buffer.subspan(static_cast<size_t>(tmp));
     }
     return outcome::success();
 }
@@ -136,6 +131,5 @@ result<void> vefs::detail::random_bytes(blob buffer) noexcept
 #endif
 
 #else
-#error "platform::random is not implemented on your operating system"
+#error "random_bytes() is not implemented on your operating system"
 #endif
-

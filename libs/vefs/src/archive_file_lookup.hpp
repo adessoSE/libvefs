@@ -58,7 +58,7 @@ namespace vefs
 
         virtual void on_sector_write_suggestion(sector_handle sector) override;
         virtual void on_root_sector_synced(detail::basic_archive_file_meta &rootMeta) override;
-        virtual void on_sector_synced(detail::sector_id physId, blob_view mac) override;
+        virtual void on_sector_synced(detail::sector_id physId, ro_blob<16> mac) override;
 
         mutable std::atomic<std::uint32_t> mRefs;
         mutable std::atomic<std::uint32_t> mExtRefs;

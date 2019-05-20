@@ -5,7 +5,7 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Windows")
     set(OS_FILESYSTEM_SRC src/os_filesystem_win.cpp)
 endif()
 
-add_library(vefs STATIC)
+add_library(vefs)
 
 DEF_SOURCE_GROUP(vefs "utils"
     SOURCES
@@ -16,8 +16,6 @@ DEF_SOURCE_GROUP(vefs "utils"
 
     HEADERS
         vefs.natvis
-        include/vefs/utils/allocator.hpp
-        include/vefs/utils/pool_allocator.hpp
         include/vefs/utils/secure_ops.hpp
         include/vefs/utils/secure_array.hpp
         include/vefs/utils/secure_allocator.hpp
@@ -120,6 +118,20 @@ DEF_SOURCE_GROUP(vefs "lib/detail"
         src/tree_walker.cpp
 )
 
+DEF_SOURCE_GROUP(vefs "lib/allocator"
+    HEADERS
+        include/vefs/allocator/alignment.hpp
+        include/vefs/allocator/allocation.hpp
+        include/vefs/allocator/multi_pool_mt.hpp
+        include/vefs/allocator/octopus.hpp
+        include/vefs/allocator/pool_mt.hpp
+        include/vefs/allocator/std_adapter.hpp
+        include/vefs/allocator/system.hpp
+
+        include/vefs/allocator/atomic_ring_counter.hpp
+        include/vefs/allocator/atomic_resource_counter.hpp
+)
+
 DEF_SOURCE_GROUP(vefs "crypto"
     SOURCES
         src/sysrandom.cpp
@@ -144,25 +156,12 @@ DEF_SOURCE_GROUP(vefs "crypto"
 
         include/vefs/crypto/counter.hpp
 )
-if (OpenSSL_FOUND)
+if (boringssl_FOUND)
     DEF_SOURCE_GROUP(vefs "crypto"
         SOURCES
             src/crypto_provider_boringssl.cpp
     )
 endif()
-
-DEF_SOURCE_GROUP(vefs "ext/libcuckoo"
-    HEADERS
-        include/vefs/ext/libcuckoo/cuckoohash_config.hh
-        include/vefs/ext/libcuckoo/cuckoohash_map.hh
-        include/vefs/ext/libcuckoo/cuckoohash_util.hh
-        include/vefs/ext/libcuckoo/libcuckoo_bucket_container.hh
-)
-DEF_SOURCE_GROUP(vefs "ext/concurrentqueue"
-    HEADERS
-        include/vefs/ext/concurrentqueue/concurrentqueue.h
-        include/vefs/ext/concurrentqueue/blockingconcurrentqueue.h
-)
 
 DEF_SOURCE_GROUP(vefs "ext/SpookyV2"
     HEADERS
@@ -171,11 +170,6 @@ DEF_SOURCE_GROUP(vefs "ext/SpookyV2"
 
     SOURCES
         src/SpookyV2.cpp
-)
-
-DEF_SOURCE_GROUP(vefs "ext/outcome"
-    HEADERS
-        include/vefs/ext/outcome.hpp
 )
 
 target_sources(vefs PRIVATE fileformat.proto)
@@ -195,22 +189,26 @@ target_include_directories(vefs
 target_link_libraries(vefs
     PUBLIC
         advapi32
+        Boost::boost
         Boost::system
         libb2
         protobuf::libprotobuf
         fmt::fmt
+
+        concurrentqueue
+        cuckoohash
 )
 
 if (botan_FOUND)
     target_link_libraries(vefs PUBLIC botan)
 endif()
-if (OpenSSL_FOUND)
-    target_link_libraries(vefs PUBLIC OpenSSL::Crypto)
+if (boringssl_FOUND)
+    target_link_libraries(vefs PUBLIC boringssl::crypto)
 endif()
 
 if (MSVC)
     set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/fileformat.pb.cc" PROPERTIES
-        COMPILE_FLAGS "/wd4100 /wd4125 /wd4146"
+        COMPILE_FLAGS "/wd4100 /wd4125 /wd4127 /wd4146 /wd4244"
     )
 endif()
 
@@ -256,9 +254,9 @@ add_test(NAME vefs-tests COMMAND vefs-tests)
 
 ##########################################################################
 # install targets
-install(TARGETS vefs EXPORT vefs-targets
+install(TARGETS vefs concurrentqueue cuckoohash EXPORT vefs-targets
     RUNTIME DESTINATION bin/$<CONFIG>
     LIBRARY DESTINATION lib/$<CONFIG>
     ARCHIVE DESTINATION lib/$<CONFIG>
-    INCLUDES DESTINATION include
 )
+install(DIRECTORY include/ DESTINATION include COMPONENT core)

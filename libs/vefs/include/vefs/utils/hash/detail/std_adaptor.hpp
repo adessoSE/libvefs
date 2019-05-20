@@ -8,27 +8,24 @@
 #include <type_traits>
 
 #include <vefs/blob.hpp>
-#include <vefs/utils/uuid.hpp>
 #include <vefs/utils/hash/algorithm_tag.hpp>
+#include <vefs/utils/uuid.hpp>
 
 namespace vefs::utils
 {
     template <typename T, typename Impl, typename H,
-        std::enable_if_t<std::is_integral_v<T> || std::is_enum_v<T> || std::is_pointer_v<T>, int> = 0>
+              std::enable_if_t<std::is_integral_v<T> || std::is_enum_v<T> || std::is_pointer_v<T>, int> = 0>
     inline void compute_hash(const T &obj, H &h, hash::algorithm_tag<Impl>)
     {
-        auto ptr = reinterpret_cast<const std::byte *>(&obj);
-        Impl::compute(blob_view{ ptr, sizeof(T) }, h);
+        Impl::compute(ro_blob_cast(obj), h);
     }
 
     template <typename T, typename Impl,
-        std::enable_if_t<std::is_integral_v<T> || std::is_enum_v<T> || std::is_pointer_v<T>, int> = 0>
+              std::enable_if_t<std::is_integral_v<T> || std::is_enum_v<T> || std::is_pointer_v<T>, int> = 0>
     inline void compute_hash(const T &obj, Impl &state)
     {
-        auto ptr = reinterpret_cast<const std::byte *>(&obj);
-        state.update(blob_view{ ptr, sizeof(T) });
+        state.update(ro_blob_cast(obj));
     }
-
 
     template <typename T, typename Impl, typename H>
     inline void compute_hash(const std::shared_ptr<T> &obj, H &h, hash::algorithm_tag<Impl>)
@@ -42,67 +39,60 @@ namespace vefs::utils
         compute_hash(obj.get(), state);
     }
 
-
     template <typename T, typename Impl, typename H>
     inline void compute_hash(const std::unique_ptr<T> &obj, H &h, hash::algorithm_tag<Impl>)
     {
-        compute_hash(obj.get(), h, hash::algorithm_tag<Impl>{});
+        compute_hash(*obj, h, hash::algorithm_tag<Impl>{});
     }
 
     template <typename T, typename Impl>
     inline void compute_hash(const std::unique_ptr<T> &obj, Impl &state)
     {
-        compute_hash(obj.get(), state);
+        compute_hash(*obj, state);
     }
 
-
     template <typename T, typename Impl, typename H>
-    inline void compute_hash(const std::basic_string_view<T> &obj, H &h, hash::algorithm_tag<Impl>)
+    inline void compute_hash(std::basic_string_view<T> obj, H &h, hash::algorithm_tag<Impl>)
     {
-        auto ptr = reinterpret_cast<const std::byte *>(obj.data());
-        auto size = obj.size() * sizeof(T);
-        Impl::compute(blob_view{ ptr, size }, h);
+        Impl::compute(as_bytes(span(obj)), h);
     }
 
     template <typename T, typename Impl>
-    inline void compute_hash(const std::basic_string_view<T> &obj, Impl &state)
+    inline void compute_hash(std::basic_string_view<T> obj, Impl &state)
     {
-        auto ptr = reinterpret_cast<const std::byte *>(obj.data());
-        auto size = obj.size() * sizeof(T);
-        state.update(blob_view{ ptr, size });
+        state.update(as_bytes(span(obj)));
     }
-
 
     template <typename Impl, typename H>
     inline void compute_hash(const vefs::utils::uuid &obj, H &h, hash::algorithm_tag<Impl>)
     {
-        auto ptr = reinterpret_cast<const std::byte *>(obj.begin());
-        Impl::compute(blob_view{ ptr, obj.static_size() }, h);
+        Impl::compute(as_bytes(span(obj.data)), h);
     }
 
     template <typename Impl>
     inline void compute_hash(const vefs::utils::uuid &obj, Impl &state)
     {
-        auto ptr = reinterpret_cast<const std::byte *>(obj.begin());
-        state.update(blob_view{ ptr, obj.static_size() });
+        state.update(as_bytes(span(obj.data)));
     }
-}
+} // namespace vefs::utils
 
 namespace vefs::utils::hash::detail
 {
     template <typename T, typename Impl, typename = void>
-    struct has_stateless_compute_t
-        : std::false_type {};
+    struct has_stateless_compute_t : std::false_type
+    {
+    };
 
     template <typename T, typename Impl>
-    struct has_stateless_compute_t<T, Impl,
+    struct has_stateless_compute_t<
+        T, Impl,
         std::void_t<decltype(compute_hash(std::declval<const T &>(), std::declval<std::size_t &>(),
-                                          std::declval<algorithm_tag<Impl>>()))>>
-        : std::true_type {};
+                                          std::declval<algorithm_tag<Impl>>()))>> : std::true_type
+    {
+    };
 
     template <typename T, typename Impl>
     constexpr bool has_stateless_compute = has_stateless_compute_t<T, Impl>::value;
-
 
     template <typename T, typename Impl>
     struct std_adaptor;
@@ -138,4 +128,4 @@ namespace vefs::utils::hash::detail
             return std_adaptor<void, Impl>::operator()(obj);
         }
     };
-}
+} // namespace vefs::utils::hash::detail

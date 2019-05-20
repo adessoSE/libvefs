@@ -2,16 +2,74 @@
 <AutoVisualizer xmlns="http://schemas.microsoft.com/vstudio/debugger/natvis/2010">
 
     <!-- sexpr::basic_node -->
-    <Type Name="vefs::basic_range&lt;*&gt;" >
-        <DisplayString Condition="mBuffer == 0 &amp;&amp; mBufferSize == 0">{{unset range}}</DisplayString>
-        <DisplayString Condition="mBufferSize == 0">{{ empty range }}</DisplayString>
-        <DisplayString Condition="mBuffer == 0">{{ nullptr range }}</DisplayString>
-        <DisplayString>{{ size={mBufferSize} }}</DisplayString>
+    <Type Name="vefs::span&lt;*&gt;" Priority="MediumHigh">
+        <DisplayString Condition="mSize == 0">{{ empty range }}</DisplayString>
+        <DisplayString>{{ size={mSize} }}</DisplayString>
         <Expand>
-            <Item Name="[size]" ExcludeView="simple">mBufferSize</Item>
+            <Item Name="[size]" ExcludeView="simple">mSize</Item>
             <ArrayItems>
-                <Size>mBufferSize</Size>
-                <ValuePointer>mBuffer</ValuePointer>
+                <Size>mSize</Size>
+                <ValuePointer>mData</ValuePointer>
+            </ArrayItems>
+        </Expand>
+    </Type>
+    <Type Name="vefs::span&lt;*&gt;" Priority="Medium">
+        <DisplayString>{{ static_size={$T2} }}</DisplayString>
+        <Expand>
+            <Item Name="[size]" ExcludeView="simple">$T2</Item>
+            <ArrayItems>
+                <Size>$T2</Size>
+                <ValuePointer>mData</ValuePointer>
+            </ArrayItems>
+        </Expand>
+    </Type>
+    <Type Name="vefs::span&lt;*,0&gt;" Priority="High">
+        <DisplayString>{{ static empty range }}</DisplayString>
+    </Type>
+
+    <Type Name="vefs::span&lt;char ,*&gt;" Priority="MediumHigh">
+        <DisplayString Condition="mSize == 0">{{ empty char range }}</DisplayString>
+        <DisplayString>{{ size={mSize}, data={mData,[mSize]s8} }}</DisplayString>
+        <StringView>mData,[mSize]s8</StringView>
+        <Expand>
+            <Item Name="[size]" ExcludeView="simple">mSize</Item>
+            <ArrayItems>
+                <Size>mSize</Size>
+                <ValuePointer>mData</ValuePointer>
+            </ArrayItems>
+        </Expand>
+    </Type>
+    <Type Name="vefs::span&lt;char ,*&gt;" Priority="Medium">
+        <DisplayString>{{ static_size={$T1}, data={mData,[$T1]s8} }}</DisplayString>
+        <StringView>mData,[$T1]s8</StringView>
+        <Expand>
+            <Item Name="[size]" ExcludeView="simple">$T1</Item>
+            <ArrayItems>
+                <Size>$T1</Size>
+                <ValuePointer>mData</ValuePointer>
+            </ArrayItems>
+        </Expand>
+    </Type>
+    <Type Name="vefs::span&lt;char const,*&gt;" Priority="MediumHigh">
+        <DisplayString Condition="mSize == 0">{{ empty char range }}</DisplayString>
+        <DisplayString>{{ size={mSize}, data={mData,[mSize]s8} }}</DisplayString>
+        <StringView>mData,[mSize]s8</StringView>
+        <Expand>
+            <Item Name="[size]" ExcludeView="simple">mSize</Item>
+            <ArrayItems>
+                <Size>mSize</Size>
+                <ValuePointer>mData</ValuePointer>
+            </ArrayItems>
+        </Expand>
+    </Type>
+    <Type Name="vefs::span&lt;char const ,*&gt;" Priority="Medium">
+        <DisplayString>{{ static_size={$T1}, data={mData,[$T1]s8} }}</DisplayString>
+        <StringView>mData,[$T1]s8</StringView>
+        <Expand>
+            <Item Name="[size]" ExcludeView="simple">$T1</Item>
+            <ArrayItems>
+                <Size>$T1</Size>
+                <ValuePointer>mData</ValuePointer>
             </ArrayItems>
         </Expand>
     </Type>

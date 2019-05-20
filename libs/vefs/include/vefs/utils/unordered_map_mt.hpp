@@ -5,7 +5,7 @@
 #include <algorithm>
 #include <string_view>
 
-#include <vefs/ext/libcuckoo/cuckoohash_map.hh>
+#include <cuckoohash_map.hh>
 #include <vefs/utils/hash/default_weak.hpp>
 
 namespace vefs::utils

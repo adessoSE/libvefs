@@ -6,9 +6,9 @@
 #include <shared_mutex>
 
 #include <vefs/archive.hpp>
+#include <vefs/detail/basic_archive_file_meta.hpp>
 #include <vefs/detail/cache.hpp>
 #include <vefs/detail/tree_walker.hpp>
-#include <vefs/detail/basic_archive_file_meta.hpp>
 #include <vefs/utils/dirt_flag.hpp>
 
 namespace vefs
@@ -28,7 +28,7 @@ namespace vefs
             using handle = detail::cache_handle<sector>;
 
             inline sector(handle parent, tree_position position,
-                detail::sector_id sectorId) noexcept;
+                          detail::sector_id sectorId) noexcept;
 
             inline detail::sector_id sector_id() const;
             inline tree_position position() const;
@@ -36,12 +36,12 @@ namespace vefs
             inline auto parent() const -> const handle &;
             inline void update_parent(handle newParent);
 
-            inline blob data();
-            inline blob_view data() const;
-            inline blob_view data_view() const;
+            inline auto data() -> rw_blob<detail::raw_archive::sector_payload_size>;
+            inline auto data() const -> ro_blob<detail::raw_archive::sector_payload_size>;
+            inline auto data_view() const -> ro_blob<detail::raw_archive::sector_payload_size>;
 
-            inline std::shared_mutex & data_sync();
-            inline std::atomic_flag & write_queued_flag();
+            inline std::shared_mutex &data_sync();
+            inline std::atomic_flag &write_queued_flag();
 
         protected:
             std::shared_mutex mDataSync;
@@ -59,44 +59,39 @@ namespace vefs
         file(archive &owner, detail::basic_archive_file_meta &data, file_events &hooks);
         ~file();
 
-        auto access(tree_position sectorPosition)
-            -> result<sector::handle>;
-        auto access_or_append(tree_position position)
-            -> result<sector::handle>;
-        auto try_access(tree_position key)
-            -> sector::handle;
+        auto access(tree_position sectorPosition) -> result<sector::handle>;
+        auto access_or_append(tree_position position) -> result<sector::handle>;
+        auto try_access(tree_position key) -> sector::handle;
 
-        result<void> read(blob buffer, std::uint64_t readPos);
-        result<void> write(blob_view data, std::uint64_t writePos);
-        std::uint64_t write(sector::handle &sector, blob_view data, std::uint64_t offset);
+        result<void> read(rw_dynblob buffer, std::uint64_t readPos);
+        result<void> write(ro_dynblob data, std::uint64_t writePos);
+        std::uint64_t write(sector::handle &sector, ro_dynblob data, std::uint64_t offset);
 
         std::uint64_t size();
         result<void> resize(std::uint64_t size);
 
         result<void> sync();
-        //bool is_dirty();
+        // bool is_dirty();
 
         result<void> create_self();
         result<void> erase_self();
 
-        archive & owner_ref();
+        archive &owner_ref();
 
         result<void> write_sector_to_disk(sector::handle sector);
 
         auto lock_integrity() -> std::unique_lock<std::shared_mutex>;
 
     protected:
-        std::uint64_t write_no_lock(sector::handle &sector, blob_view data, std::uint64_t offset);
+        std::uint64_t write_no_lock(sector::handle &sector, ro_dynblob data, std::uint64_t offset);
 
     private:
-        auto access_impl(tree_position sectorPosition)
-            -> result<sector::handle>;
+        auto access_impl(tree_position sectorPosition) -> result<sector::handle>;
 
         // the caller is required to hold the shrink lock during the grow_file() call
         result<void> grow_file(std::uint64_t size);
         // the caller is required to uniquely lock the shrink mutex during the call
         result<void> shrink_file(const std::uint64_t size);
-
 
         archive &mOwner;
         file_events &mHooks;
@@ -111,7 +106,6 @@ namespace vefs
         utils::dirt_flag mWriteFlag;
     };
 
-
     class file_events
     {
     public:
@@ -119,35 +113,34 @@ namespace vefs
 
         virtual void on_sector_write_suggestion(sector_handle sector) = 0;
         virtual void on_root_sector_synced(detail::basic_archive_file_meta &rootMeta) = 0;
-        virtual void on_sector_synced(detail::sector_id physId, blob_view mac) = 0;
+        virtual void on_sector_synced(detail::sector_id physId, ro_blob<16> mac) = 0;
     };
-}
+} // namespace vefs
 
 namespace vefs
 {
-    inline archive & archive::file::owner_ref()
+    inline archive &archive::file::owner_ref()
     {
         return mOwner;
     }
 
-    inline auto archive::file::try_access(tree_position key)
-        -> file::sector::handle
+    inline auto archive::file::try_access(tree_position key) -> file::sector::handle
     {
         return mCachedBlocks->try_access(key);
     }
 
     inline std::uint64_t archive::file::size()
     {
-        std::shared_lock<std::shared_mutex> intLock{ integrity_mutex };
+        std::shared_lock<std::shared_mutex> intLock{integrity_mutex};
         return mData.size;
     }
 
     inline archive::file::sector::sector(handle parent, detail::tree_position position,
-        detail::sector_id sectorId) noexcept
+                                         detail::sector_id sectorId) noexcept
         : mDataSync{}
-        , mPosition{ position }
-        , mSectorId{ sectorId }
-        , mParent{ std::move(parent) }
+        , mPosition{position}
+        , mSectorId{sectorId}
+        , mParent{std::move(parent)}
         , mBlockData{}
     {
     }
@@ -171,25 +164,27 @@ namespace vefs
         mParent = std::move(newParent);
     }
 
-    inline blob archive::file::sector::data()
+    inline auto archive::file::sector::data() -> rw_blob<detail::raw_archive::sector_payload_size>
     {
-        return blob{ mBlockData };
+        return mBlockData;
     }
-    inline blob_view archive::file::sector::data() const
+    inline auto archive::file::sector::data() const
+        -> ro_blob<detail::raw_archive::sector_payload_size>
     {
-        return blob_view{ mBlockData };
+        return mBlockData;
     }
-    inline blob_view archive::file::sector::data_view() const
+    inline auto archive::file::sector::data_view() const
+        -> ro_blob<detail::raw_archive::sector_payload_size>
     {
-        return blob_view{ mBlockData };
+        return mBlockData;
     }
 
-    inline std::shared_mutex & archive::file::sector::data_sync()
+    inline std::shared_mutex &archive::file::sector::data_sync()
     {
         return mDataSync;
     }
-    inline std::atomic_flag & archive::file::sector::write_queued_flag()
+    inline std::atomic_flag &archive::file::sector::write_queued_flag()
     {
         return mWriteQueued;
     }
-}
+} // namespace vefs

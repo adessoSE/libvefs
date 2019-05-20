@@ -1,5 +1,5 @@
-#include "precompiled.hpp"
 #include "archive_file.hpp"
+#include "precompiled.hpp"
 
 #include <cassert>
 
@@ -30,18 +30,19 @@ namespace vefs
 
 #pragma pack(pop)
 
-        inline RawSectorReference & sector_reference_at(archive::file::sector &sector,
-            int which)
+        inline RawSectorReference &sector_reference_at(archive::file::sector &sector, int which)
         {
-            return *(&(sector.data().as<RawSectorReference>()) + which);
+            // #UB-ObjectLifetime
+            return *(reinterpret_cast<RawSectorReference *>(sector.data().data()) + which);
         }
-        inline const RawSectorReference & sector_reference_at(const archive::file::sector &sector,
-            int which)
+        inline const RawSectorReference &sector_reference_at(const archive::file::sector &sector,
+                                                             int which)
         {
-            return *(&(sector.data().as<RawSectorReference>()) + which);
+            // #UB-ObjectLifetime
+            return *(reinterpret_cast<const RawSectorReference *>(sector.data().data()) + which);
         }
         inline const RawSectorReference sector_creference_at(const archive::file::sector &sector,
-            int which)
+                                                             int which)
         {
             return sector_reference_at(sector, which);
         }
@@ -57,28 +58,25 @@ namespace vefs
             const auto beginPos = pos * step_width;
 
             return ((pos | l) == 0) // there is always a sector allocated for each file
-                || unit_width < fileSize && beginPos < fileSize;
+                   || unit_width < fileSize && beginPos < fileSize;
         }
-    }
+    } // namespace
 
-    archive::file::file(archive & owner, detail::basic_archive_file_meta & data,
-        file_events &hooks)
-        : mOwner{ owner }
-        , mHooks{ hooks }
-        , mData{ data }
+    archive::file::file(archive &owner, detail::basic_archive_file_meta &data, file_events &hooks)
+        : mOwner{owner}
+        , mHooks{hooks}
+        , mData{data}
         , mCachedBlocks{}
         , mWriteFlag{}
     {
-        mCachedBlocks = std::make_unique<block_pool_t>([&hooks](auto sector)
-        {
-            hooks.on_sector_write_suggestion(std::move(sector));
-        });
+        mCachedBlocks = std::make_unique<block_pool_t>(
+            [&hooks](auto sector) { hooks.on_sector_write_suggestion(std::move(sector)); });
     }
 
     auto archive::file::create_self() -> result<void>
     {
         assert(mData.tree_depth == -1);
-        OUTCOME_TRY(access_or_append(detail::tree_position{ 0, 0 }));
+        BOOST_OUTCOME_TRY(access_or_append(detail::tree_position{0, 0}));
         return outcome::success();
     }
 
@@ -86,14 +84,12 @@ namespace vefs
     {
     }
 
-    auto archive::file::lock_integrity()
-        -> std::unique_lock<std::shared_mutex>
+    auto archive::file::lock_integrity() -> std::unique_lock<std::shared_mutex>
     {
-        return std::unique_lock{ integrity_mutex };
+        return std::unique_lock{integrity_mutex};
     }
 
-    auto archive::file::access_impl(tree_position sectorPosition)
-        -> result<file::sector::handle>
+    auto archive::file::access_impl(tree_position sectorPosition) -> result<file::sector::handle>
     {
         using namespace vefs::detail;
 
@@ -107,7 +103,7 @@ namespace vefs
         sector_id physId;
         decltype(mData.start_block_mac) mac;
         {
-            std::shared_lock fileLock{ integrity_mutex };
+            std::shared_lock fileLock{integrity_mutex};
             treeDepth = mData.tree_depth;
             physId = mData.start_block_idx;
             mac = mData.start_block_mac;
@@ -118,41 +114,40 @@ namespace vefs
             return archive_errc::sector_reference_out_of_range;
         }
 
-        tree_path path{ treeDepth, sectorPosition };
+        tree_path path{treeDepth, sectorPosition};
         auto pathIterator = path.cbegin();
-        tree_path::iterator pathEnd{ path, sectorPosition.layer() };
+        tree_path::iterator pathEnd{path, sectorPosition.layer()};
 
         file::sector::handle parentSector;
-
 
         for (;;)
         {
             file::sector::handle sector;
             if (static_cast<uint64_t>(physId) >= mOwner.mArchive->size())
             {
-                return error{ archive_errc::sector_reference_out_of_range }
-                    << ed::sector_idx{physId};
+                return error{archive_errc::sector_reference_out_of_range} << ed::sector_idx{physId};
             }
 
             const auto currentPosition = *pathIterator;
-            if (auto entry = mCachedBlocks->access(currentPosition, [&](void *mem) noexcept -> result<file::sector *>
-            {
-                auto xsec = new(mem) file::sector(parentSector, currentPosition, physId);
-                if (auto readResult = mOwner.mArchive->read_sector(xsec->data(), mData, physId, blob_view{ mac });
-                    readResult.has_failure())
-                {
-                    std::destroy_at(xsec);
-                    readResult.assume_error() << ed::sector_idx{ physId };
-                    return std::move(readResult).as_failure();
-                }
-                return xsec;
-            }))
+            if (auto entry = mCachedBlocks->access(
+                    currentPosition, [&](void *mem) noexcept->result<file::sector *> {
+                        auto xsec = new (mem) file::sector(parentSector, currentPosition, physId);
+                        if (auto readResult = mOwner.mArchive->read_sector(xsec->data(), mData,
+                                                                           physId, ro_dynblob(mac));
+                            readResult.has_failure())
+                        {
+                            std::destroy_at(xsec);
+                            readResult.assume_error() << ed::sector_idx{physId};
+                            return std::move(readResult).as_failure();
+                        }
+                        return xsec;
+                    }))
             {
                 sector = std::move(entry).assume_value();
             }
             else
             {
-                std::shared_lock fileLock{ integrity_mutex };
+                std::shared_lock fileLock{integrity_mutex};
                 // if the file tree shrinks during an access operation it may happen
                 // that one of the intermediate nodes dies :(
                 // however this is detectable and recoverable if the cut off part
@@ -160,8 +155,8 @@ namespace vefs
                 const auto nTreeDepth = mData.tree_depth;
                 if (nTreeDepth < sectorPosition.layer())
                 {
-                    return error{ archive_errc::sector_reference_out_of_range }
-                        << ed::wrapped_error{ std::move(entry).assume_error() };
+                    return error{archive_errc::sector_reference_out_of_range}
+                           << ed::wrapped_error{std::move(entry).assume_error()};
                 }
                 if (treeDepth > nTreeDepth)
                 {
@@ -175,23 +170,23 @@ namespace vefs
                 {
                     fileLock.unlock();
                     // stabilize memory representation
-                    std::lock_guard parentLock{ parentSector->data_sync() };
+                    std::lock_guard parentLock{parentSector->data_sync()};
 
-                    auto &ref = sector_creference_at(*parentSector,
-                        path.offset(sectorPosition.layer()));
+                    auto &ref =
+                        sector_creference_at(*parentSector, path.offset(sectorPosition.layer()));
                     if (ref.reference == sector_id::master)
                     {
-                        return error{ archive_errc::sector_reference_out_of_range }
-                            << ed::wrapped_error{ std::move(entry).assume_error() };
+                        return error{archive_errc::sector_reference_out_of_range}
+                               << ed::wrapped_error{std::move(entry).assume_error()};
                     }
-                    if (!equal(blob_view{ mac }, blob_view{ ref.mac }))
+                    if (!equal(span(mac), span(ref.mac)))
                     {
                         physId = ref.reference;
                         mac = ref.mac;
                         continue;
                     }
                 }
-                else if (!equal(blob_view{ mac }, blob_view{ mData.start_block_mac }))
+                else if (!equal(span{mac}, span{mData.start_block_mac}))
                 {
                     return errc::device_busy;
                 }
@@ -210,15 +205,14 @@ namespace vefs
             // this will happen if we read past the end of the file
             if (physId == sector_id::master)
             {
-                return error{ archive_errc::sector_reference_out_of_range }
-                    << ed::sector_idx{ sector_id::master };
+                return error{archive_errc::sector_reference_out_of_range}
+                       << ed::sector_idx{sector_id::master};
             }
 
             parentSector = std::move(sector);
         }
     }
-    auto archive::file::access(tree_position sectorPosition)
-        -> result<sector::handle>
+    auto archive::file::access(tree_position sectorPosition) -> result<sector::handle>
     {
         if (!sectorPosition)
         {
@@ -232,9 +226,8 @@ namespace vefs
             {
                 if (sector.has_error())
                 {
-                    sector.assume_error()
-                        << ed::sector_tree_position{ sectorPosition }
-                        << ed::archive_file_id{ mData.id };
+                    sector.assume_error() << ed::sector_tree_position{sectorPosition}
+                                          << ed::archive_file_id{mData.id};
                 }
                 return std::move(sector);
             }
@@ -244,28 +237,27 @@ namespace vefs
         }
     }
 
-    result<void> archive::file::read(blob buffer, std::uint64_t readPos)
+    result<void> archive::file::read(rw_dynblob buffer, std::uint64_t readPos)
     {
         auto offset = readPos % detail::raw_archive::sector_payload_size;
-        tree_position it{ detail::lut::sector_position_of(readPos) };
+        tree_position it{detail::lut::sector_position_of(readPos)};
 
         while (buffer)
         {
-            OUTCOME_TRY(sectorHandle, access(it));
+            BOOST_OUTCOME_TRY(sectorHandle, access(it));
             it.position(it.position() + 1);
 
-            auto chunk = sectorHandle->data_view().slice(offset);
+            auto chunk = sectorHandle->data_view().subspan(offset);
             offset = 0;
 
-            std::shared_lock<std::shared_mutex> guard{ sectorHandle->data_sync() };
-            chunk.copy_to(buffer);
-            buffer.remove_prefix(chunk.size());
+            std::shared_lock<std::shared_mutex> guard{sectorHandle->data_sync()};
+            copy(chunk, buffer);
+            buffer = buffer.subspan(std::min(chunk.size(), buffer.size()));
         }
         return outcome::success();
     }
 
-    auto archive::file::access_or_append(const tree_position position)
-        -> result<sector::handle>
+    auto archive::file::access_or_append(const tree_position position) -> result<sector::handle>
     {
         using namespace detail;
 
@@ -277,21 +269,21 @@ namespace vefs
         }
 
         auto requiredDepth = lut::required_tree_depth(position.position());
-        tree_path path{ requiredDepth, position };
+        tree_path path{requiredDepth, position};
 
-        std::shared_lock fileReadLock{ integrity_mutex };
-        const tree_position rootPos{ 0, std::max(mData.tree_depth, requiredDepth) };
+        std::shared_lock fileReadLock{integrity_mutex};
+        const tree_position rootPos{0, std::max(mData.tree_depth, requiredDepth)};
 
         // check whether we need to increase the tree depth
         file::sector::handle parent;
         if (requiredDepth > mData.tree_depth)
         {
             fileReadLock.unlock();
-            std::unique_lock fileWriteLock{ integrity_mutex };
+            std::unique_lock fileWriteLock{integrity_mutex};
 
             if (requiredDepth > mData.tree_depth)
             {
-                OUTCOME_TRY(physId, mOwner.mFreeBlockIndexFile->alloc_sector());
+                BOOST_OUTCOME_TRY(physId, mOwner.mFreeBlockIndexFile->alloc_sector());
                 auto acres = mCachedBlocks->access_w_inplace_ctor(rootPos, parent, rootPos, physId);
                 if (!acres)
                 {
@@ -321,7 +313,7 @@ namespace vefs
                 parent.mark_dirty();
 
                 // update the old root if it is currently cached
-                const tree_position oldRootPos{ 0, requiredDepth - 1 };
+                const tree_position oldRootPos{0, requiredDepth - 1};
                 if (auto oldRoot = mCachedBlocks->try_access(oldRootPos))
                 {
                     oldRoot->update_parent(parent);
@@ -370,13 +362,12 @@ namespace vefs
 
         // walk the tree path down to layer 0 inserting missing sectors
         // if parent is on layer 0 then `it` is automatically an end iterator
-        for (auto it = tree_path::iterator{ path, parent->position().layer() - 1 },
-            end = path.cend();
-            it != end; ++it)
+        for (auto it = tree_path::iterator{path, parent->position().layer() - 1}, end = path.cend();
+             it != end; ++it)
         {
             auto &ref = sector_reference_at(*parent, it.array_offset());
 
-            std::unique_lock parentLock{ parent->data_sync() };
+            std::unique_lock parentLock{parent->data_sync()};
             if (ref.reference != sector_id::master)
             {
                 parentLock.unlock();
@@ -393,7 +384,7 @@ namespace vefs
             {
                 parentLock.unlock();
 
-                OUTCOME_TRY(physId, mOwner.mFreeBlockIndexFile->alloc_sector());
+                BOOST_OUTCOME_TRY(physId, mOwner.mFreeBlockIndexFile->alloc_sector());
                 sector::handle entry;
                 if (auto acres = mCachedBlocks->access_w_inplace_ctor(*it, parent, *it, physId))
                 {
@@ -411,7 +402,7 @@ namespace vefs
                 }
 
                 {
-                    std::unique_lock entryLock{ entry->data_sync(), std::defer_lock };
+                    std::unique_lock entryLock{entry->data_sync(), std::defer_lock};
                     std::lock(parentLock, entryLock);
 
                     ref.reference = entry->sector_id();
@@ -427,62 +418,63 @@ namespace vefs
         return parent;
     }
 
-    result<void> archive::file::write(blob_view data, std::uint64_t writeFilePos)
+    result<void> archive::file::write(ro_dynblob data, std::uint64_t writeFilePos)
     {
         if (!data)
         {
             return outcome::success();
         }
 
-        tree_position writePos{ detail::lut::sector_position_of(writeFilePos) };
+        tree_position writePos{detail::lut::sector_position_of(writeFilePos)};
         auto offset = writeFilePos % detail::raw_archive::sector_payload_size;
 
         auto newMinSize = writeFilePos + data.size();
 
-        std::shared_lock shrinkLock{ shrink_mutex };
+        std::shared_lock shrinkLock{shrink_mutex};
         // make sure that the file is valid up until our write starting point
-        OUTCOME_TRY(grow_file(writeFilePos + 1));
+        BOOST_OUTCOME_TRY(grow_file(writeFilePos + 1));
 
         while (data)
         {
-            OUTCOME_TRY(sectorHandle, access_or_append(writePos));
+            BOOST_OUTCOME_TRY(sectorHandle, access_or_append(writePos));
             writePos.position(writePos.position() + 1);
 
             auto amountWritten = write(sectorHandle, data, offset);
             offset = 0;
 
-            data.remove_prefix(amountWritten);
+            data = data.subspan(amountWritten);
 
-            auto newSize = std::min(
-                writePos.position() * detail::raw_archive::sector_payload_size, newMinSize
-            );
+            auto newSize = std::min(writePos.position() * detail::raw_archive::sector_payload_size,
+                                    newMinSize);
 
-            std::lock_guard integrityLock{ integrity_mutex };
+            std::lock_guard integrityLock{integrity_mutex};
             mData.size = std::max(mData.size, newSize);
         }
 
         return outcome::success();
     }
 
-    std::uint64_t archive::file::write(sector::handle &sector, blob_view data, std::uint64_t offset)
+    std::uint64_t archive::file::write(sector::handle &sector, ro_dynblob data,
+                                       std::uint64_t offset)
     {
-        auto chunk = sector->data().slice(offset, data.size());
+        auto chunk = sector->data().subspan(offset);
 
-        std::lock_guard sectorLock{ sector->data_sync() };
+        std::lock_guard sectorLock{sector->data_sync()};
 
-        data.copy_to(chunk);
+        copy(data, chunk);
 
         sector.mark_dirty();
         mWriteFlag.mark();
 
-        return chunk.size();
+        return std::min(chunk.size(), data.size());
     }
 
-    std::uint64_t archive::file::write_no_lock(sector::handle & sector, blob_view data, std::uint64_t offset)
+    std::uint64_t archive::file::write_no_lock(sector::handle &sector, ro_dynblob data,
+                                               std::uint64_t offset)
     {
-        auto chunk = sector->data().slice(offset, data.size());
+        auto chunk = sector->data().subspan(offset, data.size());
 
-        data.copy_to(chunk);
+        copy(data, chunk);
 
         sector.mark_dirty();
         mWriteFlag.mark();
@@ -498,11 +490,18 @@ namespace vefs
         }
         bool failed = false;
 
-        std::shared_lock shrinkLock{ shrink_mutex, std::defer_lock };
-        std::unique_lock sectorLock{ sector->data_sync(), std::defer_lock };
+        std::shared_lock shrinkLock{shrink_mutex, std::defer_lock};
+        std::unique_lock sectorLock{sector->data_sync(), std::defer_lock};
         std::lock(shrinkLock, sectorLock);
-        VEFS_SCOPE_EXIT{ if (failed) sector.mark_dirty(); };
-        VEFS_SCOPE_EXIT{ sector->write_queued_flag().clear(std::memory_order_release); };
+        VEFS_SCOPE_EXIT
+        {
+            if (failed)
+                sector.mark_dirty();
+        };
+        VEFS_SCOPE_EXIT
+        {
+            sector->write_queued_flag().clear(std::memory_order_release);
+        };
 
         if (!sector.is_dirty())
         {
@@ -519,12 +518,12 @@ namespace vefs
         assert(is_allocated(mData.size, sector->position()));
 
         std::array<std::byte, detail::raw_archive::sector_payload_size + 16> encryptionMem;
-        blob ciphertext{ encryptionMem };
-        blob mac = ciphertext.slice(0, 16);
-        ciphertext.remove_prefix(16);
+        auto ciphertext = span(encryptionMem).subspan<16>();
+        auto mac = span(encryptionMem).first<16>();
 
-        if (auto wx = mOwner.mArchive->write_sector(ciphertext, mac, mData,
-            sector->sector_id(), sector->data_view()); !wx)
+        if (auto wx = mOwner.mArchive->write_sector(ciphertext, mac, mData, sector->sector_id(),
+                                                    sector->data_view());
+            !wx)
         {
             failed = true;
             return wx.as_failure();
@@ -532,18 +531,18 @@ namespace vefs
 
         // update parent sector with the new information
         // retry loop
-        std::unique_lock fileIntegrityLock{ integrity_mutex };
+        std::unique_lock fileIntegrityLock{integrity_mutex};
 
         auto parent = sector->parent();
         if (parent)
         {
             fileIntegrityLock.unlock();
-            std::lock_guard parentLock{ parent->data_sync() };
+            std::lock_guard parentLock{parent->data_sync()};
 
             auto offset = sector->position().parent_array_offset();
             auto &ref = sector_reference_at(*parent, offset);
             ref.reference = sector->sector_id();
-            mac.copy_to(blob{ ref.mac });
+            copy(mac, span(ref.mac));
             parent.mark_dirty();
 
             mHooks.on_sector_synced(ref.reference, mac);
@@ -553,7 +552,7 @@ namespace vefs
             assert(mData.tree_depth == sector->position().layer());
 
             mData.start_block_idx = sector->sector_id();
-            mac.copy_to(mData.start_block_mac_blob());
+            copy(mac, mData.start_block_mac_blob());
 
             mHooks.on_root_sector_synced(mData);
         }
@@ -563,17 +562,17 @@ namespace vefs
 
     result<void> archive::file::resize(std::uint64_t size)
     {
-        std::unique_lock shrinkLock{ shrink_mutex };
+        std::unique_lock shrinkLock{shrink_mutex};
         std::uint64_t fileSize;
         {
-            std::unique_lock integrityLock{ integrity_mutex };
+            std::unique_lock integrityLock{integrity_mutex};
             fileSize = mData.size;
         }
 
         if (fileSize < size)
         {
             shrinkLock.unlock();
-            std::shared_lock growLock{ shrink_mutex };
+            std::shared_lock growLock{shrink_mutex};
             return grow_file(size);
         }
         else if (fileSize > size)
@@ -591,15 +590,14 @@ namespace vefs
         bool dirtyElements;
         do
         {
-            OUTCOME_TRY(drx, mCachedBlocks->for_dirty([this, layer](block_pool_t::handle sector)
-                -> result<void>
-            {
-                if (sector->position().layer() == layer)
-                {
-                    OUTCOME_TRY(write_sector_to_disk(std::move(sector)));
-                }
-                return outcome::success();
-            }));
+            BOOST_OUTCOME_TRY(drx, mCachedBlocks->for_dirty(
+                                 [this, layer](block_pool_t::handle sector) -> result<void> {
+                                     if (sector->position().layer() == layer)
+                                     {
+                                         BOOST_OUTCOME_TRY(write_sector_to_disk(std::move(sector)));
+                                     }
+                                     return outcome::success();
+                                 }));
             dirtyElements = drx;
             layer = (layer + 1) % (detail::lut::max_tree_depth + 1);
         } while (dirtyElements);
@@ -609,11 +607,11 @@ namespace vefs
 
     result<void> archive::file::erase_self()
     {
-        std::unique_lock shrinkLock{ shrink_mutex };
-        OUTCOME_TRY(shrink_file(0));
+        std::unique_lock shrinkLock{shrink_mutex};
+        BOOST_OUTCOME_TRY(shrink_file(0));
 
-        std::unique_lock integrityLock{ integrity_mutex };
-        OUTCOME_TRY(mOwner.mArchive->erase_sector(mData, mData.start_block_idx));
+        std::unique_lock integrityLock{integrity_mutex};
+        BOOST_OUTCOME_TRY(mOwner.mArchive->erase_sector(mData, mData.start_block_idx));
         mOwner.mFreeBlockIndexFile->dealloc_sector(mData.start_block_idx);
         mData.tree_depth = -1;
         mData.start_block_idx = detail::sector_id::master;
@@ -626,40 +624,35 @@ namespace vefs
     {
         using detail::raw_archive;
 
-        auto endSectorPos = size
-            ? (size - 1) / raw_archive::sector_payload_size
-            : 0;
+        auto endSectorPos = size ? (size - 1) / raw_archive::sector_payload_size : 0;
         std::uint64_t fileSize;
         {
-            std::lock_guard<std::shared_mutex> integrityLock{ integrity_mutex };
+            std::lock_guard<std::shared_mutex> integrityLock{integrity_mutex};
             fileSize = mData.size;
         }
-        auto startSectorPos = fileSize
-            ? (fileSize - 1) / raw_archive::sector_payload_size
-            : 0;
+        auto startSectorPos = fileSize ? (fileSize - 1) / raw_archive::sector_payload_size : 0;
 
         // the first sector is always allocated
-        tree_position posIt{ startSectorPos + 1 };
+        tree_position posIt{startSectorPos + 1};
 
         // the loop immediately terminates if the file is already big enough
         while (posIt.position() <= endSectorPos)
         {
             if (!is_allocated(fileSize, posIt))
             {
-                OUTCOME_TRY(access_or_append(posIt));
+                BOOST_OUTCOME_TRY(access_or_append(posIt));
 
-                auto newSize = std::min(
-                    (posIt.position() + 1) * raw_archive::sector_payload_size, size
-                );
+                auto newSize =
+                    std::min((posIt.position() + 1) * raw_archive::sector_payload_size, size);
 
-                std::lock_guard<std::shared_mutex> integrityLock{ integrity_mutex };
+                std::lock_guard<std::shared_mutex> integrityLock{integrity_mutex};
                 fileSize = mData.size = std::max(mData.size, newSize);
             }
             posIt.position(posIt.position() + 1);
         }
 
         {
-            std::lock_guard<std::shared_mutex> integrityLock{ integrity_mutex };
+            std::lock_guard<std::shared_mutex> integrityLock{integrity_mutex};
             if (mData.size < size)
             {
                 mData.size = size;
@@ -677,14 +670,14 @@ namespace vefs
         std::uint64_t fileSize;
         int treeDepth;
         {
-            std::lock_guard integrityLock{ integrity_mutex };
+            std::lock_guard integrityLock{integrity_mutex};
             fileSize = mData.size;
             treeDepth = mData.tree_depth;
         }
         // we always keep the first sector alive
         if (fileSize <= raw_archive::sector_payload_size)
         {
-            std::lock_guard integrityLock{ integrity_mutex };
+            std::lock_guard integrityLock{integrity_mutex};
             mData.size = size;
             return outcome::success();
         }
@@ -693,7 +686,7 @@ namespace vefs
         // the amount of ids can grow rather large and failing a shrink because
         // of an bad_alloc from push_back is rather stupid
         std::vector<detail::sector_id> collectedIds;
-        tree_path walker{ treeDepth, lut::sector_position_of(fileSize - 1) };
+        tree_path walker{treeDepth, lut::sector_position_of(fileSize - 1)};
         auto endPosition = size != 0 ? lut::sector_position_of(size) : 0;
 
         while (walker.position(0) > endPosition)
@@ -703,7 +696,7 @@ namespace vefs
 
             if (it)
             {
-                std::lock_guard writeLock{ it->data_sync() };
+                std::lock_guard writeLock{it->data_sync()};
 
                 toBeCollected = it->sector_id();
                 it.mark_clean();
@@ -730,12 +723,12 @@ namespace vefs
             }
 
             collectedIds.push_back(toBeCollected);
-            OUTCOME_TRY(mOwner.mArchive->erase_sector(mData, toBeCollected));
+            BOOST_OUTCOME_TRY(mOwner.mArchive->erase_sector(mData, toBeCollected));
 
             // update all parent sectors affected by the removal of the current sector
-            for (auto layer = 1; ; ++layer)
+            for (auto layer = 1;; ++layer)
             {
-                std::lock_guard writeLock{ it->data_sync() };
+                std::lock_guard writeLock{it->data_sync()};
 
                 auto offset = walker.offset(layer - 1);
                 auto ref = sector_reference_at(*it, offset);
@@ -760,7 +753,7 @@ namespace vefs
 
                     auto sectorIdx = it->sector_id();
                     collectedIds.push_back(sectorIdx);
-                    OUTCOME_TRY(mOwner.mArchive->erase_sector(mData, sectorIdx));
+                    BOOST_OUTCOME_TRY(mOwner.mArchive->erase_sector(mData, sectorIdx));
                     it.mark_clean();
 
                     it->update_parent({});
@@ -776,12 +769,13 @@ namespace vefs
         auto adjustedDepth = lut::required_tree_depth(endPosition);
         if (adjustedDepth != treeDepth)
         {
-            OUTCOME_TRY(it, access(tree_position{ 0, adjustedDepth }));
+            BOOST_OUTCOME_TRY(it, access(tree_position{0, adjustedDepth}));
 
             auto parent = it->parent();
-            auto ref = &parent->data().as<RawSectorReference>();
+            // #UB-ObjectLifetime
+            auto ref = reinterpret_cast<RawSectorReference *>(parent->data().data());
 
-            std::lock_guard integrityLock{ integrity_mutex };
+            std::lock_guard integrityLock{integrity_mutex};
             mData.start_block_idx = ref->reference;
             mData.start_block_mac = ref->mac;
             mData.tree_depth = adjustedDepth;
@@ -794,10 +788,10 @@ namespace vefs
 
                 it = std::move(parent);
 
-                utils::secure_data_erase(it->data().as<RawSectorReference>());
+                utils::secure_memzero(it->data().first<sizeof(RawSectorReference)>());
                 auto sectorIdx = it->sector_id();
                 collectedIds.push_back(sectorIdx);
-                OUTCOME_TRY(mOwner.mArchive->erase_sector(mData, sectorIdx));
+                BOOST_OUTCOME_TRY(mOwner.mArchive->erase_sector(mData, sectorIdx));
                 it.mark_clean();
 
                 parent = it->parent();
@@ -805,12 +799,11 @@ namespace vefs
         }
         else
         {
-            std::lock_guard<std::shared_mutex> integrityLock{ integrity_mutex };
+            std::lock_guard<std::shared_mutex> integrityLock{integrity_mutex};
             mData.size = size;
         }
 
-        mOwner.mFreeBlockIndexFile->dealloc_sectors({ collectedIds.data(), collectedIds.size() });
+        mOwner.mFreeBlockIndexFile->dealloc_sectors({collectedIds.data(), collectedIds.size()});
         return outcome::success();
     }
-}
-
+} // namespace vefs

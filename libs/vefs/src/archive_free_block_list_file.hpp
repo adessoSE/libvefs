@@ -30,11 +30,11 @@ namespace vefs
 
         auto alloc_sector()
             -> result<detail::sector_id>;
-        auto alloc_sectors(basic_range<detail::sector_id> dest)
+        auto alloc_sectors(span<detail::sector_id> dest)
             -> result<void>;
 
         void dealloc_sector(detail::sector_id sector);
-        void dealloc_sectors(basic_range<detail::sector_id> sectors);
+        void dealloc_sectors(span<detail::sector_id> sectors);
 
         auto sync()
             -> result<void>;
@@ -45,11 +45,11 @@ namespace vefs
 
         auto grow_owner_impl(std::uint64_t num)
             -> result<free_block_map::iterator>;
-        void dealloc_sectors_impl(basic_range<detail::sector_id> sectors);
+        void dealloc_sectors_impl(span<detail::sector_id> sectors);
 
         virtual void on_sector_write_suggestion(sector_handle sector) override;
         virtual void on_root_sector_synced(detail::basic_archive_file_meta &rootMeta) override;
-        virtual void on_sector_synced(detail::sector_id physId, blob_view mac) override;
+        virtual void on_sector_synced(detail::sector_id physId, ro_blob<16> mac) override;
 
         std::mutex mFreeBlockSync;
         free_block_map mFreeBlockMap;
@@ -59,7 +59,7 @@ namespace vefs
         -> result<detail::sector_id>
     {
         detail::sector_id xmem;
-        OUTCOME_TRY(alloc_sectors({ &xmem, 1 }));
+        BOOST_OUTCOME_TRY(alloc_sectors({ &xmem, 1 }));
         return xmem;
     }
 }

@@ -27,10 +27,6 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clan
     set(GXX_COMPATIBLE 1)
 endif()
 
-if (MSVC AND MSVC_VERSION LESS 1911)
-    message(FATAL_ERROR "Needs at least MSVC 19.11 / VS 2017 Update 3")
-endif()
-
 
 ##########################################################################
 # options
@@ -49,8 +45,7 @@ include(cotire)
 
 find_package(libb2 REQUIRED CONFIG)
 
-# _only_ boringssl is supported
-find_package(OpenSSL 1.1.0)
+find_package(boringssl REQUIRED CONFIG)
 
 # botan provider is currently not implemented
 #find_package(botan 2.8.0)
@@ -58,7 +53,7 @@ find_package(OpenSSL 1.1.0)
 # protobuf + protoc
 find_package(protobuf CONFIG REQUIRED)
 
-find_package(Boost 1.68 REQUIRED COMPONENTS
+find_package(Boost 1.70 REQUIRED COMPONENTS
     system
     program_options
     unit_test_framework
@@ -69,9 +64,12 @@ find_package(benchmark)
 # fmt library
 find_package(fmt CONFIG REQUIRED)
 
-if (NOT (botan_FOUND OR OpenSSL_FOUND))
+if (NOT (botan_FOUND OR boringssl_FOUND))
     message(WARNING "no crypto provider library (BoringSSL, botan) could be found.")
 endif()
+
+# additional in repository dependencies
+add_subdirectory(external)
 
 ##########################################################################
 # compiler adjustments
@@ -141,7 +139,7 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 enable_testing()
 
 add_subdirectory(libs/vefs)
-add_subdirectory(libs/vefs-cli)
+#add_subdirectory(libs/vefs-cli)
 if (benchmark_FOUND)
     add_subdirectory(extras/benchmark)
 endif()
@@ -154,12 +152,12 @@ configure_file(tools/vefs-config.cmake
     COPYONLY
 )
 
-install(EXPORT vefs-targets DESTINATION cmake)
+install(EXPORT vefs-targets DESTINATION cmake COMPONENT core)
 
 include(CMakePackageConfigHelpers)
 write_basic_package_version_file(
     "${CMAKE_CURRENT_BINARY_DIR}/vefs-config-version.cmake"
-    VERSION ${VEFS_VERSION}
+    VERSION "${VEFS_VERSION}"
     COMPATIBILITY ExactVersion
 )
 
@@ -167,4 +165,5 @@ install(FILES
         "${CMAKE_CURRENT_BINARY_DIR}/vefs-config.cmake"
         "${CMAKE_CURRENT_BINARY_DIR}/vefs-config-version.cmake"
     DESTINATION cmake
+    COMPONENT core
 )

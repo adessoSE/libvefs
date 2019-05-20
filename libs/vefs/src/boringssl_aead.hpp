@@ -1,35 +1,36 @@
 #pragma once
 
-#include <string>
-#include <utility>
 #include <stdexcept>
+#include <string>
 #include <type_traits>
+#include <utility>
 
 #include <openssl/base.h>
 #if !__has_include(<openssl/is_boringssl.h>) || !defined OPENSSL_IS_BORINGSSL
 #error "The aead abstraction uses boringssl specific APIs"
 #endif
 
-#include <openssl/err.h>
-#include <openssl/cipher.h>
 #include <openssl/aead.h>
+#include <openssl/cipher.h>
+#include <openssl/err.h>
 
 #include <vefs/blob.hpp>
-#include <vefs/exceptions.hpp>
 #include <vefs/disappointment.hpp>
+#include <vefs/exceptions.hpp>
 
 namespace vefs::ed
 {
-    struct openssl_error_tag {};
+    struct openssl_error_tag
+    {
+    };
     using openssl_error = error_detail<openssl_error_tag, std::string>;
-}
+} // namespace vefs::ed
 
 namespace vefs::crypto::detail
 {
     inline std::string read_openssl_errors(std::string str = std::string{})
     {
-        auto printCb = [](const char *msg, size_t msgSize, void *ctx)
-        {
+        auto printCb = [](const char *msg, size_t msgSize, void *ctx) {
             auto &str = *reinterpret_cast<std::string *>(ctx);
             str.append(msg, msgSize);
             str.push_back('\n');
@@ -51,9 +52,8 @@ namespace vefs::crypto::detail
 
     inline auto make_openssl_errinfo(std::string desc = std::string{})
     {
-        return ed::openssl_error{ read_openssl_errors(desc) };
+        return ed::openssl_error{read_openssl_errors(desc)};
     }
-
 
     inline std::size_t max_overhead(const EVP_AEAD *impl)
     {
@@ -71,13 +71,13 @@ namespace vefs::crypto::detail
     public:
         boringssl_aead(const boringssl_aead &) = delete;
         boringssl_aead(boringssl_aead &&other) noexcept
-            : mCtx{ other.mCtx }
-            , mInitialized{ other.mInitialized }
+            : mCtx{other.mCtx}
+            , mInitialized{other.mInitialized}
         {
             memset(&other.mCtx, 0, sizeof(other.mCtx));
         }
-        boringssl_aead & operator=(const boringssl_aead &) = delete;
-        boringssl_aead & operator=(boringssl_aead &&other) noexcept
+        boringssl_aead &operator=(const boringssl_aead &) = delete;
+        boringssl_aead &operator=(boringssl_aead &&other) noexcept
         {
             if (mInitialized)
             {
@@ -90,8 +90,8 @@ namespace vefs::crypto::detail
             return *this;
         }
 
-        static result<boringssl_aead> create(blob_view key,
-            const EVP_AEAD *algorithm = EVP_aead_aes_256_gcm()) noexcept
+        static result<boringssl_aead>
+        create(ro_dynblob key, const EVP_AEAD *algorithm = EVP_aead_aes_256_gcm()) noexcept
         {
             using namespace std::string_view_literals;
 
@@ -104,12 +104,11 @@ namespace vefs::crypto::detail
 
             boringssl_aead ctx;
             if (!EVP_AEAD_CTX_init(&ctx.mCtx, algorithm,
-                reinterpret_cast<const uint8_t *>(key.data()), key.size(),
-                EVP_AEAD_DEFAULT_TAG_LENGTH, nullptr))
+                                   reinterpret_cast<const uint8_t *>(key.data()), key.size(),
+                                   EVP_AEAD_DEFAULT_TAG_LENGTH, nullptr))
             {
-                return errc::bad
-                    << ed::error_code_api_origin{ "EVP_AEAD_CTX_init"sv }
-                    << make_openssl_errinfo();
+                return errc::bad << ed::error_code_api_origin{"EVP_AEAD_CTX_init"sv}
+                                 << make_openssl_errinfo();
             }
             ctx.mInitialized = true;
             return std::move(ctx);
@@ -123,8 +122,8 @@ namespace vefs::crypto::detail
             }
         }
 
-
-        result<void> seal(blob out, blob &outTag, blob_view nonce, blob_view plain, blob_view ad = blob_view{}) const
+        result<void> seal(rw_dynblob out, rw_dynblob &outTag, ro_dynblob nonce, ro_dynblob plain,
+                          ro_dynblob ad = ro_dynblob{}) const
         {
             using namespace std::string_view_literals;
 
@@ -132,35 +131,28 @@ namespace vefs::crypto::detail
             if (!out)
             {
                 BOOST_THROW_EXCEPTION(invalid_argument{}
-                    << errinfo_param_name{ "out" }
-                    << errinfo_param_misuse_description{ "no ciphertext output buffer was supplied" }
-                );
+                                      << errinfo_param_name{"out"}
+                                      << errinfo_param_misuse_description{
+                                             "no ciphertext output buffer was supplied"});
             }
             if (!outTag)
             {
-                BOOST_THROW_EXCEPTION(invalid_argument{}
-                    << errinfo_param_name{ "outTag" }
-                    << errinfo_param_misuse_description{ "no tag output buffer was supplied" }
-                );
+                BOOST_THROW_EXCEPTION(
+                    invalid_argument{}
+                    << errinfo_param_name{"outTag"}
+                    << errinfo_param_misuse_description{"no tag output buffer was supplied"});
             }
             if (!nonce)
             {
                 BOOST_THROW_EXCEPTION(invalid_argument{}
-                    << errinfo_param_name{ "nonce" }
-                    << errinfo_param_misuse_description{ "no nonce was supplied" }
-                );
+                                      << errinfo_param_name{"nonce"}
+                                      << errinfo_param_misuse_description{"no nonce was supplied"});
             }
             if (!plain)
             {
-                BOOST_THROW_EXCEPTION(invalid_argument{}
-                    << errinfo_param_name{ "plain" }
-                    << errinfo_param_misuse_description{ "no plaintext was supplied" }
-                );
-            }
-            if (!ad)
-            {
-                // ensure ad.data() returns nullptr
-                ad = blob_view{};
+                BOOST_THROW_EXCEPTION(invalid_argument{} << errinfo_param_name{"plain"}
+                                                         << errinfo_param_misuse_description{
+                                                                "no plaintext was supplied"});
             }
             // extended parameter validation is done by openssl and are reported
             // through the resulting openssl_error
@@ -168,81 +160,73 @@ namespace vefs::crypto::detail
             size_t outTagLen = outTag.size();
 
             ERR_clear_error();
-            if (!EVP_AEAD_CTX_seal_scatter(&mCtx,
-                reinterpret_cast<uint8_t *>(out.data()),
-                reinterpret_cast<uint8_t *>(outTag.data()), &outTagLen, outTag.size(),
-                reinterpret_cast<const uint8_t *>(nonce.data()), nonce.size(),
-                reinterpret_cast<const uint8_t *>(plain.data()), plain.size(),
-                nullptr, 0, // extra_in, extra_in_len
-                reinterpret_cast<const uint8_t *>(ad.data()), ad.size()
-                ))
+            if (!EVP_AEAD_CTX_seal_scatter(
+                    &mCtx, reinterpret_cast<uint8_t *>(out.data()),
+                    reinterpret_cast<uint8_t *>(outTag.data()), &outTagLen, outTag.size(),
+                    reinterpret_cast<const uint8_t *>(nonce.data()), nonce.size(),
+                    reinterpret_cast<const uint8_t *>(plain.data()), plain.size(), nullptr,
+                    0, // extra_in, extra_in_len
+                    reinterpret_cast<const uint8_t *>(ad.data()), ad.size()))
             {
                 // #TODO appropriately wrap the boringssl packed error
-                return error{ errc::bad }
-                    << ed::error_code_api_origin{ "EVP_AEAD_CTX_seal_scatter"sv }
-                    << make_openssl_errinfo();
+                return error{errc::bad} << ed::error_code_api_origin{"EVP_AEAD_CTX_seal_scatter"sv}
+                                        << make_openssl_errinfo();
             }
 
-            outTag = outTag.slice(0, outTagLen);
+            outTag = outTag.subspan(0, outTagLen);
 
             return outcome::success();
         }
 
-        result<void> open(blob out, blob_view nonce, blob_view ciphertext, blob_view authTag, blob_view ad = blob_view{})
+        result<void> open(rw_dynblob out, ro_dynblob nonce, ro_dynblob ciphertext,
+                          ro_dynblob authTag, ro_dynblob ad = ro_dynblob{})
         {
             if (!out)
             {
                 BOOST_THROW_EXCEPTION(invalid_argument{}
-                    << errinfo_param_name{ "out" }
-                    << errinfo_param_misuse_description{ "no ciphertext output buffer was supplied" }
-                );
+                                      << errinfo_param_name{"out"}
+                                      << errinfo_param_misuse_description{
+                                             "no ciphertext output buffer was supplied"});
             }
             if (!nonce)
             {
                 BOOST_THROW_EXCEPTION(invalid_argument{}
-                    << errinfo_param_name{ "nonce" }
-                    << errinfo_param_misuse_description{ "no nonce was supplied" }
-                );
+                                      << errinfo_param_name{"nonce"}
+                                      << errinfo_param_misuse_description{"no nonce was supplied"});
             }
             if (!ciphertext)
             {
-                BOOST_THROW_EXCEPTION(invalid_argument{}
-                    << errinfo_param_name{ "ciphertext" }
-                    << errinfo_param_misuse_description{ "seal(): no ciphertext was supplied" }
-                );
+                BOOST_THROW_EXCEPTION(
+                    invalid_argument{}
+                    << errinfo_param_name{"ciphertext"}
+                    << errinfo_param_misuse_description{"seal(): no ciphertext was supplied"});
             }
             if (!authTag)
             {
                 BOOST_THROW_EXCEPTION(invalid_argument{}
-                    << errinfo_param_name{ "authTag" }
-                    << errinfo_param_misuse_description{ "no authentication tag buffer was supplied" }
-                );
-            }
-            if (!ad)
-            {
-                // ensure ad.data() returns nullptr
-                ad = blob_view{};
+                                      << errinfo_param_name{"authTag"}
+                                      << errinfo_param_misuse_description{
+                                             "no authentication tag buffer was supplied"});
             }
 
             ERR_clear_error();
-            if (!EVP_AEAD_CTX_open_gather(&mCtx,
-                    reinterpret_cast<uint8_t *>(out.data()),
+            if (!EVP_AEAD_CTX_open_gather(
+                    &mCtx, reinterpret_cast<uint8_t *>(out.data()),
                     reinterpret_cast<const uint8_t *>(nonce.data()), nonce.size(),
                     reinterpret_cast<const uint8_t *>(ciphertext.data()), ciphertext.size(),
                     reinterpret_cast<const uint8_t *>(authTag.data()), authTag.size(),
-                    reinterpret_cast<const uint8_t *>(ad.data()), ad.size()
-                ))
+                    reinterpret_cast<const uint8_t *>(ad.data()), ad.size()))
             {
                 auto ec = ERR_peek_last_error();
-                if (!ec || (ERR_GET_LIB(ec) == ERR_LIB_CIPHER && ERR_GET_REASON(ec) == CIPHER_R_BAD_DECRYPT))
+                if (!ec || (ERR_GET_LIB(ec) == ERR_LIB_CIPHER &&
+                            ERR_GET_REASON(ec) == CIPHER_R_BAD_DECRYPT))
                 {
                     ERR_clear_error();
                     // parameters etc. were formally correct, but the message is _bad_
                     return archive_errc::tag_mismatch;
                 }
-                return error{ errc::bad }
-                    << ed::error_code_api_origin{ "EVP_AEAD_CTX_open_gather" }
-                    << make_openssl_errinfo();
+                return error{errc::bad} << ed::error_code_api_origin{"EVP_AEAD_CTX_open_gather"}
+                                        << make_openssl_errinfo();
             }
             return outcome::success();
         }
@@ -258,6 +242,6 @@ namespace vefs::crypto::detail
 
     private:
         EVP_AEAD_CTX mCtx;
-        bool mInitialized{ false };
+        bool mInitialized{false};
     };
-}
+} // namespace vefs::crypto::detail
