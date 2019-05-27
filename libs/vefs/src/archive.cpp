@@ -51,7 +51,7 @@ namespace vefs
     {
     }
 
-    auto archive::open(filesystem::ptr fs, std::string_view archivePath,
+    auto archive::open(filesystem::ptr fs, const std::filesystem::path &archivePath,
         crypto::crypto_provider * cryptoProvider, ro_blob<32> userPRK, file_open_mode_bitset openMode)
         -> result<std::unique_ptr<archive>>
     {

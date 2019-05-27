@@ -46,9 +46,6 @@ DEF_SOURCE_GROUP(vefs "utils"
 
         src/block_manager.hpp
 
-        src/utf.hpp
-        src/utf.cpp
-
         src/proto-helper.hpp
 )
 

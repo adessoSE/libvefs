@@ -48,9 +48,9 @@ namespace vefs::detail
     public:
         static os_filesystem::ptr create();
 
-        file::ptr open(std::string_view filePath, file_open_mode_bitset mode,
+        file::ptr open(const std::filesystem::path &filePath, file_open_mode_bitset mode,
             std::error_code& ec) override;
-        void remove(std::string_view filePath) override;
+        void remove(const std::filesystem::path &filePath) override;
 
         detail::thread_pool & ops_pool();
 

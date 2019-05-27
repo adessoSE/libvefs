@@ -40,7 +40,8 @@ namespace vefs::detail
 
         static constexpr auto to_offset(sector_id id) -> std::uint64_t;
 
-        static auto open(filesystem::ptr fs, std::string_view path, crypto::crypto_provider *cryptoProvider,
+        static auto open(filesystem::ptr fs, const std::filesystem::path &path,
+                         crypto::crypto_provider *cryptoProvider,
                          ro_blob<32> userPRK, file_open_mode_bitset openMode) -> result<std::unique_ptr<raw_archive>>;
 
         raw_archive(file::ptr archiveFile, crypto::crypto_provider *cryptoProvider, ro_blob<64> userPRK);

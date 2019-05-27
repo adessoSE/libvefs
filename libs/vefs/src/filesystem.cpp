@@ -58,7 +58,7 @@ namespace vefs
         }
     }
 
-    file::ptr filesystem::open(std::string_view filePath, file_open_mode_bitset mode)
+    file::ptr filesystem::open(const std::filesystem::path &filePath, file_open_mode_bitset mode)
     {
         std::error_code ec;
         auto result = open(filePath, mode, ec);

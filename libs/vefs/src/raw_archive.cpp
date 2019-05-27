@@ -137,7 +137,7 @@ namespace vefs::detail
         mNumSectors = mArchiveFile->size() / sector_size;
     }
 
-    auto raw_archive::open(filesystem::ptr fs, std::string_view path,
+    auto raw_archive::open(filesystem::ptr fs, const std::filesystem::path &path,
                            crypto::crypto_provider *cryptoProvider, ro_blob<32> userPRK,
                            file_open_mode_bitset openMode) -> result<std::unique_ptr<raw_archive>>
     {
