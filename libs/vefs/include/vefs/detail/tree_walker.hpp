@@ -28,25 +28,32 @@ namespace vefs::detail
         static constexpr storage_type layer_mask = static_cast<storage_type>(0xFF) << layer_offset;
         static constexpr storage_type position_mask = ~layer_mask;
 
+        /**
+        * adds the position to layer position
+        */
         static constexpr auto combine(std::uint64_t position, int layer)
             ->storage_type;
 
     public:
+        /**
+         * sets the position inside a layer
+         */
         constexpr tree_position() noexcept;
         explicit constexpr tree_position(std::uint64_t pos) noexcept;
         constexpr tree_position(std::uint64_t pos, int layer) noexcept;
 
         constexpr int layer() const noexcept;
-        constexpr void layer(int value) noexcept;
+
+        constexpr void layer(int layer_no) noexcept;
 
         constexpr std::uint64_t position() const noexcept;
-        constexpr void position(std::uint64_t value) noexcept;
+
+        constexpr void position(std::uint64_t position) noexcept;
 
         constexpr tree_position parent() const noexcept;
         constexpr int parent_array_offset() const;
 
         constexpr storage_type raw() const noexcept;
-        //void raw(storage_type value) noexcept;
 
         explicit constexpr operator bool() const noexcept;
 
@@ -61,8 +68,13 @@ namespace vefs::detail
     inline void compute_hash(const tree_position &obj, H &h,
                              utils::hash::algorithm_tag<Impl>);
 
+    /**
+     * encapsulates the representation of a path through the tree and the
+     * calculation of the path from root through the tree to a target position
+     */
     class tree_path
     {
+        
         struct waypoint
         {
             std::uint64_t absolute;
@@ -161,7 +173,6 @@ namespace vefs::detail
         : mLayerPosition{ std::numeric_limits<storage_type>::max() }
     {
     }
-
     /**
      * sets the current position inside the tree
      * @param position inside the layer
@@ -181,12 +192,10 @@ namespace vefs::detail
         return static_cast<int>((mLayerPosition & layer_mask) >> layer_offset);
     }
 
-    constexpr void tree_position::layer(int value) noexcept
+    constexpr void tree_position::layer(int layer_no) noexcept
     {
-        //*(reinterpret_cast<std::uint8_t *>(&mLayerPosition) + 7)
-        //    = static_cast<std::uint8_t>(value);
-        mLayerPosition = (mLayerPosition & position_mask)
-            | static_cast<storage_type>(value) << 56;
+        mLayerPosition = (mLayerPosition & position_mask) | static_cast<storage_type>(layer_no)
+                                                                << 56;
     }
 
     constexpr std::uint64_t tree_position::position() const noexcept
@@ -194,9 +203,9 @@ namespace vefs::detail
         return mLayerPosition & position_mask;
     }
 
-    constexpr void tree_position::position(std::uint64_t value) noexcept
+    constexpr void tree_position::position(std::uint64_t position) noexcept
     {
-        mLayerPosition = (mLayerPosition & layer_mask) | (value & position_mask);
+        mLayerPosition = (mLayerPosition & layer_mask) | (position & position_mask);
     }
 
     constexpr tree_position::operator bool() const noexcept
@@ -277,9 +286,11 @@ namespace vefs::detail
         // which in turn allows for turning the division into a montgomery multiplication.
         // my benchmarks suggest that this is at least twice as fast as
         // a simple loop.
+        
         switch (mTreeDepth)
         {
         case 5:
+            // #Todo put this in inline function?
             mTreePath[4].absolute = pos / lut::ref_width[4 - layer];
             mTreePath[4].offset = mTreePath[4].absolute % lut::references_per_sector;
 
