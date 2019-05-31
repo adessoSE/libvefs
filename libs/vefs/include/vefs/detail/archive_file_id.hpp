@@ -86,7 +86,7 @@ namespace fmt
         {
             decltype(auto) id = fid.as_uuid();
             auto out = ctx.begin();
-            for (auto i = 0; i < id.static_size(); ++i)
+            for (std::size_t i = 0; i < id.static_size(); ++i)
             {
                 out = format_to(out, "{:02X}", id.data[i]);
                 if (i == 3 || i == 5 || i == 7 || i == 9)

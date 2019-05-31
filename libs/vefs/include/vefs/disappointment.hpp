@@ -1,11 +1,12 @@
 #pragma once
 
 #include <string_view>
-#include <system_error>
+#include <system_error> 
 
 #include <fmt/time.h>
-
+             
 #include <boost/predef.h>
+#include <vefs/exceptions.hpp>
 
 #if defined BOOST_COMP_MSVC_AVAILABLE
 #pragma warning(push, 3)

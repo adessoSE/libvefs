@@ -4,10 +4,7 @@
 #include <vefs/disappointment.hpp>
 #include <vefs/utils/misc.hpp>
 #include <vefs/utils/secure_ops.hpp>
-
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
-#include <windows.h>
+#include <vefs/utils/windows-proper.h>
 
 namespace vefs::detail
 {

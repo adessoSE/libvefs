@@ -89,7 +89,7 @@ namespace vefs
         fmt::string_view wrappedFormat{ detailFormat };
         for (const auto &detail : mDetails)
         {
-            fmt::format_to<fmt::string_view>(out, wrappedFormat);
+            fmt::format_to(out, wrappedFormat);
             detail.second->stringify(out);
         }
     }

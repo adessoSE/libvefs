@@ -47,7 +47,7 @@ namespace vefs::detail
             if constexpr (numEntriesLastBlock != 0)
             {
                 mask = 1;
-                for (auto i = 1; i < numEntriesLastBlock; ++i)
+                for (std::size_t i = 1; i < numEntriesLastBlock; ++i)
                 {
                     mask |= bit_at(i);
                 }

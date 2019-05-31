@@ -172,7 +172,7 @@ namespace vefs::utils::detail
 {
     constexpr bool is_hex_digit(char c)
     {
-        return c >= '0' && c <= '9' || c >= 'a' && c <= 'f' || c >= 'A' && c <= 'F';
+        return (c >= '0' && c <= '9') || (c >= 'a' && c <= 'f') || (c >= 'A' && c <= 'F');
     }
 
     constexpr std::byte parse_hex_digit(char digit)
@@ -184,7 +184,8 @@ namespace vefs::utils::detail
     }
 
     template <char First, std::size_t ArrSize>
-    constexpr std::size_t parse_hex(std::array<std::byte, ArrSize> &out, std::size_t parsedSize)
+    constexpr std::size_t parse_hex([[maybe_unused]] std::array<std::byte, ArrSize> &out,
+                                    [[maybe_unused]] std::size_t parsedSize)
     {
         static_assert(!First && First,
                       "a byte array sequence must be defined by an even number of hex digits");

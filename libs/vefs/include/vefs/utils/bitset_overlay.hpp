@@ -71,7 +71,6 @@ namespace vefs::utils
         template <typename Unit>
         inline void set_n(Unit *begin, const std::size_t numBits)
         {
-            using limits = std::numeric_limits<Unit>;
             using byte_limits = std::numeric_limits<std::uint8_t>;
 
             const auto dist = numBits / byte_limits::digits;

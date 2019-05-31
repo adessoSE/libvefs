@@ -252,7 +252,7 @@ namespace vefs::utils
 
         ref_ptr(const ref_ptr &other) noexcept;
         ref_ptr(ref_ptr &&other) noexcept;
-        ~ref_ptr();
+        ~ref_ptr() noexcept;
 
         template <typename T>
         auto operator=(const ref_ptr<T> &other) noexcept

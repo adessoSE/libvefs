@@ -82,7 +82,7 @@ namespace vefs::detail
 
     thread_pool_gen::~thread_pool_gen()
     {
-        for (auto i = 0; i < mWorkerList.size(); ++i)
+        for (std::size_t i = 0, end = mWorkerList.size(); i < end; ++i)
         {
             mTaskQueue.enqueue(work_item_t{});
         }

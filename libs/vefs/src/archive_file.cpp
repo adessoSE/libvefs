@@ -58,7 +58,7 @@ namespace vefs
             const auto beginPos = pos * step_width;
 
             return ((pos | l) == 0) // there is always a sector allocated for each file
-                   || unit_width < fileSize && beginPos < fileSize;
+                   || (unit_width < fileSize && beginPos < fileSize);
         }
     } // namespace
 
@@ -229,7 +229,7 @@ namespace vefs
                     sector.assume_error() << ed::sector_tree_position{sectorPosition}
                                           << ed::archive_file_id{mData.id};
                 }
-                return std::move(sector);
+                return sector;
             }
             // continue to loop until it either fails with an error which
             // is not device_busy or until it succeeds
@@ -340,7 +340,7 @@ namespace vefs
 
             for (auto tpos : boost::adaptors::reverse(path))
             {
-                if (parent = mCachedBlocks->try_access(tpos))
+                if ((parent = mCachedBlocks->try_access(tpos)))
                 {
                     break;
                 }
