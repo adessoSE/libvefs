@@ -28,10 +28,8 @@ namespace vefs
         -> result<std::shared_ptr<archive::index_file>>
     {
         BOOST_OUTCOME_TRY(self, internal_file::create_new<index_file>(owner));
-        ;
 
         BOOST_OUTCOME_TRY(self->resize(detail::raw_archive::sector_payload_size));
-        ;
         self->mFreeBlocks.dealloc(0, blocks_per_sector);
 
         return std::move(self);
@@ -122,6 +120,22 @@ namespace vefs
             BOOST_OUTCOME_TRY(lookup->try_kill(mOwner));
             mIndex.erase(filePath);
             mFileHandles.erase(fid);
+
+            if (lookup->mIndexBlockPosition != -1)
+            {
+                dealloc_blocks(lookup->mIndexBlockPosition, lookup->mReservedIndexBlocks);
+                auto treePos = treepos_of(lookup->mIndexBlockPosition);
+                auto endPos =
+                    treepos_of(lookup->mIndexBlockPosition + lookup->mReservedIndexBlocks - 1);
+                sector::handle hSector;
+                do
+                {
+                    BOOST_OUTCOME_TRY(hSector, access(treePos));
+                    write_block_header(std::move(hSector));
+
+                    treePos.position(treePos.position() + 1);
+                } while (treePos.position() <= endPos.position());
+            }
         }
         mDirtFlag.mark();
 
@@ -187,7 +201,6 @@ namespace vefs
             assert(neededBlocks <= static_cast<size_t>(std::numeric_limits<int>::max()));
             const auto sNeededBlocks = static_cast<int>(neededBlocks);
 
-            sector_handle sector;
             if (lookup->mReservedIndexBlocks < sNeededBlocks)
             {
                 if (lookup->mIndexBlockPosition != -1)
@@ -226,7 +239,8 @@ namespace vefs
                     {
                         // grow one sector
                         auto oldFileSize = this->size();
-                        BOOST_OUTCOME_TRY(resize(oldFileSize + detail::raw_archive::sector_payload_size));
+                        BOOST_OUTCOME_TRY(
+                            resize(oldFileSize + detail::raw_archive::sector_payload_size));
                         mFreeBlocks.dealloc(detail::lut::sector_position_of(oldFileSize) /
                                                 blocks_per_sector,
                                             blocks_per_sector);
