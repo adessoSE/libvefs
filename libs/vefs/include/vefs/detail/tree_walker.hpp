@@ -31,7 +31,7 @@ namespace vefs::detail
         /**
         * adds the position to layer position
         */
-        static constexpr auto combine(std::uint64_t position, int layer)
+        static constexpr auto compress(std::uint64_t position, int layer)
             ->storage_type;
 
     public:
@@ -115,6 +115,11 @@ namespace vefs::detail
     private:
         inline tree_path(int treeDepth, int targetLayer) noexcept;
 
+        /**
+         * calculate the waypoint offset and absolute value dependent on the layer where it is in and the position 
+         */
+        BOOST_FORCEINLINE void calc_waypoint_params(waypoint &target_waypoint, int layer, int pos);
+
         template <int layer>
         void init(std::uint64_t pos) noexcept;
 
@@ -157,9 +162,8 @@ namespace vefs::detail
 
     /**
      * adds the layer to position. The schema is layer_bits | position_bits.
-     * #Todo rename?
      */
-    constexpr auto tree_position::combine(std::uint64_t position, int layer)
+    constexpr auto tree_position::compress(std::uint64_t position, int layer)
         -> storage_type
     /**
     * adds the layer to position
@@ -179,7 +183,7 @@ namespace vefs::detail
      * @param layer layer number
      */
     constexpr tree_position::tree_position(std::uint64_t position, int layer) noexcept
-        : mLayerPosition{ combine(position, layer) }
+        : mLayerPosition{ compress(position, layer) }
     {
     }
     constexpr tree_position::tree_position(std::uint64_t pos) noexcept
@@ -276,6 +280,12 @@ namespace vefs::detail
     {
     }
 
+    inline void tree_path::calc_waypoint_params(waypoint &target_waypoint, int layer, int pos)
+    {
+        target_waypoint.absolute = pos / lut::ref_width[layer];
+        target_waypoint.offset = target_waypoint.absolute % lut::references_per_sector;
+    }
+
     template <int layer>
     inline void tree_path::init(std::uint64_t pos) noexcept
     {
@@ -290,36 +300,29 @@ namespace vefs::detail
         switch (mTreeDepth)
         {
         case 5:
-            // #Todo put this in inline function?
-            mTreePath[4].absolute = pos / lut::ref_width[4 - layer];
-            mTreePath[4].offset = mTreePath[4].absolute % lut::references_per_sector;
-
+            calc_waypoint_params(mTreePath[4], 4 - layer, pos);
         case 4:
             if constexpr (layer < 4)
             {
-                mTreePath[3].absolute = pos / lut::ref_width[3 - layer];
-                mTreePath[3].offset = mTreePath[3].absolute % lut::references_per_sector;
+                calc_waypoint_params(mTreePath[3], 3 - layer, pos);
             }
 
         case 3:
             if constexpr (layer < 3)
             {
-                mTreePath[2].absolute = pos / lut::ref_width[2 - layer];
-                mTreePath[2].offset = mTreePath[2].absolute % lut::references_per_sector;
+                calc_waypoint_params(mTreePath[2], 2 - layer, pos);
             }
 
         case 2:
             if constexpr (layer < 2)
             {
-                mTreePath[1].absolute = pos / lut::ref_width[1 - layer];
-                mTreePath[1].offset = mTreePath[1].absolute % lut::references_per_sector;
+                calc_waypoint_params(mTreePath[1], 1 - layer, pos);
             }
 
         case 1:
             if constexpr (layer < 1)
             {
-                mTreePath[0].absolute = pos / lut::ref_width[0];
-                mTreePath[0].offset = mTreePath[0].absolute % lut::references_per_sector;
+                calc_waypoint_params(mTreePath[0], 0, pos);
             }
 
         case 0:
