@@ -11,7 +11,7 @@
 #
 ########################################################################
 cmake_minimum_required(VERSION 3.13)
-project(vefs VERSION 0.0.0)
+project(vefs VERSION 0.0.0 LANGUAGES CXX)
 
 if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
     message(FATAL_ERROR "in-source builds are not supported!")
@@ -20,11 +20,17 @@ endif()
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/tools/cmake/")
 
-if (CMAKE_C_COMPILER_ID STREQUAL "GNU" OR CMAKE_C_COMPILER_ID STREQUAL "Clang")
+if (CMAKE_C_COMPILER_ID STREQUAL "GNU"
+    OR (CMAKE_C_COMPILER_ID STREQUAL "Clang" AND NOT CMAKE_C_SIMULATE_ID STREQUAL "MSVC"))
     set(GCC_COMPATIBLE 1)
 endif()
-if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU" OR CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
+    OR (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND NOT CMAKE_CXX_SIMULATE_ID STREQUAL "MSVC"))
     set(GXX_COMPATIBLE 1)
+endif()
+
+if(MSVC OR (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_SIMULATE_ID STREQUAL "MSVC"))
+    set(MSVC_COMPATIBLE 1)
 endif()
 
 
@@ -80,7 +86,7 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # adjust compiler warning levels
-if (MSVC)
+if (MSVC_COMPATIBLE)
     if(${CMAKE_C_FLAGS} MATCHES "/W[0-4]")
         string(REGEX REPLACE "/W[0-4]" "/W4" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
     else()
@@ -101,11 +107,11 @@ if (GCC_COMPATIBLE)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wno-long-long -Wpedantic")
 endif()
 if (GXX_COMPATIBLE)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-long-long -Wpedantic")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-long-long -Wpedantic -Wno-c++98-compat -Wno-reserved-id-macro")
 endif()
 
 # additional compiler tweaks
-if (MSVC)
+if (MSVC_COMPATIBLE)
     # protobuf uses std::iterator within repeated_field.h
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /utf-8 /permissive-")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /utf-8 /permissive- /D_SILENCE_CXX17_ITERATOR_BASE_CLASS_DEPRECATION_WARNING")

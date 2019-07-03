@@ -8,9 +8,12 @@
 #include <type_traits>
 #include <utility>
 
+#include <boost/predef/compiler/visualc.h>
+#include <boost/predef/other/workaround.h>
+
 #include <vefs/allocator/atomic_ring_counter.hpp>
-#include <vefs/utils/misc.hpp>
 #include <vefs/utils/bit_scan.hpp>
+#include <vefs/utils/misc.hpp>
 
 namespace vefs::detail
 {
@@ -61,7 +64,7 @@ namespace vefs::detail
         static constexpr auto failed_reservation = std::numeric_limits<std::size_t>::max();
 
         // #MSVC_workaround #init_sequence
-#if BOOST_COMP_MSVC < BOOST_VERSION_NUMBER(20, 0, 0)
+#if BOOST_PREDEF_WORKAROUND(BOOST_COMP_MSVC, <, 20, 0, 0)
         inline pool_alloc_map_mt() noexcept;
 #else
         constexpr pool_alloc_map_mt() noexcept;
@@ -75,7 +78,7 @@ namespace vefs::detail
     };
 
     // #MSVC_workaround #init_sequence
-#if BOOST_COMP_MSVC < BOOST_VERSION_NUMBER(20, 0, 0)
+#if BOOST_PREDEF_WORKAROUND(BOOST_COMP_MSVC, <, 20, 0, 0)
     template <std::size_t NUM_ELEMS, typename unit_type>
     inline pool_alloc_map_mt<NUM_ELEMS, unit_type>::pool_alloc_map_mt() noexcept
         : ring_counter_base{}

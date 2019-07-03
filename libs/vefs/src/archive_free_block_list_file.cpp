@@ -40,8 +40,7 @@ namespace vefs
 
         tree_position rootPos{ 0 };
         BOOST_OUTCOME_TRY(physId, self->alloc_sector());
-        BOOST_OUTCOME_TRY(entry,
-            self->mCachedBlocks->access_w_inplace_ctor(rootPos, sector::handle{}, rootPos, physId));
+        auto entry = self->mCachedBlocks->access(rootPos, sector::handle{}, rootPos, physId);
         entry.mark_dirty();
 
         self->mData.start_block_idx = physId;

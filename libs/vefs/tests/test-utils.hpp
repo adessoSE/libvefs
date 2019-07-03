@@ -1,12 +1,13 @@
 #pragma once
 
 #include <ostream>
+#include <string_view>
 
 #include <fmt/format.h>
 
 #include <vefs/disappointment.hpp>
 #include <vefs/utils/random.hpp>
-#include <vefs/detail/cache.hpp>
+#include <vefs/detail/cache_car.hpp>
 
 struct test_rng : vefs::utils::xoroshiro128plus
 {
@@ -37,7 +38,7 @@ namespace vefs
         {
             boost::test_tools::predicate_result prx{ false };
             prx.message() << rx.assume_error();
-            return std::move(prx);
+            return prx;
         }
         return true;
     }

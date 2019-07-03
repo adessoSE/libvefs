@@ -94,7 +94,10 @@ DEF_SOURCE_GROUP(vefs "lib/disappointment"
 
 DEF_SOURCE_GROUP(vefs "lib/detail"
     HEADERS
-        include/vefs/detail/cache.hpp
+        include/vefs/detail/cache_car.hpp
+        include/vefs/detail/cache_clock.hpp
+        include/vefs/detail/cache_handle.hpp
+        include/vefs/detail/cache_page.hpp
         include/vefs/detail/thread_pool.hpp
         include/vefs/detail/thread_pool_win32.hpp
         include/vefs/detail/thread_pool_gen.hpp
@@ -203,7 +206,7 @@ if (boringssl_FOUND)
     target_link_libraries(vefs PUBLIC boringssl::crypto)
 endif()
 
-if (MSVC)
+if (MSVC_COMPATIBLE)
     set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/fileformat.pb.cc" PROPERTIES
         COMPILE_FLAGS "/wd4100 /wd4125 /wd4127 /wd4146 /wd4244"
     )
@@ -217,7 +220,9 @@ set_target_properties(vefs PROPERTIES
     COTIRE_CXX_PREFIX_HEADER_INIT "src/precompiled.hpp"
 )
 
-cotire(vefs)
+if (NOT (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_SIMULATE_ID STREQUAL "MSVC"))
+    cotire(vefs)
+endif()
 
 ##########################################################################
 # test target

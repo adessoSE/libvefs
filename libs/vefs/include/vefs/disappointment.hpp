@@ -1,10 +1,11 @@
 #pragma once
 
 #include <string_view>
-#include <system_error> 
+#include <system_error>
+#include <variant>
 
 #include <fmt/time.h>
-             
+
 #include <boost/predef.h>
 #include <vefs/exceptions.hpp>
 
@@ -19,12 +20,12 @@
 #pragma warning(pop)
 #endif
 
-#include <vefs/disappointment/fwd.hpp>
+#include <vefs/disappointment/errc.hpp>
+#include <vefs/disappointment/error.hpp>
 #include <vefs/disappointment/error_detail.hpp>
 #include <vefs/disappointment/error_domain.hpp>
-#include <vefs/disappointment/error.hpp>
 #include <vefs/disappointment/error_exception.hpp>
-#include <vefs/disappointment/errc.hpp>
+#include <vefs/disappointment/fwd.hpp>
 #include <vefs/disappointment/std_adapter.hpp>
 
 namespace vefs::ed
@@ -34,7 +35,7 @@ namespace vefs::ed
         std::uint64_t begin;
         std::uint64_t end;
     };
-}
+} // namespace vefs::ed
 
 namespace fmt
 {
@@ -53,16 +54,16 @@ namespace fmt
             return format_to(ctx.begin(), "[{},{})", fspan.begin, fspan.end);
         }
     };
-}
+} // namespace fmt
 
 namespace vefs
 {
     namespace outcome = boost::outcome_v2;
+    namespace oc = boost::outcome_v2;
 
     namespace detail
     {
-        class result_no_value_policy
-            : public outcome::policy::base
+        class result_no_value_policy : public outcome::policy::base
         {
         public:
             //! Performs a narrow check of state, used in the assume_value() functions.
@@ -79,7 +80,7 @@ namespace vefs
                 {
                     if (base::_has_error(self))
                     {
-                        throw error_exception{ base::_error(std::move(self)) };
+                        throw error_exception{base::_error(std::move(self))};
                     }
                     throw outcome::bad_result_access("no value");
                 }
@@ -96,8 +97,7 @@ namespace vefs
             }
         };
 
-        class outcome_no_value_policy
-            : public outcome::policy::base
+        class outcome_no_value_policy : public outcome::policy::base
         {
         public:
             //! Performs a narrow check of state, used in the assume_value() functions.
@@ -116,7 +116,7 @@ namespace vefs
                 {
                     if (base::_has_error(self))
                     {
-                        throw error_exception{ base::_error(std::forward<Impl>(self)) };
+                        throw error_exception{base::_error(std::forward<Impl>(self))};
                     }
                     if (base::_has_exception(self))
                     {
@@ -145,17 +145,19 @@ namespace vefs
                 }
             }
         };
-    }
+    } // namespace detail
+
+    using oc::failure;
+    using oc::success;
 
     template <typename R, typename E = error>
-    using result = outcome::basic_result<R, E, detail::result_no_value_policy>;
+    using result = oc::basic_result<R, E, detail::result_no_value_policy>;
 
     template <typename R, typename E = error>
-    using op_outcome = outcome::outcome<R, E, std::exception_ptr, detail::outcome_no_value_policy>;
+    using op_outcome = oc::basic_outcome<R, E, std::exception_ptr, detail::outcome_no_value_policy>;
 
     template <typename T, typename InjectFn>
-    auto inject(result<T> rx, InjectFn &&injectFn)
-        -> result<T>
+    auto inject(result<T> rx, InjectFn &&injectFn) -> result<T>
     {
         if (rx.has_error())
         {
@@ -164,62 +166,198 @@ namespace vefs
         return std::move(rx);
     }
 
-    template <typename Fn, typename... Args>
-    inline auto collect_disappointment(Fn &&fn, Args&&... args) noexcept
-        -> vefs::op_outcome<typename decltype(fn(std::forward<Args>(args)...))::value_type>
-    try
+    template <typename T>
+    struct can_result_contain_failure;
+
+    template <typename R, typename EC, typename NVP>
+    struct can_result_contain_failure<oc::basic_result<R, EC, NVP>>
+        : std::bool_constant<!std::is_void_v<EC>>
     {
-        if (auto &&rx = fn(std::forward<Args>(args)...))
+    };
+    template <typename R, typename EC, typename EP, typename NVP>
+    struct can_result_contain_failure<oc::basic_outcome<R, EC, EP, NVP>>
+        : std::bool_constant<!std::is_void_v<EC> || !std::is_void_v<EP>>
+    {
+    };
+
+    template <typename T>
+    inline constexpr bool can_result_contain_failure_v = can_result_contain_failure<T>::value;
+
+    template <typename Fn, typename... Args>
+    inline auto collect_disappointment_no_catch(Fn &&fn, Args &&... args) noexcept -> decltype(auto)
+    {
+        using invoke_result_type = std::invoke_result_t<Fn, Args...>;
+        if constexpr (std::is_void_v<invoke_result_type>)
         {
-            if constexpr (std::is_void_v<typename std::remove_reference_t<decltype(rx)>::value_type>)
+            std::invoke(std::forward<Fn>(fn), std::forward<Args>(args)...);
+            return result<std::monostate, void>(success());
+        }
+        else if constexpr (oc::is_basic_result_v<invoke_result_type> ||
+                           oc::is_basic_outcome_v<invoke_result_type>)
+        {
+            return std::invoke(std::forward<Fn>(fn), std::forward<Args>(args)...);
+        }
+        else
+        {
+            return result<invoke_result_type, void>{
+                success(std::invoke(std::forward<Fn>(fn), std::forward<Args>(args)...))};
+        }
+    }
+
+    template <typename Fn, typename... Args>
+    using collected_disappointment_t =
+        typename std::conditional_t<std::is_nothrow_invocable_v<Fn, Args...>, result<void>,
+                                    op_outcome<void>>::
+            template rebind<typename decltype(collect_disappointment_no_catch(
+                std::declval<Fn>(), std::declval<Args>()...))::value_type>;
+
+    template <typename Fn, typename... Args>
+    inline auto collect_disappointment(Fn &&fn, Args &&... args) noexcept -> decltype(auto)
+    {
+        using invoke_result_type = std::invoke_result_t<Fn, Args...>;
+        if constexpr (std::is_nothrow_invocable_v<Fn, Args...>)
+        {
+            return collect_disappointment_no_catch(std::forward<Fn>(fn),
+                                                   std::forward<Args>(args)...);
+        }
+        else
+        {
+            using result_type = op_outcome<typename invoke_result_type::value_type>;
+            try
             {
-                return outcome::success();
+                return result_type{collect_disappointment_no_catch(std::forward<Fn>(fn),
+                                                                   std::forward<Args>(args)...)};
+            }
+            catch (const std::bad_alloc &)
+            {
+                return result_type{failure(errc::not_enough_memory)};
+            }
+            catch (...)
+            {
+                return result_type{failure(std::current_exception())};
+            }
+        }
+
+        constexpr bool is_nothrow_invocable_v = std::is_nothrow_invocable_v<Fn, Args...>;
+        using invoke_result_type = std::invoke_result_t<Fn, Args...>;
+        if constexpr (std::is_void_v<invoke_result_type>)
+        {
+            if constexpr (is_nothrow_invocable_v)
+            {
+                std::invoke(std::forward<Fn>(fn), std::forward<Args>(args)...);
+                return result<void>(success());
             }
             else
             {
-                return std::move(rx).assume_value();
+                try
+                {
+                    std::invoke(std::forward<Fn>(fn), std::forward<Args>(args)...);
+                    return op_outcome<void>(success());
+                }
+                catch (const std::bad_alloc &)
+                {
+                    return op_outcome<void>(failure(errc::not_enough_memory));
+                }
+                catch (...)
+                {
+                    return op_outcome<void>(std::current_exception());
+                }
+            }
+        }
+        else if constexpr (oc::is_basic_result_v<invoke_result_type> ||
+                           oc::is_basic_outcome_v<invoke_result_type>)
+        {
+            if constexpr (is_nothrow_invocable_v)
+            {
+                return std::invoke(std::forward<Fn>(fn), std::forward<Args>(args)...);
+            }
+            else
+            {
+                using outcome_type = op_outcome<typename invoke_result_type::value_type,
+                                                typename invoke_result_type::error_type>;
+                try
+                {
+                    return outcome_type(
+                        std::invoke(std::forward<Fn>(fn), std::forward<Args>(args)...));
+                }
+                catch (const std::bad_alloc &)
+                {
+                    return outcome_type(failure(errc::not_enough_memory));
+                }
+                catch (...)
+                {
+                    return outcome_type(std::current_exception());
+                }
             }
         }
         else
         {
-            return std::move(rx).as_failure();
+            if constexpr (is_nothrow_invocable_v)
+            {
+                return result<invoke_result_type>{
+                    success(std::invoke(std::forward<Fn>(fn), std::forward<Args>(args)...))};
+            }
+            else
+            {
+                using outcome_type = op_outcome<invoke_result_type>;
+                try
+                {
+                    return outcome_type(
+                        success(std::invoke(std::forward<Fn>(fn), std::forward<Args>(args)...)));
+                }
+                catch (const std::bad_alloc &)
+                {
+                    return outcome_type(failure(errc::not_enough_memory));
+                }
+                catch (...)
+                {
+                    return outcome_type(std::current_exception());
+                }
+            }
         }
-    }
-    catch (const std::bad_alloc &)
-    {
-        return errc::not_enough_memory;
-    }
-    catch (...)
-    {
-        return std::current_exception();
     }
 
     namespace ed
     {
-        enum class wrapped_error_tag{};
+        enum class wrapped_error_tag
+        {
+        };
         using wrapped_error = error_detail<wrapped_error_tag, error>;
 
-        enum class error_code_tag{};
+        enum class error_code_tag
+        {
+        };
         using error_code = error_detail<error_code_tag, std::error_code>;
 
-        enum class error_code_origin_tag{};
+        enum class error_code_origin_tag
+        {
+        };
         using error_code_api_origin = error_detail<error_code_origin_tag, std::string_view>;
 
-        enum class io_file_tag {};
+        enum class io_file_tag
+        {
+        };
         using io_file = error_detail<io_file_tag, std::string>;
 
-        enum class archive_file_tag {};
+        enum class archive_file_tag
+        {
+        };
         using archive_file = error_detail<archive_file_tag, std::string>;
 
-
-        enum class archive_file_read_area_tag {};
+        enum class archive_file_read_area_tag
+        {
+        };
         using archive_file_read_area = error_detail<archive_file_read_area_tag, file_span>;
-        enum class archive_file_write_area_tag {};
+        enum class archive_file_write_area_tag
+        {
+        };
         using archive_file_write_area = error_detail<archive_file_write_area_tag, file_span>;
-    }
+    } // namespace ed
 
-    auto collect_system_error()
-        -> std::error_code;
-}
+    auto collect_system_error() -> std::error_code;
+} // namespace vefs
 
-#define VEFS_TRY_INJECT(stmt, injected) BOOST_OUTCOME_TRY(vefs::inject((stmt), [&](auto &e) { e << injected ; }))
+#define VEFS_TRY(...) BOOST_OUTCOME_TRY(__VA_ARGS__)
+
+#define VEFS_TRY_INJECT(stmt, injected)                                                            \
+    BOOST_OUTCOME_TRY(vefs::inject((stmt), [&](auto &e) { e << injected; }))

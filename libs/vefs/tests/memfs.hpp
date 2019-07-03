@@ -65,6 +65,7 @@ namespace vefs::tests
                 chunk_handle &operator=(chunk_handle &&o) noexcept
                 {
                     mData = std::move(o.mData);
+                    return *this;
                 }
 
                 auto data() noexcept -> rw_blob<chunk_size>

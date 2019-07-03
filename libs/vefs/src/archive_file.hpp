@@ -7,7 +7,7 @@
 
 #include <vefs/archive.hpp>
 #include <vefs/detail/basic_archive_file_meta.hpp>
-#include <vefs/detail/cache.hpp>
+#include <vefs/detail/cache_car.hpp>
 #include <vefs/detail/tree_walker.hpp>
 #include <vefs/utils/dirt_flag.hpp>
 
@@ -53,7 +53,7 @@ namespace vefs
         };
 
     private:
-        using block_pool_t = detail::cache<tree_position, sector, 1 << 6>;
+        using block_pool_t = detail::cache_car<tree_position, sector, 1 << 6>;
 
     public:
         file(archive &owner, detail::basic_archive_file_meta &data, file_events &hooks);

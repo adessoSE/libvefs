@@ -284,13 +284,7 @@ namespace vefs
             if (requiredDepth > mData.tree_depth)
             {
                 BOOST_OUTCOME_TRY(physId, mOwner.mFreeBlockIndexFile->alloc_sector());
-                auto acres = mCachedBlocks->access_w_inplace_ctor(rootPos, parent, rootPos, physId);
-                if (!acres)
-                {
-                    mOwner.mFreeBlockIndexFile->dealloc_sector(physId);
-                    return acres.as_failure();
-                }
-                parent = std::move(acres).assume_value();
+                parent = mCachedBlocks->access(rootPos, parent, rootPos, physId);
 
                 assert(physId == parent->sector_id());
                 if (physId != parent->sector_id())
@@ -385,16 +379,8 @@ namespace vefs
                 parentLock.unlock();
 
                 BOOST_OUTCOME_TRY(physId, mOwner.mFreeBlockIndexFile->alloc_sector());
-                sector::handle entry;
-                if (auto acres = mCachedBlocks->access_w_inplace_ctor(*it, parent, *it, physId))
-                {
-                    entry = std::move(acres).assume_value();
-                }
-                else
-                {
-                    mOwner.mFreeBlockIndexFile->dealloc_sector(physId);
-                    return std::move(acres).as_failure();
-                }
+                sector::handle entry =
+                    mCachedBlocks->access(*it, parent, *it, physId);
 
                 if (physId != entry->sector_id())
                 {
@@ -590,14 +576,15 @@ namespace vefs
         bool dirtyElements;
         do
         {
-            BOOST_OUTCOME_TRY(drx, mCachedBlocks->for_dirty(
-                                 [this, layer](block_pool_t::handle sector) -> result<void> {
-                                     if (sector->position().layer() == layer)
-                                     {
-                                         BOOST_OUTCOME_TRY(write_sector_to_disk(std::move(sector)));
-                                     }
-                                     return outcome::success();
-                                 }));
+            BOOST_OUTCOME_TRY(
+                drx, mCachedBlocks->for_dirty(
+                         [ this, layer ](block_pool_t::handle sector) noexcept->result<void> {
+                             if (sector->position().layer() == layer)
+                             {
+                                 BOOST_OUTCOME_TRY(write_sector_to_disk(std::move(sector)));
+                             }
+                             return outcome::success();
+                         }));
             dirtyElements = drx;
             layer = (layer + 1) % (detail::lut::max_tree_depth + 1);
         } while (dirtyElements);
