@@ -20,12 +20,12 @@ namespace vefs::detail::lut
 
 namespace vefs::detail::lut::detail
 {
-    constexpr auto compute_step_width_lut()
     /**
      * calculates a Lookup-Table with the step width for each tree level
      * index 0 is tree depth -1 and 1 is tree depth 0
      * @return step width in bit
      */
+    constexpr auto compute_step_width_lut()
     {
         std::array<std::uint64_t, max_tree_depth + 2> lut{};
         lut[0] = 1;
@@ -41,9 +41,6 @@ namespace vefs::detail::lut::detail
      * calculates a Lookup-Table with the count of sectors that fit in one tree level
      */
     constexpr auto compute_ref_width_lut()
-    /**
-    * calculates a Lookup-Table with the count of sectors that fit in one tree level
-    */
     {
         // zero is tree depth -1
         // one is tree depth 0
@@ -62,12 +59,12 @@ namespace vefs::detail::lut
     constexpr auto step_width{ detail::compute_step_width_lut() };
     constexpr auto ref_width{ detail::compute_ref_width_lut() };
 
-    constexpr int required_tree_depth(std::uint64_t sectorPos)
-    /**
+     /**
      * calculates the tree level for a given sector position
      * @param sectorPos the sector position for that the tree level is calculated
      * @return  the tree level starting with 0
      */
+    constexpr int required_tree_depth(std::uint64_t sectorPos)
     {
         static_assert(ref_width.size() == 5); // safe guard for ref_width changes.
         return 0
@@ -78,12 +75,12 @@ namespace vefs::detail::lut
             + static_cast<int>(sectorPos >= ref_width[4]);
     }
 
-    constexpr std::uint64_t sector_position_of(std::uint64_t bytePos)    
-    /**
+     /**
      * calculates the sector position for a given byte position
      * @param bytePos the byte position for that the sector is returned
      * @return the sector position where this byte is in
      */
+    constexpr std::uint64_t sector_position_of(std::uint64_t bytePos)    
     {
         return bytePos / raw_archive::sector_payload_size;
     }

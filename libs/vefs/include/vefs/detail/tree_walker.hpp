@@ -165,10 +165,6 @@ namespace vefs::detail
      */
     constexpr auto tree_position::compress(std::uint64_t position, int layer)
         -> storage_type
-    /**
-    * adds the layer to position
-    * @Todo rename?
-    */
     {
         return (static_cast<storage_type>(layer) << layer_offset) | (position & position_mask);
     }
