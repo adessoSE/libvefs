@@ -83,7 +83,7 @@ namespace vefs
             constexpr auto size() const noexcept -> std::size_t;
 
         protected:
-            constexpr compressed_span_storage(typename T *ptr, typename std::size_t count) noexcept;
+            constexpr compressed_span_storage(T *ptr, std::size_t count) noexcept;
 
         private:
             T *mData;
@@ -118,7 +118,7 @@ namespace vefs
             constexpr auto size() const noexcept -> std::size_t;
 
         protected:
-            constexpr compressed_span_storage(typename T *ptr, typename std::size_t count) noexcept;
+            constexpr compressed_span_storage(T *ptr, std::size_t count) noexcept;
         };
 
         template <typename T>
@@ -610,7 +610,7 @@ namespace vefs
         {
             constexpr auto N = std::min(X, Y);
             std::copy_n(source.cbegin(), N, dest.begin());
-            return dest.subspan<N>();
+            return dest.template subspan<N>();
         }
     }
 

@@ -4,12 +4,7 @@
 #include <vefs/disappointment.hpp>
 #include <vefs/utils/misc.hpp>
 #include <vefs/utils/secure_ops.hpp>
-
-#include "utf.hpp"
-
-#define WIN32_LEAN_AND_MEAN
-#define NOMINMAX
-#include <windows.h>
+#include <vefs/utils/windows-proper.h>
 
 namespace vefs::detail
 {
@@ -138,15 +133,13 @@ namespace vefs::detail
         return OPEN_EXISTING;
     }
 
-    file::ptr os_filesystem::open(std::string_view filePath, file_open_mode_bitset mode,
+    file::ptr os_filesystem::open(const std::filesystem::path &filePath, file_open_mode_bitset mode,
                                   std::error_code &ec)
     {
-        auto u16FilePath = utf::utf8_to_utf16(filePath);
-
-        os_handle file =
-            CreateFileW(reinterpret_cast<const wchar_t *>(u16FilePath.c_str()),
-                        derive_access_mode(mode), 0, nullptr, derive_creation_mode(mode),
-                        FILE_FLAG_POSIX_SEMANTICS | FILE_FLAG_RANDOM_ACCESS, nullptr);
+        auto canonicalPath = weakly_canonical(filePath);
+        os_handle file = CreateFileW(canonicalPath.c_str(), derive_access_mode(mode), 0, nullptr,
+                                     derive_creation_mode(mode),
+                                     FILE_FLAG_POSIX_SEMANTICS | FILE_FLAG_RANDOM_ACCESS, nullptr);
 
         if (file == INVALID_HANDLE_VALUE)
         {
@@ -162,15 +155,14 @@ namespace vefs::detail
         return std::make_shared<os_file>(mSelf.lock(), file);
     }
 
-    void os_filesystem::remove(std::string_view filePath)
+    void os_filesystem::remove(const std::filesystem::path &filePath)
     {
-        auto u16FilePath = utf::utf8_to_utf16(filePath);
-
-        if (!DeleteFileW(reinterpret_cast<const wchar_t *>(u16FilePath.c_str())))
+        auto canonicalPath = weakly_canonical(filePath);
+        if (!DeleteFileW(canonicalPath.c_str()))
         {
             throw error_exception(error(collect_system_error())
                                   << ed::error_code_api_origin("DeleteFileW")
-                                  << ed::io_file(std::string{filePath}));
+                                  << ed::io_file(std::string{filePath.string()}));
         }
     }
 } // namespace vefs::detail

@@ -18,7 +18,7 @@ BOOST_AUTO_TEST_CASE(error_default_initialization)
     using namespace std::string_view_literals;
     error edefault;
 
-    BOOST_TEST(edefault.code() == 0);
+    BOOST_TEST(edefault.code() == 0u);
     BOOST_TEST(!edefault.has_info());
     BOOST_TEST(!edefault);
     BOOST_TEST(edefault.domain().name() == "success-domain"sv);

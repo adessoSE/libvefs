@@ -348,7 +348,7 @@ namespace vefs
             const auto blockIdxOffset = it.position() * blocks_per_sector;
             utils::const_bitset_overlay allocMap{allocMapBlob};
 
-            for (auto i = 0; i < blocks_per_sector;)
+            for (auto i = 0u; i < blocks_per_sector;)
             {
                 const auto startBlock = static_cast<int>(blockIdxOffset + i);
 

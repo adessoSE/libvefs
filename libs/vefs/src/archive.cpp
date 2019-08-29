@@ -1,31 +1,30 @@
 #include "precompiled.hpp"
 #include <vefs/archive.hpp>
 
-#include <cstdint>
 #include <cassert>
+#include <cstdint>
 
-#include <stack>
-#include <tuple>
 #include <array>
 #include <chrono>
 #include <sstream>
+#include <stack>
 #include <string_view>
-
+#include <tuple>
 
 #include <boost/dynamic_bitset.hpp>
-#include <boost/range/adaptor/reversed.hpp>
 #include <boost/iterator/iterator_facade.hpp>
+#include <boost/range/adaptor/reversed.hpp>
 
 #include <vefs/detail/raw_archive.hpp>
-#include <vefs/detail/tree_walker.hpp>
 #include <vefs/detail/thread_pool.hpp>
-#include <vefs/utils/misc.hpp>
+#include <vefs/detail/tree_walker.hpp>
 #include <vefs/utils/bitset_overlay.hpp>
+#include <vefs/utils/misc.hpp>
 
 #include "archive_file.hpp"
 #include "archive_file_lookup.hpp"
-#include "archive_index_file.hpp"
 #include "archive_free_block_list_file.hpp"
+#include "archive_index_file.hpp"
 #include "proto-helper.hpp"
 
 using namespace std::string_view_literals;
@@ -34,31 +33,31 @@ using namespace vefs::detail;
 
 namespace vefs
 {
-    archive::file * deref(const archive::file_handle &handle) noexcept
+    archive::file *deref(const archive::file_handle &handle) noexcept
     {
         assert(handle);
         return handle.mData->mWorkingSet.load(std::memory_order_acquire);
     }
 
     archive::archive()
-        : mWorkTracker{ &thread_pool::shared() }
+        : mWorkTracker{&thread_pool::shared()}
     {
     }
 
     archive::archive(std::unique_ptr<detail::raw_archive> primitives)
-        : mWorkTracker{ &thread_pool::shared() }
-        , mArchive{ std::move(primitives) }
+        : mArchive{std::move(primitives)}
+        , mWorkTracker{&thread_pool::shared()}
     {
     }
 
-    auto archive::open(filesystem::ptr fs, std::string_view archivePath,
-        crypto::crypto_provider * cryptoProvider, ro_blob<32> userPRK, file_open_mode_bitset openMode)
-        -> result<std::unique_ptr<archive>>
+    auto archive::open(filesystem::ptr fs, const std::filesystem::path &archivePath,
+                       crypto::crypto_provider *cryptoProvider, ro_blob<32> userPRK,
+                       file_open_mode_bitset openMode) -> result<std::unique_ptr<archive>>
     {
         BOOST_OUTCOME_TRY(primitives,
-            raw_archive::open(fs, archivePath, cryptoProvider, userPRK, openMode));
+                          raw_archive::open(fs, archivePath, cryptoProvider, userPRK, openMode));
 
-        std::unique_ptr<archive> arc{ new archive(std::move(primitives)) };
+        std::unique_ptr<archive> arc{new archive(std::move(primitives))};
 
         const auto createNew = openMode % file_open_mode::create;
         if (createNew)
@@ -69,7 +68,7 @@ namespace vefs
             }
             else
             {
-                fblrx.assume_error() << ed::archive_file{ "[free-block-list]" };
+                fblrx.assume_error() << ed::archive_file{"[free-block-list]"};
                 return std::move(fblrx).as_failure();
             }
             if (auto aixrx = index_file::create_new(*arc))
@@ -78,7 +77,7 @@ namespace vefs
             }
             else
             {
-                aixrx.assume_error() << ed::archive_file{ "[archive-index]" };
+                aixrx.assume_error() << ed::archive_file{"[archive-index]"};
                 return std::move(aixrx).as_failure();
             }
         }
@@ -90,7 +89,7 @@ namespace vefs
             }
             else
             {
-                fblrx.assume_error() << ed::archive_file{ "[free-block-list]" };
+                fblrx.assume_error() << ed::archive_file{"[free-block-list]"};
                 return std::move(fblrx).as_failure();
             }
             if (auto aixrx = index_file::open(*arc))
@@ -99,7 +98,7 @@ namespace vefs
             }
             else
             {
-                aixrx.assume_error() << ed::archive_file{ "[archive-index]" };
+                aixrx.assume_error() << ed::archive_file{"[archive-index]"};
                 return std::move(aixrx).as_failure();
             }
         }
@@ -117,8 +116,7 @@ namespace vefs
         mWorkTracker.wait();
     }
 
-    auto archive::sync()
-        -> result<void>
+    auto archive::sync() -> result<void>
     {
         BOOST_OUTCOME_TRY(changes, mArchiveIndexFile->sync(true));
         if (!changes)
@@ -126,19 +124,15 @@ namespace vefs
             return outcome::success();
         }
 
-        VEFS_TRY_INJECT(mFreeBlockIndexFile->sync(), ed::archive_file{ "[free-block-list]" });
-        VEFS_TRY_INJECT(mArchive->update_header(), ed::archive_file{ "[archive-index]" });
+        VEFS_TRY_INJECT(mFreeBlockIndexFile->sync(), ed::archive_file{"[free-block-list]"});
+        VEFS_TRY_INJECT(mArchive->update_header(), ed::archive_file{"[archive-index]"});
         return mArchive->sync();
     }
 
     void archive::sync_async(std::function<void(op_outcome<void>)> cb)
     {
-        ops_pool().execute([this, cb = std::move(cb)]()
-        {
-            auto einfo = collect_disappointment([&]()
-            {
-                return sync();
-            });
+        ops_pool().execute([this, cb = std::move(cb)]() {
+            auto einfo = collect_disappointment([&]() { return sync(); });
             cb(std::move(einfo));
         });
     }
@@ -149,14 +143,12 @@ namespace vefs
         return mArchiveIndexFile->open(filePath, mode);
     }
 
-    auto archive::query(const std::string_view filePath)
-        -> result<file_query_result>
+    auto archive::query(const std::string_view filePath) -> result<file_query_result>
     {
         return mArchiveIndexFile->query(filePath);
     }
 
-    auto archive::erase(std::string_view filePath)
-        -> result<void>
+    auto archive::erase(std::string_view filePath) -> result<void>
     {
         return mArchiveIndexFile->erase(filePath);
     }
@@ -180,11 +172,11 @@ namespace vefs
         auto readrx = f->read(buffer, readFilePos);
         if (readrx.has_error())
         {
-            readrx.assume_error()
-                << ed::archive_file_read_area{ ed::file_span{ readFilePos, readFilePos + buffer.size() } }
-            << ed::archive_file{ handle.value()->name() };
+            readrx.assume_error() << ed::archive_file_read_area{ed::file_span{
+                                         readFilePos, readFilePos + buffer.size()}}
+                                  << ed::archive_file{handle.value()->name()};
         }
-        return std::move(readrx);
+        return readrx;
     }
 
     auto archive::write(file_handle handle, ro_dynblob data, std::uint64_t writeFilePos)
@@ -207,15 +199,14 @@ namespace vefs
         auto writerx = f->write(data, writeFilePos);
         if (writerx.has_error())
         {
-            writerx.assume_error()
-                << ed::archive_file_write_area{ ed::file_span{ writeFilePos, writeFilePos + data.size() } }
-                << ed::archive_file{ handle.value()->name() };
+            writerx.assume_error() << ed::archive_file_write_area{ed::file_span{
+                                          writeFilePos, writeFilePos + data.size()}}
+                                   << ed::archive_file{handle.value()->name()};
         }
-        return std::move(writerx);
+        return writerx;
     }
 
-    auto archive::resize(file_handle handle, std::uint64_t size)
-        -> result<void>
+    auto archive::resize(file_handle handle, std::uint64_t size) -> result<void>
     {
         if (!handle)
         {
@@ -230,14 +221,12 @@ namespace vefs
         auto resizerx = f->resize(size);
         if (resizerx.has_error())
         {
-            resizerx.assume_error()
-                << ed::archive_file{ handle.value()->name() };
+            resizerx.assume_error() << ed::archive_file{handle.value()->name()};
         }
-        return std::move(resizerx);
+        return resizerx;
     }
 
-    auto archive::size_of(file_handle handle)
-        -> result<std::uint64_t>
+    auto archive::size_of(file_handle handle) -> result<std::uint64_t>
     {
         if (!handle)
         {
@@ -252,8 +241,7 @@ namespace vefs
         return f->size();
     }
 
-    auto archive::sync(file_handle handle)
-        -> result<void>
+    auto archive::sync(file_handle handle) -> result<void>
     {
         if (!handle)
         {
@@ -268,96 +256,78 @@ namespace vefs
         auto syncrx = f->sync();
         if (syncrx.has_error())
         {
-            syncrx.assume_error()
-                << ed::archive_file{ handle.value()->name() };
+            syncrx.assume_error() << ed::archive_file{handle.value()->name()};
         }
-        return std::move(syncrx);
+        return syncrx;
     }
 
     void archive::erase_async(std::string filePath, std::function<void(op_outcome<void>)> cb)
     {
-        ops_pool().execute([this, filePath = std::move(filePath), cb = std::move(cb)]()
-        {
-            auto rx = collect_disappointment([&]()
-            {
-                return erase(filePath);
-            });
+        ops_pool().execute([this, filePath = std::move(filePath), cb = std::move(cb)]() {
+            auto rx = collect_disappointment([&]() { return erase(filePath); });
             cb(std::move(rx));
         });
     }
 
-    void archive::read_async(file_handle handle, rw_dynblob buffer, std::uint64_t readFilePos, std::function<void(op_outcome<void>)> cb)
+    void archive::read_async(file_handle handle, rw_dynblob buffer, std::uint64_t readFilePos,
+                             std::function<void(op_outcome<void>)> cb)
     {
         if (!handle)
         {
             BOOST_THROW_EXCEPTION(invalid_argument{}
-                << errinfo_param_name{ "handle" }
-                << errinfo_param_misuse_description{ "the handle isn't valid" }
-            );
+                                  << errinfo_param_name{"handle"}
+                                  << errinfo_param_misuse_description{"the handle isn't valid"});
         }
-        ops_pool().execute([this, h = std::move(handle), buffer, readFilePos, cb = std::move(cb)]()
-        {
-            auto rx = collect_disappointment([&]()
-            {
-                return read(std::move(h), buffer, readFilePos);
-            });
+        ops_pool().execute([this, h = std::move(handle), buffer, readFilePos,
+                            cb = std::move(cb)]() {
+            auto rx =
+                collect_disappointment([&]() { return read(std::move(h), buffer, readFilePos); });
             cb(std::move(rx));
         });
     }
 
-    void archive::write_async(file_handle handle, ro_dynblob data, std::uint64_t writeFilePos, std::function<void(op_outcome<void>)> cb)
+    void archive::write_async(file_handle handle, ro_dynblob data, std::uint64_t writeFilePos,
+                              std::function<void(op_outcome<void>)> cb)
     {
         if (!handle)
         {
             BOOST_THROW_EXCEPTION(invalid_argument{}
-                << errinfo_param_name{ "handle" }
-                << errinfo_param_misuse_description{ "the handle isn't valid" }
-            );
+                                  << errinfo_param_name{"handle"}
+                                  << errinfo_param_misuse_description{"the handle isn't valid"});
         }
-        ops_pool().execute([this, h = std::move(handle), data, writeFilePos, cb = std::move(cb)]()
-        {
-            auto rx = collect_disappointment([&]()
-            {
-                return write(std::move(h), data, writeFilePos);
-            });
+        ops_pool().execute([this, h = std::move(handle), data, writeFilePos, cb = std::move(cb)]() {
+            auto rx =
+                collect_disappointment([&]() { return write(std::move(h), data, writeFilePos); });
             cb(std::move(rx));
         });
     }
 
-    void archive::resize_async(file_handle handle, std::uint64_t size, std::function<void(op_outcome<void>)> cb)
+    void archive::resize_async(file_handle handle, std::uint64_t size,
+                               std::function<void(op_outcome<void>)> cb)
     {
         if (!handle)
         {
             BOOST_THROW_EXCEPTION(invalid_argument{}
-                << errinfo_param_name{ "handle" }
-                << errinfo_param_misuse_description{ "the handle isn't valid" }
-            );
+                                  << errinfo_param_name{"handle"}
+                                  << errinfo_param_misuse_description{"the handle isn't valid"});
         }
-        ops_pool().execute([this, h = std::move(handle), size, cb = std::move(cb)]()
-        {
-            auto rx = collect_disappointment([&]()
-            {
-                return resize(std::move(h), size);
-            });
+        ops_pool().execute([this, h = std::move(handle), size, cb = std::move(cb)]() {
+            auto rx = collect_disappointment([&]() { return resize(std::move(h), size); });
             cb(std::move(rx));
         });
     }
 
-    void archive::size_of_async(file_handle handle, std::function<void(op_outcome<std::uint64_t>)> cb)
+    void archive::size_of_async(file_handle handle,
+                                std::function<void(op_outcome<std::uint64_t>)> cb)
     {
         if (!handle)
         {
             BOOST_THROW_EXCEPTION(invalid_argument{}
-                << errinfo_param_name{ "handle" }
-                << errinfo_param_misuse_description{ "the handle isn't valid" }
-            );
+                                  << errinfo_param_name{"handle"}
+                                  << errinfo_param_misuse_description{"the handle isn't valid"});
         }
-        ops_pool().execute([this, h = std::move(handle), cb = std::move(cb)]()
-        {
-            auto rx = collect_disappointment([&]()
-            {
-                return size_of(std::move(h));
-            });
+        ops_pool().execute([this, h = std::move(handle), cb = std::move(cb)]() {
+            auto rx = collect_disappointment([&]() { return size_of(std::move(h)); });
             cb(std::move(rx));
         });
     }
@@ -367,17 +337,12 @@ namespace vefs
         if (!handle)
         {
             BOOST_THROW_EXCEPTION(invalid_argument{}
-                << errinfo_param_name{ "handle" }
-                << errinfo_param_misuse_description{ "the handle isn't valid" }
-            );
+                                  << errinfo_param_name{"handle"}
+                                  << errinfo_param_misuse_description{"the handle isn't valid"});
         }
-        ops_pool().execute([this, h = std::move(handle), cb = std::move(cb)]()
-        {
-            auto rx = collect_disappointment([&]()
-            {
-                return sync(std::move(h));
-            });
+        ops_pool().execute([this, h = std::move(handle), cb = std::move(cb)]() {
+            auto rx = collect_disappointment([&]() { return sync(std::move(h)); });
             cb(std::move(rx));
         });
     }
-}
+} // namespace vefs

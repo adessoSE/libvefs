@@ -7,6 +7,7 @@
 
 #include <boost/uuid/random_generator.hpp>
 
+#include <vefs/blob.hpp>
 #include <vefs/crypto/kdf.hpp>
 #include <vefs/detail/basic_archive_file_meta.hpp>
 #include <vefs/exceptions.hpp>
@@ -38,7 +39,8 @@ namespace vefs::detail
         template <std::size_t N>
         inline auto byte_literal(const char (&arr)[N]) noexcept
         {
-            return as_bytes(span(arr).first<N - 1>());
+            span literalMem{arr};
+            return as_bytes(literalMem.template first<N - 1>());
         }
 
         const auto archive_static_header_kdf_prk =
@@ -137,7 +139,7 @@ namespace vefs::detail
         mNumSectors = mArchiveFile->size() / sector_size;
     }
 
-    auto raw_archive::open(filesystem::ptr fs, std::string_view path,
+    auto raw_archive::open(filesystem::ptr fs, const std::filesystem::path &path,
                            crypto::crypto_provider *cryptoProvider, ro_blob<32> userPRK,
                            file_open_mode_bitset openMode) -> result<std::unique_ptr<raw_archive>>
     {
