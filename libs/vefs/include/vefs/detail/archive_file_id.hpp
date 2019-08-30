@@ -85,7 +85,7 @@ namespace fmt
         auto format(const vefs::detail::file_id &fid, FormatContext &ctx)
         {
             decltype(auto) id = fid.as_uuid();
-            auto out = ctx.begin();
+            auto out = ctx.out();
             for (std::size_t i = 0; i < id.static_size(); ++i)
             {
                 out = format_to(out, "{:02X}", id.data[i]);

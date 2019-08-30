@@ -513,7 +513,7 @@ namespace fmt
         template <typename FormatContext>
         auto format(const vefs::detail::tree_position &tp, FormatContext &ctx)
         {
-            return format_to(ctx.begin(), "(L{}, P{:#04x})", tp.layer(), tp.position());
+            return format_to(ctx.out(), "(L{}, P{:#04x})", tp.layer(), tp.position());
         }
     };
 }

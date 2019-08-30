@@ -40,7 +40,7 @@ namespace fmt
         auto format(const vefs::detail::sector_id id, FormatContext &ctx)
         {
             using itype = std::underlying_type_t<vefs::detail::sector_id>;
-            return format_to(ctx.begin(), "SIDX:{:04x}", static_cast<itype>(id));
+            return format_to(ctx.out(), "SIDX:{:04x}", static_cast<itype>(id));
         }
     };
 }

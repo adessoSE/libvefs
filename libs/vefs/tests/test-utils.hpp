@@ -63,11 +63,11 @@ namespace fmt
         {
             if (h)
             {
-                return format_to(ctx.begin(), "{}", *h);
+                return format_to(ctx.out(), "{}", *h);
             }
             else
             {
-                return format_to(ctx.begin(), "[nullptr cache_handle]");
+                return format_to(ctx.out(), "[nullptr cache_handle]");
             }
         }
     };
