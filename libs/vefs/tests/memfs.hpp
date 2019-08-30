@@ -65,6 +65,7 @@ namespace vefs::tests
                 chunk_handle &operator=(chunk_handle &&o) noexcept
                 {
                     mData = std::move(o.mData);
+                    return *this;
                 }
 
                 auto data() noexcept -> rw_blob<chunk_size>
@@ -207,8 +208,9 @@ namespace vefs::tests
         }
 
         using filesystem::open;
-        virtual file::ptr open(std::string_view filePath, file_open_mode_bitset mode, std::error_code &ec) override;
-        virtual void remove(std::string_view filePath) override;
+        virtual file::ptr open(const std::filesystem::path &filePath, file_open_mode_bitset mode,
+                               std::error_code &ec) override;
+        virtual void remove(const std::filesystem::path &filePath) override;
 
         relaxed_string_map files;
     };

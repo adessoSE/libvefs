@@ -1,11 +1,18 @@
 #include "precompiled.hpp"
 #include <vefs/crypto/counter.hpp>
 
+#include <boost/predef.h>
+
+#if defined BOOST_COMP_MSVC_AVAILABLE
 #include <intrin.h>
+#elif defined BOOST_COMP_GCC_AVAILABLE || defined BOOST_COMP_CLANG_AVAIABLE
+#include <x86intrin.h>
+#endif
+
+#include <immintrin.h>
 
 #include <type_traits>
 
-#include <boost/predef/architecture.h>
 #include <boost/integer.hpp>
 
 namespace vefs::crypto
@@ -40,8 +47,7 @@ namespace vefs::crypto
             static_assert(std::is_integral_v<T>);
             static_assert(std::is_unsigned_v<T>);
 
-            [[maybe_unused]] const auto upcast_impl = [&]([[maybe_unused]] auto acc)
-            {
+            [[maybe_unused]] const auto upcast_impl = [&]([[maybe_unused]] auto acc) {
                 acc += a;
                 acc += b;
                 *out = static_cast<T>(acc);
@@ -62,11 +68,12 @@ namespace vefs::crypto
             }
             else if constexpr (sizeof(T) == 8 && has_adc_u64_v)
             {
-                return _addcarry_u64(carry, a, b, reinterpret_cast<std::uint64_t *>(out));
+                return _addcarry_u64(carry, a, b, reinterpret_cast<unsigned long long *>(out));
             }
             else
             {
-                using fraction_t = boost::uint_t<std::numeric_limits<std::size_t>::digits / 2>::exact;
+                using fraction_t =
+                    boost::uint_t<std::numeric_limits<std::size_t>::digits / 2>::exact;
                 constexpr auto limit = sizeof(T) / sizeof(fraction_t);
 
                 auto fa = reinterpret_cast<fraction_t *>(&a);
@@ -88,6 +95,8 @@ namespace vefs::crypto
                     // I don't think there is any use case for this...
                 }
                 */
+
+                return static_cast<unsigned char>(state);
             }
         }
 
@@ -111,7 +120,7 @@ namespace vefs::crypto
                 (*state) += carry;
             }
         }
-    }
+    } // namespace
 
     void counter::increment()
     {
@@ -119,4 +128,4 @@ namespace vefs::crypto
         auto first_carry = add_carry<std::size_t>(0, *p, 1, p);
         increment_impl<state_size - sizeof(*p)>(p + 1, first_carry);
     }
-}
+} // namespace vefs::crypto

@@ -196,6 +196,15 @@ BOOST_AUTO_TEST_CASE(archive_file_erase)
 
         TEST_RESULT(ac->erase(default_file_path));
     }
+    {
+        auto openrx = archive::open(fs, default_archive_path, cprov, default_user_prk,
+                                    file_open_mode::readwrite);
+        TEST_RESULT_REQUIRE(openrx);
+        auto ac = std::move(openrx).assume_value();
+
+        auto qrx = ac->query(default_file_path);
+        BOOST_REQUIRE(qrx.has_error() && qrx.assume_error() == archive_errc::no_such_file);
+    }
 }
 
 BOOST_AUTO_TEST_CASE(archive_empty_userprk)

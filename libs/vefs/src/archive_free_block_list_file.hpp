@@ -59,7 +59,7 @@ namespace vefs
         -> result<detail::sector_id>
     {
         detail::sector_id xmem;
-        OUTCOME_TRY(alloc_sectors({ &xmem, 1 }));
+        BOOST_OUTCOME_TRY(alloc_sectors({ &xmem, 1 }));
         return xmem;
     }
 }

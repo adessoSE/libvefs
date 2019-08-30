@@ -43,10 +43,10 @@ namespace vefs
     auto archive::file_lookup::create(archive &owner, std::string name)
         -> result<std::tuple<utils::ref_ptr<file_lookup>, file_handle>>
     {
-        OUTCOME_TRY(fileMeta, owner.mArchive->create_file());
+        BOOST_OUTCOME_TRY(fileMeta, owner.mArchive->create_file());
 
         auto self = utils::make_ref_counted<file_lookup>(std::move(fileMeta), std::move(name), -1, 0);
-        OUTCOME_TRY(ws, self->create_working_set(owner));
+        BOOST_OUTCOME_TRY(ws, self->create_working_set(owner));
 
         // basically this would happen if you called load() for an unloaded file
         self->add_ext_reference();
@@ -57,7 +57,7 @@ namespace vefs
 
         // create_self can only fail for oom reasons therefore its okay
         // that no external references calls sync which in this case does nothing
-        OUTCOME_TRY(ws->create_self());
+        BOOST_OUTCOME_TRY(ws->create_self());
 
         self->mDirtyMetaData.mark();
 
@@ -185,7 +185,7 @@ namespace vefs
             return outcome::success();
         }
 
-        OUTCOME_TRY(ws->sync());
+        BOOST_OUTCOME_TRY(ws->sync());
 
         std::destroy_at(ws);
         mWorkingSet.store(nullptr, std::memory_order_release);

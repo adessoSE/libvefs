@@ -1,7 +1,7 @@
 # Setup Development Environment (Windows)
 ## Required Tools
 - Cmake 3.14 [https://cmake.org/download/]
-- Visual Studio 2019 (16.1.5) 
+- Visual Studio 2019 (16.2.3) 
 
 ## Checkout
 - vcpkg
@@ -15,4 +15,3 @@
 
 ## Finish
 After the steps above it is possible to open the vefs folder inside VS 2019 and for example bin/vefs-tests.exe can be executed.
-

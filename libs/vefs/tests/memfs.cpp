@@ -139,17 +139,21 @@ namespace vefs::tests
         }
     }
 
-    file::ptr memory_filesystem::open(std::string_view filePath, file_open_mode_bitset mode, std::error_code &ec)
+    file::ptr memory_filesystem::open(const std::filesystem::path &filePath,
+                                      file_open_mode_bitset mode,
+                                      std::error_code &ec)
     {
+        const auto u8FilePath = filePath.lexically_normal().generic_u8string();
         try
         {
             std::shared_ptr<memory_file::memory_holder> fileHandle;
-            if (!files.find(filePath, fileHandle))
+            if (!files.find(u8FilePath, fileHandle))
             {
                 if (mode % file_open_mode::create)
                 {
                     fileHandle = std::make_shared<memory_file::memory_holder>();
-                    files.uprase_fn(filePath,
+                    files.uprase_fn(
+                        u8FilePath,
                                     [&fileHandle](std::shared_ptr<memory_file::memory_holder> &handle) {
                                         fileHandle = handle;
                                         return false;
@@ -181,15 +185,16 @@ namespace vefs::tests
         }
         catch (const std::bad_alloc &)
         {
-            files.erase(filePath);
+            files.erase(u8FilePath);
             ec = memvefs_code::out_of_memory;
         }
         return file::ptr{};
     }
 
-    void memory_filesystem::remove(std::string_view filePath)
+    void memory_filesystem::remove(const std::filesystem::path &filePath)
     {
-        if (!files.erase(filePath))
+        const auto u8FilePath = filePath.lexically_normal().generic_u8string();
+        if (!files.erase(u8FilePath))
         {
             // TODO: set error code
             throw error_exception(error(std::errc::no_such_file_or_directory));

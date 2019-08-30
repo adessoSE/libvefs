@@ -27,11 +27,9 @@ namespace vefs
     auto archive::index_file::create_new(archive &owner)
         -> result<std::shared_ptr<archive::index_file>>
     {
-        OUTCOME_TRY(self, internal_file::create_new<index_file>(owner));
-        ;
+        BOOST_OUTCOME_TRY(self, internal_file::create_new<index_file>(owner));
 
-        OUTCOME_TRY(self->resize(detail::raw_archive::sector_payload_size));
-        ;
+        BOOST_OUTCOME_TRY(self->resize(detail::raw_archive::sector_payload_size));
         self->mFreeBlocks.dealloc(0, blocks_per_sector);
 
         return std::move(self);
@@ -119,9 +117,25 @@ namespace vefs
         mFileHandles.find_fn(fid, [&lookup](const file_lookup_ptr &l) { lookup = l; });
         if (lookup)
         {
-            OUTCOME_TRY(lookup->try_kill(mOwner));
+            BOOST_OUTCOME_TRY(lookup->try_kill(mOwner));
             mIndex.erase(filePath);
             mFileHandles.erase(fid);
+
+            if (lookup->mIndexBlockPosition != -1)
+            {
+                dealloc_blocks(lookup->mIndexBlockPosition, lookup->mReservedIndexBlocks);
+                auto treePos = treepos_of(lookup->mIndexBlockPosition);
+                auto endPos =
+                    treepos_of(lookup->mIndexBlockPosition + lookup->mReservedIndexBlocks - 1);
+                sector::handle hSector;
+                do
+                {
+                    BOOST_OUTCOME_TRY(hSector, access(treePos));
+                    write_block_header(std::move(hSector));
+
+                    treePos.position(treePos.position() + 1);
+                } while (treePos.position() <= endPos.position());
+            }
         }
         mDirtFlag.mark();
 
@@ -187,7 +201,6 @@ namespace vefs
             assert(neededBlocks <= static_cast<size_t>(std::numeric_limits<int>::max()));
             const auto sNeededBlocks = static_cast<int>(neededBlocks);
 
-            sector_handle sector;
             if (lookup->mReservedIndexBlocks < sNeededBlocks)
             {
                 if (lookup->mIndexBlockPosition != -1)
@@ -226,7 +239,8 @@ namespace vefs
                     {
                         // grow one sector
                         auto oldFileSize = this->size();
-                        OUTCOME_TRY(resize(oldFileSize + detail::raw_archive::sector_payload_size));
+                        BOOST_OUTCOME_TRY(
+                            resize(oldFileSize + detail::raw_archive::sector_payload_size));
                         mFreeBlocks.dealloc(detail::lut::sector_position_of(oldFileSize) /
                                                 blocks_per_sector,
                                             blocks_per_sector);
@@ -248,12 +262,12 @@ namespace vefs
 
             serialize_to_blob(serializationBuffer.subspan(sizeof(std::uint16_t)), descriptor);
 
-            OUTCOME_TRY(write_blocks(lookup->mIndexBlockPosition, serializationBuffer, true));
+            BOOST_OUTCOME_TRY(write_blocks(lookup->mIndexBlockPosition, serializationBuffer, true));
 
             lookup->mDirtyMetaData.unmark();
         }
 
-        OUTCOME_TRY(internal_file::sync());
+        BOOST_OUTCOME_TRY(internal_file::sync());
 
         return mDirtFlag.is_dirty();
     }
@@ -264,7 +278,7 @@ namespace vefs
         {
             if (auto fh = f.second->try_load())
             {
-                OUTCOME_TRY(file_lookup::deref(fh.assume_value())->sync());
+                BOOST_OUTCOME_TRY(file_lookup::deref(fh.assume_value())->sync());
             }
         }
 
@@ -334,7 +348,7 @@ namespace vefs
             const auto blockIdxOffset = it.position() * blocks_per_sector;
             utils::const_bitset_overlay allocMap{allocMapBlob};
 
-            for (auto i = 0; i < blocks_per_sector;)
+            for (auto i = 0u; i < blocks_per_sector;)
             {
                 const auto startBlock = static_cast<int>(blockIdxOffset + i);
 
@@ -444,7 +458,7 @@ namespace vefs
         -> result<std::tuple<int, ro_dynblob>>
     {
         const auto treePos = treepos_of(indexBlockPos);
-        OUTCOME_TRY(hSector, access(treePos));
+        BOOST_OUTCOME_TRY(hSector, access(treePos));
 
         auto localBlockPos = indexBlockPos % blocks_per_sector;
         auto writePos = alloc_map_size + static_cast<std::uint64_t>(localBlockPos) * block_size;

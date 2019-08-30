@@ -8,8 +8,27 @@
 #include <type_traits>
 
 #include <boost/predef/compiler.h>
+
+#if defined BOOST_COMP_MSVC_AVAILABLE
+#pragma warning(push, 3)
+#pragma warning(disable : 6246)
+#endif
+#if defined BOOST_COMP_GNUC_AVAILABLE || defined BOOST_COMP_CLANG_AVAILABLE
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wpotentially-evaluated-expression"
+#pragma GCC diagnostic ignored "-Wdelete-non-abstract-non-virtual-dtor"
+#pragma GCC diagnostic ignored "-Wunused-parameter"
+#endif
+
 #include <boost/exception/all.hpp>
 #include <boost/throw_exception.hpp>
+
+#if defined BOOST_COMP_GNUC_AVAILABLE || defined BOOST_COMP_CLANG_AVAILABLE
+#pragma GCC diagnostic pop
+#endif
+#if defined BOOST_COMP_MSVC_AVAILABLE
+#pragma warning(pop)
+#endif
 
 namespace vefs
 {

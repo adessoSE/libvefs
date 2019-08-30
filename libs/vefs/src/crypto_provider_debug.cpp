@@ -1,5 +1,4 @@
-#pragma once
-
+#include "precompiled.hpp"
 #include <vefs/crypto/provider.hpp>
 #include <vefs/utils/secure_ops.hpp>
 
@@ -46,10 +45,10 @@ namespace vefs::crypto::detail
 
         const auto hashLen = std::min(mac.size(), blake2b::digest_bytes);
         blake2b blakeCtx{};
-        OUTCOME_TRY(blakeCtx.init(hashLen, keyMaterial, vefs_blake2b_personalization_view));
+        BOOST_OUTCOME_TRY(blakeCtx.init(hashLen, keyMaterial, vefs_blake2b_personalization_view));
 
-        OUTCOME_TRY(blakeCtx.update(ciphertext));
-        OUTCOME_TRY(blakeCtx.final(mac.subspan(0, hashLen)));
+        BOOST_OUTCOME_TRY(blakeCtx.update(ciphertext));
+        BOOST_OUTCOME_TRY(blakeCtx.final(mac.subspan(0, hashLen)));
 
         if (mac.size() > blake2b::digest_bytes)
         {
@@ -67,16 +66,16 @@ namespace vefs::crypto::detail
 
         const auto hashLen = std::min(mac.size(), blake2b::digest_bytes);
         blake2b blakeCtx{};
-        OUTCOME_TRY(blakeCtx.init(hashLen, keyMaterial, vefs_blake2b_personalization_view));
+        BOOST_OUTCOME_TRY(blakeCtx.init(hashLen, keyMaterial, vefs_blake2b_personalization_view));
 
-        OUTCOME_TRY(blakeCtx.update(ciphertext));
+        BOOST_OUTCOME_TRY(blakeCtx.update(ciphertext));
 
         std::vector<std::byte> cpMacMem{mac.size(), std::byte{}};
         span cpMac{cpMacMem};
 
-        OUTCOME_TRY(blakeCtx.final(cpMac.subspan(0, hashLen)));
+        BOOST_OUTCOME_TRY(blakeCtx.final(cpMac.subspan(0, hashLen)));
 
-        OUTCOME_TRYA(cmp, ct_compare(cpMac, mac));
+        BOOST_OUTCOME_TRYA(cmp, ct_compare(cpMac, mac));
         if (cmp != 0)
         {
             utils::secure_memzero(plaintext);

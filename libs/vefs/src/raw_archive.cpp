@@ -7,6 +7,7 @@
 
 #include <boost/uuid/random_generator.hpp>
 
+#include <vefs/blob.hpp>
 #include <vefs/crypto/kdf.hpp>
 #include <vefs/detail/basic_archive_file_meta.hpp>
 #include <vefs/exceptions.hpp>
@@ -38,7 +39,8 @@ namespace vefs::detail
         template <std::size_t N>
         inline auto byte_literal(const char (&arr)[N]) noexcept
         {
-            return as_bytes(span(arr).first<N - 1>());
+            span literalMem{arr};
+            return as_bytes(literalMem.template first<N - 1>());
         }
 
         const auto archive_static_header_kdf_prk =
@@ -86,13 +88,13 @@ namespace vefs::detail
     result<void> vefs::detail::raw_archive::initialize_file(basic_archive_file_meta &file)
     {
         auto ctrValue = mArchiveSecretCounter.fetch_increment().value();
-        OUTCOME_TRY(crypto::kdf(as_span(file.secret), master_secret_view(), file_kdf_secret,
+        BOOST_OUTCOME_TRY(crypto::kdf(as_span(file.secret), master_secret_view(), file_kdf_secret,
                                 ctrValue, session_salt_view()));
 
         {
             crypto::counter::state fileWriteCtrState;
             ctrValue = mArchiveSecretCounter.fetch_increment().value();
-            OUTCOME_TRY(crypto::kdf(as_writable_bytes(as_span(fileWriteCtrState)),
+            BOOST_OUTCOME_TRY(crypto::kdf(as_writable_bytes(as_span(fileWriteCtrState)),
                                     master_secret_view(), file_kdf_counter, ctrValue));
             file.write_counter.store(crypto::counter{fileWriteCtrState});
         }
@@ -123,7 +125,7 @@ namespace vefs::detail
 
         file.id = file_id{generate_fileid()};
 
-        OUTCOME_TRY(initialize_file(file));
+        BOOST_OUTCOME_TRY(initialize_file(file));
 
         return std::move(file);
     }
@@ -137,7 +139,7 @@ namespace vefs::detail
         mNumSectors = mArchiveFile->size() / sector_size;
     }
 
-    auto raw_archive::open(filesystem::ptr fs, std::string_view path,
+    auto raw_archive::open(filesystem::ptr fs, const std::filesystem::path &path,
                            crypto::crypto_provider *cryptoProvider, ro_blob<32> userPRK,
                            file_open_mode_bitset openMode) -> result<std::unique_ptr<raw_archive>>
     {
@@ -165,20 +167,20 @@ namespace vefs::detail
 
         if (create)
         {
-            OUTCOME_TRY(archive->resize(1));
+            BOOST_OUTCOME_TRY(archive->resize(1));
 
-            OUTCOME_TRY(cryptoProvider->random_bytes(as_span(archive->mArchiveMasterSecret)));
-            OUTCOME_TRY(cryptoProvider->random_bytes(as_span(archive->mStaticHeaderWriteCounter)));
+            BOOST_OUTCOME_TRY(cryptoProvider->random_bytes(as_span(archive->mArchiveMasterSecret)));
+            BOOST_OUTCOME_TRY(cryptoProvider->random_bytes(as_span(archive->mStaticHeaderWriteCounter)));
 
-            OUTCOME_TRY(archive->write_static_archive_header(userPRK));
+            BOOST_OUTCOME_TRY(archive->write_static_archive_header(userPRK));
 
             archive->mFreeBlockIdx = std::make_unique<basic_archive_file_meta>();
             archive->mFreeBlockIdx->id = file_id::free_block_index;
-            OUTCOME_TRY(archive->initialize_file(*archive->mFreeBlockIdx));
+            BOOST_OUTCOME_TRY(archive->initialize_file(*archive->mFreeBlockIdx));
 
             archive->mArchiveIdx = std::make_unique<basic_archive_file_meta>();
             archive->mArchiveIdx->id = file_id::archive_index;
-            OUTCOME_TRY(archive->initialize_file(*archive->mArchiveIdx));
+            BOOST_OUTCOME_TRY(archive->initialize_file(*archive->mArchiveIdx));
         }
         else if (archive->size() < 1)
         {
@@ -247,7 +249,7 @@ namespace vefs::detail
         }
 
         secure_byte_array<44> keyNonce;
-        OUTCOME_TRY(crypto::kdf(as_span(keyNonce), userPRK, archivePrefix.static_header_salt));
+        BOOST_OUTCOME_TRY(crypto::kdf(as_span(keyNonce), userPRK, archivePrefix.static_header_salt));
 
         if (auto rx = mCryptoProvider->box_open(staticHeader, as_span(keyNonce), staticHeader,
                                                 span(archivePrefix.static_header_mac));
@@ -310,12 +312,12 @@ namespace vefs::detail
             reinterpret_cast<ArchiveHeaderPrefix *>(headerAndPaddingMem.data());
 
         secure_byte_array<44> headerKeyNonce;
-        OUTCOME_TRY(crypto::kdf(as_span(headerKeyNonce), master_secret_view(),
+        BOOST_OUTCOME_TRY(crypto::kdf(as_span(headerKeyNonce), master_secret_view(),
                                 archive_header_kdf_prk, archiveHeaderPrefix->header_salt));
 
         auto encryptedHeaderPart =
             headerAndPadding.subspan(ArchiveHeaderPrefix::unencrypted_prefix_size);
-        OUTCOME_TRY(mCryptoProvider->box_open(encryptedHeaderPart, as_span(headerKeyNonce),
+        BOOST_OUTCOME_TRY(mCryptoProvider->box_open(encryptedHeaderPart, as_span(headerKeyNonce),
                                               encryptedHeaderPart,
                                               span(archiveHeaderPrefix->header_mac)));
 
@@ -375,7 +377,7 @@ namespace vefs::detail
         // determine which header to apply
         if (firstParseResult && secondParseResult)
         {
-            OUTCOME_TRY(cmp,
+            BOOST_OUTCOME_TRY(cmp,
                         mCryptoProvider->ct_compare(as_bytes(span(first.archivesecretcounter())),
                                                     as_bytes(span(second.archivesecretcounter()))));
             if (0 == cmp)
@@ -436,7 +438,7 @@ namespace vefs::detail
             std::string{reinterpret_cast<char *>(mStaticHeaderWriteCounter.data()),
                         mStaticHeaderWriteCounter.size()});
 
-        OUTCOME_TRY(crypto::kdf(span(headerPrefix.static_header_salt),
+        BOOST_OUTCOME_TRY(crypto::kdf(span(headerPrefix.static_header_salt),
                                 as_span(mStaticHeaderWriteCounter), archive_static_header_kdf_salt,
                                 session_salt_view()));
 
@@ -453,9 +455,9 @@ namespace vefs::detail
         }
 
         secure_byte_array<44> key;
-        OUTCOME_TRY(crypto::kdf(as_span(key), userPRK, headerPrefix.static_header_salt));
+        BOOST_OUTCOME_TRY(crypto::kdf(as_span(key), userPRK, headerPrefix.static_header_salt));
 
-        OUTCOME_TRY(mCryptoProvider->box_seal(msg, span{headerPrefix.static_header_mac},
+        BOOST_OUTCOME_TRY(mCryptoProvider->box_seal(msg, span{headerPrefix.static_header_mac},
                                               as_span(key), msg));
 
         std::error_code scode;
@@ -502,7 +504,7 @@ namespace vefs::detail
         }
 
         secure_byte_array<44> sectorKeyNonce;
-        OUTCOME_TRY(
+        BOOST_OUTCOME_TRY(
             crypto::kdf(as_span(sectorKeyNonce), file.secret_view(), sector_kdf_prk, sectorSalt));
 
         if (auto decrx =
@@ -539,10 +541,10 @@ namespace vefs::detail
 
         std::array<std::byte, 32> salt;
         auto nonce = file.write_counter.fetch_increment();
-        OUTCOME_TRY(crypto::kdf(span(salt), nonce.view(), sector_kdf_salt, mSessionSalt));
+        BOOST_OUTCOME_TRY(crypto::kdf(span(salt), nonce.view(), sector_kdf_salt, mSessionSalt));
 
         secure_byte_array<44> sectorKeyNonce;
-        OUTCOME_TRY(crypto::kdf(as_span(sectorKeyNonce), file.secret_view(), sector_kdf_prk, salt));
+        BOOST_OUTCOME_TRY(crypto::kdf(as_span(sectorKeyNonce), file.secret_view(), sector_kdf_prk, salt));
 
         VEFS_TRY_INJECT(
             mCryptoProvider->box_seal(ciphertextBuffer, mac, as_span(sectorKeyNonce), data),
@@ -575,7 +577,7 @@ namespace vefs::detail
         span salt{saltBuffer};
 
         auto nonce = file.write_counter.fetch_increment();
-        OUTCOME_TRY(crypto::kdf(salt, nonce.view(), sector_kdf_erase, mSessionSalt));
+        BOOST_OUTCOME_TRY(crypto::kdf(salt, nonce.view(), sector_kdf_erase, mSessionSalt));
 
         const auto offset = to_offset(sectorIdx);
         std::error_code scode;
@@ -624,11 +626,11 @@ namespace vefs::detail
             return archive_errc::protobuf_serialization_failed;
         }
 
-        OUTCOME_TRY(crypto::kdf(span{prefix->header_salt}, as_bytes(as_span(secretCtr)),
+        BOOST_OUTCOME_TRY(crypto::kdf(span{prefix->header_salt}, as_bytes(as_span(secretCtr)),
                                 archive_header_kdf_salt, mSessionSalt));
 
         secure_byte_array<44> headerKeyNonce;
-        OUTCOME_TRY(crypto::kdf(as_span(headerKeyNonce), master_secret_view(),
+        BOOST_OUTCOME_TRY(crypto::kdf(as_span(headerKeyNonce), master_secret_view(),
                                 archive_header_kdf_prk, prefix->header_salt));
 
         auto encryptedHeader = span{headerMem}.subspan(prefix->unencrypted_prefix_size);
@@ -647,7 +649,7 @@ namespace vefs::detail
 
     result<void> vefs::detail::raw_archive::update_static_header(ro_blob<32> newUserPRK)
     {
-        OUTCOME_TRY(write_static_archive_header(newUserPRK));
+        BOOST_OUTCOME_TRY(write_static_archive_header(newUserPRK));
 
         // we only need to update one of the two headers as the format is robust enough to
         // deal with the probably corrupt other header

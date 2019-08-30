@@ -4,8 +4,8 @@
 #include <cstdint>
 
 #include <memory>
+#include <filesystem>
 #include <future>
-#include <string_view>
 #include <system_error>
 
 #include <vefs/blob.hpp>
@@ -64,11 +64,11 @@ namespace vefs
 
         virtual ~filesystem() = default;
 
-        virtual file::ptr open(std::string_view filePath, file_open_mode_bitset mode);
-        virtual file::ptr open(std::string_view filePath, file_open_mode_bitset mode,
+        virtual file::ptr open(const std::filesystem::path &filePath, file_open_mode_bitset mode);
+        virtual file::ptr open(const std::filesystem::path &filePath, file_open_mode_bitset mode,
             std::error_code &ec) = 0;
 
-        virtual void remove(std::string_view filePath) = 0;
+        virtual void remove(const std::filesystem::path &filePath) = 0;
     };
 
     filesystem::ptr os_filesystem();

@@ -30,7 +30,7 @@ namespace vefs::detail::lut::detail
         std::array<std::uint64_t, max_tree_depth + 2> lut{};
         lut[0] = 1;
         lut[1] = raw_archive::sector_payload_size;
-        for (auto i = 2; i < lut.size(); ++i)
+        for (std::size_t i = 2; i < lut.size(); ++i)
         {
             lut[i] = lut[i - 1] * references_per_sector;
         }
@@ -46,7 +46,7 @@ namespace vefs::detail::lut::detail
         // one is tree depth 0
         std::array<std::uint64_t, max_tree_depth + 1> lut{};
         lut[0] = 1;
-        for (auto i = 1; i < lut.size(); ++i)
+        for (std::size_t i = 1; i < lut.size(); ++i)
         {
             lut[i] = lut[i - 1] * references_per_sector;
         }

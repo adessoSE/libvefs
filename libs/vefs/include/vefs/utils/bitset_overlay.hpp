@@ -17,7 +17,7 @@ namespace vefs::utils
     namespace bitset_ops
     {
         template <typename Unit>
-        inline std::tuple<std::size_t, Unit> offset_and_mask_of(std::size_t bitpos)
+        constexpr std::tuple<std::size_t, Unit> offset_and_mask_of(std::size_t bitpos)
         {
             static_assert(std::is_unsigned_v<Unit>);
 
@@ -71,7 +71,6 @@ namespace vefs::utils
         template <typename Unit>
         inline void set_n(Unit *begin, const std::size_t numBits)
         {
-            using limits = std::numeric_limits<Unit>;
             using byte_limits = std::numeric_limits<std::uint8_t>;
 
             const auto dist = numBits / byte_limits::digits;
