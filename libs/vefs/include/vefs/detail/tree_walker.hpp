@@ -118,7 +118,7 @@ namespace vefs::detail
         /**
          * calculate the waypoint offset and absolute value dependent on the layer where it is in and the position 
          */
-        BOOST_FORCEINLINE void calc_waypoint_params(waypoint &target_waypoint, int layer, int pos);
+        BOOST_FORCEINLINE auto calc_waypoint_params(int layer, std::uint64_t pos) -> waypoint;
 
         template <int layer>
         void init(std::uint64_t pos) noexcept;
@@ -276,10 +276,11 @@ namespace vefs::detail
     {
     }
 
-    inline void tree_path::calc_waypoint_params(waypoint &target_waypoint, int layer, int pos)
+    BOOST_FORCEINLINE auto tree_path::calc_waypoint_params(int layer, std::uint64_t pos) -> waypoint
     {
-        target_waypoint.absolute = pos / lut::ref_width[layer];
-        target_waypoint.offset = target_waypoint.absolute % lut::references_per_sector;
+        const auto absolute = pos / lut::ref_width[layer];
+        const int offset = absolute % lut::references_per_sector;
+        return {absolute, offset};
     }
 
     template <int layer>
@@ -296,29 +297,29 @@ namespace vefs::detail
         switch (mTreeDepth)
         {
         case 5:
-            calc_waypoint_params(mTreePath[4], 4 - layer, pos);
+            mTreePath[4] = calc_waypoint_params(4 - layer, pos);
         case 4:
             if constexpr (layer < 4)
             {
-                calc_waypoint_params(mTreePath[3], 3 - layer, pos);
+                mTreePath[3] = calc_waypoint_params(3 - layer, pos);
             }
 
         case 3:
             if constexpr (layer < 3)
             {
-                calc_waypoint_params(mTreePath[2], 2 - layer, pos);
+                mTreePath[2] = calc_waypoint_params(2 - layer, pos);
             }
 
         case 2:
             if constexpr (layer < 2)
             {
-                calc_waypoint_params(mTreePath[1], 1 - layer, pos);
+                mTreePath[1] = calc_waypoint_params(1 - layer, pos);
             }
 
         case 1:
             if constexpr (layer < 1)
             {
-                calc_waypoint_params(mTreePath[0], 0, pos);
+                mTreePath[0] = calc_waypoint_params(0, pos);
             }
 
         case 0:
