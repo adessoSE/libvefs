@@ -26,14 +26,14 @@ BOOST_AUTO_TEST_CASE(tree_position_only_considers_56_position_bits)
     vefs::detail::tree_position test_subject =
         vefs::detail::tree_position(position_inside_layer, 0xf6);
 
-    BOOST_TEST(test_subject.raw() == (0xf622334455667788));
+    BOOST_TEST(test_subject.raw() == (0xf622334455667788u));
 }
 
 BOOST_AUTO_TEST_CASE(tree_position_init_with_max_value)
 {
     vefs::detail::tree_position test_subject = vefs::detail::tree_position();
 
-    BOOST_TEST(test_subject.raw() == 0xffffffffffffffff);
+    BOOST_TEST(test_subject.raw() == 0xffffffffffffffffu);
 }
 
 BOOST_AUTO_TEST_CASE(tree_position_sets_new_layer)
@@ -42,7 +42,7 @@ BOOST_AUTO_TEST_CASE(tree_position_sets_new_layer)
 
     test_subject.layer(0xab);
 
-    BOOST_TEST(test_subject.raw() == 0xab0000000000000f);
+    BOOST_TEST(test_subject.raw() == 0xab0000000000000fu);
 }
 
 BOOST_AUTO_TEST_CASE(position_returns_position_potion_of_position)
@@ -51,16 +51,16 @@ BOOST_AUTO_TEST_CASE(position_returns_position_potion_of_position)
 
     auto result = test_subject.position();
 
-    BOOST_TEST(result == 0xaf);
+    BOOST_TEST(result == 0xafu);
 }
 
 BOOST_AUTO_TEST_CASE(tree_position_sets_new_position)
 {
     vefs::detail::tree_position test_subject = vefs::detail::tree_position(0xf, 0xf6);
 
-    test_subject.position(0xab);
+    test_subject.position(0xabu);
 
-    BOOST_TEST(test_subject.raw() == 0xf6000000000000ab);
+    BOOST_TEST(test_subject.raw() == 0xf6000000000000abu);
 }
 
 BOOST_AUTO_TEST_CASE(parent_returns_position_of_parent)
@@ -70,7 +70,7 @@ BOOST_AUTO_TEST_CASE(parent_returns_position_of_parent)
     auto result = test_subject.parent();
 
     BOOST_TEST(result.layer() == 0xf7);
-    BOOST_TEST(result.position() == 5);
+    BOOST_TEST(result.position() == 5u);
 }
 
 BOOST_AUTO_TEST_CASE(parent_array_offset)
@@ -105,11 +105,11 @@ BOOST_AUTO_TEST_CASE(tree_path_init_for_depth_and_layer_zero)
     vefs::detail::tree_position position = vefs::detail::tree_position(2, 0);
     vefs::detail::tree_path test_subject = vefs::detail::tree_path(0, position);
 
-    BOOST_TEST(test_subject.position(0) == 0);
-    BOOST_TEST(test_subject.position(1) == 0xffffffffffffffff);
-    BOOST_TEST(test_subject.position(2) == 0xffffffffffffffff);
-    BOOST_TEST(test_subject.position(3) == 0xffffffffffffffff);
-    BOOST_TEST(test_subject.position(4) == 0xffffffffffffffff);
+    BOOST_TEST(test_subject.position(0) == 0u);
+    BOOST_TEST(test_subject.position(1) == 0xffffffffffffffffu);
+    BOOST_TEST(test_subject.position(2) == 0xffffffffffffffffu);
+    BOOST_TEST(test_subject.position(3) == 0xffffffffffffffffu);
+    BOOST_TEST(test_subject.position(4) == 0xffffffffffffffffu);
 
     BOOST_TEST(test_subject.offset(0) == 0);
     BOOST_TEST(test_subject.offset(1) == 0x7fffffff);
@@ -124,11 +124,11 @@ BOOST_AUTO_TEST_CASE(tree_path_init_for_depth_and_layer_1)
     vefs::detail::tree_position position = vefs::detail::tree_position(2, 1);
     vefs::detail::tree_path test_subject = vefs::detail::tree_path(1, position);
 
-    BOOST_TEST(test_subject.position(0) == 0xffffffffffffffff);
-    BOOST_TEST(test_subject.position(1) == 0);
-    BOOST_TEST(test_subject.position(2) == 0xffffffffffffffff);
-    BOOST_TEST(test_subject.position(3) == 0xffffffffffffffff);
-    BOOST_TEST(test_subject.position(4) == 0xffffffffffffffff);
+    BOOST_TEST(test_subject.position(0) == 0xffffffffffffffffu);
+    BOOST_TEST(test_subject.position(1) == 0u);
+    BOOST_TEST(test_subject.position(2) == 0xffffffffffffffffu);
+    BOOST_TEST(test_subject.position(3) == 0xffffffffffffffffu);
+    BOOST_TEST(test_subject.position(4) == 0xffffffffffffffffu);
 
     BOOST_TEST(test_subject.offset(0) == 0x7fffffff);
     BOOST_TEST(test_subject.offset(1) == 0);
@@ -142,11 +142,11 @@ BOOST_AUTO_TEST_CASE(tree_path_for_depth_1_layer_4_position_9)
     vefs::detail::tree_position position = vefs::detail::tree_position(9, 4);
     vefs::detail::tree_path test_subject = vefs::detail::tree_path(5, position);
 
-    BOOST_TEST(test_subject.position(0) == 0xffffffffffffffff);
-    BOOST_TEST(test_subject.position(1) == 0xffffffffffffffff);
-    BOOST_TEST(test_subject.position(2) == 0xffffffffffffffff);
-    BOOST_TEST(test_subject.position(3) == 0xffffffffffffffff);
-    BOOST_TEST(test_subject.position(4) == 9);
+    BOOST_TEST(test_subject.position(0) == 0xffffffffffffffffu);
+    BOOST_TEST(test_subject.position(1) == 0xffffffffffffffffu);
+    BOOST_TEST(test_subject.position(2) == 0xffffffffffffffffu);
+    BOOST_TEST(test_subject.position(3) == 0xffffffffffffffffu);
+    BOOST_TEST(test_subject.position(4) == 9u);
 
     BOOST_TEST(test_subject.offset(0) == 0x7fffffff);
     BOOST_TEST(test_subject.offset(1) == 0x7fffffff);
@@ -160,11 +160,11 @@ BOOST_AUTO_TEST_CASE(tree_path_for_depth_5_layer_2_position_9)
     vefs::detail::tree_position position = vefs::detail::tree_position(9, 2);
     vefs::detail::tree_path test_subject = vefs::detail::tree_path(5, position);
 
-    BOOST_TEST(test_subject.position(0) == 0xffffffffffffffff);
-    BOOST_TEST(test_subject.position(1) == 0xffffffffffffffff);
-    BOOST_TEST(test_subject.position(2) == 9);
-    BOOST_TEST(test_subject.position(3) == 0);
-    BOOST_TEST(test_subject.position(4) == 0);
+    BOOST_TEST(test_subject.position(0) == 0xffffffffffffffffu);
+    BOOST_TEST(test_subject.position(1) == 0xffffffffffffffffu);
+    BOOST_TEST(test_subject.position(2) == 9u);
+    BOOST_TEST(test_subject.position(3) == 0u);
+    BOOST_TEST(test_subject.position(4) == 0u);
 
     BOOST_TEST(test_subject.offset(0) == 0x7fffffff);
     BOOST_TEST(test_subject.offset(1) == 0x7fffffff);
@@ -181,7 +181,7 @@ BOOST_AUTO_TEST_CASE(iterator_test_begin)
     auto iter = test_subject.begin();
 
     BOOST_TEST(5 == iter->layer());
-    BOOST_TEST(0 == iter->position());
+    BOOST_TEST(0u == iter->position());
     
 }
 
@@ -192,9 +192,9 @@ BOOST_AUTO_TEST_CASE(iterator_test_next_in_the_middle_of_path)
 
     auto path = test_subject.next();
 
-    BOOST_TEST(0 == path.position(3));
-    BOOST_TEST(10 == path.position(2));
-    BOOST_TEST(0xffffffffffffffff == path.position(1));
+    BOOST_TEST(0u == path.position(3));
+    BOOST_TEST(10u == path.position(2));
+    BOOST_TEST(0xffffffffffffffffu == path.position(1));
 }
 
 BOOST_AUTO_TEST_CASE(iterator_test_previous_in_the_middle_of_path)
@@ -204,9 +204,9 @@ BOOST_AUTO_TEST_CASE(iterator_test_previous_in_the_middle_of_path)
 
     auto path = test_subject.previous();
 
-    BOOST_TEST(0 == path.position(3));
-    BOOST_TEST(8 == path.position(2));
-    BOOST_TEST(0xffffffffffffffff == path.position(1));
+    BOOST_TEST(0u == path.position(3));
+    BOOST_TEST(8u == path.position(2));
+    BOOST_TEST(0xffffffffffffffffu == path.position(1));
 }
 
 BOOST_AUTO_TEST_CASE(iterator_test_previous_in_beginning_of_layer)
@@ -216,9 +216,9 @@ BOOST_AUTO_TEST_CASE(iterator_test_previous_in_beginning_of_layer)
 
     auto path = test_subject.previous();
 
-    BOOST_TEST(0 == path.position(3));
-    BOOST_TEST(0xffffffffffffffff == path.position(2));
-    BOOST_TEST(0xffffffffffffffff == path.position(1));
+    BOOST_TEST(0u == path.position(3));
+    BOOST_TEST(0xffffffffffffffffu == path.position(2));
+    BOOST_TEST(0xffffffffffffffffu == path.position(1));
 }
 
 BOOST_AUTO_TEST_CASE(iterator_test_end)
@@ -228,7 +228,7 @@ BOOST_AUTO_TEST_CASE(iterator_test_end)
 
     auto path_iter = test_subject.end();
     BOOST_TEST(1 == path_iter->layer());
-    BOOST_TEST(0xffffffffffffff == path_iter->position());
+    BOOST_TEST(0xffffffffffffffu == path_iter->position());
 }
 
 

@@ -7,28 +7,28 @@ BOOST_AUTO_TEST_CASE(init_step_is_one)
 {
     auto width = vefs::detail::lut::detail::compute_step_width_lut();
 
-    BOOST_TEST(width[0] == 1);
+    BOOST_TEST(width[0] == 1u);
 }
 
 BOOST_AUTO_TEST_CASE(tree_ref_width_lut)
 {
     auto width = vefs::detail::lut::detail::compute_ref_width_lut();
 
-    BOOST_TEST(width[0] == 1);
+    BOOST_TEST(width[0] == 1u);
 }
 
 BOOST_AUTO_TEST_CASE(calculate_sector_pos_for_byte_in_sector_five)
 {
     auto sector_position = vefs::detail::lut::sector_position_of(5 * 32702);
 
-    BOOST_TEST(sector_position == 4);
+    BOOST_TEST(sector_position == 4u);
 }
 
 BOOST_AUTO_TEST_CASE(calculate_sector_pos_for_byte_in_sector_three)
 {
     auto sector_position = vefs::detail::lut::sector_position_of(3 * 32702);
 
-    BOOST_TEST(sector_position == 2);
+    BOOST_TEST(sector_position == 2u);
 }
 
 BOOST_AUTO_TEST_CASE(required_tree_depth_for_sector_pos_5_is_1)

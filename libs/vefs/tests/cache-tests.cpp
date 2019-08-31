@@ -134,10 +134,10 @@ BOOST_AUTO_TEST_CASE(cache_fill)
 
     for (std::size_t i = 0; i < max_entries; ++i)
     {
-        (void)cx->access(i, i, 0u, nullptr);
+        (void)cx->access(i, static_cast<int>(i), 0, nullptr);
     }
     (void)cx->try_access(0); // second chance
-    (void)cx->access(max_entries, max_entries, 0, nullptr);
+    (void)cx->access(max_entries, static_cast<int>(max_entries), 0, nullptr);
     BOOST_TEST(cx->try_access(0));
     BOOST_TEST(!cx->try_access(1));
 }

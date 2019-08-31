@@ -389,12 +389,9 @@ namespace fmt
     template<>
     class formatter<vefs::error>
     {
-        using buffer = internal::buffer;
-
     public:
         template <typename ParseContext>
         constexpr auto parse(ParseContext &ctx)
-            -> const char *
         {
             constexpr auto errfmt = "invalid error_info formatter";
 
@@ -466,7 +463,6 @@ namespace fmt
 
         template <typename FormatContext>
         auto format(const vefs::error &info, FormatContext &ctx)
-            -> decltype(ctx.out())
         {
             auto str = info.diagnostic_information(error_format);
             return std::copy(str.cbegin(), str.cend(), ctx.out());
