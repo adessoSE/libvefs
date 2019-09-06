@@ -13,12 +13,12 @@ BOOST_AUTO_TEST_CASE(random_call)
 {
     vefs::crypto::crypto_provider *test_subject =
         &vefs::crypto::detail::boringssl_aes_256_gcm_provider();
-    std::byte randomState =  std::byte(0x00);
-    auto random_bytes = vefs::rw_dynblob(&randomState, 1);
-    
-    auto random_result = test_subject->random_bytes(random_bytes);
 
-    BOOST_TEST(random_bytes.data());
+    std::array<std::byte, 16> random_bytes;
+
+    auto random_span = vefs::span(random_bytes);
+
+    BOOST_TEST(random_span.data());
 }
 
 BOOST_AUTO_TEST_CASE(boringssl_encrypts_end_decrypts_plaintext_to_same_value)
