@@ -38,11 +38,13 @@ BOOST_AUTO_TEST_CASE(boringssl_encrypts_end_decrypts_plaintext_to_same_value)
     vefs::fill_blob(mac_span, std::byte{0xcc});
     vefs::fill_blob(msg_span, std::byte{0xaa});
 
-    auto result = test_subject->box_seal(msg_span, mac_span, key_span, msg_span);
-    auto seal_result = test_subject->box_open(msg_span, key_span, msg_span, mac_span);
+    auto seal_result = test_subject->box_seal(msg_span, mac_span, key_span, msg_span);
+    auto open_result = test_subject->box_open(msg_span, key_span, msg_span, mac_span);
 
     auto plain_byte = 0xaa;
 
+    BOOST_TEST(!seal_result.has_error());
+    BOOST_TEST(!open_result.has_error());
     BOOST_TEST(int(msg[0]) == plain_byte);
     BOOST_TEST(int(msg[1]) == plain_byte);
     BOOST_TEST(int(msg[2]) == plain_byte);
@@ -70,6 +72,7 @@ BOOST_AUTO_TEST_CASE(boringssl_decrypts_returns_error_if_mac_is_18_bytes_long)
     auto seal_result = test_subject->box_seal(msg_span, mac_span, key_span, msg_span);
     auto open_result = test_subject->box_open(msg_span, key_span, msg_span, mac_span);
 
+    BOOST_TEST(!seal_result.has_error());
     BOOST_TEST(open_result.has_error());
     BOOST_TEST(open_result.error().code() == 5);
 }
