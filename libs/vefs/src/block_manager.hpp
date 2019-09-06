@@ -2,385 +2,622 @@
 
 #include <cstdint>
 
-#include <map>
-#include <vector>
-#include <optional>
+#include <algorithm>
+#include <memory_resource>
+#include <numeric>
+#include <utility>
 
-#include <vefs/exceptions.hpp>
-#include <vefs/utils/misc.hpp>
+#include <boost/intrusive/avl_set.hpp>
+
+#include <vefs/disappointment.hpp>
 #include <vefs/utils/bitset_overlay.hpp>
+#include <vefs/utils/misc.hpp>
 
 namespace vefs::utils
 {
+    /**
+     * Represents a contiguous numeric id range as [firstId, lastId]
+     */
+    template <typename IdType>
+    class id_range final
+        : public boost::intrusive::avl_set_base_hook<boost::intrusive::optimize_size<true>>
+    {
+        template <typename T>
+        static constexpr auto xderive_type(T) noexcept
+        {
+            if constexpr (std::is_enum_v<T>)
+            {
+                return std::underlying_type_t<T>{};
+            }
+            else
+            {
+                return T{};
+            }
+        }
+
+    public:
+        /**
+         * the id type used in the public interface
+         */
+        using id_type = IdType;
+        /**
+         * the type used for computations; either the id_type itself or its std::underlying_type if
+         * id_type is an enum.
+         */
+        using underlying_type = decltype(xderive_type(id_type{}));
+        /**
+         * the type used for representing the distance between two ids
+         */
+        using difference_type = std::make_signed_t<underlying_type>;
+
+        // [first, last]
+        id_range(id_type first, id_type last) noexcept;
+
+        /**
+         * computes id + num in a type safe fashion (i.e. accounts for enum types)
+         */
+        static auto advance(id_type id, difference_type num) noexcept -> id_type;
+        /**
+         * computes to - from in a typesafe fashion (i.e. accounts for enum types)
+         */
+        static auto distance(id_type from, id_type to) noexcept -> difference_type;
+
+        /**
+         * the identifier used for ordering id_ranges
+         */
+        auto id() const noexcept -> id_type;
+        /**
+         * the first id within the range
+         */
+        auto first() const noexcept -> id_type;
+        /**
+         * the last id within the range
+         */
+        auto last() const noexcept -> id_type;
+
+        /**
+         * returns the first id from the range and removes it from the range
+         *
+         * \precondition !empty()
+         */
+        auto pop_front() noexcept -> id_type;
+        /**
+         * returns the first id from the range and removes num ids from the front of the range
+         * effectively allocating a contiguous range
+         *
+         * \precondition size() >= num
+         */
+        auto pop_front(std::size_t num) noexcept -> id_type;
+        /**
+         * fills the ids span with as many ids as possible and removes the used ids from the range
+         */
+        auto pop_front(span<id_type> ids) noexcept -> std::size_t;
+        /**
+         * removes num ids from the back of the range and returns the smallest removed id,
+         * effectively allocating a contiguous range starting at the returned id
+         */
+        auto pop_back(std::size_t num) noexcept -> id_type;
+
+        /**
+         * prepends num ids to the range
+         */
+        void prepend(std::size_t num) noexcept;
+        /**
+         * appends num ids to the range
+         */
+        void append(std::size_t num) noexcept;
+
+        auto empty() noexcept -> bool;
+        auto size() const noexcept -> std::size_t;
+
+        /**
+         * returns true if this range is immediately preceeding the given id
+         */
+        auto is_predecessor_of(id_type id) const noexcept -> bool;
+        /**
+         * returns true if this range is immediately succeeding the given id
+         */
+        auto is_successor_of(id_type id) const noexcept -> bool;
+
+    private:
+        underlying_type mFirstId;
+        underlying_type mLastId;
+    };      
+
+    /**
+     * \private
+     */
+    template <typename IdType>
+    struct block_range_key_accessor final
+    {
+        using range_type = id_range<IdType>;
+        using type = typename range_type::id_type;
+
+        inline auto operator()(const range_type &self) -> type
+        {
+            return self.id();
+        }
+    };
+
+    /**
+     * manages id allocations by tracking unallocated id ranges
+     */
     template <typename IdType>
     class block_manager
     {
     public:
+        /**
+         * the id type used in the public interface
+         */
         using id_type = IdType;
-        using block_map = std::map<id_type, std::uint64_t>;
-
-        auto alloc_one() -> std::optional<id_type>;
-        auto alloc_multiple(std::uint64_t num) -> std::optional<std::vector<id_type>>;
-
-        auto alloc_consecutive(std::uint64_t num)
-            -> std::optional<id_type>;
-        // [begin, end] -> [begin, end + numRequested] | [begin - numRequested, end]
-        auto try_extend(id_type begin, id_type end, std::uint64_t numRequested) -> int;
-
-        void dealloc(id_type one);
-        void dealloc(std::vector<id_type> blocks);
-        void dealloc(id_type first, std::uint64_t num);
-
-        void write_to_bitset(bitset_overlay data, const IdType begin,
-            const std::size_t num) const;
 
     private:
-        void dealloc_range(id_type rLastId, std::uint64_t rNumPrev);
-        void remove_from(typename block_map::iterator where, std::uint64_t offset);
+        using range_type = id_range<id_type>;
+        using allocator_type = std::pmr::polymorphic_allocator<range_type>;
+        using allocator_traits = std::allocator_traits<allocator_type>;
 
-        block_map mFreeMap;
+        using block_set = boost::intrusive::avl_set<
+            range_type, boost::intrusive::key_of_value<block_range_key_accessor<id_type>>>;
+
+    public:
+        block_manager();
+        ~block_manager();
+
+        /**
+         * allocates the first available block 
+         *
+         * \returns errc::resource_exhausted if none are available
+         */
+        auto alloc_one() noexcept -> result<id_type>;
+        /**
+         * allocates many blocks and stores their id in the ids parameter
+         *
+         * \returns the number of successful allocations or errc::resource_exhausted
+         */
+        auto alloc_multiple(span<id_type> ids) noexcept -> result<std::size_t>;
+        /**
+         * allocates num contiguous blocks
+         *
+         * \returns the start id or errc::resource_exhausted
+         */
+        auto alloc_contiguous(const std::size_t num) noexcept -> result<id_type>;
+
+        /**
+         * tries to extend the contiguous block range represented by [begin, end] by num additional
+         * blocks.
+         *
+         * \returns the new begin id or errc::resource_exhausted if the request couldn't be served
+         */
+        auto extend(const id_type begin, const id_type end, const std::uint64_t num) noexcept
+            -> result<id_type>;
+
+        /**
+         * adds a block to the block pool
+         *
+         * \returns errc::not_enough_memory if a new node couldn't be allocated
+         */
+        auto dealloc_one(const id_type which) noexcept -> result<void>;
+        /**
+         * adds a contiguous block range [begin, begin + num) to the block pool
+         */
+        auto dealloc_contiguous(const id_type begin, const std::size_t num) noexcept
+            -> result<void>;
+
+        /**
+         * serializes the state within the range [begin, begin + num) to the given bitset 
+         */
+        void write_to_bitset(bitset_overlay data, const IdType begin, const std::size_t num) const
+            noexcept;
+        /**
+         * deserializes the state from the given bitset into the range [begin, begin + num)
+         *
+         * \returns errc::not_enough_memory if not enough memory could be allocated
+         */
+        auto parse_bitset(const const_bitset_overlay data, const IdType begin,
+                          const std::size_t num) noexcept -> result<void>;
+
+        /**
+         * removes all blocks from the pool
+         */
+        void clear() noexcept;
+
+    private:
+        void dispose(typename block_set::const_iterator cit) noexcept;
+        void dispose(typename block_set::const_iterator cbegin,
+                     typename block_set::const_iterator cend) noexcept;
+
+        block_set mFreeBlocks;
+        std::unique_ptr<std::pmr::unsynchronized_pool_resource> mNodePool;
+        allocator_type mAllocator;
     };
 
+#pragma region id_range implementation
 
     template <typename IdType>
-    inline void parse_bitset(const IdType begin, const const_bitset_overlay data,
-        const std::size_t num, block_manager<IdType> &target)
+    inline id_range<IdType>::id_range(id_type first, id_type last) noexcept
+        : mFirstId(static_cast<underlying_type>(first))
+        , mLastId(static_cast<underlying_type>(last))
     {
-        auto current = begin;
-        std::uint64_t num = 0;
-        for (auto i = 0; i < num; ++i)
-        {
-            if (data[i])
-            {
-                if (num == 0)
-                {
-                    current = begin + i;
-                }
-                num += 1;
-            }
-            else if (num != 0)
-            {
-                target.dealloc(current, num);
-                num = 0;
-            }
-        }
-
-        if (num != 0)
-        {
-            target.dealloc(current, num);
-        }
     }
 
     template <typename IdType>
-    inline void block_manager<IdType>::write_to_bitset(bitset_overlay data, const IdType begin,
-        const std::size_t num) const
+    inline auto id_range<IdType>::advance(id_type id, difference_type num) noexcept -> id_type
     {
-        data.set_n(num);
-
-        // [begin, end]
-        const auto end = begin + num - 1;
-
-        auto it = mFreeMap.lower_bound(begin);
-        if (it == mFreeMap.end())
-        {
-            return;
-        }
-
-        // [it, iend)
-        auto iend = mFreeMap.upper_bound(end);
-        if (iend != mFreeMap.end() && std::get<0>(*iend) - std::get<1>(*iend) <= end)
-        {
-            ++iend;
-        }
-
-        for (; it != iend; ++it)
-        {
-            auto[cEnd, cOff] = *it;
-            auto rBegin = cEnd - cOff;
-
-            rBegin = std::max(rBegin, begin) - begin;
-            const auto rEnd = std::min(cEnd, end) - begin;
-
-            for (; rBegin <= rEnd; ++rBegin)
-            {
-                data.unset(rBegin);
-            }
-        }
-    }
-
-
-    template <typename IdType>
-    inline void block_manager<IdType>::remove_from(typename block_map::iterator where,
-        std::uint64_t offset)
-    {
-        if (offset == std::get<1>(*where))
-        {
-            mFreeMap.erase(where);
-        }
-        else
-        {
-            where->second -= offset;
-        }
+        return static_cast<id_type>(static_cast<underlying_type>(id) + num);
     }
 
     template <typename IdType>
-    inline auto block_manager<IdType>::alloc_one()
-        -> std::optional<id_type>
+    inline auto id_range<IdType>::distance(id_type from, id_type to) noexcept -> difference_type
     {
-        if (mFreeMap.empty())
+        return static_cast<difference_type>(static_cast<underlying_type>(to) -
+                                            static_cast<underlying_type>(from));
+    }
+
+    template <typename IdType>
+    inline auto id_range<IdType>::id() const noexcept -> id_type
+    {
+        return last();
+    }
+
+    template <typename IdType>
+    inline auto id_range<IdType>::first() const noexcept -> id_type
+    {
+        return static_cast<id_type>(mFirstId);
+    }
+
+    template <typename IdType>
+    inline auto id_range<IdType>::last() const noexcept -> id_type
+    {
+        return static_cast<id_type>(mLastId);
+    }
+
+    template <typename IdType>
+    inline auto id_range<IdType>::pop_front() noexcept -> id_type
+    {
+        return static_cast<id_type>(mFirstId++);
+    }
+
+    template <typename IdType>
+    inline auto id_range<IdType>::pop_front(std::size_t num) noexcept -> id_type
+    {
+        return static_cast<id_type>(std::exchange(mFirstId, mFirstId + num));
+    }
+
+    template <typename IdType>
+    inline auto id_range<IdType>::pop_front(span<id_type> ids) noexcept -> std::size_t
+    {
+        const auto num = std::min(ids.size(), size());
+
+        // std::iota would have been the go to solution if id_type weren't an enum
+        std::generate_n(ids.begin(), num, [this]() { return static_cast<id_type>(mFirstId++); });
+        return num;
+    }
+
+    template <typename IdType>
+    inline auto id_range<IdType>::pop_back(std::size_t num) noexcept -> id_type
+    {
+        mLastId -= num;
+        return static_cast<id_type>(mLastId + 1);
+    }
+
+    template <typename IdType>
+    inline void id_range<IdType>::prepend(std::size_t num) noexcept
+    {
+        mFirstId -= num;
+    }
+
+    template <typename IdType>
+    inline void id_range<IdType>::append(std::size_t num) noexcept
+    {
+        mLastId += num;
+    }
+
+    template <typename IdType>
+    inline auto id_range<IdType>::empty() noexcept -> bool
+    {
+        return mLastId < mFirstId;
+    }
+
+    template <typename IdType>
+    inline auto id_range<IdType>::size() const noexcept -> std::size_t
+    {
+        return static_cast<std::size_t>(mLastId - mFirstId + 1);
+    }
+
+    template <typename IdType>
+    inline auto id_range<IdType>::is_predecessor_of(id_type id) const noexcept -> bool
+    {
+        return mLastId == static_cast<underlying_type>(id) - 1;
+    }
+
+    template <typename IdType>
+    inline auto id_range<IdType>::is_successor_of(id_type id) const noexcept -> bool
+    {
+        return mFirstId == static_cast<underlying_type>(id) + 1;
+    }
+
+#pragma endregion
+
+#pragma region block manager implementation
+
+    template <typename IdType>
+    inline block_manager<IdType>::block_manager()
+        : mFreeBlocks()
+        , mNodePool(new std::pmr::unsynchronized_pool_resource())
+        , mAllocator(mNodePool.get())
+    {
+    }
+
+    template <typename IdType>
+    inline block_manager<IdType>::~block_manager()
+    {
+        clear();
+    }
+
+    template <typename IdType>
+    inline auto block_manager<IdType>::alloc_one() noexcept -> result<id_type>
+    {
+        if (mFreeBlocks.empty())
         {
-            return std::nullopt;
+            return errc::resource_exhausted;
         }
+        auto it = mFreeBlocks.begin();
+        auto result = it->pop_front();
 
-        auto it = mFreeMap.begin();
-        auto &[lastId, numPrev] = *it;
-        std::optional<id_type> result = lastId - numPrev;
-
-        remove_from(it, 0);
+        if (it->empty())
+        {
+            dispose(it);
+        }
 
         return result;
     }
 
     template <typename IdType>
-    inline auto block_manager<IdType>::alloc_multiple(std::uint64_t num)
-        -> std::optional<std::vector<id_type>>
+    inline auto block_manager<IdType>::alloc_multiple(span<id_type> ids) noexcept
+        -> result<std::size_t>
     {
-        if (mFreeMap.empty())
+        auto remaining = ids;
+
+        const auto blocksBegin = mFreeBlocks.begin();
+        auto blockIt = blocksBegin;
+
+        for (const auto blocksEnd = mFreeBlocks.end(); remaining && blockIt != blocksEnd; ++blockIt)
         {
-            return std::nullopt;
+            const auto served = blockIt->pop_front(remaining);
+            remaining = remaining.subspan(served);
         }
-
-        std::vector<id_type> allocated;
-        allocated.reserve(num);
-
-        using action_queue = std::vector<block_map::iterator>;
-        action_queue removedRanges;
-        removedRanges.reserve(num);
-
-        auto it = mFreeMap.begin();
-        const auto end = mFreeMap.end();
-
-        while (num)
+        if (const auto lastUsed = std::prev(blockIt); !lastUsed->empty())
         {
-            if (it == end)
-            {
-                return std::nullopt;
-            }
-
-            auto &[lastId, numPrev] = *it;
-
-            std::uint64_t i = 0;
-            for (; num && i <= numPrev; ++i)
-            {
-                allocated.push_back(lastId - numPrev + i);
-                --num;
-            }
-
-            if (i > numPrev)
-            {
-                removedRanges.push_back(it);
-            }
-            else
-            {
-                // this only happens if we leave the, i.e. num == 0
-                numPrev -= i;
-            }
+            blockIt = lastUsed;
         }
+        dispose(blocksBegin, blockIt);
 
-        for (const auto &marked : removedRanges)
-        {
-            mFreeMap.erase(marked);
-        }
-
-        return allocated;
+        return ids.size() - remaining.size();
     }
 
     template <typename IdType>
-    inline auto block_manager<IdType>::alloc_consecutive(std::uint64_t num)
-        -> std::optional<id_type>
+    inline auto block_manager<IdType>::alloc_contiguous(const std::size_t num) noexcept
+        -> result<id_type>
+    {
+        auto end = mFreeBlocks.end();
+        auto it = std::find_if(mFreeBlocks.begin(), end,
+                               [num](range_type &r) { return r.size() >= num; });
+
+        if (it == end)
+        {
+            return errc::resource_exhausted;
+        }
+        auto startId = it->pop_front(num);
+        if (it->empty())
+        {
+            dispose(it);
+        }
+        return startId;
+    }
+
+    template <typename IdType>
+    inline auto block_manager<IdType>::extend(const id_type begin, const id_type end,
+                                              const std::uint64_t num) noexcept -> result<id_type>
+    {
+        if (mFreeBlocks.empty())
+        {
+            return errc::resource_exhausted;
+        }
+
+        auto succIt = mFreeBlocks.upper_bound(begin);
+        const auto blocksBegin = mFreeBlocks.begin();
+        const auto blocksEnd = mFreeBlocks.end();
+
+        // valid & adjacent
+        bool canUseSucc = succIt != blocksEnd && succIt->is_successor_of(end);
+        if (canUseSucc && succIt->size() >= num)
+        {
+            succIt->pop_front(num);
+            if (succIt->empty())
+            {
+                dispose(succIt);
+            }
+            return begin;
+        }
+
+        auto precIt = succIt;
+        if (precIt != blocksBegin && (--precIt)->is_predecessor_of(begin))
+        {
+            const auto remaining = canUseSucc ? num - succIt->size() : num;
+            if (precIt->size() >= remaining)
+            {
+                auto first = precIt->pop_back(remaining);
+                if (precIt->empty())
+                {
+                    dispose(precIt);
+                }
+                if (canUseSucc)
+                {
+                    dispose(succIt);
+                }
+
+                return first;
+            }
+        }
+
+        return errc::resource_exhausted;
+    }
+
+    template <typename IdType>
+    inline auto block_manager<IdType>::dealloc_one(const id_type which) noexcept -> result<void>
+    {
+        return dealloc_contiguous(which, 1);
+    }
+
+    template <typename IdType>
+    inline auto block_manager<IdType>::dealloc_contiguous(const id_type first,
+                                                          const std::size_t num) noexcept
+        -> result<void>
     {
         if (num == 0)
         {
-            BOOST_THROW_EXCEPTION(invalid_argument{});
-        }
-        if (mFreeMap.empty())
-        {
-            return std::nullopt;
+            return success();
         }
 
-        num -= 1;
-        for (auto it = mFreeMap.begin(), end = mFreeMap.end(); it != end; ++it)
+        const auto last = range_type::advance(first, num - 1);
+        const auto blocksBegin = mFreeBlocks.begin();
+        const auto succIt = mFreeBlocks.upper_bound(first);
+        const auto blocksEnd = mFreeBlocks.end();
+
+        if (succIt != blocksEnd)
         {
-            auto &[lastId, numPrev] = *it;
-            if (num <= numPrev)
+            bool inserted = false;
+            if (succIt->is_successor_of(last))
             {
-                std::optional<id_type> result{ lastId - numPrev };
-
-                remove_from(it, num);
-
-                if (num == numPrev)
+                succIt->prepend(num);
+                inserted = true;
+            }
+            if (succIt != blocksBegin)
+            {
+                if (auto precIt = std::prev(succIt); precIt->is_predecessor_of(first))
                 {
-                    mFreeMap.erase(lastId);
-                }
-                else
-                {
-                    numPrev -= num;
-                }
-
-                return result;
-            }
-        }
-
-        return std::nullopt;
-    }
-
-    template <typename IdType>
-    inline auto block_manager<IdType>::try_extend(id_type begin, id_type end, std::uint64_t numRequested)
-        -> int
-    {
-        if (numRequested == 0)
-        {
-            BOOST_THROW_EXCEPTION(invalid_argument{});
-        }
-        if (mFreeMap.empty())
-        {
-            return 0;
-        }
-        numRequested -= 1;
-
-        auto it = mFreeMap.upper_bound(begin);
-        const auto itEnd = mFreeMap.end();
-        if (it != itEnd)
-        {
-            auto &[lastId, numPrev] = *it;
-            if (numRequested <= numPrev && lastId - numPrev - 1 == end)
-            {
-                remove_from(it, numRequested);
-                return 1;
-            }
-        }
-
-        // failed to extend after end, so try to extend before begin
-        if (it != mFreeMap.begin())
-        {
-            --it;
-
-            auto &[lastId, numPrev] = *it;
-            if (numRequested <= numPrev && lastId + 1 == begin)
-            {
-                remove_from(it, numRequested);
-                return -1;
-            }
-        }
-        return 0;
-    }
-
-    template <typename IdType>
-    inline void block_manager<IdType>::dealloc(id_type one)
-    {
-        dealloc_range(one, 0);
-    }
-
-    template <typename IdType>
-    inline void block_manager<IdType>::dealloc(std::vector<id_type> blocks)
-    {
-        if (blocks.empty())
-        {
-            return;
-        }
-
-        std::sort(blocks.begin(), blocks.end());
-        auto newEnd = std::unique(blocks.begin(), blocks.end());
-        blocks.resize(std::distance(blocks.begin(), newEnd));
-
-
-        // #TODO implement a less wasteful rollback strategy
-        auto backup = mFreeMap;
-        VEFS_ERROR_EXIT{
-            mFreeMap = std::move(backup);
-        };
-
-        auto current = blocks.front();
-        auto offset = 0ull;
-        for (auto it = ++blocks.cbegin(), end = blocks.cend(); it != end; ++it)
-        {
-            const auto next = *it;
-            if (static_cast<std::uint64_t>(next) - static_cast<std::uint64_t>(current) == 1)
-            {
-                ++offset;
-            }
-            else
-            {
-                dealloc_range(current, offset);
-                offset = 0;
-            }
-            current = next;
-        }
-        dealloc_range(current, offset);
-    }
-
-    template <typename IdType>
-    inline void block_manager<IdType>::dealloc(id_type first, std::uint64_t num)
-    {
-        if (num == 0)
-        {
-            BOOST_THROW_EXCEPTION(invalid_argument{});
-        }
-
-        num -= 1;
-        dealloc_range(first + num, num);
-    }
-
-    template <typename IdType>
-    inline void block_manager<IdType>::dealloc_range(id_type rLastId, std::uint64_t rNumPrev)
-    {
-        if (mFreeMap.empty())
-        {
-            mFreeMap.emplace(rLastId, rNumPrev);
-            return;
-        }
-
-        auto rBeginId = rLastId - rNumPrev;
-
-        auto it = mFreeMap.upper_bound(rLastId);
-        if (it != mFreeMap.end())
-        {
-            auto &[lastId, numPrev] = *it;
-            if (lastId - numPrev - 1 == rLastId)
-            {
-                // freed range is just before the next free range
-                numPrev += rNumPrev + 1;
-
-                if (it != mFreeMap.begin())
-                {
-                    auto pit = it;
-                    --pit;
-                    if (std::get<0>(*pit) + 1 == rBeginId)
+                    if (inserted)
                     {
-                        numPrev += std::get<1>(*pit) + 1;
-                        mFreeMap.erase(pit);
+                        succIt->prepend(precIt->size());
+                        dispose(precIt);
+                    }
+                    else
+                    {
+                        precIt->append(1);
+                        inserted = true;
                     }
                 }
-                return;
             }
-        }
-
-        if (it != mFreeMap.begin())
-        {
-            auto pit = it;
-            --pit;
-
-            if (std::get<0>(*pit) + 1 == rBeginId)
+            if (inserted)
             {
-                // a range before one can be extended
-                mFreeMap.emplace_hint(it, rLastId, std::get<1>(*pit) + rNumPrev + 1);
-                mFreeMap.erase(pit);
-
-                return;
+                return success();
             }
         }
-
-        // couldn't put it in an existing entry, so we create a new one
-        mFreeMap.emplace_hint(it, rLastId, rNumPrev);
+        try
+        {
+            auto node = allocator_traits::allocate(mAllocator, 1);
+            allocator_traits::construct(mAllocator, node, first, last);
+            mFreeBlocks.insert_before(succIt, *node);
+            return success();
+        }
+        catch (const std::bad_alloc &)
+        {
+            return errc::not_enough_memory;
+        }
     }
-}
+
+    template <typename IdType>
+    inline void block_manager<IdType>::write_to_bitset(bitset_overlay data, const IdType begin,
+                                                       const std::size_t num) const noexcept
+    {
+        if (num == 0)
+        {
+            return;
+        }
+
+        data.set_n(num);
+        const auto last = range_type::advance(begin, num - 1);
+
+        auto blockIt = mFreeBlocks.lower_bound(begin);
+        if (blockIt == mFreeBlocks.end())
+        {
+            return;
+        }
+
+        auto blockEnd = mFreeBlocks.upper_bound(last);
+        if (blockEnd != mFreeBlocks.end() && blockEnd->first() <= last)
+        {
+            std::advance(blockEnd, 1);
+        }
+
+        for (; blockIt != blockEnd; ++blockIt)
+        {
+            auto start = std::max<typename range_type::difference_type>(
+                range_type::distance(begin, blockIt->first()), 0);
+            auto end = std::min<typename range_type::difference_type>(
+                range_type::distance(begin, blockIt->last()), num);
+
+            for (; start <= end; ++start)
+            {
+                data.unset(start);
+            }
+        }
+        return;
+    }
+
+    template <typename IdType>
+    inline auto block_manager<IdType>::parse_bitset(const const_bitset_overlay data,
+                                                    const IdType begin,
+                                                    const std::size_t num) noexcept -> result<void>
+    {
+        typename range_type::difference_type start = -1;
+        for (std::size_t i = 0; i < num; ++i)
+        {
+            if (data[i])
+            {
+                if (start >= 0)
+                {
+                    dealloc_contiguous(range_type::advance(begin, start), i - start);
+                }
+                start = -1;
+            }
+            else if (start < 0)
+            {
+                start = i;
+            }
+        }
+        if (start >= 0)
+        {
+            dealloc_contiguous(range_type::advance(begin, start), num - start);
+        }
+    }
+
+    template <typename IdType>
+    void block_manager<IdType>::clear() noexcept
+    {
+        mFreeBlocks.clear_and_dispose([this](range_type *p) {
+            allocator_traits::destroy(mAllocator, p);
+            allocator_traits::deallocate(mAllocator, p, 1);
+        });
+    }
+
+    template <typename IdType>
+    inline void block_manager<IdType>::dispose(typename block_set::const_iterator cit) noexcept
+    {
+        mFreeBlocks.erase_and_dispose(cit, [this](range_type *p) {
+            allocator_traits::destroy(mAllocator, p);
+            allocator_traits::deallocate(mAllocator, p, 1);
+        });
+    }
+
+    template <typename IdType>
+    inline void block_manager<IdType>::dispose(typename block_set::const_iterator cbegin,
+                                               typename block_set::const_iterator cend) noexcept
+    {
+        mFreeBlocks.erase_and_dispose(cbegin, cend, [this](range_type *p) {
+            allocator_traits::destroy(mAllocator, p);
+            allocator_traits::deallocate(mAllocator, p, 1);
+        });
+    }
+#pragma endregion
+} // namespace vefs::utils
