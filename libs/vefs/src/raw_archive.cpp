@@ -23,13 +23,6 @@ using namespace vefs::utils;
 
 namespace vefs::detail
 {
-    const file_id file_id::archive_index{utils::uuid{0xba, 0x22, 0xb0, 0x33, 0x4b, 0xa8, 0x4e, 0x5b,
-                                                     0x83, 0x0c, 0xbf, 0x48, 0x94, 0xaf, 0x53,
-                                                     0xf8}};
-    const file_id file_id::free_block_index{utils::uuid{0x33, 0x38, 0xbe, 0x54, 0x6b, 0x02, 0x49,
-                                                        0x24, 0x9f, 0xcc, 0x56, 0x3d, 0x7e, 0xe6,
-                                                        0x81, 0xe6}};
-
     namespace
     {
         constexpr std::array<std::byte, 4> archive_magic_number =
