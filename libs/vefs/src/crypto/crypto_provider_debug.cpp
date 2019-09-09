@@ -1,31 +1,13 @@
-#include <vefs/crypto/provider.hpp>
-#include <vefs/utils/secure_ops.hpp>
+#include "crypto_provider_debug.hpp"
+#include "provider.hpp"
+
+#include <vefs/platform/secure_memzero.hpp>
 
 #include "blake2.hpp"
 #include "ct_compare.hpp"
 
 namespace vefs::crypto::detail
 {
-    class debug_crypto_provider : public crypto_provider
-    {
-        result<void> box_seal(rw_dynblob ciphertext, rw_dynblob mac, ro_dynblob keyMaterial,
-                              ro_dynblob plaintext) const noexcept override;
-
-        result<void> box_open(rw_dynblob plaintext, ro_dynblob keyMaterial, ro_dynblob ciphertext,
-                              ro_dynblob mac) const noexcept override;
-
-        utils::secure_byte_array<16> generate_session_salt() const override;
-
-        result<void> random_bytes(rw_dynblob out) const noexcept override;
-
-        result<int> ct_compare(ro_dynblob l, ro_dynblob r) const noexcept override;
-
-    public:
-        static constexpr std::size_t key_material_size = blake2b::max_key_bytes;
-
-        constexpr debug_crypto_provider();
-    };
-
     constexpr debug_crypto_provider::debug_crypto_provider()
         : crypto_provider(debug_crypto_provider::key_material_size)
     {

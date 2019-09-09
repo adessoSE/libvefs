@@ -9,7 +9,7 @@
 #include <vefs/archive.hpp>
 #include <vefs/utils/dirt_flag.hpp>
 
-#include "archive_file.hpp"
+#include "../archive_file.hpp"
 #include "archive_internal_file.hpp"
 #include "block_manager.hpp"
 

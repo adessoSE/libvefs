@@ -88,6 +88,7 @@ DEF_SOURCE_GROUP(vefs "crypto"
         src/crypto/provider.hpp
 
         src/crypto/crypto_provider_debug.cpp #TODO move this into a seperate library
+        src/crypto/crypto_provider_debug.hpp
 
         src/crypto/kdf.cpp
         src/crypto/kdf.hpp
@@ -99,6 +100,7 @@ if (boringssl_FOUND)
     DEF_SOURCE_GROUP(vefs "crypto"
         SOURCES
             src/crypto/crypto_provider_boringssl.cpp
+            src/crypto/crypto_provider_boringssl.hpp
     )
 endif()
 

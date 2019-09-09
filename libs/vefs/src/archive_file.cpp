@@ -4,7 +4,7 @@
 
 #include <boost/range/adaptor/reversed.hpp>
 
-#include "archive_free_block_list_file.hpp"
+#include "detail/archive_free_block_list_file.hpp"
 
 namespace vefs
 {

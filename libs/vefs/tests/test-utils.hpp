@@ -7,7 +7,8 @@
 
 #include <vefs/disappointment.hpp>
 #include <vefs/utils/random.hpp>
-#include <vefs/detail/cache_car.hpp>
+
+#include "../src/detail/cache_car.hpp"
 
 struct test_rng : vefs::utils::xoroshiro128plus
 {

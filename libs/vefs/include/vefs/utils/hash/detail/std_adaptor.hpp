@@ -7,7 +7,7 @@
 #include <string_view>
 #include <type_traits>
 
-#include <vefs/blob.hpp>
+#include <vefs/span.hpp>
 #include <vefs/utils/hash/algorithm_tag.hpp>
 #include <vefs/utils/uuid.hpp>
 

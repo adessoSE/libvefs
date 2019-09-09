@@ -2,8 +2,9 @@
 
 #include <vefs/disappointment.hpp>
 #include <vefs/utils/misc.hpp>
-#include <vefs/utils/secure_ops.hpp>
-#include <vefs/utils/windows-proper.h>
+#include <vefs/platform/secure_memzero.hpp>
+
+#include "windows-proper.h"
 
 namespace vefs::detail
 {

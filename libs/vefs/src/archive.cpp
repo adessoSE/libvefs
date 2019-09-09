@@ -14,17 +14,17 @@
 #include <boost/iterator/iterator_facade.hpp>
 #include <boost/range/adaptor/reversed.hpp>
 
-#include <vefs/detail/raw_archive.hpp>
-#include <vefs/detail/thread_pool.hpp>
-#include <vefs/detail/tree_walker.hpp>
+#include <vefs/platform/thread_pool.hpp>
 #include <vefs/utils/bitset_overlay.hpp>
 #include <vefs/utils/misc.hpp>
 
 #include "archive_file.hpp"
 #include "archive_file_lookup.hpp"
-#include "archive_free_block_list_file.hpp"
-#include "archive_index_file.hpp"
-#include "proto-helper.hpp"
+#include "detail/archive_free_block_list_file.hpp"
+#include "detail/archive_index_file.hpp"
+#include "detail/proto-helper.hpp"
+#include "detail/sector_device.hpp"
+#include "detail/tree_walker.hpp"
 
 using namespace std::string_view_literals;
 

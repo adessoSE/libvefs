@@ -2,8 +2,8 @@
 
 #include <mutex>
 
-#include <vefs/filesystem.hpp>
-#include <vefs/detail/thread_pool.hpp>
+#include <vefs/platform/filesystem.hpp>
+#include <vefs/platform/thread_pool.hpp>
 
 #include <boost/predef/os.h>
 

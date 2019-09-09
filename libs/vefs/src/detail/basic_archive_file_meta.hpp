@@ -6,13 +6,14 @@
 #include <shared_mutex>
 #include <string>
 
-#include <vefs/blob.hpp>
-#include <vefs/crypto/counter.hpp>
-#include <vefs/detail/archive_file_id.hpp>
-#include <vefs/detail/sector_id.hpp>
-#include <vefs/utils/hash/default_weak.hpp>
+#include <vefs/span.hpp>
+#include <vefs/utils/hash/default_weak.hpp>  
 #include <vefs/utils/secure_array.hpp>
 #include <vefs/utils/uuid.hpp>
+
+#include "../crypto/counter.hpp"
+#include "archive_file_id.hpp"
+#include "sector_id.hpp"
 
 namespace vefs::detail
 {

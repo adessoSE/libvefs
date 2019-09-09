@@ -9,9 +9,9 @@
 #include <system_error>
 
 #include <vefs/exceptions.hpp>
-#include <vefs/filesystem.hpp>
+#include <vefs/platform/filesystem.hpp>
+#include <vefs/platform/secure_memzero.hpp>
 #include <vefs/utils/misc.hpp>
-#include <vefs/utils/secure_ops.hpp>
 #include <vefs/utils/unordered_map_mt.hpp>
 
 namespace vefs::tests

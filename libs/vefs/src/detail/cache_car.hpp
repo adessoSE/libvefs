@@ -15,13 +15,13 @@
 #include <boost/container/static_vector.hpp>
 
 #include <vefs/allocator/system.hpp>
-#include <vefs/blob.hpp>
+#include <vefs/span.hpp>
 #include <vefs/utils/misc.hpp>
 #include <vefs/utils/unordered_map_mt.hpp>
 
-#include <vefs/detail/cache_clock.hpp>
-#include <vefs/detail/cache_handle.hpp>
-#include <vefs/detail/cache_page.hpp>
+#include "cache_clock.hpp"
+#include "cache_handle.hpp"
+#include "cache_page.hpp"
 
 namespace vefs::detail
 {
@@ -151,7 +151,8 @@ namespace vefs::detail
          * Iterates over all pages and calls fn for each dirty page with a live handle to said page.
          *
          * \param fn dirty page handler; signature: result<void> fn(handle)
-         * \returns a boolean indicating that fn has been called at least once or an error returned by fn.
+         * \returns a boolean indicating that fn has been called at least once or an error returned
+         * by fn.
          */
         template <typename Fn>
         inline auto for_dirty(Fn &&fn) noexcept -> result<bool>;
@@ -175,9 +176,9 @@ namespace vefs::detail
 
         key_index_map mKeyIndexMap;
         page_allocator_type mPageAllocator;
-        page_owner_type mPageOwner;  
+        page_owner_type mPageOwner;
         notify_dirty_fn mNotifyDirty;
-                                      
+
         std::mutex mReplacementSync;
 
         clock mRecencyClock;
@@ -185,7 +186,7 @@ namespace vefs::detail
         history_list mRecencyHistory;
         history_list mFrequencyHistory;
         index_key_map mIndexKeyMap;
-                                        
+
         std::mutex mInitalizationSync;
         std::condition_variable mInitializationNotifier;
     };
@@ -447,7 +448,8 @@ namespace vefs::detail
 
     template <typename Key, typename T, unsigned int CacheSize, typename Hash, typename KeyEqual>
     template <typename Ctor>
-    inline auto cache_car<Key, T, CacheSize, Hash, KeyEqual>::access(const key_type &key, Ctor &&ctor,
+    inline auto cache_car<Key, T, CacheSize, Hash, KeyEqual>::access(const key_type &key,
+                                                                     Ctor &&ctor,
                                                                      bool &inserted) noexcept ->
         typename std::invoke_result_t<Ctor, void *>::template rebind<handle>
     {
@@ -464,20 +466,21 @@ namespace vefs::detail
         {
             std::unique_lock initGuard{mInitalizationSync, std::defer_lock};
 
-            inserted = mKeyIndexMap.uprase_fn(key,
-                                              [&](page_index &stored) {
-                                                  if (!(stored & invalid_page_index_bit))
-                                                  {
-                                                      h = page(stored).try_acquire();
-                                                  }
-                                                  else
-                                                  {
-                                                      stored += 1;
-                                                      initGuard.lock();
-                                                  }
-                                                  return false;
-                                              },
-                                              invalid_page_index_bit);
+            inserted = mKeyIndexMap.uprase_fn(
+                key,
+                [&](page_index &stored) {
+                    if (!(stored & invalid_page_index_bit))
+                    {
+                        h = page(stored).try_acquire();
+                    }
+                    else
+                    {
+                        stored += 1;
+                        initGuard.lock();
+                    }
+                    return false;
+                },
+                invalid_page_index_bit);
 
             if (initGuard.owns_lock())
             {
@@ -548,28 +551,30 @@ namespace vefs::detail
     {
         if constexpr (std::is_nothrow_constructible_v<value_type, Args...>)
         {
-            return access(key,
-                          [&](void *p) noexcept->result<value_type *, void> {
-                              return new (p) value_type(std::forward<Args>(ctorArgs)...);
-                          })
+            return access(
+                       key,
+                       [&](void *p) noexcept->result<value_type *, void> {
+                           return new (p) value_type(std::forward<Args>(ctorArgs)...);
+                       })
                 .assume_value();
         }
         else
         {
-            return access(key, [&](void *p) noexcept->op_outcome<value_type *> {
-                try
-                {
-                    return new (p) value_type(std::forward<Args>(ctorArgs)...);
-                }
-                catch (const std::bad_alloc &)
-                {
-                    return failure(errc::not_enough_memory);
-                }
-                catch (...)
-                {
-                    return failure(std::current_exception());
-                }
-            });
+            return access(
+                key, [&](void *p) noexcept->op_outcome<value_type *> {
+                    try
+                    {
+                        return new (p) value_type(std::forward<Args>(ctorArgs)...);
+                    }
+                    catch (const std::bad_alloc &)
+                    {
+                        return failure(errc::not_enough_memory);
+                    }
+                    catch (...)
+                    {
+                        return failure(std::current_exception());
+                    }
+                });
         }
     }
 
@@ -691,7 +696,8 @@ namespace vefs::detail
             if (mRecencyClock.size() >= std::max<std::size_t>(1, mRecencyClock.size_target()))
             {
                 candidate = mRecencyClock.pop_front();
-                if (auto rx = p[candidate].try_start_replace(); rx == cache_replacement_result::succeeded)
+                if (auto rx = p[candidate].try_start_replace();
+                    rx == cache_replacement_result::succeeded)
                 {
                     // evicted -> move to recency history
                     mKeyIndexMap.erase(mIndexKeyMap[candidate]);
@@ -718,7 +724,8 @@ namespace vefs::detail
             else
             {
                 candidate = mFrequencyClock.pop_front();
-                if (auto rx = p[candidate].try_start_replace(); rx == cache_replacement_result::succeeded)
+                if (auto rx = p[candidate].try_start_replace();
+                    rx == cache_replacement_result::succeeded)
                 {
                     // evicted -> move to frequency history
                     mKeyIndexMap.erase(mIndexKeyMap[candidate]);

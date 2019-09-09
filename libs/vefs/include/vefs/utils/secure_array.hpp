@@ -4,8 +4,8 @@
 
 #include <array>
 
-#include <vefs/blob.hpp>
-#include <vefs/utils/secure_ops.hpp>
+#include <vefs/span.hpp>
+#include <vefs/platform/secure_memzero.hpp>
 
 namespace vefs::utils
 {

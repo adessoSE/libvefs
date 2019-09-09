@@ -6,7 +6,7 @@
 
 #include <boost/predef.h>
 
-#include <vefs/detail/thread_pool.hpp>
+#include <vefs/platform/thread_pool.hpp>
 
 #if defined BOOST_OS_WINDOWS_AVAILABLE
 

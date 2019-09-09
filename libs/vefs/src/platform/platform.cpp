@@ -1,10 +1,10 @@
-#include <vefs/utils/platform.hpp>
+#include <vefs/platform/platform.hpp>
 
 #include <boost/predef.h>
 
 #if defined BOOST_OS_WINDOWS_AVAILABLE
 
-#include <vefs/utils/windows-proper.h>
+#include "windows-proper.h"
 
 namespace vefs::utils
 {

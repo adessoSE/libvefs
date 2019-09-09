@@ -1,9 +1,10 @@
 #pragma once
 
-#include <vefs/blob.hpp>
-#include <vefs/detail/basic_archive_file_meta.hpp>
-#include <vefs/detail/raw_archive.hpp>
-#include <vefs/utils/secure_ops.hpp>
+#include <vefs/platform/secure_memzero.hpp>
+#include <vefs/span.hpp>
+
+#include "basic_archive_file_meta.hpp"
+#include "sector_device.hpp"
 
 #if defined BOOST_COMP_MSVC_AVAILABLE
 #pragma warning(push, 3)
