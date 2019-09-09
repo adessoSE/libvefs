@@ -8,7 +8,7 @@
 #include <mutex>
 #include <stdexcept>
 
-#include <vefs/blob.hpp>
+#include <vefs/span.hpp>
 #include <vefs/exceptions.hpp>
 #include <vefs/utils/secure_array.hpp>
 

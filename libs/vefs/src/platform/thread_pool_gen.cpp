@@ -1,4 +1,4 @@
-#include <vefs/detail/thread_pool_gen.hpp>
+#include "thread_pool_gen.hpp"
 
 #include <atomic>
 #include <exception>
@@ -7,7 +7,7 @@
 
 #include <boost/predef.h>
 
-#include <vefs/utils/platform.hpp>
+#include <vefs/platform/platform.hpp>
 
 
 namespace vefs::detail

@@ -1,5 +1,4 @@
-#include <vefs/utils/secure_ops.hpp>
-#include <vefs/utils/secure_array.hpp>
+#include <vefs/platform/secure_memzero.hpp>
 
 #include <openssl/mem.h>
 

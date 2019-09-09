@@ -3,15 +3,14 @@
 #include <array>
 #include <memory>
 
-#include <vefs/blob.hpp>
 #include <vefs/disappointment.hpp>
-#include <vefs/filesystem.hpp>
-
-#include <vefs/crypto/counter.hpp>
-#include <vefs/crypto/provider.hpp>
+#include <vefs/platform/filesystem.hpp>
+#include <vefs/span.hpp>
 #include <vefs/utils/secure_array.hpp>
 
-#include <vefs/detail/sector_id.hpp>
+#include "../crypto/counter.hpp"
+#include "../crypto/provider.hpp"
+#include "sector_id.hpp"
 
 namespace adesso::vefs
 {
@@ -35,21 +34,24 @@ namespace vefs::detail
         {
         };
 
-        static constexpr size_t sector_size = 1 << 15; //2^15
+        static constexpr size_t sector_size = 1 << 15;                        // 2^15
         static constexpr size_t sector_payload_size = sector_size - (1 << 5); // 2^15-2^5
 
         static constexpr auto to_offset(sector_id id) -> std::uint64_t;
 
         static auto open(filesystem::ptr fs, const std::filesystem::path &path,
-                         crypto::crypto_provider *cryptoProvider,
-                         ro_blob<32> userPRK, file_open_mode_bitset openMode) -> result<std::unique_ptr<raw_archive>>;
+                         crypto::crypto_provider *cryptoProvider, ro_blob<32> userPRK,
+                         file_open_mode_bitset openMode) -> result<std::unique_ptr<raw_archive>>;
 
-        raw_archive(file::ptr archiveFile, crypto::crypto_provider *cryptoProvider, ro_blob<64> userPRK);
-        raw_archive(file::ptr archiveFile, crypto::crypto_provider *cryptoProvider, ro_blob<64> userPRK, create_tag);
+        raw_archive(file::ptr archiveFile, crypto::crypto_provider *cryptoProvider,
+                    ro_blob<64> userPRK);
+        raw_archive(file::ptr archiveFile, crypto::crypto_provider *cryptoProvider,
+                    ro_blob<64> userPRK, create_tag);
         ~raw_archive() = default;
 
-        result<void> read_sector(rw_blob<sector_payload_size> buffer, const basic_archive_file_meta &file,
-                                 sector_id sectorIdx, ro_dynblob contentMAC);
+        result<void> read_sector(rw_blob<sector_payload_size> buffer,
+                                 const basic_archive_file_meta &file, sector_id sectorIdx,
+                                 ro_dynblob contentMAC);
         result<void> write_sector(rw_blob<sector_payload_size> ciphertextBuffer, rw_dynblob mac,
                                   basic_archive_file_meta &file, sector_id sectorIdx,
                                   ro_blob<sector_payload_size> data);
@@ -81,7 +83,8 @@ namespace vefs::detail
 
         result<void> parse_static_archive_header(ro_blob<32> userPRK);
         result<void> parse_archive_header();
-        result<void> parse_archive_header(std::size_t position, std::size_t size, adesso::vefs::ArchiveHeader &out);
+        result<void> parse_archive_header(std::size_t position, std::size_t size,
+                                          adesso::vefs::ArchiveHeader &out);
 
         result<void> write_static_archive_header(ro_blob<32> userPRK);
 
@@ -177,15 +180,18 @@ namespace vefs::detail
 
     inline auto vefs::detail::raw_archive::header_size(header_id which) const noexcept
     {
-        return (sector_size - mArchiveHeaderOffset) / 2 + (static_cast<size_t>(which) & mArchiveHeaderOffset);
+        return (sector_size - mArchiveHeaderOffset) / 2 +
+               (static_cast<size_t>(which) & mArchiveHeaderOffset);
     }
     inline auto raw_archive::header_offset(header_id which) const noexcept
     {
-        return mArchiveHeaderOffset + ((-static_cast<std::size_t>(which)) & header_size(header_id::first));
+        return mArchiveHeaderOffset +
+               ((-static_cast<std::size_t>(which)) & header_size(header_id::first));
     }
     inline void raw_archive::switch_header() noexcept
     {
-        mHeaderSelector = header_id{!static_cast<std::underlying_type_t<header_id>>(mHeaderSelector)};
+        mHeaderSelector =
+            header_id{!static_cast<std::underlying_type_t<header_id>>(mHeaderSelector)};
     }
 
 #if defined BOOST_COMP_MSVC_AVAILABLE

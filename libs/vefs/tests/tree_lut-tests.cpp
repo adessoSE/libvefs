@@ -1,5 +1,5 @@
+#include "../src/detail/tree_lut.hpp"
 #include "boost-unit-test.hpp"
-#include <vefs/detail/tree_lut.hpp>
 
 BOOST_AUTO_TEST_SUITE(vefs_tree_lut_tests)
 

@@ -6,10 +6,11 @@
 #include <shared_mutex>
 
 #include <vefs/archive.hpp>
-#include <vefs/detail/basic_archive_file_meta.hpp>
-#include <vefs/detail/cache_car.hpp>
-#include <vefs/detail/tree_walker.hpp>
 #include <vefs/utils/dirt_flag.hpp>
+
+#include "detail/basic_archive_file_meta.hpp"
+#include "detail/cache_car.hpp"
+#include "detail/tree_walker.hpp"
 
 namespace vefs
 {

@@ -3,7 +3,7 @@
 #include <memory>
 #include <vector>
 
-#include <vefs/utils/secure_ops.hpp>
+#include <vefs/platform/secure_memzero.hpp>
 
 namespace vefs::utils
 {

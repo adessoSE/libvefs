@@ -1,11 +1,14 @@
+#include "../src/crypto/provider.hpp"
+#include "../src/crypto/crypto_provider_boringssl.hpp"
+#include "../src/crypto/crypto_provider_debug.hpp"
 #include "boost-unit-test.hpp"
-#include "../src/crypto_provider_boringssl.cpp"
-#include <vefs\archive_fwd.hpp>
+
+#include <array>
+
+#include <vefs/archive_fwd.hpp>
 #include <vefs/utils/secure_allocator.hpp>
 #include <vefs/utils/secure_array.hpp>
-#include "../src/crypto_provider_debug.cpp"
-#include <vefs/blob.hpp>
-#include <array>
+#include <vefs/span.hpp>
 
 BOOST_AUTO_TEST_SUITE(crypto_provider_tests)
 

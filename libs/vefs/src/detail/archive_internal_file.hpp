@@ -6,7 +6,7 @@
 
 #include <vefs/archive.hpp>
 
-#include "archive_file.hpp"
+#include "../archive_file.hpp"
 
 namespace vefs
 {

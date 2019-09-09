@@ -3,7 +3,7 @@
 #include <cstddef>
 #include <type_traits>
 
-#include <vefs/blob.hpp>
+#include <vefs/span.hpp>
 
 namespace vefs::utils
 {

@@ -1,9 +1,9 @@
 #include <vefs/archive.hpp>
 #include "boost-unit-test.hpp"
 
-#include <vefs/detail/raw_archive.hpp>
-#include <vefs/detail/archive_file_id.hpp>
-#include <vefs/crypto/provider.hpp>
+#include "../src/detail/sector_device.hpp"
+#include "../src/detail/archive_file_id.hpp"
+#include "../src/crypto/provider.hpp"
 #include <vefs/utils/random.hpp>
 #include "memfs.hpp"
 

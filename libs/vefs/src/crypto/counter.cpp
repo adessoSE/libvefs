@@ -1,4 +1,4 @@
-#include <vefs/crypto/counter.hpp>
+#include "counter.hpp"
 
 #include <boost/predef.h>
 

@@ -14,8 +14,9 @@
 
 #include <vefs/disappointment/error_detail.hpp>
 #include <vefs/utils/hash/default_weak.hpp>
-#include <vefs/detail/raw_archive.hpp>
-#include <vefs/detail/tree_lut.hpp>
+
+#include "sector_device.hpp"
+#include "tree_lut.hpp"
 
 
 namespace vefs::detail

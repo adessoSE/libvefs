@@ -8,7 +8,7 @@
 #include <future>
 #include <system_error>
 
-#include <vefs/blob.hpp>
+#include <vefs/span.hpp>
 #include <vefs/utils/enum_bitset.hpp>
 
 namespace vefs

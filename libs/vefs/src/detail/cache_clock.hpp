@@ -8,13 +8,15 @@
 
 #include <boost/integer.hpp>
 
+#include <vefs/utils/misc.hpp>
+
 namespace vefs::detail
 {
     /**
-     * Implements a dynamic clock datastructure for up to ClockSize elements. Requires O(ClockSize)
+     * Implements a dynamic clock data structure for up to ClockSize elements. Requires O(ClockSize)
      * space.
      *
-     * The internal implemenation uses the smallest available integer type for the stored indices.
+     * The internal implementation uses the smallest available integer type for the stored indices.
      */
     template <std::uintmax_t ClockSize>
     class cache_clock

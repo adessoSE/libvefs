@@ -1,7 +1,7 @@
 #include "os_filesystem.hpp"
 
 #include <vefs/utils/misc.hpp>
-#include <vefs/utils/secure_ops.hpp>
+#include <vefs/platform/secure_memzero.hpp>
 
 #error "the filesystem abstraction is not implemented for linux"
 

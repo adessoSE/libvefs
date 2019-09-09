@@ -8,34 +8,31 @@
 #include <type_traits>
 
 #include <vefs/archive.hpp>
-#include <vefs/detail/basic_archive_file_meta.hpp>
 
 #include "archive_file.hpp"
+#include "detail/basic_archive_file_meta.hpp"
 
 namespace vefs
 {
-    class archive::file_lookup final
-        : private file_events
+    class archive::file_lookup final : private file_events
     {
         friend class archive::index_file;
 
         static constexpr std::uint32_t DeadBit = 1u << 31;
 
     public:
-        file_lookup(detail::basic_archive_file_meta &&meta, std::string name, int ibPos, int numBlocks);
+        file_lookup(detail::basic_archive_file_meta &&meta, std::string name, int ibPos,
+                    int numBlocks);
 
-        static auto open(detail::basic_archive_file_meta &&meta, std::string name, int ibPos, int numBlocks)
-            -> result<utils::ref_ptr<file_lookup>>;
+        static auto open(detail::basic_archive_file_meta &&meta, std::string name, int ibPos,
+                         int numBlocks) -> result<utils::ref_ptr<file_lookup>>;
         static auto create(archive &owner, std::string name)
             -> result<std::tuple<utils::ref_ptr<file_lookup>, file_handle>>;
 
-        inline detail::basic_archive_file_meta & meta_data();
-        auto load(archive &owner)
-            -> result<file_handle>;
-        auto try_load()
-            -> result<file_handle>;
-        auto try_kill(archive &owner)
-            -> result<void>;
+        inline detail::basic_archive_file_meta &meta_data();
+        auto load(archive &owner) -> result<file_handle>;
+        auto try_load() -> result<file_handle>;
+        auto try_kill(archive &owner) -> result<void>;
 
         inline void add_reference() const;
         inline void release() const;
@@ -44,17 +41,14 @@ namespace vefs
 
         const std::string &name() const noexcept;
 
-
-        inline static file * deref(const file_handle &handle);
-        friend file * deref(const file_handle &) noexcept;
+        inline static file *deref(const file_handle &handle);
+        friend file *deref(const file_handle &) noexcept;
 
     private:
         ~file_lookup();
 
-        auto create_working_set(archive &owner)
-            -> result<archive::file *>;
-        auto notify_no_external_references() const
-            -> result<void>;
+        auto create_working_set(archive &owner) -> result<archive::file *>;
+        auto notify_no_external_references() const -> result<void>;
 
         virtual void on_sector_write_suggestion(sector_handle sector) override;
         virtual void on_root_sector_synced(detail::basic_archive_file_meta &rootMeta) override;
@@ -75,8 +69,7 @@ namespace vefs
         std::aligned_storage_t<sizeof(archive::file), alignof(archive::file)> mWorkingSetStorage;
     };
 
-
-    inline detail::basic_archive_file_meta & archive::file_lookup::meta_data()
+    inline detail::basic_archive_file_meta &archive::file_lookup::meta_data()
     {
         return mMeta;
     }
@@ -105,14 +98,14 @@ namespace vefs
         }
     }
 
-    inline const std::string & archive::file_lookup::name() const noexcept
+    inline const std::string &archive::file_lookup::name() const noexcept
     {
         return mName;
     }
 
-    inline archive::file * archive::file_lookup::deref(const file_handle &handle)
+    inline archive::file *archive::file_lookup::deref(const file_handle &handle)
     {
         assert(handle);
         return handle.mData->mWorkingSet.load(std::memory_order_acquire);
     }
-}
+} // namespace vefs

@@ -6,7 +6,7 @@
 #include <limits>
 #include <type_traits>
 
-#include <vefs/blob.hpp>
+#include <vefs/span.hpp>
 #include <vefs/disappointment.hpp>
 
 namespace vefs::crypto::detail

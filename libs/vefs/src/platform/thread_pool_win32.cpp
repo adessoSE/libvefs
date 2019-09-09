@@ -1,10 +1,10 @@
-#include <vefs/detail/thread_pool_win32.hpp>
+#include "thread_pool_win32.hpp"
 
 #include <vefs/exceptions.hpp>
 #include <vefs/utils/misc.hpp>
 
 
-#include <vefs/utils/windows-proper.h>
+#include "windows-proper.h"
 
 namespace vefs::detail
 {

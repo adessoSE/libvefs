@@ -6,8 +6,9 @@
 #include <array>
 #include <limits>
 
-#include <vefs/detail/raw_archive.hpp>
 #include <vefs/utils/misc.hpp>
+
+#include "sector_device.hpp"
 
 namespace vefs::detail::lut
 {

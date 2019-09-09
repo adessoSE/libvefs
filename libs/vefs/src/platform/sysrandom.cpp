@@ -9,7 +9,7 @@
 #include <vefs/utils/misc.hpp>
 
 #if defined BOOST_OS_WINDOWS_AVAILABLE
-#include <vefs/utils/windows-proper.h>
+#include "windows-proper.h"
 
 #define RtlGenRandom SystemFunction036
 extern "C" BOOLEAN NTAPI RtlGenRandom(PVOID RandomBuffer, ULONG RandomBufferLength);

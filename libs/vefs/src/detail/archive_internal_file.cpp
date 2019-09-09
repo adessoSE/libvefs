@@ -1,6 +1,6 @@
 #include "archive_internal_file.hpp"
 
-#include <vefs/detail/thread_pool.hpp>
+#include <vefs/platform/thread_pool.hpp>
 
 namespace vefs
 {

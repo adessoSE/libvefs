@@ -1,23 +1,21 @@
-#include <vefs/detail/thread_pool.hpp>
+#include <vefs/platform/thread_pool.hpp>
 
 #include <cassert>
 
 #include <vefs/utils/misc.hpp>
-#include <vefs/detail/thread_pool_gen.hpp>
-#include <vefs/detail/thread_pool_win32.hpp>
+
+#include "thread_pool_gen.hpp"
+#include "thread_pool_win32.hpp"
 
 namespace vefs::detail
 {
-    thread_pool & thread_pool::shared()
+    thread_pool &thread_pool::shared()
     {
 #if defined BOOST_OS_WINDOWS_AVAILABLE
         static thread_pool_win32_default pool;
 #else
-        static thread_pool_gen pool{
-            std::thread::hardware_concurrency() * 2,
-            std::thread::hardware_concurrency() * 2,
-            "vefs-process-shared"
-        };
+        static thread_pool_gen pool{std::thread::hardware_concurrency() * 2,
+                                    std::thread::hardware_concurrency() * 2, "vefs-process-shared"};
 #endif
         return pool;
     }
@@ -33,17 +31,17 @@ namespace vefs::detail
         }
     }
 
-    pooled_work_tracker::pooled_work_tracker(thread_pool * pool)
-        : mPool{ pool }
+    pooled_work_tracker::pooled_work_tracker(thread_pool *pool)
+        : mPool{pool}
         , mSync{}
-        , mWorkCtr{ 0 }
+        , mWorkCtr{0}
         , mOnDecr{}
     {
     }
 
     void pooled_work_tracker::wait()
     {
-        std::unique_lock lock{ mSync };
+        std::unique_lock lock{mSync};
         mOnDecr.wait(lock, [this]() { return mWorkCtr.load(std::memory_order_acquire) == 0; });
     }
 
@@ -52,11 +50,14 @@ namespace vefs::detail
         assert(task);
 
         mWorkCtr.fetch_add(1, std::memory_order_release);
-        VEFS_ERROR_EXIT{ mWorkCtr.fetch_sub(1, std::memory_order_release); };
-
-        mPool->execute([this, xtask = std::move(*task)]() mutable
+        VEFS_ERROR_EXIT
         {
-            VEFS_SCOPE_EXIT{
+            mWorkCtr.fetch_sub(1, std::memory_order_release);
+        };
+
+        mPool->execute([this, xtask = std::move(*task)]() mutable {
+            VEFS_SCOPE_EXIT
+            {
                 mWorkCtr.fetch_sub(1, std::memory_order_release);
                 mOnDecr.notify_all();
             };
@@ -64,4 +65,4 @@ namespace vefs::detail
             xtask();
         });
     }
-}
+} // namespace vefs::detail

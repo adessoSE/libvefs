@@ -6,10 +6,10 @@
 #include <string_view>
 
 #include <vefs/archive_fwd.hpp>
-#include <vefs/blob.hpp>
-#include <vefs/detail/thread_pool.hpp>
+#include <vefs/span.hpp>
+#include <vefs/platform/thread_pool.hpp>
 #include <vefs/disappointment.hpp>
-#include <vefs/filesystem.hpp>
+#include <vefs/platform/filesystem.hpp>
 #include <vefs/utils/ref_ptr.hpp>
 
 namespace vefs

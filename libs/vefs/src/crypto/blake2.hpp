@@ -18,7 +18,7 @@
 
 #include <boost/preprocessor/stringize.hpp>
 
-#include <vefs/blob.hpp>
+#include <vefs/span.hpp>
 #include <vefs/disappointment.hpp>
 #include <vefs/exceptions.hpp>
 #include <vefs/utils/misc.hpp>

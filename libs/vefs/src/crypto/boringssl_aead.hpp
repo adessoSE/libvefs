@@ -14,7 +14,7 @@
 #include <openssl/cipher.h>
 #include <openssl/err.h>
 
-#include <vefs/blob.hpp>
+#include <vefs/span.hpp>
 #include <vefs/disappointment.hpp>
 #include <vefs/exceptions.hpp>
 

@@ -4,7 +4,7 @@
 
 #include <stdexcept>
 
-#include <vefs/blob.hpp>
+#include <vefs/span.hpp>
 #include <vefs/disappointment.hpp>
 
 namespace vefs::detail

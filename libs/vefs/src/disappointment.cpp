@@ -396,7 +396,7 @@ namespace vefs::adl::disappointment
 }
 
 #if defined BOOST_OS_WINDOWS_AVAILABLE
-#include <vefs/utils/windows-proper.h>
+#include "platform/windows-proper.h"
 #elif defined BOOST_OS_LINUX_AVAILABLE || defined BOOST_OS_MACOS_AVAILABLE
 #include <cerrno>
 #endif
