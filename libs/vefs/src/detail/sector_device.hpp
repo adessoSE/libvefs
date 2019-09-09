@@ -21,7 +21,7 @@ namespace vefs::detail
 {
     struct basic_archive_file_meta;
 
-    class raw_archive
+    class sector_device
     {
         enum class header_id
         {
@@ -41,13 +41,13 @@ namespace vefs::detail
 
         static auto open(filesystem::ptr fs, const std::filesystem::path &path,
                          crypto::crypto_provider *cryptoProvider, ro_blob<32> userPRK,
-                         file_open_mode_bitset openMode) -> result<std::unique_ptr<raw_archive>>;
+                         file_open_mode_bitset openMode) -> result<std::unique_ptr<sector_device>>;
 
-        raw_archive(file::ptr archiveFile, crypto::crypto_provider *cryptoProvider,
+        sector_device(file::ptr archiveFile, crypto::crypto_provider *cryptoProvider,
                     ro_blob<64> userPRK);
-        raw_archive(file::ptr archiveFile, crypto::crypto_provider *cryptoProvider,
+        sector_device(file::ptr archiveFile, crypto::crypto_provider *cryptoProvider,
                     ro_blob<64> userPRK, create_tag);
-        ~raw_archive() = default;
+        ~sector_device() = default;
 
         result<void> read_sector(rw_blob<sector_payload_size> buffer,
                                  const basic_archive_file_meta &file, sector_id sectorIdx,
@@ -79,7 +79,7 @@ namespace vefs::detail
         auto create_file() noexcept -> result<basic_archive_file_meta>;
 
     private:
-        raw_archive(file::ptr archiveFile, crypto::crypto_provider *cryptoProvider);
+        sector_device(file::ptr archiveFile, crypto::crypto_provider *cryptoProvider);
 
         result<void> parse_static_archive_header(ro_blob<32> userPRK);
         result<void> parse_archive_header();
@@ -111,18 +111,18 @@ namespace vefs::detail
         size_t mArchiveHeaderOffset;
         header_id mHeaderSelector;
     };
-    static_assert(!std::is_default_constructible_v<raw_archive>);
-    static_assert(!std::is_copy_constructible_v<raw_archive>);
-    static_assert(!std::is_copy_assignable_v<raw_archive>);
-    static_assert(!std::is_move_constructible_v<raw_archive>);
-    static_assert(!std::is_move_assignable_v<raw_archive>);
+    static_assert(!std::is_default_constructible_v<sector_device>);
+    static_assert(!std::is_copy_constructible_v<sector_device>);
+    static_assert(!std::is_copy_assignable_v<sector_device>);
+    static_assert(!std::is_move_constructible_v<sector_device>);
+    static_assert(!std::is_move_assignable_v<sector_device>);
 
-    constexpr std::uint64_t raw_archive::to_offset(sector_id id)
+    constexpr std::uint64_t sector_device::to_offset(sector_id id)
     {
         return static_cast<std::uint64_t>(id) * sector_size;
     }
 
-    inline auto vefs::detail::raw_archive::resize(std::uint64_t numSectors) -> result<void>
+    inline auto vefs::detail::sector_device::resize(std::uint64_t numSectors) -> result<void>
     {
         std::error_code scode;
         mArchiveFile->resize(numSectors * sector_size, scode);
@@ -133,42 +133,42 @@ namespace vefs::detail
         mNumSectors = numSectors;
         return outcome::success();
     }
-    inline std::uint64_t raw_archive::size() const
+    inline std::uint64_t sector_device::size() const
     {
         return mNumSectors.load();
     }
 
-    inline basic_archive_file_meta &raw_archive::index_file()
+    inline basic_archive_file_meta &sector_device::index_file()
     {
         return *mArchiveIdx;
     }
 
-    inline basic_archive_file_meta &raw_archive::free_sector_index_file()
+    inline basic_archive_file_meta &sector_device::free_sector_index_file()
     {
         return *mFreeBlockIdx;
     }
 
-    inline ro_blob<64> raw_archive::master_secret_view() const
+    inline ro_blob<64> sector_device::master_secret_view() const
     {
         return as_span(mArchiveMasterSecret);
     }
 
-    inline ro_blob<16> raw_archive::session_salt_view() const
+    inline ro_blob<16> sector_device::session_salt_view() const
     {
         return as_span(mSessionSalt);
     }
 
-    inline const crypto::crypto_provider *raw_archive::crypto() const
+    inline const crypto::crypto_provider *sector_device::crypto() const
     {
         return mCryptoProvider;
     }
 
-    inline crypto::atomic_counter &raw_archive::master_secret_counter()
+    inline crypto::atomic_counter &sector_device::master_secret_counter()
     {
         return mArchiveSecretCounter;
     }
 
-    inline crypto::atomic_counter &raw_archive::journal_counter()
+    inline crypto::atomic_counter &sector_device::journal_counter()
     {
         return mJournalCounter;
     }
@@ -178,17 +178,17 @@ namespace vefs::detail
 #pragma warning(disable : 4146) // unary minus operator on unsigned type in header_offset
 #endif
 
-    inline auto vefs::detail::raw_archive::header_size(header_id which) const noexcept
+    inline auto vefs::detail::sector_device::header_size(header_id which) const noexcept
     {
         return (sector_size - mArchiveHeaderOffset) / 2 +
                (static_cast<size_t>(which) & mArchiveHeaderOffset);
     }
-    inline auto raw_archive::header_offset(header_id which) const noexcept
+    inline auto sector_device::header_offset(header_id which) const noexcept
     {
         return mArchiveHeaderOffset +
                ((-static_cast<std::size_t>(which)) & header_size(header_id::first));
     }
-    inline void raw_archive::switch_header() noexcept
+    inline void sector_device::switch_header() noexcept
     {
         mHeaderSelector =
             header_id{!static_cast<std::underlying_type_t<header_id>>(mHeaderSelector)};

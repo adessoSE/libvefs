@@ -28,7 +28,7 @@ namespace vefs
     {
         BOOST_OUTCOME_TRY(self, internal_file::create_new<index_file>(owner));
 
-        BOOST_OUTCOME_TRY(self->resize(detail::raw_archive::sector_payload_size));
+        BOOST_OUTCOME_TRY(self->resize(detail::sector_device::sector_payload_size));
         self->mFreeBlocks.dealloc(0, blocks_per_sector);
 
         return std::move(self);
@@ -239,7 +239,7 @@ namespace vefs
                         // grow one sector
                         auto oldFileSize = this->size();
                         BOOST_OUTCOME_TRY(
-                            resize(oldFileSize + detail::raw_archive::sector_payload_size));
+                            resize(oldFileSize + detail::sector_device::sector_payload_size));
                         mFreeBlocks.dealloc(detail::lut::sector_position_of(oldFileSize) /
                                                 blocks_per_sector,
                                             blocks_per_sector);
@@ -325,7 +325,7 @@ namespace vefs
         const auto fileSize = size();
 
         for (std::uint64_t consumed = 0; consumed < fileSize;
-             consumed += detail::raw_archive::sector_payload_size)
+             consumed += detail::sector_device::sector_payload_size)
         {
             file::sector::handle sector;
             if (auto arx = access(it))

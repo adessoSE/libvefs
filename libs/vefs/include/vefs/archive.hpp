@@ -101,10 +101,10 @@ namespace vefs
 
     private:
         archive();
-        archive(std::unique_ptr<detail::raw_archive> primitives);
+        archive(std::unique_ptr<detail::sector_device> primitives);
         detail::thread_pool &ops_pool();
 
-        std::unique_ptr<detail::raw_archive> mArchive;
+        std::unique_ptr<detail::sector_device> mArchive;
 
         std::shared_ptr<index_file> mArchiveIndexFile;
         std::shared_ptr<free_block_list_file> mFreeBlockIndexFile;

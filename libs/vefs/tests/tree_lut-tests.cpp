@@ -76,23 +76,23 @@ BOOST_AUTO_TEST_CASE(required_tree_depth_for_pos_2_to_the_exp_of_40_is_5)
 
 BOOST_AUTO_TEST_CASE(required_sector_count)
 {
-    using vefs::detail::raw_archive;
+    using vefs::detail::sector_device;
     using vefs::detail::lut::references_per_sector;
     using vefs::detail::lut::required_sector_count;
 
     // first sector is always allocated
     BOOST_TEST(required_sector_count(0) == 1);
     BOOST_TEST(required_sector_count(1) == 1);
-    BOOST_TEST(required_sector_count(raw_archive::sector_payload_size) == 1);
+    BOOST_TEST(required_sector_count(sector_device::sector_payload_size) == 1);
 
     // after the first sector we need one additional data sector + the first reference sector
-    BOOST_TEST(required_sector_count(raw_archive::sector_payload_size + 1) == 3);
-    BOOST_TEST(required_sector_count(raw_archive::sector_payload_size * 2 + 1) == 4);
+    BOOST_TEST(required_sector_count(sector_device::sector_payload_size + 1) == 3);
+    BOOST_TEST(required_sector_count(sector_device::sector_payload_size * 2 + 1) == 4);
 
     // next boundary is at references_per_sector * payload_size
-    BOOST_TEST(required_sector_count(raw_archive::sector_payload_size * references_per_sector) ==
+    BOOST_TEST(required_sector_count(sector_device::sector_payload_size * references_per_sector) ==
                1024);
-    BOOST_TEST(required_sector_count(raw_archive::sector_payload_size * references_per_sector + 1) ==
+    BOOST_TEST(required_sector_count(sector_device::sector_payload_size * references_per_sector + 1) ==
                1027);
 }
 
