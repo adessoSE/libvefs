@@ -13,7 +13,7 @@
 namespace vefs::detail::lut
 {
     // reference count per sector, one reference has 32 byte
-    constexpr auto references_per_sector = raw_archive::sector_payload_size / 32;
+    constexpr auto references_per_sector = sector_device::sector_payload_size / 32;
     // payload_size * references_per_sector^4 < 2^64 < payload_size * references_per_sector^5
     constexpr int max_tree_depth = 4;
 } // namespace vefs::detail::lut
@@ -29,7 +29,7 @@ namespace vefs::detail::lut::detail
     {
         std::array<std::uint64_t, max_tree_depth + 2> lut{};
         lut[0] = 1;
-        lut[1] = raw_archive::sector_payload_size;
+        lut[1] = sector_device::sector_payload_size;
         for (std::size_t i = 2; i < lut.size(); ++i)
         {
             lut[i] = lut[i - 1] * references_per_sector;
@@ -81,7 +81,7 @@ namespace vefs::detail::lut
      */
     constexpr std::uint64_t sector_position_of(std::uint64_t bytePos)
     {
-        return bytePos / raw_archive::sector_payload_size;
+        return bytePos / sector_device::sector_payload_size;
     }
 
     /**

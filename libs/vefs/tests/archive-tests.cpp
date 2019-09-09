@@ -81,7 +81,7 @@ BOOST_AUTO_TEST_CASE(archive_readwrite)
     auto fs = std::static_pointer_cast<filesystem>(memfs);
     auto cprov = crypto::boringssl_aes_256_gcm_crypto_provider();
 
-    constexpr std::uint64_t pos = detail::raw_archive::sector_payload_size * 2 - 1;
+    constexpr std::uint64_t pos = detail::sector_device::sector_payload_size * 2 - 1;
     using file_type = std::array<std::byte, (1 << 17) * 3 - 1>;
     auto bigFile = std::make_unique<file_type>();
     span file{ *bigFile };
@@ -123,7 +123,7 @@ BOOST_AUTO_TEST_CASE(archive_file_shrink)
     auto fs = std::static_pointer_cast<filesystem>(memfs);
     auto cprov = crypto::boringssl_aes_256_gcm_crypto_provider();
 
-    constexpr std::uint64_t pos = detail::raw_archive::sector_payload_size * 2 - 1;
+    constexpr std::uint64_t pos = detail::sector_device::sector_payload_size * 2 - 1;
     using file_type = std::array<std::byte, (1 << 17) * 3 - 1>;
     auto bigFile = std::make_unique<file_type>();
     span file{ *bigFile };
@@ -149,7 +149,7 @@ BOOST_AUTO_TEST_CASE(archive_file_shrink)
         TEST_RESULT_REQUIRE(fopenrx);
         auto hFile = std::move(fopenrx).assume_value();
 
-        TEST_RESULT(ac->resize(hFile, 2 * detail::raw_archive::sector_payload_size));
+        TEST_RESULT(ac->resize(hFile, 2 * detail::sector_device::sector_payload_size));
     }
     {
         auto openrx = archive::open(fs, default_archive_path, cprov, default_user_prk, file_open_mode::readwrite);
@@ -171,7 +171,7 @@ BOOST_AUTO_TEST_CASE(archive_file_erase)
     auto fs = std::static_pointer_cast<filesystem>(memfs);
     auto cprov = crypto::boringssl_aes_256_gcm_crypto_provider();
 
-    constexpr std::uint64_t pos = detail::raw_archive::sector_payload_size * 2 - 1;
+    constexpr std::uint64_t pos = detail::sector_device::sector_payload_size * 2 - 1;
     using file_type = std::array<std::byte, (1 << 17) * 3 - 1>;
     auto bigFile = std::make_unique<file_type>();
     span file{ *bigFile };
@@ -215,7 +215,7 @@ BOOST_AUTO_TEST_CASE(archive_empty_userprk)
     auto fs = std::static_pointer_cast<filesystem>(memfs);
     auto cprov = crypto::boringssl_aes_256_gcm_crypto_provider();
 
-    constexpr std::uint64_t pos = detail::raw_archive::sector_payload_size * 2 - 1;
+    constexpr std::uint64_t pos = detail::sector_device::sector_payload_size * 2 - 1;
     using file_type = std::array<std::byte, (1 << 17) * 3 - 1>;
     auto bigFile = std::make_unique<file_type>();
     span file{ *bigFile };
@@ -260,7 +260,7 @@ BOOST_AUTO_TEST_CASE(archive_query)
     auto fs = std::static_pointer_cast<filesystem>(memfs);
     auto cprov = crypto::boringssl_aes_256_gcm_crypto_provider();
 
-    constexpr std::uint64_t pos = detail::raw_archive::sector_payload_size * 2 - 1;
+    constexpr std::uint64_t pos = detail::sector_device::sector_payload_size * 2 - 1;
     using file_type = std::array<std::byte, (1 << 17) * 3 - 1>;
     auto bigFile = std::make_unique<file_type>();
     span file{ *bigFile };

@@ -43,7 +43,7 @@ namespace vefs
     {
     }
 
-    archive::archive(std::unique_ptr<detail::raw_archive> primitives)
+    archive::archive(std::unique_ptr<detail::sector_device> primitives)
         : mArchive{std::move(primitives)}
         , mWorkTracker{&thread_pool::shared()}
     {
@@ -54,7 +54,7 @@ namespace vefs
                        file_open_mode_bitset openMode) -> result<std::unique_ptr<archive>>
     {
         BOOST_OUTCOME_TRY(primitives,
-                          raw_archive::open(fs, archivePath, cryptoProvider, userPRK, openMode));
+                          sector_device::open(fs, archivePath, cryptoProvider, userPRK, openMode));
 
         std::unique_ptr<archive> arc{new archive(std::move(primitives))};
 

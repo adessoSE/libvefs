@@ -238,7 +238,7 @@ namespace vefs
 
     result<void> archive::file::read(rw_dynblob buffer, std::uint64_t readPos)
     {
-        auto offset = readPos % detail::raw_archive::sector_payload_size;
+        auto offset = readPos % detail::sector_device::sector_payload_size;
         tree_position it{detail::lut::sector_position_of(readPos)};
 
         while (buffer)
@@ -411,7 +411,7 @@ namespace vefs
         }
 
         tree_position writePos{detail::lut::sector_position_of(writeFilePos)};
-        auto offset = writeFilePos % detail::raw_archive::sector_payload_size;
+        auto offset = writeFilePos % detail::sector_device::sector_payload_size;
 
         auto newMinSize = writeFilePos + data.size();
 
@@ -429,7 +429,7 @@ namespace vefs
 
             data = data.subspan(amountWritten);
 
-            auto newSize = std::min(writePos.position() * detail::raw_archive::sector_payload_size,
+            auto newSize = std::min(writePos.position() * detail::sector_device::sector_payload_size,
                                     newMinSize);
 
             std::lock_guard integrityLock{integrity_mutex};
@@ -502,7 +502,7 @@ namespace vefs
         */
         assert(is_allocated(mData.size, sector->position()));
 
-        std::array<std::byte, detail::raw_archive::sector_payload_size + 16> encryptionMem;
+        std::array<std::byte, detail::sector_device::sector_payload_size + 16> encryptionMem;
         auto ciphertext = span(encryptionMem).subspan<16>();
         auto mac = span(encryptionMem).first<16>();
 
@@ -608,15 +608,15 @@ namespace vefs
 
     result<void> archive::file::grow_file(std::uint64_t size)
     {
-        using detail::raw_archive;
+        using detail::sector_device;
 
-        auto endSectorPos = size ? (size - 1) / raw_archive::sector_payload_size : 0;
+        auto endSectorPos = size ? (size - 1) / sector_device::sector_payload_size : 0;
         std::uint64_t fileSize;
         {
             std::lock_guard<std::shared_mutex> integrityLock{integrity_mutex};
             fileSize = mData.size;
         }
-        auto startSectorPos = fileSize ? (fileSize - 1) / raw_archive::sector_payload_size : 0;
+        auto startSectorPos = fileSize ? (fileSize - 1) / sector_device::sector_payload_size : 0;
 
         // the first sector is always allocated
         tree_position posIt{startSectorPos + 1};
@@ -629,7 +629,7 @@ namespace vefs
                 BOOST_OUTCOME_TRY(access_or_append(posIt));
 
                 auto newSize =
-                    std::min((posIt.position() + 1) * raw_archive::sector_payload_size, size);
+                    std::min((posIt.position() + 1) * sector_device::sector_payload_size, size);
 
                 std::lock_guard<std::shared_mutex> integrityLock{integrity_mutex};
                 fileSize = mData.size = std::max(mData.size, newSize);
@@ -649,7 +649,7 @@ namespace vefs
 
     result<void> archive::file::shrink_file(const std::uint64_t size)
     {
-        using detail::raw_archive;
+        using detail::sector_device;
         using detail::tree_path;
         namespace lut = detail::lut;
 
@@ -661,7 +661,7 @@ namespace vefs
             treeDepth = mData.tree_depth;
         }
         // we always keep the first sector alive
-        if (fileSize <= raw_archive::sector_payload_size)
+        if (fileSize <= sector_device::sector_payload_size)
         {
             std::lock_guard integrityLock{integrity_mutex};
             mData.size = size;

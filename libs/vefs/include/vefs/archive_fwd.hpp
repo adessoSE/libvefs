@@ -11,7 +11,7 @@ namespace vefs
     {
         class thread_pool;
 
-        class raw_archive;
+        class sector_device;
         struct basic_archive_file_meta;
     }
 

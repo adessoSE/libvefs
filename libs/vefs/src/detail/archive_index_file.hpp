@@ -29,10 +29,10 @@ namespace vefs
         static constexpr auto block_size = 64u;
         static constexpr auto alloc_map_size = 64u;
         static constexpr auto blocks_per_sector
-            = (detail::raw_archive::sector_payload_size - alloc_map_size) / block_size;
+            = (detail::sector_device::sector_payload_size - alloc_map_size) / block_size;
 
         static constexpr auto sector_padding
-            = detail::raw_archive::sector_payload_size
+            = detail::sector_device::sector_payload_size
                 - alloc_map_size - (blocks_per_sector * block_size);
 
         static_assert(alloc_map_size * std::numeric_limits<std::underlying_type_t<std::byte>>::digits

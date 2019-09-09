@@ -77,7 +77,7 @@ namespace vefs::detail
 #pragma pack(pop)
     } // namespace
 
-    result<void> vefs::detail::raw_archive::initialize_file(basic_archive_file_meta &file)
+    result<void> vefs::detail::sector_device::initialize_file(basic_archive_file_meta &file)
     {
         auto ctrValue = mArchiveSecretCounter.fetch_increment().value();
         BOOST_OUTCOME_TRY(crypto::kdf(as_span(file.secret), master_secret_view(), file_kdf_secret,
@@ -99,7 +99,7 @@ namespace vefs::detail
         return outcome::success();
     }
 
-    auto raw_archive::create_file() noexcept -> result<basic_archive_file_meta>
+    auto sector_device::create_file() noexcept -> result<basic_archive_file_meta>
     {
         thread_local utils::xoroshiro128plus fileid_prng = []() {
             std::array<std::uint64_t, 2> randomState;
@@ -122,7 +122,7 @@ namespace vefs::detail
         return std::move(file);
     }
 
-    raw_archive::raw_archive(file::ptr archiveFile, crypto::crypto_provider *cryptoProvider)
+    sector_device::sector_device(file::ptr archiveFile, crypto::crypto_provider *cryptoProvider)
         : mCryptoProvider(cryptoProvider)
         , mArchiveFile(std::move(archiveFile))
         , mSessionSalt(cryptoProvider->generate_session_salt())
@@ -131,9 +131,9 @@ namespace vefs::detail
         mNumSectors = mArchiveFile->size() / sector_size;
     }
 
-    auto raw_archive::open(filesystem::ptr fs, const std::filesystem::path &path,
+    auto sector_device::open(filesystem::ptr fs, const std::filesystem::path &path,
                            crypto::crypto_provider *cryptoProvider, ro_blob<32> userPRK,
-                           file_open_mode_bitset openMode) -> result<std::unique_ptr<raw_archive>>
+                           file_open_mode_bitset openMode) -> result<std::unique_ptr<sector_device>>
     {
         // no read only support as of now
         openMode |= file_open_mode::readwrite;
@@ -150,8 +150,8 @@ namespace vefs::detail
             return error{scode};
         }
 
-        std::unique_ptr<raw_archive> archive{new (std::nothrow)
-                                                 raw_archive(std::move(file), cryptoProvider)};
+        std::unique_ptr<sector_device> archive{new (std::nothrow)
+                                                 sector_device(std::move(file), cryptoProvider)};
         if (!archive)
         {
             return errc::not_enough_memory;
@@ -192,7 +192,7 @@ namespace vefs::detail
         return std::move(archive);
     }
 
-    result<void> raw_archive::sync()
+    result<void> sector_device::sync()
     {
         std::error_code scode;
         mArchiveFile->sync(scode);
@@ -203,7 +203,7 @@ namespace vefs::detail
         return outcome::success();
     }
 
-    result<void> raw_archive::parse_static_archive_header(ro_blob<32> userPRK)
+    result<void> sector_device::parse_static_archive_header(ro_blob<32> userPRK)
     {
         std::error_code scode;
 
@@ -287,7 +287,7 @@ namespace vefs::detail
         return outcome::success();
     }
 
-    result<void> raw_archive::parse_archive_header(std::size_t position, std::size_t size,
+    result<void> sector_device::parse_archive_header(std::size_t position, std::size_t size,
                                                    adesso::vefs::ArchiveHeader &out)
     {
         using adesso::vefs::ArchiveHeader;
@@ -335,7 +335,7 @@ namespace vefs::detail
         return outcome::success();
     }
 
-    result<void> raw_archive::parse_archive_header()
+    result<void> sector_device::parse_archive_header()
     {
         using adesso::vefs::ArchiveHeader;
 
@@ -411,7 +411,7 @@ namespace vefs::detail
         return outcome::success();
     }
 
-    result<void> raw_archive::write_static_archive_header(ro_blob<32> userPRK)
+    result<void> sector_device::write_static_archive_header(ro_blob<32> userPRK)
     {
         using adesso::vefs::StaticArchiveHeader;
 
@@ -471,13 +471,13 @@ namespace vefs::detail
         return outcome::success();
     }
 
-    result<void> raw_archive::read_sector(rw_blob<sector_payload_size> buffer,
+    result<void> sector_device::read_sector(rw_blob<sector_payload_size> buffer,
                                           const basic_archive_file_meta &file, sector_id sectorIdx,
                                           ro_dynblob contentMAC)
     {
         const auto sectorOffset = to_offset(sectorIdx);
 
-        if (buffer.size() != raw_archive::sector_payload_size)
+        if (buffer.size() != sector_device::sector_payload_size)
         {
             return errc::invalid_argument;
         }
@@ -510,7 +510,7 @@ namespace vefs::detail
         return outcome::success();
     }
 
-    result<void> detail::raw_archive::write_sector(rw_blob<sector_payload_size> ciphertextBuffer,
+    result<void> detail::sector_device::write_sector(rw_blob<sector_payload_size> ciphertextBuffer,
                                                    rw_dynblob mac, basic_archive_file_meta &file,
                                                    sector_id sectorIdx,
                                                    ro_blob<sector_payload_size> data)
@@ -524,11 +524,11 @@ namespace vefs::detail
         {
             return errc::invalid_argument;
         }
-        if (data.size() != raw_archive::sector_payload_size)
+        if (data.size() != sector_device::sector_payload_size)
         {
             return errc::invalid_argument;
         }
-        if (ciphertextBuffer.size() != raw_archive::sector_payload_size)
+        if (ciphertextBuffer.size() != sector_device::sector_payload_size)
         {
             return errc::invalid_argument;
         }
@@ -561,7 +561,7 @@ namespace vefs::detail
         return outcome::success();
     }
 
-    result<void> vefs::detail::raw_archive::erase_sector(basic_archive_file_meta &file,
+    result<void> vefs::detail::sector_device::erase_sector(basic_archive_file_meta &file,
                                                          sector_id sectorIdx)
     {
         if (sectorIdx == sector_id::master)
@@ -584,7 +584,7 @@ namespace vefs::detail
         return outcome::success();
     }
 
-    result<void> vefs::detail::raw_archive::update_header()
+    result<void> vefs::detail::sector_device::update_header()
     {
         using adesso::vefs::ArchiveHeader;
 
@@ -642,7 +642,7 @@ namespace vefs::detail
         return outcome::success();
     }
 
-    result<void> vefs::detail::raw_archive::update_static_header(ro_blob<32> newUserPRK)
+    result<void> vefs::detail::sector_device::update_static_header(ro_blob<32> newUserPRK)
     {
         BOOST_OUTCOME_TRY(write_static_archive_header(newUserPRK));
 

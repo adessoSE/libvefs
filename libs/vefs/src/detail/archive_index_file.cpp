@@ -316,7 +316,7 @@ namespace vefs
         const auto fileSize = size();
 
         for (std::uint64_t consumed = 0; consumed < fileSize;
-             consumed += detail::raw_archive::sector_payload_size)
+             consumed += detail::sector_device::sector_payload_size)
         {
             file::sector::handle sector;
             if (auto arx = access(it))
