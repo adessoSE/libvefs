@@ -1,4 +1,4 @@
-#include <vefs/blob.hpp>
+#include <vefs/span.hpp>
 #include "boost-unit-test.hpp"
 
 

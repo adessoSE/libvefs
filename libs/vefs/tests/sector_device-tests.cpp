@@ -1,4 +1,4 @@
-#include <vefs/detail/raw_archive.hpp>
+#include "../src/detail/sector_device.hpp"
 #include "boost-unit-test.hpp"
 
 #include <random>
