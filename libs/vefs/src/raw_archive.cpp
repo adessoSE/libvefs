@@ -1,4 +1,3 @@
-#include "precompiled.hpp"
 #include <vefs/detail/raw_archive.hpp>
 
 #include <array>

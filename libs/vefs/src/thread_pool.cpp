@@ -1,4 +1,3 @@
-#include "precompiled.hpp"
 #include <vefs/detail/thread_pool.hpp>
 
 #include <cassert>

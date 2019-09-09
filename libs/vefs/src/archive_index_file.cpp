@@ -1,5 +1,3 @@
-#include "precompiled.hpp"
-
 #include "archive_index_file.hpp"
 
 #include <vefs/detail/tree_lut.hpp>

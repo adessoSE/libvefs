@@ -9,10 +9,13 @@ add_library(vefs)
 
 DEF_SOURCE_GROUP(vefs "utils"
     SOURCES
-        # the precompiled.cpp _must_ be the first source file
-        # due to cotire limitations
-        src/precompiled.cpp
-        src/precompiled.hpp
+        src/platform.cpp
+
+        src/secure_ops.cpp
+
+        src/block_manager.hpp
+
+        src/proto-helper.hpp
 
     HEADERS
         vefs.natvis
@@ -38,15 +41,6 @@ DEF_SOURCE_GROUP(vefs "utils"
         include/vefs/utils/hash/detail/std_adaptor.hpp
 
         include/vefs/utils/unordered_map_mt.hpp
-
-    SOURCES
-        src/platform.cpp
-
-        src/secure_ops.cpp
-
-        src/block_manager.hpp
-
-        src/proto-helper.hpp
 )
 
 DEF_SOURCE_GROUP(vefs "lib"
@@ -210,18 +204,6 @@ if (MSVC_COMPATIBLE)
     set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/fileformat.pb.cc" PROPERTIES
         COMPILE_FLAGS "/wd4100 /wd4125 /wd4127 /wd4146 /wd4244"
     )
-endif()
-
-
-##########################################################################
-# cotire config
-set_target_properties(vefs PROPERTIES
-    COTIRE_ADD_UNITY_BUILD FALSE
-    COTIRE_CXX_PREFIX_HEADER_INIT "src/precompiled.hpp"
-)
-
-if (NOT (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_SIMULATE_ID STREQUAL "MSVC"))
-    cotire(vefs)
 endif()
 
 ##########################################################################

@@ -1,4 +1,3 @@
-#include "precompiled.hpp"
 #include "archive_file_lookup.hpp"
 
 #include <cassert>

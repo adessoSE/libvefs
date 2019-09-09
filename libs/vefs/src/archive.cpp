@@ -1,4 +1,3 @@
-#include "precompiled.hpp"
 #include <vefs/archive.hpp>
 
 #include <cassert>
