@@ -1,4 +1,3 @@
-#include "precompiled.hpp"
 #include <vefs/filesystem.hpp>
 
 #include <functional>

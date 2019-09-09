@@ -1,5 +1,4 @@
 #include "archive_index_file.hpp"
-#include "precompiled.hpp"
 
 #include <vefs/detail/tree_lut.hpp>
 #include <vefs/utils/bitset_overlay.hpp>

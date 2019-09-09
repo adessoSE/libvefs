@@ -1,5 +1,4 @@
 #include "blake2.hpp"
-#include "precompiled.hpp"
 
 namespace vefs::crypto::detail
 {

@@ -1,4 +1,3 @@
-#include "precompiled.hpp"
 #include "archive_internal_file.hpp"
 
 #include <vefs/detail/thread_pool.hpp>

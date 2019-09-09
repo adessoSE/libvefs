@@ -1,4 +1,3 @@
-#include "precompiled.hpp"
 #include <vefs/crypto/provider.hpp>
 #include <vefs/utils/secure_ops.hpp>
 

@@ -1,4 +1,3 @@
-#include "precompiled.hpp"
 #include <vefs/utils/platform.hpp>
 
 #include <boost/predef.h>

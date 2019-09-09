@@ -1,4 +1,3 @@
-#include "precompiled.hpp"
 #include <vefs/detail/thread_pool_win32.hpp>
 
 #include <vefs/exceptions.hpp>
