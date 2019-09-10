@@ -159,9 +159,10 @@ DEF_SOURCE_GROUP(vefs "utils"
         include/vefs/utils/uuid.hpp
         include/vefs/utils/random.hpp
 
-        include/vefs/utils/enum_bitset.hpp
+        include/vefs/utils/binary_codec.hpp
         include/vefs/utils/bit_scan.hpp
         include/vefs/utils/bitset_overlay.hpp
+        include/vefs/utils/enum_bitset.hpp
 
         include/vefs/utils/hash/algorithm_tag.hpp
         include/vefs/utils/hash/default_weak.hpp
