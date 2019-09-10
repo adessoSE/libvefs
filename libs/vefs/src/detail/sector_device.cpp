@@ -132,8 +132,9 @@ namespace vefs::detail
     }
 
     auto sector_device::open(filesystem::ptr fs, const std::filesystem::path &path,
-                           crypto::crypto_provider *cryptoProvider, ro_blob<32> userPRK,
-                           file_open_mode_bitset openMode) -> result<std::unique_ptr<sector_device>>
+                             crypto::crypto_provider *cryptoProvider, ro_blob<32> userPRK,
+                             file_open_mode_bitset openMode)
+        -> result<std::unique_ptr<sector_device>>
     {
         // no read only support as of now
         openMode |= file_open_mode::readwrite;
@@ -151,7 +152,7 @@ namespace vefs::detail
         }
 
         std::unique_ptr<sector_device> archive{new (std::nothrow)
-                                                 sector_device(std::move(file), cryptoProvider)};
+                                                   sector_device(std::move(file), cryptoProvider)};
         if (!archive)
         {
             return errc::not_enough_memory;
@@ -288,7 +289,7 @@ namespace vefs::detail
     }
 
     result<void> sector_device::parse_archive_header(std::size_t position, std::size_t size,
-                                                   adesso::vefs::ArchiveHeader &out)
+                                                     adesso::vefs::ArchiveHeader &out)
     {
         using adesso::vefs::ArchiveHeader;
         std::error_code scode;
@@ -471,9 +472,70 @@ namespace vefs::detail
         return outcome::success();
     }
 
+    auto vefs::detail::sector_device::read_sector(rw_blob<sector_payload_size> contentDest,
+                                                  const file_crypto_ctx &fileCtx, sector_id sectorIdx,
+                                                  ro_blob<16> contentMAC) noexcept -> result<void>
+    {
+        constexpr auto sectorIdxLimit = std::numeric_limits<std::uint64_t>::max() / sector_size;
+        if (sectorIdx == sector_id::master)
+        {
+            return errc::invalid_argument;
+        }
+        if (static_cast<std::uint64_t>(sectorIdx) >= sectorIdxLimit)
+        {
+            return errc::invalid_argument;
+        }
+
+        const auto sectorOffset = to_offset(sectorIdx);
+
+        std::array<std::byte, sector_size> ioBuffer;
+        std::error_code ioError;
+        mArchiveFile->read(ioBuffer, sectorOffset, ioError);
+        if (ioError)
+        {
+            return error{ioError} << ed::sector_idx{sectorIdx};
+        }
+
+        VEFS_TRY_INJECT(fileCtx.unseal_sector(contentDest, *mCryptoProvider, ioBuffer, contentMAC),
+                        ed::sector_idx{sectorIdx});
+
+        return success();
+    }
+
+    auto vefs::detail::sector_device::write_sector(rw_blob<16> mac, file_crypto_ctx &fileCtx,
+                                                   sector_id sectorIdx,
+                                                   ro_blob<sector_payload_size> data) noexcept
+        -> result<void>
+    {
+        constexpr auto sectorIdxLimit = std::numeric_limits<std::uint64_t>::max() / sector_size;
+        if (sectorIdx == sector_id::master)
+        {
+            return errc::invalid_argument;
+        }
+        if (static_cast<std::uint64_t>(sectorIdx) >= sectorIdxLimit)
+        {
+            return errc::invalid_argument;
+        }
+
+        std::array<std::byte, sector_size> ioBuffer;
+        VEFS_TRY_INJECT(
+            fileCtx.seal_sector(ioBuffer, mac, *mCryptoProvider, session_salt_view(), data),
+            ed::sector_idx{sectorIdx});
+
+        const auto sectorOffset = to_offset(sectorIdx);
+        std::error_code ioError;
+        mArchiveFile->write(ioBuffer, sectorOffset, ioError);
+        if (ioError)
+        {
+            return error{ioError} << ed::sector_idx{sectorIdx};
+        }
+
+        return success();
+    }
+
     result<void> sector_device::read_sector(rw_blob<sector_payload_size> buffer,
-                                          const basic_archive_file_meta &file, sector_id sectorIdx,
-                                          ro_dynblob contentMAC)
+                                            const basic_archive_file_meta &file,
+                                            sector_id sectorIdx, ro_dynblob contentMAC)
     {
         const auto sectorOffset = to_offset(sectorIdx);
 
@@ -511,9 +573,9 @@ namespace vefs::detail
     }
 
     result<void> detail::sector_device::write_sector(rw_blob<sector_payload_size> ciphertextBuffer,
-                                                   rw_dynblob mac, basic_archive_file_meta &file,
-                                                   sector_id sectorIdx,
-                                                   ro_blob<sector_payload_size> data)
+                                                     rw_dynblob mac, basic_archive_file_meta &file,
+                                                     sector_id sectorIdx,
+                                                     ro_blob<sector_payload_size> data)
     {
         constexpr auto sectorIdxLimit = std::numeric_limits<std::uint64_t>::max() / sector_size;
         if (sectorIdx == sector_id::master)
@@ -562,7 +624,7 @@ namespace vefs::detail
     }
 
     result<void> vefs::detail::sector_device::erase_sector(basic_archive_file_meta &file,
-                                                         sector_id sectorIdx)
+                                                           sector_id sectorIdx)
     {
         if (sectorIdx == sector_id::master)
         {

@@ -35,6 +35,9 @@ DEF_SOURCE_GROUP(vefs "detail"
         src/detail/archive_file_id.hpp
         src/detail/basic_archive_file_meta.hpp
         src/detail/block_manager.hpp
+        src/detail/file_crypto_ctx.cpp
+        src/detail/file_crypto_ctx.hpp
+        src/detail/root_sector_info.hpp
         src/detail/sector_device.cpp
         src/detail/sector_device.hpp
         src/detail/sector_id.hpp

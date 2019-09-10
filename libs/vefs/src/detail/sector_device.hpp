@@ -10,6 +10,8 @@
 
 #include "../crypto/counter.hpp"
 #include "../crypto/provider.hpp"
+#include "file_crypto_ctx.hpp"
+#include "root_sector_info.hpp"
 #include "sector_id.hpp"
 
 namespace adesso::vefs
@@ -48,6 +50,11 @@ namespace vefs::detail
         sector_device(file::ptr archiveFile, crypto::crypto_provider *cryptoProvider,
                     ro_blob<64> userPRK, create_tag);
         ~sector_device() = default;
+
+        auto read_sector(rw_blob<sector_payload_size> contentDest, const file_crypto_ctx &fileCtx,
+                         sector_id sectorIdx, ro_blob<16> contentMAC) noexcept -> result<void>;
+        auto write_sector(rw_blob<16> mac, file_crypto_ctx &fileCtx, sector_id sectorIdx,
+                          ro_blob<sector_payload_size> data) noexcept -> result<void>;
 
         result<void> read_sector(rw_blob<sector_payload_size> buffer,
                                  const basic_archive_file_meta &file, sector_id sectorIdx,
