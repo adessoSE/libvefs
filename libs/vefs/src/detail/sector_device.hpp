@@ -44,17 +44,13 @@ namespace vefs::detail
         static auto open(filesystem::ptr fs, const std::filesystem::path &path,
                          crypto::crypto_provider *cryptoProvider, ro_blob<32> userPRK,
                          file_open_mode_bitset openMode) -> result<std::unique_ptr<sector_device>>;
-
-        sector_device(file::ptr archiveFile, crypto::crypto_provider *cryptoProvider,
-                    ro_blob<64> userPRK);
-        sector_device(file::ptr archiveFile, crypto::crypto_provider *cryptoProvider,
-                    ro_blob<64> userPRK, create_tag);
         ~sector_device() = default;
 
         auto read_sector(rw_blob<sector_payload_size> contentDest, const file_crypto_ctx &fileCtx,
                          sector_id sectorIdx, ro_blob<16> contentMAC) noexcept -> result<void>;
         auto write_sector(rw_blob<16> mac, file_crypto_ctx &fileCtx, sector_id sectorIdx,
                           ro_blob<sector_payload_size> data) noexcept -> result<void>;
+        auto erase_sector(sector_id sectorIdx) noexcept -> result<void>;
 
         result<void> read_sector(rw_blob<sector_payload_size> buffer,
                                  const basic_archive_file_meta &file, sector_id sectorIdx,
@@ -62,7 +58,6 @@ namespace vefs::detail
         result<void> write_sector(rw_blob<sector_payload_size> ciphertextBuffer, rw_dynblob mac,
                                   basic_archive_file_meta &file, sector_id sectorIdx,
                                   ro_blob<sector_payload_size> data);
-        result<void> erase_sector(basic_archive_file_meta &file, sector_id sectorIdx);
 
         result<void> update_header();
         result<void> update_static_header(ro_blob<32> newUserPRK);
@@ -79,9 +74,7 @@ namespace vefs::detail
         ro_blob<16> session_salt_view() const;
 
         const crypto::crypto_provider *crypto() const;
-
         crypto::atomic_counter &master_secret_counter();
-        crypto::atomic_counter &journal_counter();
 
         auto create_file() noexcept -> result<basic_archive_file_meta>;
 
@@ -112,6 +105,7 @@ namespace vefs::detail
         utils::secure_byte_array<16> mSessionSalt;
         crypto::atomic_counter mArchiveSecretCounter;
         crypto::atomic_counter mJournalCounter;
+        std::atomic<std::uint64_t> mEraseCounter;
 
         std::atomic<uint64_t> mNumSectors;
 
@@ -173,11 +167,6 @@ namespace vefs::detail
     inline crypto::atomic_counter &sector_device::master_secret_counter()
     {
         return mArchiveSecretCounter;
-    }
-
-    inline crypto::atomic_counter &sector_device::journal_counter()
-    {
-        return mJournalCounter;
     }
 
 #if defined BOOST_COMP_MSVC_AVAILABLE

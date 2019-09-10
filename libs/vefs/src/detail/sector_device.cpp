@@ -126,6 +126,7 @@ namespace vefs::detail
         : mCryptoProvider(cryptoProvider)
         , mArchiveFile(std::move(archiveFile))
         , mSessionSalt(cryptoProvider->generate_session_salt())
+        , mEraseCounter(0)
         , mNumSectors(0)
     {
         mNumSectors = mArchiveFile->size() / sector_size;
@@ -473,7 +474,8 @@ namespace vefs::detail
     }
 
     auto vefs::detail::sector_device::read_sector(rw_blob<sector_payload_size> contentDest,
-                                                  const file_crypto_ctx &fileCtx, sector_id sectorIdx,
+                                                  const file_crypto_ctx &fileCtx,
+                                                  sector_id sectorIdx,
                                                   ro_blob<16> contentMAC) noexcept -> result<void>
     {
         constexpr auto sectorIdxLimit = std::numeric_limits<std::uint64_t>::max() / sector_size;
@@ -530,6 +532,26 @@ namespace vefs::detail
             return error{ioError} << ed::sector_idx{sectorIdx};
         }
 
+        return success();
+    }
+
+    auto vefs::detail::sector_device::erase_sector(sector_id sectorIdx) noexcept -> result<void>
+    {
+        if (sectorIdx == sector_id::master)
+        {
+            return errc::invalid_argument;
+        }
+        std::array<std::byte, 32> salt;
+        auto nonce = mEraseCounter.fetch_add(1, std::memory_order_relaxed);
+        VEFS_TRY(crypto::kdf(salt, mSessionSalt, ro_blob_cast(nonce), sector_kdf_erase));
+
+        const auto offset = to_offset(sectorIdx);
+        std::error_code ioError;
+        mArchiveFile->write(salt, offset, ioError);
+        if (ioError)
+        {
+            return error{ioError};
+        }
         return success();
     }
 
@@ -620,29 +642,6 @@ namespace vefs::detail
             return error{scode} << ed::sector_idx{sectorIdx};
         }
 
-        return outcome::success();
-    }
-
-    result<void> vefs::detail::sector_device::erase_sector(basic_archive_file_meta &file,
-                                                           sector_id sectorIdx)
-    {
-        if (sectorIdx == sector_id::master)
-        {
-            return errc::invalid_argument;
-        }
-        std::array<std::byte, 32> saltBuffer;
-        span salt{saltBuffer};
-
-        auto nonce = file.write_counter.fetch_increment();
-        BOOST_OUTCOME_TRY(crypto::kdf(salt, nonce.view(), sector_kdf_erase, mSessionSalt));
-
-        const auto offset = to_offset(sectorIdx);
-        std::error_code scode;
-        mArchiveFile->write(salt, offset, scode);
-        if (scode)
-        {
-            return error{scode};
-        }
         return outcome::success();
     }
 

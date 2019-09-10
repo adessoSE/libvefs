@@ -597,7 +597,7 @@ namespace vefs
         BOOST_OUTCOME_TRY(shrink_file(0));
 
         std::unique_lock integrityLock{integrity_mutex};
-        BOOST_OUTCOME_TRY(mOwner.mArchive->erase_sector(mData, mData.start_block_idx));
+        BOOST_OUTCOME_TRY(mOwner.mArchive->erase_sector(mData.start_block_idx));
         mOwner.mFreeBlockIndexFile->dealloc_sector(mData.start_block_idx);
         mData.tree_depth = -1;
         mData.start_block_idx = detail::sector_id::master;
@@ -709,7 +709,7 @@ namespace vefs
             }
 
             collectedIds.push_back(toBeCollected);
-            BOOST_OUTCOME_TRY(mOwner.mArchive->erase_sector(mData, toBeCollected));
+            BOOST_OUTCOME_TRY(mOwner.mArchive->erase_sector(toBeCollected));
 
             // update all parent sectors affected by the removal of the current sector
             for (auto layer = 1;; ++layer)
@@ -739,7 +739,7 @@ namespace vefs
 
                     auto sectorIdx = it->sector_id();
                     collectedIds.push_back(sectorIdx);
-                    BOOST_OUTCOME_TRY(mOwner.mArchive->erase_sector(mData, sectorIdx));
+                    BOOST_OUTCOME_TRY(mOwner.mArchive->erase_sector(sectorIdx));
                     it.mark_clean();
 
                     it->update_parent({});
@@ -777,7 +777,7 @@ namespace vefs
                 utils::secure_memzero(it->data().first<sizeof(RawSectorReference)>());
                 auto sectorIdx = it->sector_id();
                 collectedIds.push_back(sectorIdx);
-                BOOST_OUTCOME_TRY(mOwner.mArchive->erase_sector(mData, sectorIdx));
+                BOOST_OUTCOME_TRY(mOwner.mArchive->erase_sector(sectorIdx));
                 it.mark_clean();
 
                 parent = it->parent();
