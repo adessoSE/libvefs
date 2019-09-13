@@ -412,7 +412,7 @@ namespace fmt
                 const auto val = *xit;
                 switch (state)
                 {
-                case 0:
+                case 0: // start-state
                     switch (val)
                     {
                     case ':': // this should actually lead to a unique state but I'm lazy
@@ -441,7 +441,7 @@ namespace fmt
                     }
                     break;
 
-                case 1:
+                case 1: // "!" was parsed
                     if (val != 'v')
                     {
                         ctx.on_error(errfmt);
@@ -450,7 +450,7 @@ namespace fmt
                     error_format = vefs::error_message_format::simple;
                     break;
 
-                case 2:
+                case 2: // "v" was parsed
                     if (val != '}')
                     {
                         ctx.on_error(errfmt);
