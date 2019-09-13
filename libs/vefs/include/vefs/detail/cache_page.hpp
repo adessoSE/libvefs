@@ -65,6 +65,7 @@ namespace vefs::detail
         /**
          * constructs a new dead cache page
          */
+        // #Todo why not remove constexpr comment?
         /*constexpr*/ cache_page() noexcept = default;
         ~cache_page() noexcept;
 
@@ -121,6 +122,7 @@ namespace vefs::detail
     template <typename T>
     inline cache_page<T>::~cache_page() noexcept
     {
+        //#TODO const?
         auto state = mEntryState.load(std::memory_order_acquire);
         if (!(state & tombstone_bit) && (state & ref_mask) > 0)
         {
@@ -154,7 +156,7 @@ namespace vefs::detail
             // it is a non dirty tombstone
             if (!(current == 0 || (current & tombstone_bit && !(current & dirty_bit))))
             {
-                // notify the owner if this entry is ((not referenced and dirty)) but not dead
+                // notify the owner if this entry is not referenced and dirty but not dead
                 // which usually is a good time to consider synchronizing this entry
                 return current == dirty_bit ? cache_replacement_result::dirty
                                             : cache_replacement_result::referenced;

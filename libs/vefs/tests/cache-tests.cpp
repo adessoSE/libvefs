@@ -2,6 +2,9 @@
 #include <vefs/detail/cache_car.hpp>
 
 #include "test-utils.hpp"
+#include <boost/test/unit_test_suite.hpp>
+#include <boost/test/unit_test_log.hpp>
+#include <boost/test/tools/interface.hpp>
 
 using namespace vefs;
 using namespace vefs::detail;
@@ -127,7 +130,46 @@ BOOST_AUTO_TEST_CASE(cache_handle_acquire_release)
     page.cancel_replace();
 }
 
-BOOST_AUTO_TEST_CASE(cache_fill)
+BOOST_AUTO_TEST_CASE(try_access_returns_value_value_in_cache)
+{
+    using namespace vefs::utils;
+    using namespace vefs::detail;
+    using namespace cache_tests;
+
+    auto cx = std::make_unique<cache_t>(cache_t::notify_dirty_fn{});
+
+    cached_value value = {1, 2, nullptr};
+
+    (void)cx->access(0, value);
+
+    auto result = cx->try_access(0);
+
+    auto cached_result =((aliasing_ref_ptr<cached_value,cache_page<cached_value>>*)&result)->get();
+    
+    BOOST_TEST(cached_result->val1 == value.val1);
+    BOOST_TEST(cached_result->val2 == value.val2);
+    BOOST_TEST(cached_result->val3 == value.val3);    
+}
+
+BOOST_AUTO_TEST_CASE(try_access_returns_zero_if_no_value_in_cache)
+{
+    using namespace vefs::utils;
+    using namespace vefs::detail;
+    using namespace cache_tests;
+
+    auto cx = std::make_unique<cache_t>(cache_t::notify_dirty_fn{});
+
+    cached_value value = {1, 2, nullptr};
+
+    (void)cx->access(0, value);
+
+    auto result = cx->try_access(1);
+
+    BOOST_TEST(!result);
+}
+
+
+BOOST_AUTO_TEST_CASE(first_added_entry_gets_envicted_on_full_chace)
 {
     auto cx = std::make_unique<cache_t>(cache_t::notify_dirty_fn{});
     constexpr auto max_entries = cache_t::max_entries;
@@ -136,10 +178,41 @@ BOOST_AUTO_TEST_CASE(cache_fill)
     {
         (void)cx->access(i, i, 0, nullptr);
     }
-    (void)cx->try_access(0); // second chance
-    (void)cx->access(max_entries, max_entries, 0, nullptr);
-    BOOST_TEST(cx->try_access(0));
-    BOOST_TEST(!cx->try_access(1));
+
+    (void)cx->access(1337, 1337, 0, nullptr);
+
+    BOOST_TEST(!cx->try_access(0));
+    BOOST_TEST(cx->try_access(1));
+    BOOST_TEST(cx->try_access(1337));
 }
+
+BOOST_AUTO_TEST_CASE(second_chance_entry_gets_not_envicted_on_full_chace)
+{
+    using namespace vefs::utils;
+    using namespace vefs::detail;
+    using namespace cache_tests;
+
+    auto cx = std::make_unique<cache_t>(cache_t::notify_dirty_fn{});
+    constexpr auto max_entries = cache_t::max_entries;
+
+    for (std::size_t i = 0; i < max_entries; ++i)
+    {
+        (void)cx->access(i, i, 0, nullptr);
+    }
+    (void)cx->try_access(0); //second chance
+
+    cached_value new_value = {1337, 1338, nullptr};
+
+    auto result = cx->access(1337, new_value);
+    auto cached_result =
+        ((aliasing_ref_ptr<cached_value, cache_page<cached_value>> *)&result)->get();
+
+    BOOST_TEST(cx->try_access(0));
+   
+    BOOST_TEST(cached_result->val1 == new_value.val1);
+    BOOST_TEST(cached_result->val2 == new_value.val2);
+    BOOST_TEST(cached_result->val3 == new_value.val3);
+}
+
 
 BOOST_AUTO_TEST_SUITE_END()

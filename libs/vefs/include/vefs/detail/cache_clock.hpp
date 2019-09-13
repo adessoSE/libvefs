@@ -46,6 +46,7 @@ namespace vefs::detail
          */
         void clear() noexcept;
 
+        // #TODO clang-tidey tells me to use [[nodiscard]]
         auto size() const noexcept -> std::size_t;
         auto size_target() const noexcept -> std::size_t;
         void size_target(std::size_t value) noexcept;
