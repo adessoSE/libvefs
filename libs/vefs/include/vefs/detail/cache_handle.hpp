@@ -37,6 +37,13 @@ namespace vefs::detail
          */
         inline auto mark_clean() noexcept -> bool;
 
+        friend inline auto get_cache_index(cache_handle &self, cache_page<T> *begin) noexcept
+            -> std::size_t
+        {
+            assert(self);
+            return static_cast<std::size_t>(self.get_handle().get() - begin);
+        }
+
         friend inline void swap(cache_handle &lhs, cache_handle &rhs) noexcept
         {
             swap(static_cast<base_type &>(lhs), static_cast<base_type &>(rhs));

@@ -11,7 +11,8 @@
 namespace vefs::detail
 {
     /**
-     * Implements a dynamic clock datastructure for up to ClockSize elements. Requires O(ClockSize) space.
+     * Implements a dynamic clock datastructure for up to ClockSize elements. Requires O(ClockSize)
+     * space.
      *
      * The internal implemenation uses the smallest available integer type for the stored indices.
      */
@@ -46,7 +47,11 @@ namespace vefs::detail
          */
         void clear() noexcept;
 
-        // #TODO clang-tidey tells me to use [[nodiscard]]
+        /**
+         * Removes the given index from the clock. O(ClockSize)
+         */
+        bool purge(std::size_t value) noexcept;
+
         auto size() const noexcept -> std::size_t;
         auto size_target() const noexcept -> std::size_t;
         void size_target(std::size_t value) noexcept;
@@ -114,6 +119,20 @@ namespace vefs::detail
         {
             entry = entry_init(0);
         }
+    }
+
+    template <std::uintmax_t ClockSize>
+    inline bool cache_clock<ClockSize>::purge(std::size_t value) noexcept
+    {
+        const auto it =
+            std::find(mEntries.begin(), mEntries.end(), static_cast<entry_index>(value));
+        if (it == mEntries.end())
+        {
+            return false;
+        }
+        *it = tombstone_bit;
+        --mSize;
+        return true;
     }
 
     template <std::uintmax_t ClockSize>

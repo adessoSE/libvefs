@@ -161,6 +161,8 @@ namespace vefs::detail
          */
         inline void purge_all() noexcept;
 
+        inline bool try_purge(handle &whom) noexcept;
+
     private:
         inline auto try_purge(const key_type &key, history_list &history) noexcept
             -> std::optional<key_type>;
@@ -265,6 +267,27 @@ namespace vefs::detail
             }
         } while (!finished);
         mKeyIndexMap.clear();
+    }
+
+    template <typename Key, typename T, unsigned int CacheSize, typename Hash, typename KeyEqual>
+    inline bool cache_car<Key, T, CacheSize, Hash, KeyEqual>::try_purge(handle &whom) noexcept
+    {
+        std::lock_guard guard{mReplacementSync};
+        auto xpages = pages();
+        auto where = get_cache_index(whom, xpages.data());
+
+        if (!xpages[where].try_purge(true))
+        {
+            return false;
+        }
+        whom = cache_handle{};
+        if (!mRecencyClock.purge(where))
+        {
+            mFrequencyClock.purge(where);
+        }
+        mKeyIndexMap.erase(std::move(mIndexKeyMap[where]));
+
+        return true;
     }
 
     template <typename Key, typename T, unsigned int CacheSize, typename Hash, typename KeyEqual>
@@ -551,8 +574,16 @@ namespace vefs::detail
         }
         else
         {
-            // not full, candidate is at the end of the valid cache page range
+            // not full, candidate is _usually_ at the end of the valid cache page range
+            // this is however not necessarily the case after purging a page
             candidate = num_entries;
+            if (!page(candidate).is_dead())
+            {
+                auto xpages = pages();
+                auto which =
+                    std::find_if(xpages.begin(), xpages.end(), [](auto &p) { return p.is_dead(); });
+                candidate = static_cast<page_index>(std::distance(xpages.begin(), which));
+            }
             [[maybe_unused]] const auto rprx = page(candidate).try_start_replace();
             assert(rprx == cache_replacement_result::succeeded);
         }
