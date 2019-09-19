@@ -9,12 +9,17 @@
 
 namespace vefs::detail
 {
+    struct sector_reference
+    {
+        sector_id sector;
+        std::array<std::byte, 16> mac;
+    };
+
     class root_sector_info
     {
     public:
-        std::array<std::byte, 16> start_block_mac;
-        sector_id root_block_idx;
-        std::uint64_t file_size;
+        sector_reference root;
+        std::uint64_t maximum_extent;
         int tree_depth;
     };
-}
+} // namespace vefs::detail
