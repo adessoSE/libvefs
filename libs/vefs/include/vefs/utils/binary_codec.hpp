@@ -11,15 +11,16 @@
 
 #include <boost/endian/conversion.hpp>
 
-#include <vefs/blob.hpp>
+#include <vefs/span.hpp>
 
 namespace vefs::utils
-{                  
+{
+    template <std::size_t Extent = dynamic_extent>
     class binary_codec final
     {
     public:
         binary_codec() = delete;
-        binary_codec(rw_dynblob buffer)
+        binary_codec(span<std::byte, Extent> buffer)
             : mBuffer(buffer)
         {
         }
@@ -34,9 +35,16 @@ namespace vefs::utils
 
             using namespace boost::endian;
 
-            type mem;
-            std::memcpy(&mem, mBuffer.data() + offset, sizeof(type));
-            return little_to_native(mem);
+            if constexpr (std::is_same_v<type, std::byte>)
+            {
+                return mBuffer[offset];
+            }
+            else
+            {
+                type mem;
+                std::memcpy(&mem, mBuffer.data() + offset, sizeof(type));
+                return little_to_native(mem);
+            }
         }
 
         template <typename T>
@@ -49,14 +57,15 @@ namespace vefs::utils
 
             using namespace boost::endian;
 
-            type mem{native_to_little<type>(value)};
-            std::memcpy(mBuffer.data() + offset, &mem, sizeof(type));
-        }
-
-        void write(std::byte value, std::size_t offset) noexcept
-        {
-            assert(offset < mBuffer.size_bytes());
-            mBuffer[offset] = value;
+            if constexpr (std::is_same_v<type, std::byte>)
+            {
+                mBuffer[offset] = value;
+            }
+            else
+            {
+                type mem{native_to_little<type>(value)};
+                std::memcpy(mBuffer.data() + offset, &mem, sizeof(type));
+            }
         }
 
         auto as_bytes() const noexcept -> ro_dynblob
@@ -81,18 +90,6 @@ namespace vefs::utils
         }
 
     private:
-        rw_dynblob mBuffer;
+        span<std::byte, Extent> mBuffer;
     };
-
-    template <>
-    inline auto binary_codec::read<std::byte>(std::size_t offset) const noexcept -> std::byte
-    {
-        assert(offset < mBuffer.size_bytes());
-        return mBuffer[offset];
-    }
-    template <>
-    inline void binary_codec::write<std::byte>(std::byte value, std::size_t offset) noexcept
-    {
-        write(value, offset);
-    }
-} // namespace dcurve::ipc::detail
+} // namespace vefs::utils
