@@ -43,6 +43,10 @@ namespace vefs::detail
         {
             return mPhysicalPosition;
         }
+        inline void physical_position(sector_id newPosition) noexcept
+        {
+            mPhysicalPosition = newPosition;
+        }
         inline auto logical_position() const noexcept -> tree_position
         {
             return mLogicalPosition;

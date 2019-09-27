@@ -3,6 +3,7 @@
 #include <memory>
 #include <mutex>
 #include <shared_mutex>
+#include <thread>
 
 #include <vefs/platform/platform.hpp>
 
@@ -64,10 +65,11 @@ namespace vefs::detail
         file_mt(sector_device &device, file_crypto_ctx &cryptoCtx, root_sector_info rootInfo);
 
         auto access(tree_position sectorPosition) -> result<sector_handle>;
+        auto access_or_create(tree_position sectorPosition) -> result<sector_handle>;
 
     private:
         template <bool ReturnParentIfNotAllocated>
-        auto access(tree_position sectorPosition) -> result<sector_handle>;
+        auto access(tree_path sectorPath) -> result<sector_handle>;
 
         auto adjust_tree_depth(int targetDepth) noexcept -> result<void>;
         auto increase_tree_depth(int targetDepth) noexcept -> result<void>;
@@ -75,6 +77,11 @@ namespace vefs::detail
 
         auto access_or_read_child(sector_handle parent, tree_position childPosition,
                                   int childParentOffset) noexcept -> result<sector_handle>;
+        auto access_or_create_child(sector_handle parent, tree_position childPosition,
+                                    int childParentOffset, sector_id physicalPosition) noexcept
+            -> result<sector_handle>;
+        auto erase_child(sector_handle parent, tree_position child, int childParentOffset) noexcept
+            -> result<void>;
 
         sector_device &mDevice;
         file_crypto_ctx &mCryptoCtx;
@@ -182,16 +189,68 @@ namespace vefs::detail
     inline auto file_mt<SectorAllocator>::access(tree_position logicalPosition)
         -> result<sector_handle>
     {
-        return access<false>(logicalPosition);
+        return access<false>(tree_path{5, logicalPosition});
+    }
+
+    template <typename SectorAllocator>
+    inline auto file_mt<SectorAllocator>::access_or_create(tree_position sectorPosition)
+        -> result<sector_handle>
+    {
+        using boost::container::static_vector;
+
+        tree_path sectorPath{5, sectorPosition};
+        int requiredDepth = 0;
+        for (; sectorPath.position(requiredDepth) != 0; ++requiredDepth)
+        {
+        }
+        {
+            std::lock_guard treeDepthLock{mTreeDepthSync};
+            if (mNextRootInfo.tree_depth < requiredDepth)
+            {
+                VEFS_TRY(increase_tree_depth(requiredDepth));
+            }
+        }
+
+        sector_handle mountPoint;
+        if (auto sectorrx = access<true>(sectorPath);
+            !sectorrx || sectorrx.assume_value()->logical_position() == sectorPosition)
+        {
+            return std::move(sectorrx);
+        }
+        else
+        {
+            mountPoint = std::move(sectorrx).assume_value();
+        }
+
+        int missingLayers = mountPoint->logical_position().layer() - sectorPosition.layer();
+        static_vector<sector_id, lut::max_tree_depth> allocatedSectors;
+        utils::scope_guard allocationRollbackGuard = [this, &allocatedSectors]() {
+            for (auto it = allocatedSectors.begin(), end = allocatedSectors.end(); it != end; ++it)
+            {
+                // #TODO deallocate
+            }
+        };
+
+        // we allocate the required disc space before making any changes,
+        // because it is the only thing that can still fail
+        allocatedSectors.resize(missingLayers);
+        // mSectorAllocator.alloc_range(allocatedSectors);
+
+        for (auto it = tree_path::iterator(sectorPath, mountPoint->logical_position().layer() - 1),
+                  end = sectorPath.end();
+             it != end; ++it)
+        {
+            const auto logicalPos = *it;
+            const auto physicalPos = allocatedSectors.back();
+            allocatedSectors.pop_back();
+            // mountPoint = mSectorCache->access(*it, )
+        }
     }
 
     template <typename SectorAllocator>
     template <bool ReturnParentIfNotAllocated>
-    inline auto file_mt<SectorAllocator>::access(tree_position logicalPosition)
-        -> result<sector_handle>
+    inline auto file_mt<SectorAllocator>::access(tree_path path) -> result<sector_handle>
     {
-        tree_path path{5, logicalPosition};
-
         sector_handle base;
         auto it = std::find_if(path.rbegin(), path.rend(), [this, &base](tree_position position) {
                       return base = mSectorCache->try_access(position);
@@ -245,6 +304,7 @@ namespace vefs::detail
     inline auto file_mt<SectorAllocator>::adjust_tree_depth(int targetDepth) noexcept
         -> result<void>
     {
+        // usefulness of this method still needs to be determined
         std::lock_guard treeDepthLock{mTreeDepthSync};
 
         if (mNextRootInfo.tree_depth < targetDepth)
@@ -253,8 +313,7 @@ namespace vefs::detail
         }
         else if (mNextRootInfo.tree_depth > targetDepth)
         {
-            // shrink
-            return errc::not_supported;
+            return decrease_tree_depth(targetDepth);
         }
         return success();
     }
@@ -300,12 +359,14 @@ namespace vefs::detail
 
                     return xsec;
                 });
+            auto root = std::move(createrx).assume_value();
 
-            mRootSector->policy().parent(createrx.assume_value());
+            mRootSector->policy().parent(root);
             mNextRootInfo.root = {};
             oldRootLock.unlock();
-            mRootSector = std::move(createrx).assume_value();
+            mRootSector = std::move(root);
         }
+        mNextRootInfo.tree_depth = targetDepth;
         return success();
     }
 
@@ -313,7 +374,42 @@ namespace vefs::detail
     inline auto file_mt<SectorAllocator>::decrease_tree_depth(int targetDepth) noexcept
         -> result<void>
     {
-        return result<void>();
+        using boost::container::static_vector;
+
+        VEFS_TRY(newRoot, access(tree_position(0, targetDepth)));
+
+        static_vector<sector_handle, lut::max_tree_depth + 1> victimChildren;
+
+        for (sector_handle child = newRoot, parent = newRoot->policy().parent(); parent;
+             child->policy().parent())
+        {
+            victimChildren.emplace_back(std::exchange(child, std::move(parent)));
+        }
+
+        std::for_each(
+            victimChildren.rbegin(), victimChildren.rend(), [this](sector_handle &current) {
+                std::unique_lock xguard{*current};
+                auto parent = current->policy().parent();
+                current->policy().parent(sector_handle{});
+                auto physId = parent->physical_position();
+                for (;;)
+                {
+                    mNextRootInfo.root = reference_sector_layout{as_span(*parent)}.read(0);
+                    mSectorCache->try_purge(parent);
+                    xguard.unlock();
+                    if (!parent)
+                    {
+                        break;
+                    }
+                    std::this_thread::yield();
+                    xguard.lock();
+                }
+                // mSectorAllocator.dealloc_one(physId);
+                current = sector_handle{};
+            });
+
+        mNextRootInfo.tree_depth = targetDepth;
+        return success();
     }
 
     template <typename SectorAllocator>
@@ -343,6 +439,71 @@ namespace vefs::detail
                 }
                 return xsec;
             });
+    }
+
+    template <typename SectorAllocator>
+    inline auto file_mt<SectorAllocator>::access_or_create_child(
+        sector_handle parent, tree_position childPosition, int childParentOffset,
+        sector_id physicalPosition) noexcept -> result<sector_handle>
+    {
+        auto rx = mSectorCache->access(
+            childPosition, [&](void *mem) noexcept->result<sector_type *> {
+                auto ref = reference_sector_layout{as_span(*parent)}.read(childParentOffset);
+                if (ref.sector != sector_id::master)
+                {
+                    auto xsec = new (mem) sector_type(childPosition, ref.sector, std::move(parent));
+
+                    if (auto readResult =
+                            mDevice.read_sector(as_span(*xsec), mCryptoCtx, ref.sector, ref.mac);
+                        readResult.has_failure())
+                    {
+                        std::destroy_at(xsec);
+                        readResult.assume_error() << ed::sector_idx{ref.sector};
+                        return std::move(readResult).as_failure();
+                    }
+                    return xsec;
+                }
+                else
+                {
+                    auto xsec =
+                        new (mem) sector_type(childPosition, physicalPosition, std::move(parent));
+                    physicalPosition = sector_id::master;
+                    return xsec;
+                }
+            });
+        if (physicalPosition != sector_id::master)
+        {
+            // mSectorAllocator.dealloc_one(physicalPosition)
+        }
+    }
+
+    template <typename SectorAllocator>
+    inline auto file_mt<SectorAllocator>::erase_child(sector_handle parent, tree_position child,
+                                                      int childParentOffset) noexcept
+        -> result<void>
+    {
+        for (;;)
+        {
+            sector_id physicalChildPosition;
+            if (mSectorCache->try_purge(child, [&]() {
+                    reference_sector_layout parentLayout{as_span(*parent)};
+                    physicalChildPosition = parentLayout.read(childParentOffset).sector;
+                    parentLayout.write(childParentOffset, {sector_id::master, {}});
+                }))
+            {
+                if (physicalChildPosition != sector_id::master)
+                {
+                    // mSectorAllocator.dealloc_one(physicalChildPosition);
+                    VEFS_TRY(mDevice.erase_sector(physicalChildPosition));
+                }
+                return success();
+            }
+            std::this_thread::yield();
+            if (auto h = mSectorCache->try_access(child))
+            {
+                h.mark_clean();
+            }
+        }
     }
 
 #pragma endregion
