@@ -74,15 +74,17 @@ namespace vefs::detail
          *
          * If successful the replacement will need to be completed by calling finish_replace()
          * or cancel_replace().
-         * The replacement will fail if the page is dirty, referenced or has the second chance bit set.
+         * The replacement will fail if the page is dirty, referenced or has the second chance bit
+         * set.
          */
         inline auto try_start_replace() noexcept -> enum_bitset<cache_replacement_result>;
         /**
          * Completes page replacement by constructing the new element in place.
          * If construction fails its effects are equivalent to cancel_replace().
-         * 
-         * \param ctor The in place element construction function. result<value_type *>|outcome<value_type *> ctor(void *) noexcept
-         * \returns A page handle if successful or any error produced by the construction function.
+         *
+         * \param ctor The in place element construction function. result<value_type
+         * *>|outcome<value_type *> ctor(void *) noexcept \returns A page handle if successful or
+         * any error produced by the construction function.
          */
         template <typename Ctor>
         inline auto finish_replace(Ctor &&ctor) noexcept ->
@@ -91,6 +93,11 @@ namespace vefs::detail
          * Completes replacement by marking this page as dead.
          */
         inline void cancel_replace() noexcept;
+
+        /**
+         * tries to destruct the current page
+         */
+        inline bool try_purge(bool ownsLastReference) noexcept;
 
         inline bool is_dead() const noexcept;
         /**
@@ -208,6 +215,27 @@ namespace vefs::detail
     inline void cache_page<T>::cancel_replace() noexcept
     {
         mEntryState.store(tombstone_bit, std::memory_order_release);
+    }
+
+    template <typename T>
+    inline bool cache_page<T>::try_purge(bool ownsLastReference) noexcept
+    {
+        const state_type remainingReferences = ownsLastReference ? 1 : 0;
+        state_type expected = remainingReferences;
+        if (!mEntryState.compare_exchange_strong(expected, dirty_tombstone,
+                                                 std::memory_order_acq_rel))
+        {
+            return false;
+        }
+
+        if constexpr (!std::is_trivially_destructible_v<T>)
+        {
+            std::destroy_at(std::launder(reinterpret_cast<T *>(&mValueHolder)));
+        }
+
+        // if we still own the last reference we will decrement once afterwards
+        mEntryState.store(tombstone_bit | remainingReferences, std::memory_order_release);
+        return true;
     }
 
     template <typename T>
