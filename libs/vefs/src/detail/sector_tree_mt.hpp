@@ -22,7 +22,7 @@ namespace vefs::detail
     };
 
     template <typename SectorAllocator>
-    class file_mt
+    class sector_tree_mt
     {
     public:
         using sector_allocator_type = SectorAllocator;
@@ -62,7 +62,7 @@ namespace vefs::detail
         using sector_handle = typename sector_type::handle_type;
         using sector_cache = cache_car<tree_position, sector_type, 1 << 6>; // 64 cached pages
 
-        file_mt(sector_device &device, file_crypto_ctx &cryptoCtx, root_sector_info rootInfo);
+        sector_tree_mt(sector_device &device, file_crypto_ctx &cryptoCtx, root_sector_info rootInfo);
 
         auto access(tree_position sectorPosition) -> result<sector_handle>;
         auto access_or_create(tree_position sectorPosition) -> result<sector_handle>;
@@ -97,103 +97,103 @@ namespace vefs::detail
 
     template <typename SectorAllocator>
     template <typename T>
-    inline file_mt<SectorAllocator>::sector_policy<T>::sector_policy(handle_type parent)
+    inline sector_tree_mt<SectorAllocator>::sector_policy<T>::sector_policy(handle_type parent)
         : mParent(std::move(parent))
     {
     }
     template <typename SectorAllocator>
     template <typename T>
-    inline auto file_mt<SectorAllocator>::sector_policy<T>::parent() const noexcept
+    inline auto sector_tree_mt<SectorAllocator>::sector_policy<T>::parent() const noexcept
         -> const handle_type &
     {
         return mParent;
     }
     template <typename SectorAllocator>
     template <typename T>
-    inline void file_mt<SectorAllocator>::sector_policy<T>::parent(handle_type newParent) noexcept
+    inline void sector_tree_mt<SectorAllocator>::sector_policy<T>::parent(handle_type newParent) noexcept
     {
         mParent = std::move(newParent);
     }
     template <typename SectorAllocator>
     template <typename T>
-    inline auto file_mt<SectorAllocator>::sector_policy<T>::is_dirty(const handle_type &h) noexcept
+    inline auto sector_tree_mt<SectorAllocator>::sector_policy<T>::is_dirty(const handle_type &h) noexcept
     {
         return h.is_dirty();
     }
     template <typename SectorAllocator>
     template <typename T>
-    inline void file_mt<SectorAllocator>::sector_policy<T>::mark_dirty(handle_type &h) noexcept
+    inline void sector_tree_mt<SectorAllocator>::sector_policy<T>::mark_dirty(handle_type &h) noexcept
     {
         h.mark_dirty();
     }
     template <typename SectorAllocator>
     template <typename T>
-    inline void file_mt<SectorAllocator>::sector_policy<T>::mark_clean(handle_type &h) noexcept
+    inline void sector_tree_mt<SectorAllocator>::sector_policy<T>::mark_clean(handle_type &h) noexcept
     {
         h.mark_clean();
     }
     template <typename SectorAllocator>
     template <typename T>
-    inline auto file_mt<SectorAllocator>::sector_policy<T>::reallocate(sector_id current) noexcept
+    inline auto sector_tree_mt<SectorAllocator>::sector_policy<T>::reallocate(sector_id current) noexcept
         -> result<sector_id>
     {
         return current;
     }
     template <typename SectorAllocator>
     template <typename T>
-    inline void file_mt<SectorAllocator>::sector_policy<T>::deallocate(sector_id id) noexcept
+    inline void sector_tree_mt<SectorAllocator>::sector_policy<T>::deallocate(sector_id id) noexcept
     {
     }
     template <typename SectorAllocator>
     template <typename T>
-    inline void file_mt<SectorAllocator>::sector_policy<T>::lock()
+    inline void sector_tree_mt<SectorAllocator>::sector_policy<T>::lock()
     {
         mSectorSync.lock();
     }
     template <typename SectorAllocator>
     template <typename T>
-    inline auto file_mt<SectorAllocator>::sector_policy<T>::try_lock() -> bool
+    inline auto sector_tree_mt<SectorAllocator>::sector_policy<T>::try_lock() -> bool
     {
         return mSectorSync.try_lock();
     }
     template <typename SectorAllocator>
     template <typename T>
-    inline void file_mt<SectorAllocator>::sector_policy<T>::unlock()
+    inline void sector_tree_mt<SectorAllocator>::sector_policy<T>::unlock()
     {
         mSectorSync.unlock();
     }
     template <typename SectorAllocator>
     template <typename T>
-    inline void file_mt<SectorAllocator>::sector_policy<T>::lock_shared()
+    inline void sector_tree_mt<SectorAllocator>::sector_policy<T>::lock_shared()
     {
         mSectorSync.lock_shared();
     }
     template <typename SectorAllocator>
     template <typename T>
-    inline auto file_mt<SectorAllocator>::sector_policy<T>::try_lock_shared() -> bool
+    inline auto sector_tree_mt<SectorAllocator>::sector_policy<T>::try_lock_shared() -> bool
     {
         return mSectorSync.try_lock_shared();
     }
     template <typename SectorAllocator>
     template <typename T>
-    inline void file_mt<SectorAllocator>::sector_policy<T>::unlock_shared()
+    inline void sector_tree_mt<SectorAllocator>::sector_policy<T>::unlock_shared()
     {
         mSectorSync.unlock_shared();
     }
 
 #pragma endregion
 
-#pragma region file_mt implementation
+#pragma region sector_tree_mt implementation
 
     template <typename SectorAllocator>
-    inline auto file_mt<SectorAllocator>::access(tree_position logicalPosition)
+    inline auto sector_tree_mt<SectorAllocator>::access(tree_position logicalPosition)
         -> result<sector_handle>
     {
         return access<false>(tree_path{5, logicalPosition});
     }
 
     template <typename SectorAllocator>
-    inline auto file_mt<SectorAllocator>::access_or_create(tree_position sectorPosition)
+    inline auto sector_tree_mt<SectorAllocator>::access_or_create(tree_position sectorPosition)
         -> result<sector_handle>
     {
         using boost::container::static_vector;
@@ -249,7 +249,7 @@ namespace vefs::detail
 
     template <typename SectorAllocator>
     template <bool ReturnParentIfNotAllocated>
-    inline auto file_mt<SectorAllocator>::access(tree_path path) -> result<sector_handle>
+    inline auto sector_tree_mt<SectorAllocator>::access(tree_path path) -> result<sector_handle>
     {
         sector_handle base;
         auto it = std::find_if(path.rbegin(), path.rend(), [this, &base](tree_position position) {
@@ -301,7 +301,7 @@ namespace vefs::detail
     }
 
     template <typename SectorAllocator>
-    inline auto file_mt<SectorAllocator>::adjust_tree_depth(int targetDepth) noexcept
+    inline auto sector_tree_mt<SectorAllocator>::adjust_tree_depth(int targetDepth) noexcept
         -> result<void>
     {
         // usefulness of this method still needs to be determined
@@ -319,7 +319,7 @@ namespace vefs::detail
     }
 
     template <typename SectorAllocator>
-    inline auto file_mt<SectorAllocator>::increase_tree_depth(const int targetDepth) noexcept
+    inline auto sector_tree_mt<SectorAllocator>::increase_tree_depth(const int targetDepth) noexcept
         -> result<void>
     {
         using boost::container::static_vector;
@@ -371,7 +371,7 @@ namespace vefs::detail
     }
 
     template <typename SectorAllocator>
-    inline auto file_mt<SectorAllocator>::decrease_tree_depth(int targetDepth) noexcept
+    inline auto sector_tree_mt<SectorAllocator>::decrease_tree_depth(int targetDepth) noexcept
         -> result<void>
     {
         using boost::container::static_vector;
@@ -413,7 +413,7 @@ namespace vefs::detail
     }
 
     template <typename SectorAllocator>
-    inline auto file_mt<SectorAllocator>::access_or_read_child(sector_handle parent,
+    inline auto sector_tree_mt<SectorAllocator>::access_or_read_child(sector_handle parent,
                                                                tree_position childPosition,
                                                                int childParentOffset) noexcept
         -> result<sector_handle>
@@ -442,7 +442,7 @@ namespace vefs::detail
     }
 
     template <typename SectorAllocator>
-    inline auto file_mt<SectorAllocator>::access_or_create_child(
+    inline auto sector_tree_mt<SectorAllocator>::access_or_create_child(
         sector_handle parent, tree_position childPosition, int childParentOffset,
         sector_id physicalPosition) noexcept -> result<sector_handle>
     {
@@ -478,7 +478,7 @@ namespace vefs::detail
     }
 
     template <typename SectorAllocator>
-    inline auto file_mt<SectorAllocator>::erase_child(sector_handle parent, tree_position child,
+    inline auto sector_tree_mt<SectorAllocator>::erase_child(sector_handle parent, tree_position child,
                                                       int childParentOffset) noexcept
         -> result<void>
     {
@@ -508,5 +508,5 @@ namespace vefs::detail
 
 #pragma endregion
 
-    template class file_mt<test_allocator>;
+    template class sector_tree_mt<test_allocator>;
 } // namespace vefs::detail
