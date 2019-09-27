@@ -103,7 +103,15 @@ namespace vefs::detail
         inline auto try_peek() noexcept -> cache_handle<T>;
 
         inline bool is_dirty() const noexcept;
+        /**
+         * sets the dirty bit to one
+         * /return the previous dirty state
+         */
         inline bool mark_dirty() noexcept;
+        /**
+         * sets the dirty bit to zero
+         * /return the previous dirty state
+         */
         inline bool mark_clean() noexcept;
 
         inline void add_reference() noexcept;

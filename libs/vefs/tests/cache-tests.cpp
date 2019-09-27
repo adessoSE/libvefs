@@ -130,11 +130,157 @@ BOOST_AUTO_TEST_CASE(cache_handle_acquire_release)
     page.cancel_replace();
 }
 
-BOOST_AUTO_TEST_CASE(try_access_returns_value_value_in_cache)
+
+
+BOOST_AUTO_TEST_CASE(cache_handle_initializes_dead_and_not_dirty)
+{
+    cache_page<cached_value> page;
+
+    BOOST_TEST(page.is_dead());
+    BOOST_TEST(!page.is_dirty());
+
+    BOOST_TEST(!page.try_acquire());
+}
+
+BOOST_AUTO_TEST_CASE(finish_replace_for_replaceable_handle_returns_object)
+{
+    cache_page<cached_value> page;
+
+    page.try_start_replace();
+
+    auto rx = page.finish_replace([](void *p) noexcept->result<cached_value *> {
+        return new (p) cached_value(4, 10, nullptr);
+    });
+    TEST_RESULT_REQUIRE(rx);
+    auto h = std::move(rx).assume_value();
+    BOOST_TEST(h->val1 == 4);
+    BOOST_TEST(h->val2 == 10);
+    BOOST_TEST(h->val3 == nullptr);
+}
+
+BOOST_AUTO_TEST_CASE(replacing_of_referenced_object_returns_referenced)
+{
+    cache_page<cached_value> page;
+
+    page.try_start_replace();
+
+    auto rx = page.finish_replace([](void *p) noexcept->result<cached_value *> {
+        return new (p) cached_value(4, 10, nullptr);
+    });
+
+    TEST_RESULT_REQUIRE(rx);
+
+    auto replace_existing_try = page.try_start_replace();
+    
+    BOOST_TEST(replace_existing_try == cache_replacement_result::referenced);
+}
+
+BOOST_AUTO_TEST_CASE(try_start_replace_for_dirty_and_unreferenced_returns_dirty)
+{
+    cache_page<cached_value> page;
+    page.try_start_replace();
+
+    auto rx = page.finish_replace([](void *p) noexcept->result<cached_value *> {
+        return new (p) cached_value(4, 10, nullptr);
+    });
+    TEST_RESULT_REQUIRE(rx);
+    auto h = std::move(rx).assume_value();
+    
+    h.mark_dirty();
+    h = nullptr;
+    // BOOST_TEST(page.try_start_replace() %
+    //            (cache_replacement_result::referenced & cache_replacement_result::dirty));
+    BOOST_TEST(page.try_start_replace() == cache_replacement_result::dirty);
+}
+
+BOOST_AUTO_TEST_CASE(try_start_replace_for_dirty_and_referenced_returns_dirty)
+{
+    cache_page<cached_value> page;
+    page.try_start_replace();
+
+    auto rx = page.finish_replace([](void *p) noexcept->result<cached_value *> {
+        return new (p) cached_value(4, 10, nullptr);
+    });
+    TEST_RESULT_REQUIRE(rx);
+    auto h = std::move(rx).assume_value();
+    
+    h.mark_dirty();
+    // BOOST_TEST(page.try_start_replace() & 1);
+}
+
+BOOST_AUTO_TEST_CASE(try_acquire_sets_second_chance_bit)
+{
+    cache_page<cached_value> page;
+    page.try_start_replace();
+
+    auto rx = page.finish_replace([](void *p) noexcept->result<cached_value *> {
+        return new (p) cached_value(4, 10, nullptr);
+    });
+    TEST_RESULT_REQUIRE(rx);
+    BOOST_TEST(!rx.has_error());
+
+    auto h = page.try_acquire();
+
+    BOOST_TEST(page.try_start_replace() == cache_replacement_result::second_chance);
+}
+
+BOOST_AUTO_TEST_CASE(try_start_replace_succeeds_on_second_chance_on_second_try)
+{
+    cache_page<cached_value> page;
+    page.try_start_replace();
+
+    auto rx = page.finish_replace([](void *p) noexcept->result<cached_value *> {
+        return new (p) cached_value(4, 10, nullptr);
+    });
+    TEST_RESULT_REQUIRE(rx);
+    BOOST_TEST(!rx.has_error());
+    auto h = std::move(rx).assume_value();
+    h = nullptr;
+
+    h = page.try_acquire();
+    h.mark_dirty();
+    page.mark_clean();
+    h = nullptr;
+
+    (void)page.try_start_replace();
+   
+    BOOST_TEST(page.try_start_replace() == cache_replacement_result::succeeded);
+}
+
+BOOST_AUTO_TEST_CASE(cache_handle_acquire_release2)
+{
+    cache_page<cached_value> page;
+
+    BOOST_TEST(page.try_start_replace() == cache_replacement_result::succeeded);
+
+    auto rx = page.finish_replace([](void *p) noexcept->result<cached_value *> {
+        return new (p) cached_value(4, 10, nullptr);
+    });
+    TEST_RESULT_REQUIRE(rx);
+    auto h = std::move(rx).assume_value();
+    BOOST_TEST(h->val1 == 4);
+    BOOST_TEST(h->val2 == 10);
+    BOOST_TEST(h->val3 == nullptr);
+
+    BOOST_TEST(page.try_start_replace() == cache_replacement_result::referenced);
+
+    h.mark_dirty();
+    h = nullptr;
+    BOOST_TEST(page.try_start_replace() == cache_replacement_result::dirty);
+    page.mark_clean();
+
+    h = page.try_acquire();
+    BOOST_TEST_REQUIRE(h);
+    h = nullptr;
+
+    BOOST_TEST(page.try_start_replace() == cache_replacement_result::second_chance);
+    BOOST_TEST(page.try_start_replace() == cache_replacement_result::succeeded);
+    page.cancel_replace();
+}
+
+BOOST_AUTO_TEST_CASE(try_access_returns_value_in_cache)
 {
     using namespace vefs::utils;
-    using namespace vefs::detail;
-    using namespace cache_tests;
 
     auto cx = std::make_unique<cache_t>(cache_t::notify_dirty_fn{});
 
@@ -153,9 +299,6 @@ BOOST_AUTO_TEST_CASE(try_access_returns_value_value_in_cache)
 
 BOOST_AUTO_TEST_CASE(try_access_returns_zero_if_no_value_in_cache)
 {
-    using namespace vefs::utils;
-    using namespace vefs::detail;
-    using namespace cache_tests;
 
     auto cx = std::make_unique<cache_t>(cache_t::notify_dirty_fn{});
 
@@ -169,7 +312,7 @@ BOOST_AUTO_TEST_CASE(try_access_returns_zero_if_no_value_in_cache)
 }
 
 
-BOOST_AUTO_TEST_CASE(first_added_entry_gets_envicted_on_full_chace)
+BOOST_AUTO_TEST_CASE(first_added_entry_gets_envicted_on_full_cache)
 {
     auto cx = std::make_unique<cache_t>(cache_t::notify_dirty_fn{});
     constexpr auto max_entries = cache_t::max_entries;
@@ -186,11 +329,9 @@ BOOST_AUTO_TEST_CASE(first_added_entry_gets_envicted_on_full_chace)
     BOOST_TEST(cx->try_access(1337));
 }
 
-BOOST_AUTO_TEST_CASE(second_chance_entry_gets_not_envicted_on_full_chace)
+BOOST_AUTO_TEST_CASE(second_chance_entry_gets_not_envicted_on_full_cache)
 {
     using namespace vefs::utils;
-    using namespace vefs::detail;
-    using namespace cache_tests;
 
     auto cx = std::make_unique<cache_t>(cache_t::notify_dirty_fn{});
     constexpr auto max_entries = cache_t::max_entries;
