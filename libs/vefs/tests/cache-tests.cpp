@@ -186,6 +186,22 @@ BOOST_AUTO_TEST_CASE(try_acquire_sets_second_chance_bit)
     BOOST_TEST(page.try_start_replace() == cache_replacement_result::second_chance);
 }
 
+BOOST_AUTO_TEST_CASE(try_peek_not_sets_second_chance_bit)
+{
+    cache_page<cached_value> page;
+    page.try_start_replace();
+
+    auto rx = page.finish_replace([](void *p) noexcept->result<cached_value *> {
+        return new (p) cached_value(4, 10, nullptr);
+    });
+    TEST_RESULT_REQUIRE(rx);
+    BOOST_TEST(!rx.has_error());
+
+    auto h = page.try_peek();
+
+    BOOST_TEST(page.try_start_replace() != cache_replacement_result::second_chance);
+}
+
 BOOST_AUTO_TEST_CASE(try_start_replace_succeeds_on_second_chance_on_second_try)
 {
     cache_page<cached_value> page;
@@ -202,11 +218,26 @@ BOOST_AUTO_TEST_CASE(try_start_replace_succeeds_on_second_chance_on_second_try)
     h = page.try_acquire();
     h.mark_dirty();
     page.mark_clean();
+
     h = nullptr;
 
     (void)page.try_start_replace();
    
     BOOST_TEST(page.try_start_replace() == cache_replacement_result::succeeded);
+}
+
+BOOST_AUTO_TEST_CASE(mark_dirty_returns_true_if_handle_already_dirty)
+{
+    cache_page<cached_value> page;
+    page.try_start_replace();
+
+    auto rx = page.finish_replace([](void *p) noexcept->result<cached_value *> {
+        return new (p) cached_value(4, 10, nullptr);
+    });
+    auto h = std::move(rx).assume_value();
+   
+    BOOST_TEST(!(h.mark_dirty()));
+    BOOST_TEST(h.mark_dirty());
 }
 
 
@@ -300,6 +331,18 @@ BOOST_AUTO_TEST_CASE(try_purge_returns_false_if_not_owns_last_reference)
     BOOST_TEST(!page.try_purge(false));
 }
 
+BOOST_AUTO_TEST_CASE(cancel_replace_kills_page)
+{
+    cache_page<cached_value> page;
+
+    page.try_start_replace();
+
+    page.cancel_replace();
+
+    BOOST_TEST(page.is_dead());
+}
+
+
 BOOST_AUTO_TEST_CASE(try_purge_returns_false_if_dead)
 {
     struct non_trivially_destructable_value
@@ -329,6 +372,8 @@ BOOST_AUTO_TEST_CASE(try_purge_returns_false_if_dead)
     BOOST_TEST(page.try_purge(true));
     BOOST_TEST(destructor_called);
 }
+
+
 
 
 BOOST_AUTO_TEST_SUITE_END()
