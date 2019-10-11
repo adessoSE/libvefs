@@ -55,6 +55,8 @@ namespace cache_tests
         int val2;
         void *val3;
     };
+
+   
 } // namespace cache_tests
 
 namespace fmt
@@ -283,6 +285,49 @@ BOOST_AUTO_TEST_CASE(second_chance_entry_gets_not_envicted_on_full_cache)
     BOOST_TEST(cached_result->val1 == new_value.val1);
     BOOST_TEST(cached_result->val2 == new_value.val2);
     BOOST_TEST(cached_result->val3 == new_value.val3);
+}
+
+BOOST_AUTO_TEST_CASE(try_purge_returns_false_if_not_owns_last_reference)
+{
+    cache_page<cached_value> page;
+
+    page.try_start_replace();
+
+    auto rx = page.finish_replace([](void *p) noexcept->result<cached_value *> {
+        return new (p) cached_value(4, 10, nullptr);
+    });
+
+    BOOST_TEST(!page.try_purge(false));
+}
+
+BOOST_AUTO_TEST_CASE(try_purge_returns_false_if_dead)
+{
+    struct non_trivially_destructable_value
+    {
+        non_trivially_destructable_value(bool &destructor_called) noexcept
+            : destructor_called{destructor_called}
+        {
+        }
+        bool &destructor_called;
+
+        ~non_trivially_destructable_value()
+        {
+            destructor_called = true;
+        }
+    };
+
+    cache_page<non_trivially_destructable_value> page;
+
+    page.try_start_replace();
+
+    bool destructor_called = false;
+
+    auto rx = page.finish_replace([&destructor_called](void *p) noexcept->result<non_trivially_destructable_value *> {
+        return new (p) non_trivially_destructable_value(destructor_called);
+    });
+    
+    BOOST_TEST(page.try_purge(true));
+    BOOST_TEST(destructor_called);
 }
 
 
