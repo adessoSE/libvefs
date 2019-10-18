@@ -276,7 +276,7 @@ namespace vefs::detail
     {
         std::lock_guard guard{mReplacementSync};
         auto xpages = pages();
-        auto where = get_cache_index(whom, xpages.data());
+        auto  where = get_cache_index(whom, xpages.data());
 
         if (!xpages[where].try_purge(true))
         {

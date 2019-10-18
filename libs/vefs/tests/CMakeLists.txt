@@ -7,6 +7,7 @@ add_executable(vefs-tests
     disappointment-tests.cpp
     allocator-tests.cpp
     cache-tests.cpp
+    cache_clock-tests.cpp
 
     osfilesystem-tests.cpp
     memfs.cpp
