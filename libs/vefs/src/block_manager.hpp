@@ -64,6 +64,8 @@ namespace vefs::utils
 
         /**
          * the identifier used for ordering id_ranges
+         *
+         * currently the ranges are ordered by their last id
          */
         auto id() const noexcept -> id_type;
         /**
