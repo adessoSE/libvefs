@@ -67,9 +67,8 @@ namespace vefs::detail
         sector_tree_mt(sector_device &device, file_crypto_ctx &cryptoCtx,
                        root_sector_info rootInfo);
 
-        auto access(tree_position sectorPosition) -> result<sector_handle>;
-        auto access_or_create(tree_position sectorPosition)
-            -> result<sector_handle>;
+        auto access(tree_position node) -> result<sector_handle>;
+        auto access_or_create(tree_position node) -> result<sector_handle>;
         auto erase_leaf(std::uint64_t leafId) -> result<void>;
 
     private:
@@ -90,7 +89,7 @@ namespace vefs::detail
         auto access_or_create_child(sector_handle parent,
                                     tree_position childPosition,
                                     int childParentOffset,
-                                    sector_id physicalPosition) noexcept
+                                    sector_id sectorId) noexcept
             -> result<sector_handle>;
         auto erase_child(sector_handle parent, tree_position child,
                          int childParentOffset) noexcept -> result<void>;
@@ -225,20 +224,21 @@ namespace vefs::detail
 
     template <typename SectorAllocator>
     inline auto
-    sector_tree_mt<SectorAllocator>::access(tree_position logicalPosition)
+    sector_tree_mt<SectorAllocator>::access(tree_position nodePosition)
         -> result<sector_handle>
     {
-        const tree_path accessPath(5, logicalPosition);
+        const tree_path accessPath(5, nodePosition);
         return access<false>(accessPath.begin(), accessPath.end());
     }
 
     template <typename SectorAllocator>
-    inline auto sector_tree_mt<SectorAllocator>::access_or_create(
-        tree_position sectorPosition) -> result<sector_handle>
+    inline auto
+    sector_tree_mt<SectorAllocator>::access_or_create(tree_position node)
+        -> result<sector_handle>
     {
         using boost::container::static_vector;
 
-        tree_path sectorPath{5, sectorPosition};
+        tree_path sectorPath{5, node};
         int requiredDepth = 0;
         for (; sectorPath.position(requiredDepth) != 0; ++requiredDepth)
         {
@@ -253,8 +253,7 @@ namespace vefs::detail
 
         sector_handle mountPoint;
         if (auto sectorrx = access<true>(sectorPath.begin(), sectorPath.end());
-            !sectorrx ||
-            sectorrx.assume_value()->logical_position() == sectorPosition)
+            !sectorrx || sectorrx.assume_value()->node_position() == node)
         {
             return std::move(sectorrx);
         }
@@ -263,8 +262,7 @@ namespace vefs::detail
             mountPoint = std::move(sectorrx).assume_value();
         }
 
-        int missingLayers =
-            mountPoint->logical_position().layer() - sectorPosition.layer();
+        int missingLayers = mountPoint->node_position().layer() - node.layer();
         static_vector<sector_id, lut::max_tree_depth> allocatedSectors;
         utils::scope_guard allocationRollbackGuard = [&]() {
             for (auto it = allocatedSectors.begin(),
@@ -281,17 +279,16 @@ namespace vefs::detail
         // mSectorAllocator.alloc_range(allocatedSectors);
 
         for (auto it = tree_path::iterator(
-                      sectorPath, mountPoint->logical_position().layer() - 1),
+                      sectorPath, mountPoint->node_position().layer() - 1),
                   end = sectorPath.end();
              it != end; ++it)
         {
-            const auto logicalPos = *it;
-            const auto physicalPos = allocatedSectors.back();
+            const auto nodePos = *it;
+            const auto sectorId = allocatedSectors.back();
             allocatedSectors.pop_back();
 
-            if (auto rx =
-                    access_or_create_child(std::move(mountPoint), logicalPos,
-                                           it.array_offset(), physicalPos))
+            if (auto rx = access_or_create_child(std::move(mountPoint), nodePos,
+                                                 it.array_offset(), sectorId))
             {
                 mountPoint = std::move(rx).assume_value();
             }
@@ -400,6 +397,25 @@ namespace vefs::detail
     inline void
     sector_tree_mt<SectorAllocator>::notify_dirty(sector_handle h) noexcept
     {
+        // #TODO package to executor
+        std::lock_guard sectorLock{h};
+        if (!h.is_dirty())
+        {
+            return;
+        }
+
+        if (h->node_position().layer() > 0)
+        {
+            auto sector = as_span(*h);
+            if (std::all_of(sector.begin(), sector.end(),
+                            [](std::byte b) { return b == std::byte{}; }))
+            {
+                // empty reference sector
+                // mSectorAllocator.deallocate(h->sector_)
+                return;
+            }
+        }
+        h->sync_to(mDevice, mCryptoCtx, h);
     }
 
     template <typename SectorAllocator>
@@ -448,17 +464,17 @@ namespace vefs::detail
         // we grow bottom to top in order to not disturb any ongoing access
         for (int i = mNextRootInfo.tree_depth; i < targetDepth; ++i)
         {
-            auto physicalPosition = allocatedSectors.back();
+            auto sectorId = allocatedSectors.back();
             allocatedSectors.pop_back();
             tree_position nextRootPos(0u, i);
 
             std::unique_lock oldRootLock{*mRootSector};
             auto createrx = mSectorCache->access(
                 nextRootPos,
-                [ this, nextRootPos, physicalPosition ](
-                    void *mem) noexcept->result<sector_type *, void> {
+                [ this, nextRootPos,
+                  sectorId ](void *mem) noexcept->result<sector_type *, void> {
                     auto xsec = new (mem)
-                        sector_type(nextRootPos, physicalPosition, mRootSector);
+                        sector_type(nextRootPos, sectorId, mRootSector);
                     // zero out the sector content
                     auto content = as_span(*xsec);
                     reference_sector_layout{content}.write(0,
@@ -504,7 +520,7 @@ namespace vefs::detail
                 std::unique_lock xguard{*current};
                 auto parent = current->policy().parent();
                 current->policy().parent(sector_handle{});
-                auto physId = parent->physical_position();
+                auto sectorId = parent->sector_id();
                 for (;;)
                 {
                     mNextRootInfo.root =
@@ -518,7 +534,7 @@ namespace vefs::detail
                     std::this_thread::yield();
                     xguard.lock();
                 }
-                // mSectorAllocator.dealloc_one(physId);
+                // mSectorAllocator.dealloc_one(sectorId);
                 current = sector_handle{};
             });
 
@@ -559,7 +575,7 @@ namespace vefs::detail
     template <typename SectorAllocator>
     inline auto sector_tree_mt<SectorAllocator>::access_or_create_child(
         sector_handle parent, tree_position childPosition,
-        int childParentOffset, sector_id physicalPosition) noexcept
+        int childParentOffset, sector_id childSectorId) noexcept
         -> result<sector_handle>
     {
         auto rx = mSectorCache->access(
@@ -584,14 +600,14 @@ namespace vefs::detail
                 else
                 {
                     auto xsec = new (mem) sector_type(
-                        childPosition, physicalPosition, std::move(parent));
-                    physicalPosition = sector_id::master;
+                        childPosition, childSectorId, std::move(parent));
+                    childSectorId = sector_id::master;
                     return xsec;
                 }
             });
-        if (physicalPosition != sector_id::master)
+        if (childSectorId != sector_id::master)
         {
-            // mSectorAllocator.dealloc_one(physicalPosition)
+            // mSectorAllocator.dealloc_one(childSectorId)
         }
     }
 
@@ -604,19 +620,18 @@ namespace vefs::detail
     {
         for (;;)
         {
-            sector_id physicalChildPosition;
+            sector_id childSectorId;
             if (mSectorCache->try_purge(child, [&]() {
                     reference_sector_layout parentLayout{as_span(*parent)};
-                    physicalChildPosition =
-                        parentLayout.read(childParentOffset).sector;
+                    childSectorId = parentLayout.read(childParentOffset).sector;
                     parentLayout.write(childParentOffset,
                                        {sector_id::master, {}});
                 }))
             {
-                if (physicalChildPosition != sector_id::master)
+                if (childSectorId != sector_id::master)
                 {
-                    // mSectorAllocator.dealloc_one(physicalChildPosition);
-                    VEFS_TRY(mDevice.erase_sector(physicalChildPosition));
+                    // mSectorAllocator.dealloc_one(childSectorId);
+                    VEFS_TRY(mDevice.erase_sector(childSectorId));
                 }
                 return success();
             }

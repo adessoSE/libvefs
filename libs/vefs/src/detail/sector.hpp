@@ -26,12 +26,12 @@ namespace vefs::detail
         basic_sector() = delete;
         template <typename... PolicyArgs>
         inline basic_sector(
-            tree_position logicalPosition, sector_id physicalPosition,
+            tree_position nodePosition, detail::sector_id sectorId,
             PolicyArgs &&... policyArgs) noexcept(std::is_nothrow_constructible_v<policy_type,
                                                                                   PolicyArgs &&...>)
             : policy_type(std::forward<PolicyArgs>(policyArgs)...)
-            , mLogicalPosition(logicalPosition)
-            , mPhysicalPosition(physicalPosition)
+            , mNodePosition(nodePosition)
+            , mSectorId(sectorId)
         {
         }
         basic_sector(basic_sector &&) = delete;
@@ -39,21 +39,21 @@ namespace vefs::detail
         basic_sector &operator=(basic_sector &&) = delete;
         basic_sector &operator=(const basic_sector &) = delete;
 
-        inline auto physical_position() const noexcept -> sector_id
+        inline auto sector_id() const noexcept -> detail::sector_id
         {
-            return mPhysicalPosition;
+            return mSectorId;
         }
-        inline void physical_position(sector_id newPosition) noexcept
+        inline void sector_id(detail::sector_id newId) noexcept
         {
-            mPhysicalPosition = newPosition;
+            mSectorId = newId;
         }
-        inline auto logical_position() const noexcept -> tree_position
+        inline auto node_position() const noexcept -> tree_position
         {
-            return mLogicalPosition;
+            return mNodePosition;
         }
 
         inline static auto sync_to(sector_device &device, file_crypto_ctx &ctx,
-                                   handle_type self) noexcept -> result<void>
+                                   handle_type &self) noexcept -> result<void>
         {
             if (!policy_type::is_dirty(self))
             {
@@ -62,7 +62,7 @@ namespace vefs::detail
 
             basic_sector &sector = *self;
             policy_type &policy = sector;
-            VEFS_TRY(writePosition, policy.reallocate(sector.physical_position()));
+            VEFS_TRY(writePosition, policy.reallocate(sector.sector_id()));
 
             sector_reference updated{writePosition, {}};
             if (result<void> writerx =
@@ -77,13 +77,13 @@ namespace vefs::detail
                 basic_sector &parentSector = *parent;
                 std::shared_lock parentLock{parentSector};
 
-                const auto offset = sector.logical_position().parent_array_offset();
+                const auto offset = sector.node_position().parent_array_offset();
                 reference_sector_layout parentLayout{as_span(parentSector)};
                 parentLayout.write(offset, updated);
 
                 policy_type::mark_dirty(parent);
             }
-            mPhysicalPosition = updated.sector;
+            mSectorId = updated.sector;
             policy.sync_succeeded(updated);
             policy_type::mark_clean(self);
 
@@ -132,8 +132,8 @@ namespace vefs::detail
         }
 
     private:
-        tree_position mLogicalPosition;
-        sector_id mPhysicalPosition;
+        tree_position mNodePosition;
+        detail::sector_id mSectorId;
 
         std::array<std::byte, sector_device::sector_payload_size> mBlockData;
     };
