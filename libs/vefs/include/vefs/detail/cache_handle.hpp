@@ -31,11 +31,11 @@ namespace vefs::detail
         /**
          * Marks the referenced cache_page as dirty.
          */
-        inline auto mark_dirty() noexcept -> bool;
+        inline auto mark_dirty() const noexcept -> bool;
         /**
          * Clears the dirty bit of the referenced cache_page.
          */
-        inline auto mark_clean() noexcept -> bool;
+        inline auto mark_clean() const noexcept -> bool;
 
         friend inline auto get_cache_index(cache_handle &self, cache_page<T> *begin) noexcept
             -> std::size_t
@@ -56,12 +56,12 @@ namespace vefs::detail
         return base_type::get_handle()->is_dirty();
     }
     template <typename T>
-    inline auto cache_handle<T>::mark_dirty() noexcept -> bool
+    inline auto cache_handle<T>::mark_dirty() const noexcept -> bool
     {
         return base_type::get_handle()->mark_dirty();
     }
     template <typename T>
-    inline auto cache_handle<T>::mark_clean() noexcept -> bool
+    inline auto cache_handle<T>::mark_clean() const noexcept -> bool
     {
         return base_type::get_handle()->mark_clean();
     }

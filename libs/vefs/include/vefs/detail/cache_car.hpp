@@ -342,7 +342,7 @@ namespace vefs::detail
         std::invoke(dispose);
 
         // release access and inform anyone who waited
-        mKeyIndexMap.erase_fn(whom, [](auto stored) {
+        mKeyIndexMap.erase_fn(whom, [this](auto stored) {
             if (stored != invalid_page_index_bit)
             {
                 mInitializationNotifier.notify_all();
@@ -350,7 +350,7 @@ namespace vefs::detail
             return true;
         });
 
-        return success();
+        return true;
     }
 
     template <typename Key, typename T, unsigned int CacheSize, typename Hash, typename KeyEqual>
