@@ -132,7 +132,7 @@ namespace vefs::detail
     class tree_path::iterator
         : public boost::iterator_facade<tree_path::iterator,
             tree_position,
-            boost::bidirectional_traversal_tag,
+            std::bidirectional_iterator_tag,
             tree_position
         >
     {
