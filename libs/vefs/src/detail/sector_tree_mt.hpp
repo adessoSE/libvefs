@@ -6,10 +6,9 @@
 #include <shared_mutex>
 #include <thread>
 
-#include <vefs/platform/platform.hpp>
-#include <vefs/platform/thread_pool.hpp>
-
 #include <boost/container/static_vector.hpp>
+
+#include <vefs/platform/platform.hpp>
 
 #include "cache_car.hpp"
 #include "file_crypto_ctx.hpp"
@@ -19,28 +18,6 @@
 
 namespace vefs::detail
 {
-    class test_allocator
-    {
-    public:
-        auto alloc_one() noexcept -> result<sector_id>
-        {
-            return errc::resource_exhausted;
-        }
-        auto alloc_multiple(span<sector_id> ids) noexcept -> result<std::size_t>
-        {
-            return 0;
-        }
-
-        auto dealloc_one(const sector_id which) noexcept -> result<void>
-        {
-            return success();
-        }
-
-        auto on_commit() noexcept -> result<void>
-        {
-        }
-    };
-
     template <typename SectorAllocator, typename Executor>
     class sector_tree_mt
     {
@@ -53,6 +30,7 @@ namespace vefs::detail
         {
         public:
             using handle_type = cache_handle<T>;
+            friend T;
 
             /**
              * retrieves a handle to the parent
@@ -68,13 +46,15 @@ namespace vefs::detail
             inline sector_policy(sector_tree_mt &tree, handle_type parent);
 
             inline static auto is_dirty(const handle_type &h) noexcept;
-            inline static void mark_dirty(handle_type &h) noexcept;
-            inline static void mark_clean(handle_type &h) noexcept;
+            inline static void mark_dirty(const handle_type &h) noexcept;
+            inline static void mark_clean(const handle_type &h) noexcept;
 
             inline auto reallocate(sector_id current) noexcept
                 -> result<sector_id>;
             inline void deallocate(sector_id id) noexcept;
 
+            inline void sync_failed(result<void> &rx,
+                                    sector_id allocatedId) noexcept;
             inline void sync_succeeded(sector_reference ref) noexcept;
 
             inline void lock();
@@ -102,12 +82,21 @@ namespace vefs::detail
                        executor_type &executor, root_sector_info rootInfo,
                        AllocatorCtorArgs &&... args);
 
+        auto init_existing() -> result<void>;
+        auto create_new() -> result<void>;
+
     public:
         template <typename... AllocatorCtorArgs>
         static auto
         open_existing(sector_device &device, file_crypto_ctx &cryptoCtx,
                       executor_type &executor, root_sector_info rootInfo,
                       AllocatorCtorArgs &&... args)
+            -> result<std::unique_ptr<sector_tree_mt>>;
+
+        template <typename... AllocatorCtorArgs>
+        static auto
+        create_new(sector_device &device, file_crypto_ctx &cryptoCtx,
+                   executor_type &executor, AllocatorCtorArgs &&... args)
             -> result<std::unique_ptr<sector_tree_mt>>;
 
         /**
@@ -159,12 +148,12 @@ namespace vefs::detail
         file_crypto_ctx &mCryptoCtx;
         executor_type &mExecutor;
 
-        std::unique_ptr<sector_cache> mSectorCache;
         std::mutex mTreeDepthSync;
-        sector_handle mRootSector;
         root_sector_info mRootInfo;
 
         sector_allocator_type mSectorAllocator;
+        sector_cache mSectorCache;
+        sector_handle mRootSector; // needs to be destructed before mSectorCache
     };
 
 #pragma region policy implementation
@@ -205,7 +194,7 @@ namespace vefs::detail
     template <typename T>
     inline void
     sector_tree_mt<SectorAllocator, Executor>::sector_policy<T>::mark_dirty(
-        handle_type &h) noexcept
+        const handle_type &h) noexcept
     {
         h.mark_dirty();
     }
@@ -213,7 +202,7 @@ namespace vefs::detail
     template <typename T>
     inline void
     sector_tree_mt<SectorAllocator, Executor>::sector_policy<T>::mark_clean(
-        handle_type &h) noexcept
+        const handle_type &h) noexcept
     {
         h.mark_clean();
     }
@@ -230,6 +219,13 @@ namespace vefs::detail
     inline void
     sector_tree_mt<SectorAllocator, Executor>::sector_policy<T>::deallocate(
         sector_id id) noexcept
+    {
+    }
+    template <typename SectorAllocator, typename Executor>
+    template <typename T>
+    inline void
+    sector_tree_mt<SectorAllocator, Executor>::sector_policy<T>::sync_failed(
+        result<void> &rx, sector_id allocatedId) noexcept
     {
     }
     template <typename SectorAllocator, typename Executor>
@@ -303,15 +299,109 @@ namespace vefs::detail
         : mDevice(device)
         , mCryptoCtx(cryptoCtx)
         , mExecutor(executor)
-        , mSectorCache(std::make_unique<sector_cache>(
-              [this](sector_handle h) { notify_dirty(std::move(h)); }))
         , mTreeDepthSync()
-        , mRootSector()
         , mRootInfo(rootInfo)
         , mSectorAllocator(
               std::forward<AllocatorCtorArgs>(allocatorCtorArgs)...)
+        , mSectorCache([this](sector_handle h) { notify_dirty(std::move(h)); })
+        , mRootSector()
     {
-        // #TODO load root sector from disc
+    }
+
+    template <typename SectorAllocator, typename Executor>
+    inline auto sector_tree_mt<SectorAllocator, Executor>::init_existing()
+        -> result<void>
+    {
+        tree_position rootPosition(0, mRootInfo.tree_depth);
+
+        auto loadrx = mSectorCache.access(
+            rootPosition,
+            [ this, rootPosition ](void *mem) noexcept->result<sector_type *> {
+                auto ptr = new (mem) sector_type(
+                    rootPosition, mRootInfo.root.sector, *this, nullptr);
+
+                if (auto readrx = mDevice.read_sector(as_span(*ptr), mCryptoCtx,
+                                                      mRootInfo.root.sector,
+                                                      mRootInfo.root.mac);
+                    readrx.has_failure())
+                {
+                    std::destroy_at(ptr);
+                    return std::move(readrx).as_failure();
+                }
+                return ptr;
+            });
+        if (loadrx.has_failure())
+        {
+            return std::move(loadrx).as_failure();
+        }
+
+        mRootSector = std::move(loadrx).assume_value();
+
+        return success();
+    }
+
+    template <typename SectorAllocator, typename Executor>
+    inline auto sector_tree_mt<SectorAllocator, Executor>::create_new()
+        -> result<void>
+    {
+        tree_position rootPosition{0, 0};
+        if (auto rootAllocation = mSectorAllocator.alloc_one())
+        {
+            mRootInfo.root.sector = rootAllocation.assume_value();
+        }
+        else
+        {
+            return std::move(rootAllocation).as_failure();
+        }
+
+        auto loadrx = mSectorCache.access(
+            rootPosition, [ this, rootPosition ](
+                              void *mem) noexcept->result<sector_type *, void> {
+                return new (mem) sector_type(
+                    rootPosition, mRootInfo.root.sector, *this, nullptr);
+            });
+        mRootSector = std::move(loadrx).assume_value();
+        mRootSector.mark_dirty();
+
+        return success();
+    }
+
+    template <typename SectorAllocator, typename Executor>
+    template <typename... AllocatorCtorArgs>
+    inline auto sector_tree_mt<SectorAllocator, Executor>::open_existing(
+        sector_device &device, file_crypto_ctx &cryptoCtx,
+        executor_type &executor, root_sector_info rootInfo,
+        AllocatorCtorArgs &&... args) -> result<std::unique_ptr<sector_tree_mt>>
+    {
+        std::unique_ptr<sector_tree_mt> tree(new (std::nothrow) sector_tree_mt(
+            device, cryptoCtx, executor, rootInfo,
+            std::forward<AllocatorCtorArgs>(args)...));
+        if (!tree)
+        {
+            return errc::not_enough_memory;
+        }
+
+        VEFS_TRY(tree->init_existing());
+        return success(std::move(tree));
+    }
+
+    template <typename SectorAllocator, typename Executor>
+    template <typename... AllocatorCtorArgs>
+    inline auto sector_tree_mt<SectorAllocator, Executor>::create_new(
+        sector_device &device, file_crypto_ctx &cryptoCtx,
+        executor_type &executor, AllocatorCtorArgs &&... args)
+        -> result<std::unique_ptr<sector_tree_mt>>
+    {
+        std::unique_ptr<sector_tree_mt> tree(new (std::nothrow) sector_tree_mt(
+            device, cryptoCtx, executor, {},
+            std::forward<AllocatorCtorArgs>(args)...));
+        if (!tree)
+        {
+            return errc::not_enough_memory;
+        }
+
+        VEFS_TRY(tree->create_new());
+        return success(std::move(tree));
     }
 
     template <typename SectorAllocator, typename Executor>
@@ -427,8 +517,8 @@ namespace vefs::detail
         bool anyDirty = true;
         for (int i = 0; anyDirty && i <= mRootInfo.tree_depth; ++i)
         {
-            auto rx = mSectorCache->for_dirty(
-                [this, i](sector_handle node) -> result<void> {
+            auto rx = mSectorCache.for_dirty(
+                [ this, i ](sector_handle node) noexcept->result<void> {
                     if (node->node_position().layer() != i)
                     {
                         return success();
@@ -439,7 +529,7 @@ namespace vefs::detail
                         return success();
                     }
 
-                    VEFS_TRY(node->sync_to(mDevice, mCryptoCtx, node));
+                    return node->sync_to(mDevice, mCryptoCtx, node);
                 });
 
             if (rx)
@@ -468,7 +558,7 @@ namespace vefs::detail
             std::find_if(std::make_reverse_iterator(pathEnd),
                          std::make_reverse_iterator(pathBegin),
                          [this, &base](tree_position position) {
-                             return (base = mSectorCache->try_access(position));
+                             return (base = mSectorCache.try_access(position));
                          })
                 .base();
 
@@ -561,7 +651,10 @@ namespace vefs::detail
                     return;
                 }
             }
-            h->sync_to(mDevice, mCryptoCtx, h);
+            if (auto syncrx = h->sync_to(mDevice, mCryptoCtx, h))
+            {
+                h.mark_clean();
+            }
         });
     }
 
@@ -615,12 +708,12 @@ namespace vefs::detail
             tree_position nextRootPos(0u, i);
 
             std::unique_lock oldRootLock{*mRootSector};
-            auto createrx = mSectorCache->access(
+            auto createrx = mSectorCache.access(
                 nextRootPos,
                 [ this, nextRootPos,
                   sectorId ](void *mem) noexcept->result<sector_type *, void> {
                     auto xsec = new (mem)
-                        sector_type(nextRootPos, sectorId, mRootSector);
+                        sector_type(nextRootPos, sectorId, *this, mRootSector);
                     // zero out the sector content
                     auto content = as_span(*xsec);
                     reference_sector_layout{content}.write(0, mRootInfo.root);
@@ -670,7 +763,7 @@ namespace vefs::detail
                 {
                     mRootInfo.root =
                         reference_sector_layout{as_span(*parent)}.read(0);
-                    mSectorCache->try_purge(parent);
+                    mSectorCache.try_purge(parent);
                     xguard.unlock();
                     if (!parent)
                     {
@@ -692,7 +785,7 @@ namespace vefs::detail
         sector_handle parent, tree_position childPosition,
         int childParentOffset) noexcept -> result<sector_handle>
     {
-        return mSectorCache->access(
+        return mSectorCache.access(
             childPosition, [&](void *mem) noexcept->result<sector_type *> {
                 const auto ref = reference_sector_layout{as_span(*parent)}.read(
                     childParentOffset);
@@ -702,8 +795,8 @@ namespace vefs::detail
                     return archive_errc::sector_reference_out_of_range;
                 }
 
-                auto xsec = new (mem)
-                    sector_type(childPosition, ref.sector, std::move(parent));
+                auto xsec = new (mem) sector_type(childPosition, ref.sector,
+                                                  *this, std::move(parent));
 
                 if (auto readResult = mDevice.read_sector(
                         as_span(*xsec), mCryptoCtx, ref.sector, ref.mac);
@@ -724,14 +817,14 @@ namespace vefs::detail
         int childParentOffset, sector_id childSectorId) noexcept
         -> result<sector_handle>
     {
-        auto rx = mSectorCache->access(
+        auto rx = mSectorCache.access(
             childPosition, [&](void *mem) noexcept->result<sector_type *> {
                 auto ref = reference_sector_layout{as_span(*parent)}.read(
                     childParentOffset);
                 if (ref.sector != sector_id::master)
                 {
                     auto xsec = new (mem) sector_type(childPosition, ref.sector,
-                                                      std::move(parent));
+                                                      *this, std::move(parent));
 
                     if (auto readResult = mDevice.read_sector(
                             as_span(*xsec), mCryptoCtx, ref.sector, ref.mac);
@@ -746,7 +839,7 @@ namespace vefs::detail
                 else
                 {
                     auto xsec = new (mem) sector_type(
-                        childPosition, childSectorId, std::move(parent));
+                        childPosition, childSectorId, *this, std::move(parent));
                     childSectorId = sector_id::master;
                     return xsec;
                 }
@@ -764,7 +857,7 @@ namespace vefs::detail
         int childParentOffset) noexcept -> result<bool>
     {
         sector_id childSectorId;
-        if (mSectorCache->try_purge(child, [&]() {
+        if (mSectorCache.try_purge(child, [&]() {
                 reference_sector_layout parentLayout{as_span(*parent)};
                 childSectorId = parentLayout.read(childParentOffset).sector;
                 parentLayout.write(childParentOffset, {sector_id::master, {}});
@@ -794,7 +887,7 @@ namespace vefs::detail
             }
 
             std::this_thread::yield();
-            if (auto h = mSectorCache->try_access(child))
+            if (auto h = mSectorCache.try_access(child))
             {
                 h.mark_clean();
             }
@@ -803,5 +896,4 @@ namespace vefs::detail
 
 #pragma endregion
 
-    template class sector_tree_mt<test_allocator, thread_pool>;
 } // namespace vefs::detail

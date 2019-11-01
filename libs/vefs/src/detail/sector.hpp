@@ -27,8 +27,11 @@ namespace vefs::detail
         template <typename... PolicyArgs>
         inline basic_sector(
             tree_position nodePosition, detail::sector_id sectorId,
-            PolicyArgs &&... policyArgs) noexcept(std::is_nothrow_constructible_v<policy_type,
-                                                                                  PolicyArgs &&...>)
+            PolicyArgs
+                &&... policyArgs) noexcept(std::
+                                               is_nothrow_constructible_v<
+                                                   policy_type,
+                                                   PolicyArgs &&...>)
             : policy_type(std::forward<PolicyArgs>(policyArgs)...)
             , mNodePosition(nodePosition)
             , mSectorId(sectorId)
@@ -65,8 +68,9 @@ namespace vefs::detail
             VEFS_TRY(writePosition, policy.reallocate(sector.sector_id()));
 
             sector_reference updated{writePosition, {}};
-            if (result<void> writerx =
-                    device.write_sector(updated.mac, ctx, updated.sector, sector.mBlockData))
+            if (result<void> writerx = device.write_sector(
+                    updated.mac, ctx, updated.sector, sector.mBlockData);
+                writerx.has_failure())
             {
                 policy.sync_failed(writerx, writePosition);
                 return std::move(writerx).as_failure();
@@ -77,13 +81,14 @@ namespace vefs::detail
                 basic_sector &parentSector = *parent;
                 std::shared_lock parentLock{parentSector};
 
-                const auto offset = sector.node_position().parent_array_offset();
+                const auto offset =
+                    sector.node_position().parent_array_offset();
                 reference_sector_layout parentLayout{as_span(parentSector)};
                 parentLayout.write(offset, updated);
 
                 policy_type::mark_dirty(parent);
             }
-            mSectorId = updated.sector;
+            sector.mSectorId = updated.sector;
             policy.sync_succeeded(updated);
             policy_type::mark_clean(self);
 
