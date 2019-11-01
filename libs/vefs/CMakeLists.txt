@@ -243,6 +243,7 @@ add_executable(vefs-tests
     tests/memfs.hpp
 
     tests/sector_device-tests.cpp
+    tests/sector_tree_mt-tests.cpp
     tests/archive-tests.cpp
 
     tests/span-tests.cpp
