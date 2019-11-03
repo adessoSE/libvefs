@@ -15,6 +15,9 @@
 #define RtlGenRandom SystemFunction036
 extern "C" BOOLEAN NTAPI RtlGenRandom(PVOID RandomBuffer, ULONG RandomBufferLength);
 
+/**
+* Windows implementation of a cryptographically safe random bytes generator. Uses windows builtin-function.
+*/
 vefs::result<void> vefs::detail::random_bytes(rw_dynblob buffer) noexcept
 {
     using namespace vefs;
