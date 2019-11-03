@@ -4,7 +4,7 @@
 #include <system_error>
 #include <variant>
 
-#include <fmt/time.h>
+#include <fmt/format.h>
 
 #include <boost/predef.h>
 #include <vefs/exceptions.hpp>
@@ -51,7 +51,7 @@ namespace fmt
         template <typename FormatContext>
         auto format(const vefs::ed::file_span &fspan, FormatContext &ctx)
         {
-            return format_to(ctx.begin(), "[{},{})", fspan.begin, fspan.end);
+            return format_to(ctx.out(), "[{},{})", fspan.begin, fspan.end);
         }
     };
 } // namespace fmt

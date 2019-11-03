@@ -19,6 +19,9 @@ add_executable(vefs-tests
 
     blob-tests.cpp
     crypto_provider-tests.cpp
+
+    tree_lut-tests.cpp
+    tree_walker_tests.cpp
 )
 target_link_libraries(vefs-tests
     PUBLIC

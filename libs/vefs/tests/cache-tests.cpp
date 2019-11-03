@@ -56,7 +56,7 @@ namespace cache_tests
         void *val3;
     };
 
-   
+
 } // namespace cache_tests
 
 namespace fmt
@@ -73,7 +73,7 @@ namespace fmt
         template <typename FormatContext>
         auto format(const cache_tests::cached_value &h, FormatContext &ctx)
         {
-            return format_to(ctx.begin(), "[{},{},{}]", h.val1, h.val2, h.val3);
+            return format_to(ctx.out(), "[{},{},{}]", h.val1, h.val2, h.val3);
         }
     };
 } // namespace fmt
@@ -134,7 +134,7 @@ BOOST_AUTO_TEST_CASE(replacing_of_referenced_object_returns_referenced)
     TEST_RESULT_REQUIRE(rx);
 
     auto replace_existing_try = page.try_start_replace();
-    
+
     BOOST_TEST(replace_existing_try == cache_replacement_result::referenced);
 }
 
@@ -148,7 +148,7 @@ BOOST_AUTO_TEST_CASE(try_start_replace_for_dirty_and_unreferenced_returns_dirty)
     });
     TEST_RESULT_REQUIRE(rx);
     auto h = std::move(rx).assume_value();
-    
+
     h.mark_dirty();
     h = nullptr;
 
@@ -165,7 +165,7 @@ BOOST_AUTO_TEST_CASE(try_start_replace_for_dirty_and_referenced_returns_referenc
     });
     TEST_RESULT_REQUIRE(rx);
     auto h = std::move(rx).assume_value();
-    
+
     h.mark_dirty();
     BOOST_TEST(page.try_start_replace() == cache_replacement_result::referenced );
 }
@@ -222,7 +222,7 @@ BOOST_AUTO_TEST_CASE(try_start_replace_succeeds_on_second_chance_on_second_try)
     h = nullptr;
 
     (void)page.try_start_replace();
-   
+
     BOOST_TEST(page.try_start_replace() == cache_replacement_result::succeeded);
 }
 
@@ -235,7 +235,7 @@ BOOST_AUTO_TEST_CASE(mark_dirty_returns_true_if_handle_already_dirty)
         return new (p) cached_value(4, 10, nullptr);
     });
     auto h = std::move(rx).assume_value();
-   
+
     BOOST_TEST(!(h.mark_dirty()));
     BOOST_TEST(h.mark_dirty());
 }
@@ -254,10 +254,10 @@ BOOST_AUTO_TEST_CASE(try_access_returns_value_in_cache)
     auto result = cx->try_access(0);
 
     auto cached_result =((aliasing_ref_ptr<cached_value,cache_page<cached_value>>*)&result)->get();
-    
+
     BOOST_TEST(cached_result->val1 == value.val1);
     BOOST_TEST(cached_result->val2 == value.val2);
-    BOOST_TEST(cached_result->val3 == value.val3);    
+    BOOST_TEST(cached_result->val3 == value.val3);
 }
 
 BOOST_AUTO_TEST_CASE(try_access_returns_zero_if_no_value_in_cache)
@@ -282,7 +282,7 @@ BOOST_AUTO_TEST_CASE(first_added_entry_gets_envicted_on_full_cache)
 
     for (std::size_t i = 0; i < max_entries; ++i)
     {
-        (void)cx->access(i, i, 0, nullptr);
+        (void)cx->access(i, static_cast<int>(i), 0, nullptr);
     }
 
     (void)cx->access(1337, 1337, 0, nullptr);
@@ -312,7 +312,7 @@ BOOST_AUTO_TEST_CASE(second_chance_entry_gets_not_envicted_on_full_cache)
         ((aliasing_ref_ptr<cached_value, cache_page<cached_value>> *)&result)->get();
 
     BOOST_TEST(cx->try_access(0));
-   
+
     BOOST_TEST(cached_result->val1 == new_value.val1);
     BOOST_TEST(cached_result->val2 == new_value.val2);
     BOOST_TEST(cached_result->val3 == new_value.val3);
@@ -368,7 +368,7 @@ BOOST_AUTO_TEST_CASE(try_purge_returns_false_if_dead)
     auto rx = page.finish_replace([&destructor_called](void *p) noexcept->result<non_trivially_destructable_value *> {
         return new (p) non_trivially_destructable_value(destructor_called);
     });
-    
+
     BOOST_TEST(page.try_purge(true));
     BOOST_TEST(destructor_called);
 }

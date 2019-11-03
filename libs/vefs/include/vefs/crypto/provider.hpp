@@ -21,9 +21,15 @@ namespace vefs::crypto
         virtual result<void> box_open(rw_dynblob plaintext, ro_dynblob keyMaterial, ro_dynblob ciphertext,
                                       ro_dynblob mac) const noexcept = 0;
 
+        /**
+         * calculates cryptographically save random bytes
+         */
         virtual result<void> random_bytes(rw_dynblob out) const noexcept = 0;
         virtual utils::secure_byte_array<16> generate_session_salt() const = 0;
 
+        /**
+         * carries out a constant-time compare
+         */
         virtual result<int> ct_compare(ro_dynblob l, ro_dynblob r) const noexcept = 0;
 
         const std::size_t key_material_size;
