@@ -1,7 +1,7 @@
 # Setup Development Environment (Windows)
 ## Required Tools
-- Cmake 3.14 [https://cmake.org/download/]
-- Visual Studio 2019 (16.2.3) 
+- Visual Studio 2019 (16.3.0) 
+- CMake 3.15 [https://cmake.org/download/]
 
 ## Checkout
 - vcpkg
