@@ -94,6 +94,8 @@ BOOST_AUTO_TEST_CASE(error_format_with_curly_braces)
 
 BOOST_AUTO_TEST_CASE(valid_error_formats)
 {
+    using fmt::format;
+
     error info;
 
     // compile-time check
@@ -104,11 +106,15 @@ BOOST_AUTO_TEST_CASE(valid_error_formats)
 
 BOOST_AUTO_TEST_CASE(error_exception_init)
 {
+    using namespace std::string_view_literals;
+    using fmt::format;
+
     error info;
 
     auto exception = vefs::error_exception(info);
 
     BOOST_TEST(exception.error() == info);
+    BOOST_TEST(format("{}", info) == "success-domain => success"sv);
 }
 
 

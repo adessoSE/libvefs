@@ -35,8 +35,8 @@ namespace vefs::detail
         {
         };
 
-        static constexpr size_t sector_size = 1 << 15;
-        static constexpr size_t sector_payload_size = sector_size - (1 << 5);
+        static constexpr size_t sector_size = 1 << 15; //2^15
+        static constexpr size_t sector_payload_size = sector_size - (1 << 5); // 2^15-2^5
 
         static constexpr auto to_offset(sector_id id) -> std::uint64_t;
 

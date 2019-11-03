@@ -4,12 +4,12 @@
             "name": "x64-Debug",
             "generator": "Ninja",
             "configurationType": "Debug",
-            "buildRoot": "${env.USERPROFILE}/CMakeBuilds/${workspaceHash}/build/${name}",
+            "buildRoot": "${projectDir}\\build\\${name}",
             "installRoot": "${env.USERPROFILE}/CMakeBuilds/${workspaceHash}/install/${name}",
             "cmakeCommandArgs": "",
             "buildCommandArgs": "",
             "ctestCommandArgs": "",
-            "cmakeToolchain": "${env.USERPROFILE}/devel/vcpkg/vcpkg-export-vefs-deps/scripts/buildsystems/vcpkg.cmake",
+            "cmakeToolchain": "${env.USERPROFILE}/devel/mdk/vcpkg/vcpkg/scripts/buildsystems/vcpkg.cmake",
             "inheritEnvironments": [ "msvc_x64_x64" ],
             "variables": [
                 {
@@ -33,12 +33,12 @@
             "name": "x64-Release",
             "generator": "Ninja",
             "configurationType": "Release",
-            "buildRoot": "${env.USERPROFILE}/CMakeBuilds/${workspaceHash}/build/${name}",
+            "buildRoot": "${projectDir}\\build\\${name}",
             "installRoot": "${env.USERPROFILE}/CMakeBuilds/${workspaceHash}/install/${name}",
             "cmakeCommandArgs": "",
             "buildCommandArgs": "",
             "ctestCommandArgs": "",
-            "cmakeToolchain": "${env.USERPROFILE}/devel/vcpkg/vcpkg-export-vefs-deps/scripts/buildsystems/vcpkg.cmake",
+            "cmakeToolchain": "${env.USERPROFILE}/devel/mdk/vcpkg/vcpkg/scripts/buildsystems/vcpkg.cmake",
             "inheritEnvironments": [ "msvc_x64_x64" ],
             "variables": [
                 {
@@ -48,12 +48,17 @@
                 },
                 {
                     "name": "CMAKE_CXX_FLAGS_RELEASE",
-                    "value": "/MT /O2 /Ob2 /DNDEBUG /Zi /GL",
+                    "value": "/MT /O2 /Ob2 /DNDEBUG /Zi",
                     "type": "STRING"
                 },
                 {
+                    "name": "CMAKE_INTERPROCEDURAL_OPTIMIZATION",
+                    "value": "ON",
+                    "type": "BOOL"
+                },
+                {
                     "name": "CMAKE_EXE_LINKER_FLAGS",
-                    "value": "/machine:x64 /debug /LTCG:incremental  /VERBOSE:LIB ",
+                    "value": "/debug /LTCG:incremental",
                     "type": "STRING"
                 }
             ]
