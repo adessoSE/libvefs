@@ -234,6 +234,7 @@ add_executable(vefs-tests
     tests/disappointment-tests.cpp
     tests/allocator-tests.cpp
     tests/cache-tests.cpp
+    tests/cache_clock-tests.cpp
 
     tests/osfilesystem-tests.cpp
     tests/memfs.cpp

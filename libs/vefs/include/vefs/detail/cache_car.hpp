@@ -161,6 +161,10 @@ namespace vefs::detail
          */
         inline void purge_all() noexcept;
 
+        inline bool try_purge(handle &whom) noexcept;
+        template <typename DisposeFn>
+        inline bool try_purge(const key_type &whom, DisposeFn &&dispose) noexcept;
+
     private:
         inline auto try_purge(const key_type &key, history_list &history) noexcept
             -> std::optional<key_type>;
@@ -265,6 +269,88 @@ namespace vefs::detail
             }
         } while (!finished);
         mKeyIndexMap.clear();
+    }
+
+    template <typename Key, typename T, unsigned int CacheSize, typename Hash, typename KeyEqual>
+    inline bool cache_car<Key, T, CacheSize, Hash, KeyEqual>::try_purge(handle &whom) noexcept
+    {
+        std::lock_guard guard{mReplacementSync};
+        auto xpages = pages();
+        auto  where = get_cache_index(whom, xpages.data());
+
+        if (!xpages[where].try_purge(true))
+        {
+            return false;
+        }
+        whom = nullptr;
+        if (!mRecencyClock.purge(where))
+        {
+            mFrequencyClock.purge(where);
+        }
+        mKeyIndexMap.erase_fn(std::move(mIndexKeyMap[where]),
+                              [](auto stored) { return (stored & invalid_page_index_bit) == 0; });
+
+        return true;
+    }
+
+    template <typename Key, typename T, unsigned int CacheSize, typename Hash, typename KeyEqual>
+    template <typename DisposeFn>
+    inline bool
+    cache_car<Key, T, CacheSize, Hash, KeyEqual>::try_purge(const key_type &whom,
+                                                            DisposeFn &&dispose) noexcept
+    {
+        {
+            page_index idx;
+            std::lock_guard replacmentGuard{mReplacementSync};
+            auto alive = !mKeyIndexMap.uprase_fn(
+                whom,
+                [this, &idx](auto &stored) {
+                    if (stored & invalid_page_index_bit || page(stored).try_purge(false))
+                    {
+                        // someone does stuff therefore we must not change the stored index
+                        idx = invalid_page_index_bit;
+                    }
+                    else
+                    {
+                        idx = std::exchange(stored, invalid_page_index_bit);
+                    }
+                    return false;
+                },
+                invalid_page_index_bit);
+
+            if (alive && idx == invalid_page_index_bit)
+            {
+                return false;
+            }
+
+            if (alive)
+            {
+                if (!mRecencyClock.purge(idx))
+                {
+                    mFrequencyClock.purge(idx);
+                }
+                mIndexKeyMap[idx] = key_type{};
+            }
+            else
+            {
+                if (!try_purge(whom, mRecencyHistory))
+                {
+                    try_purge(whom, mFrequencyHistory);
+                }
+            }
+        }
+        std::invoke(dispose);
+
+        // release access and inform anyone who waited
+        mKeyIndexMap.erase_fn(whom, [this](auto stored) {
+            if (stored != invalid_page_index_bit)
+            {
+                mInitializationNotifier.notify_all();
+            }
+            return true;
+        });
+
+        return true;
     }
 
     template <typename Key, typename T, unsigned int CacheSize, typename Hash, typename KeyEqual>
@@ -551,8 +637,16 @@ namespace vefs::detail
         }
         else
         {
-            // not full, candidate is at the end of the valid cache page range
+            // not full, candidate is _usually_ at the end of the valid cache page range
+            // this is however not necessarily the case after purging a page
             candidate = num_entries;
+            if (!page(candidate).is_dead())
+            {
+                auto xpages = pages();
+                auto which =
+                    std::find_if(xpages.begin(), xpages.end(), [](auto &p) { return p.is_dead(); });
+                candidate = static_cast<page_index>(std::distance(xpages.begin(), which));
+            }
             [[maybe_unused]] const auto rprx = page(candidate).try_start_replace();
             assert(rprx == cache_replacement_result::succeeded);
         }
@@ -647,4 +741,6 @@ namespace vefs::detail
 
         return candidate;
     }
+
+    template class cache_car<int, int, 64>;
 } // namespace vefs::detail

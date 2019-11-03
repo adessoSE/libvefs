@@ -65,6 +65,7 @@ namespace vefs::detail
         /**
          * constructs a new dead cache page
          */
+        // #Todo why not remove constexpr comment?
         /*constexpr*/ cache_page() noexcept = default;
         ~cache_page() noexcept;
 
@@ -73,15 +74,17 @@ namespace vefs::detail
          *
          * If successful the replacement will need to be completed by calling finish_replace()
          * or cancel_replace().
-         * The replacement will fail if the page is dirty, referenced or has the second chance bit set.
+         * The replacement will fail if the page is dirty, referenced or has the second chance bit
+         * set.
          */
         inline auto try_start_replace() noexcept -> enum_bitset<cache_replacement_result>;
         /**
          * Completes page replacement by constructing the new element in place.
          * If construction fails its effects are equivalent to cancel_replace().
-         * 
-         * \param ctor The in place element construction function. result<value_type *>|outcome<value_type *> ctor(void *) noexcept
-         * \returns A page handle if successful or any error produced by the construction function.
+         *
+         * \param ctor The in place element construction function. result<value_type
+         * *>|outcome<value_type *> ctor(void *) noexcept \returns A page handle if successful or
+         * any error produced by the construction function.
          */
         template <typename Ctor>
         inline auto finish_replace(Ctor &&ctor) noexcept ->
@@ -90,6 +93,11 @@ namespace vefs::detail
          * Completes replacement by marking this page as dead.
          */
         inline void cancel_replace() noexcept;
+
+        /**
+         * tries to destruct the current page
+         */
+        inline bool try_purge(bool ownsLastReference) noexcept;
 
         inline bool is_dead() const noexcept;
         /**
@@ -102,7 +110,15 @@ namespace vefs::detail
         inline auto try_peek() noexcept -> cache_handle<T>;
 
         inline bool is_dirty() const noexcept;
+        /**
+         * sets the dirty bit to one
+         * /return the previous dirty state
+         */
         inline bool mark_dirty() noexcept;
+        /**
+         * sets the dirty bit to zero
+         * /return the previous dirty state
+         */
         inline bool mark_clean() noexcept;
 
         inline void add_reference() noexcept;
@@ -121,6 +137,7 @@ namespace vefs::detail
     template <typename T>
     inline cache_page<T>::~cache_page() noexcept
     {
+        //#TODO const?
         auto state = mEntryState.load(std::memory_order_acquire);
         if (!(state & tombstone_bit) && (state & ref_mask) > 0)
         {
@@ -154,7 +171,7 @@ namespace vefs::detail
             // it is a non dirty tombstone
             if (!(current == 0 || (current & tombstone_bit && !(current & dirty_bit))))
             {
-                // notify the owner if this entry is ((not referenced and dirty)) but not dead
+                // notify the owner if this entry is not referenced and dirty but not dead
                 // which usually is a good time to consider synchronizing this entry
                 return current == dirty_bit ? cache_replacement_result::dirty
                                             : cache_replacement_result::referenced;
@@ -198,6 +215,27 @@ namespace vefs::detail
     inline void cache_page<T>::cancel_replace() noexcept
     {
         mEntryState.store(tombstone_bit, std::memory_order_release);
+    }
+
+    template <typename T>
+    inline bool cache_page<T>::try_purge(bool ownsLastReference) noexcept
+    {
+        const state_type remainingReferences = ownsLastReference ? 1 : 0;
+        state_type expected = remainingReferences;
+        if (!mEntryState.compare_exchange_strong(expected, dirty_tombstone,
+                                                 std::memory_order_acq_rel))
+        {
+            return false;
+        }
+
+        if constexpr (!std::is_trivially_destructible_v<T>)
+        {
+            std::destroy_at(std::launder(reinterpret_cast<T *>(&mValueHolder)));
+        }
+
+        // if we still own the last reference we will decrement once afterwards
+        mEntryState.store(tombstone_bit | remainingReferences, std::memory_order_release);
+        return true;
     }
 
     template <typename T>
