@@ -3,12 +3,13 @@
 #include <cstdint>
 #include <cstdio>
 
-#include <limits>
-#include <string>
-#include <ostream>
 #include <iomanip>
+#include <limits>
+#include <ostream>
+#include <string>
 
 #include <boost/io/ios_state.hpp>
+#include <fmt/ostream.h>
 
 #include <vefs/disappointment/error_detail.hpp>
 
@@ -21,9 +22,10 @@ namespace vefs::detail
 
     inline bool operator<(sector_id lhs, sector_id rhs)
     {
-        return static_cast<std::uint64_t>(lhs) < static_cast<std::uint64_t>(rhs);
+        return static_cast<std::uint64_t>(lhs) <
+               static_cast<std::uint64_t>(rhs);
     }
-}
+} // namespace vefs::detail
 
 namespace fmt
 {
@@ -43,21 +45,23 @@ namespace fmt
             return format_to(ctx.out(), "SIDX:{:04x}", static_cast<itype>(id));
         }
     };
-}
+} // namespace fmt
 
 namespace vefs::detail
 {
     template <typename CharT, typename Traits>
-    inline auto operator<<(std::basic_ostream<CharT, Traits> &ostr, sector_id sid)
-        -> std::basic_ostream<CharT, Traits> &
+    inline auto operator<<(std::basic_ostream<CharT, Traits> &ostr,
+                           sector_id sid) -> std::basic_ostream<CharT, Traits> &
     {
         fmt::print(ostr, "{}", sid);
         return ostr;
     }
-}
+} // namespace vefs::detail
 
 namespace vefs::ed
 {
-    enum class sector_idx_tag {};
+    enum class sector_idx_tag
+    {
+    };
     using sector_idx = error_detail<sector_idx_tag, detail::sector_id>;
-}
+} // namespace vefs::ed
