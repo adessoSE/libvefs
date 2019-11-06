@@ -117,7 +117,7 @@ namespace vefs::detail
         /**
          * Forces all cached information to be written to disc.
          */
-        auto commit() -> result<void>;
+        auto commit() -> result<root_sector_info>;
 
     private:
         template <bool ReturnParentIfNotAllocated>
@@ -510,7 +510,7 @@ namespace vefs::detail
 
     template <typename SectorAllocator, typename Executor>
     inline auto sector_tree_mt<SectorAllocator, Executor>::commit()
-        -> result<void>
+        -> result<root_sector_info>
     {
         std::lock_guard depthLock{mTreeDepthSync};
 
@@ -544,7 +544,7 @@ namespace vefs::detail
 
         VEFS_TRY(mSectorAllocator.on_commit());
 
-        return success();
+        return mRootInfo;
     }
 
     template <typename SectorAllocator, typename Executor>

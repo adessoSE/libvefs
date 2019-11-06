@@ -4,7 +4,7 @@
 #include <vefs/platform/thread_pool.hpp>
 
 #include "../src/detail/basic_archive_file_meta.hpp" // #TODO to be removed
-                                         
+
 #include "memfs.hpp"
 #include "test-utils.hpp"
 
@@ -48,7 +48,7 @@ public:
     sector_device &device;
 };
 
-template class sector_tree_mt<test_allocator, thread_pool>;
+template class vefs::detail::sector_tree_mt<test_allocator, thread_pool>;
 
 struct sector_tree_mt_fixture
 {
@@ -91,11 +91,22 @@ BOOST_AUTO_TEST_CASE(create_new)
 {
     auto createrx = tree_type::create_new(*device, fileCryptoContext,
                                           workExecutor, *device);
-
     BOOST_TEST_REQUIRE(createrx);
-
     auto tree = std::move(createrx).assume_value();
-    TEST_RESULT_REQUIRE(tree->commit());
+
+    auto commitRx = tree->commit();
+    TEST_RESULT_REQUIRE(commitRx);
+    auto &&newRootInfo = std::move(commitRx).assume_value();
+
+    auto expectedRootMac =
+        vefs::utils::make_byte_array<0xe2, 0x1b, 0x52, 0x74, 0xe1, 0xd5, 0x8b,
+                                     0x69, 0x87, 0x36, 0x88, 0x3f, 0x34, 0x4e,
+                                     0x5e, 0x2b>();
+
+    BOOST_TEST(newRootInfo.root.mac == expectedRootMac);
+    BOOST_TEST(newRootInfo.root.sector == sector_id{1});
+    BOOST_TEST(newRootInfo.maximum_extent == rootSectorInfo.maximum_extent);
+    BOOST_TEST(newRootInfo.tree_depth == rootSectorInfo.tree_depth);
 
     workExecutor.wait();
 }
