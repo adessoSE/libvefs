@@ -10,25 +10,30 @@
 #include <vefs/utils/secure_array.hpp>
 #include <vefs/span.hpp>
 
-BOOST_AUTO_TEST_SUITE(crypto_provider_tests)
+#include "test-utils.hpp"
+
+struct crypto_provider_test_fixture
+{
+    vefs::crypto::detail::boringssl_aes_256_gcm_provider provider_impl;
+    vefs::crypto::crypto_provider *test_subject;
+
+    crypto_provider_test_fixture()
+        : provider_impl()
+        , test_subject(&provider_impl)
+    {
+    }
+};
+
+BOOST_FIXTURE_TEST_SUITE(crypto_provider_tests, crypto_provider_test_fixture)
 
 BOOST_AUTO_TEST_CASE(random_call)
 {
-    vefs::crypto::crypto_provider *test_subject =
-        &vefs::crypto::detail::boringssl_aes_256_gcm_provider();
-
-    std::array<std::byte, 16> random_bytes;
-
-    auto random_span = vefs::span(random_bytes);
-
-    BOOST_TEST(random_span.data());
+    std::array<std::byte, 16> random_bytes{};
+    TEST_RESULT(test_subject->random_bytes(vefs::span(random_bytes)));
 }
 
 BOOST_AUTO_TEST_CASE(boringssl_encrypts_end_decrypts_plaintext_to_same_value)
 {
-    vefs::crypto::crypto_provider *test_subject =
-        &vefs::crypto::detail::boringssl_aes_256_gcm_provider();
-
     std::array<std::byte,44> key;
     std::array<std::byte,16> mac;
     vefs::utils::secure_vector<std::byte> msg{5, std::byte{}};
@@ -57,9 +62,6 @@ BOOST_AUTO_TEST_CASE(boringssl_encrypts_end_decrypts_plaintext_to_same_value)
 
 BOOST_AUTO_TEST_CASE(boringssl_decrypts_returns_error_if_mac_is_18_bytes_long)
 {
-    vefs::crypto::crypto_provider *test_subject =
-        &vefs::crypto::detail::boringssl_aes_256_gcm_provider();
-
     std::array<std::byte, 44> key;
     std::array<std::byte, 18> mac;
     vefs::utils::secure_vector<std::byte> msg{5, std::byte{}};
@@ -91,9 +93,6 @@ BOOST_AUTO_TEST_CASE(ct_compare_compares_two_equal_spans_return_true)
     vefs::fill_blob(mac_span, std::byte{0xcc});
     vefs::fill_blob(key_span, std::byte{0xcc});
   
-    vefs::crypto::crypto_provider *test_subject =
-        &vefs::crypto::detail::boringssl_aes_256_gcm_provider();
-
     auto result = test_subject->ct_compare(key_span, mac_span);
 
     BOOST_TEST(!result.has_error());
@@ -110,9 +109,6 @@ BOOST_AUTO_TEST_CASE(ct_compare_compares_second_smaller_returns_1)
 
     vefs::fill_blob(first_to_compare_span, std::byte{0xcd});
     vefs::fill_blob(second_to_compare_span, std::byte{0xcc});
-
-    vefs::crypto::crypto_provider *test_subject =
-        &vefs::crypto::detail::boringssl_aes_256_gcm_provider();
 
     auto result = test_subject->ct_compare(first_to_compare_span, second_to_compare_span);
 
@@ -131,9 +127,6 @@ BOOST_AUTO_TEST_CASE(ct_compare_compares_second_larger_returns_minus_1)
     vefs::fill_blob(first_to_compare_span, std::byte{0xca});
     vefs::fill_blob(second_to_compare_span, std::byte{0xcc});
 
-    vefs::crypto::crypto_provider *test_subject =
-        &vefs::crypto::detail::boringssl_aes_256_gcm_provider();
-
     auto result = test_subject->ct_compare(first_to_compare_span, second_to_compare_span);
 
     BOOST_TEST(!result.has_error());
@@ -151,9 +144,6 @@ BOOST_AUTO_TEST_CASE(ct_comparing_two_different_size_arrays_gives_error)
     vefs::fill_blob(first_to_compare_span, std::byte{0xca});
     vefs::fill_blob(second_shorter_span, std::byte{0xca});
 
-    vefs::crypto::crypto_provider *test_subject =
-        &vefs::crypto::detail::boringssl_aes_256_gcm_provider();
-
     auto result = test_subject->ct_compare(first_to_compare_span, second_shorter_span);
 
     BOOST_TEST(result.error() == vefs::errc::invalid_argument);
@@ -164,9 +154,6 @@ BOOST_AUTO_TEST_CASE(ct_comparing_two_zero_size_arrays_gives_error)
 {
     std::array<std::byte, 0> first_to_compare;
     std::array<std::byte, 0> second_with_smaller_size;
-
-    vefs::crypto::crypto_provider *test_subject =
-        &vefs::crypto::detail::boringssl_aes_256_gcm_provider();
 
     auto result = test_subject->ct_compare(vefs::span(first_to_compare),
                                            vefs::span(second_with_smaller_size));
