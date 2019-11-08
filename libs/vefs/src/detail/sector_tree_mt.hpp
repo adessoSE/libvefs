@@ -212,6 +212,7 @@ namespace vefs::detail
     sector_tree_mt<SectorAllocator, Executor>::sector_policy<T>::reallocate(
         sector_id current) noexcept -> result<sector_id>
     {
+        // #TODO #implement
         return current;
     }
     template <typename SectorAllocator, typename Executor>
@@ -220,6 +221,7 @@ namespace vefs::detail
     sector_tree_mt<SectorAllocator, Executor>::sector_policy<T>::deallocate(
         sector_id id) noexcept
     {
+        // #TODO #implement
     }
     template <typename SectorAllocator, typename Executor>
     template <typename T>
@@ -227,6 +229,7 @@ namespace vefs::detail
     sector_tree_mt<SectorAllocator, Executor>::sector_policy<T>::sync_failed(
         result<void> &rx, sector_id allocatedId) noexcept
     {
+        // #TODO #implement
     }
     template <typename SectorAllocator, typename Executor>
     template <typename T>
@@ -418,7 +421,7 @@ namespace vefs::detail
     {
         using boost::container::static_vector;
 
-        tree_path sectorPath{5, node};
+        tree_path sectorPath{node};
         int requiredDepth = 0;
         for (; sectorPath.position(requiredDepth) != 0; ++requiredDepth)
         {
@@ -569,17 +572,19 @@ namespace vefs::detail
             return archive_errc::sector_reference_out_of_range;
         }
 
-        // next sector is unlikely to be in the page cache,
-        // therefore it is even more unlikely that its reference
-        // resides in the CPU cache
-        // however this only holds for the first reference load,
-        // because afterwards the freshly decrypted sector content
-        // will still reside in cache
-        VEFS_PREFETCH_NTA(
-            as_span(*base).data() +
-            it.array_offset() *
-                reference_sector_layout::serialized_reference_size);
-
+        if (it != pathEnd)
+        {
+            // next sector is unlikely to be in the page cache,
+            // therefore it is even more unlikely that its reference
+            // resides in the CPU cache
+            // however this only holds for the first reference load,
+            // because afterwards the freshly decrypted sector content
+            // will still reside in cache
+            VEFS_PREFETCH_NTA(
+                as_span(*base).data() +
+                it.array_offset() *
+                    reference_sector_layout::serialized_reference_size);
+        }
         for (; it != pathEnd; ++it)
         {
             // we only need to increment the cache ref ctr twice in case we need
@@ -615,7 +620,6 @@ namespace vefs::detail
     inline void sector_tree_mt<SectorAllocator, Executor>::notify_dirty(
         sector_handle h) noexcept
     {
-        // #TODO package to executor
         mExecutor.execute([this, h = std::move(h)]() mutable {
             if (!h)
             {
@@ -631,6 +635,13 @@ namespace vefs::detail
             if (h->node_position().layer() > 0 &&
                 h->node_position().position() != 0)
             {
+                // we automagically deallocate reference nodes which don't
+                // reference anything.
+                // h->node_position().position() != 0 is a shortcut - the first
+                // data node is always allocated, therefore any node
+                // (indirectly) referencing the first data node will fail the
+                // next test. These reference nodes are managed by the tree
+                // height functions
                 auto sector = as_span(*h);
                 if (std::all_of(sector.begin(), sector.end(),
                                 [](std::byte b) { return b == std::byte{}; }))
@@ -644,13 +655,14 @@ namespace vefs::detail
                     sectorLock.unlock();
                     h = nullptr;
 
-                    // maybe refactor erase_child to return
-                    // a handle to the child on erasure failure
+                    // #TODO reference node erasure is susceptible to toctou
                     (void)try_erase_child(std::move(parent), position,
                                           childOffset);
                     return;
                 }
             }
+
+            // sync error is reported via sector policy 
             if (auto syncrx = h->sync_to(mDevice, mCryptoCtx, h))
             {
                 h.mark_clean();

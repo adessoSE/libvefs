@@ -672,7 +672,7 @@ namespace vefs
         // the amount of ids can grow rather large and failing a shrink because
         // of an bad_alloc from push_back is rather stupid
         std::vector<detail::sector_id> collectedIds;
-        tree_path walker{treeDepth, lut::sector_position_of(fileSize - 1)};
+        tree_path walker{treeDepth, tree_position(lut::sector_position_of(fileSize - 1))};
         auto endPosition = size != 0 ? lut::sector_position_of(size) : 0;
 
         while (walker.position(0) > endPosition)

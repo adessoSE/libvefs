@@ -30,6 +30,9 @@ public:
     }
     auto alloc_multiple(span<sector_id> ids) noexcept -> result<std::size_t>
     {
+        std::lock_guard allocGuard{alloc_sync};
+        auto newSize = alloc_counter + ids.size();
+
         return 0;
     }
 
@@ -50,7 +53,7 @@ public:
 
 template class vefs::detail::sector_tree_mt<test_allocator, thread_pool>;
 
-struct sector_tree_mt_fixture
+struct sector_tree_mt_pre_create_fixture
 {
     using tree_type = sector_tree_mt<test_allocator, thread_pool>;
 
@@ -63,7 +66,7 @@ struct sector_tree_mt_fixture
     file_crypto_ctx fileCryptoContext;
     root_sector_info rootSectorInfo;
 
-    sector_tree_mt_fixture()
+    sector_tree_mt_pre_create_fixture()
         : testFilesystem(tests::memory_filesystem::create())
         , device(sector_device::open(
                      testFilesystem, "tree-test.vefs",
@@ -77,21 +80,29 @@ struct sector_tree_mt_fixture
     }
 };
 
+struct sector_tree_mt_fixture : sector_tree_mt_pre_create_fixture
+{
+    std::unique_ptr<tree_type> testTree;
+
+    sector_tree_mt_fixture()
+        : sector_tree_mt_pre_create_fixture()
+        , testTree()
+    {
+        testTree = tree_type::create_new(*device, fileCryptoContext,
+                                         workExecutor, *device)
+                       .value();
+
+        rootSectorInfo = testTree->commit().value();
+    }
+};
+
 BOOST_FIXTURE_TEST_SUITE(sector_tree_mt_tests, sector_tree_mt_fixture)
 
-BOOST_AUTO_TEST_CASE(open_existing)
-{
-    // #TODO fill with actual data...
-
-    // auto openrx = tree_type::open_existing(*device, fileCryptoContext,
-    //                                       workExecutor, rootSectorInfo);
-}
-
-BOOST_AUTO_TEST_CASE(create_new)
+BOOST_FIXTURE_TEST_CASE(create_new, sector_tree_mt_pre_create_fixture)
 {
     auto createrx = tree_type::create_new(*device, fileCryptoContext,
                                           workExecutor, *device);
-    BOOST_TEST_REQUIRE(createrx);
+    TEST_RESULT_REQUIRE(createrx);
     auto tree = std::move(createrx).assume_value();
 
     auto commitRx = tree->commit();
@@ -108,7 +119,27 @@ BOOST_AUTO_TEST_CASE(create_new)
     BOOST_TEST(newRootInfo.maximum_extent == rootSectorInfo.maximum_extent);
     BOOST_TEST(newRootInfo.tree_depth == rootSectorInfo.tree_depth);
 
-    workExecutor.wait();
+    auto rootAccessRx = tree->access(tree_position{0, 0});
+    TEST_RESULT_REQUIRE(rootAccessRx);
+    auto rootSpan = as_span(*rootAccessRx.assume_value());
+    BOOST_TEST(std::all_of(rootSpan.begin(), rootSpan.end(),
+                           [](std::byte v) { return v == std::byte{}; }));
+}
+
+BOOST_AUTO_TEST_CASE(open_existing)
+{
+    testTree.reset();
+
+    auto openrx = tree_type::open_existing(
+        *device, fileCryptoContext, workExecutor, rootSectorInfo, *device);
+    TEST_RESULT_REQUIRE(openrx);
+    testTree = std::move(openrx).assume_value();
+
+    auto rootAccessRx = testTree->access(tree_position{0, 0});
+    TEST_RESULT_REQUIRE(rootAccessRx);
+    auto rootSpan = as_span(*rootAccessRx.assume_value());
+    BOOST_TEST(std::all_of(rootSpan.begin(), rootSpan.end(),
+                           [](std::byte v) { return v == std::byte{}; }));
 }
 
 BOOST_AUTO_TEST_SUITE_END()
