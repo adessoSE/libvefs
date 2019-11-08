@@ -18,6 +18,7 @@ namespace vefs
         not_loaded,
         entry_was_disposed,
         no_more_data,
+        resource_exhausted,
     };
     auto generic_domain() noexcept
         -> const error_domain &;
