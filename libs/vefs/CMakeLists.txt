@@ -200,6 +200,9 @@ target_link_libraries(vefs
         libb2
         protobuf::libprotobuf
         fmt::fmt
+        llfio
+        ntkernel-error-category
+        quickcpplib
 
         concurrentqueue
         cuckoohash
