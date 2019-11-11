@@ -106,7 +106,6 @@ endif()
 
 DEF_SOURCE_GROUP(vefs "platform"
     HEADERS
-        include/vefs/platform/filesystem.hpp
         include/vefs/platform/platform.hpp
         include/vefs/platform/secure_memzero.hpp
         include/vefs/platform/thread_pool.hpp
@@ -115,9 +114,6 @@ DEF_SOURCE_GROUP(vefs "platform"
         src/platform/platform.cpp
         src/platform/windows-proper.h
 
-        src/platform/filesystem.cpp
-        src/platform/os_filesystem.hpp
-        src/platform/os_filesystem.cpp
         
         src/platform/thread_pool.cpp
         src/platform/thread_pool_gen.hpp
@@ -129,20 +125,6 @@ DEF_SOURCE_GROUP(vefs "platform"
 
 )
 
-if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    DEF_SOURCE_GROUP(vefs "platform"
-        SOURCES
-            src/platform/os_filesystem_linux.cpp
-    )
-elseif(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-    DEF_SOURCE_GROUP(vefs "platform"
-        SOURCES
-            src/platform/os_filesystem_win.cpp
-
-            src/platform/thread_pool_win32.cpp
-            src/platform/thread_pool_win32.hpp
-    )
-endif()
 
 DEF_SOURCE_GROUP(vefs "utils"
     HEADERS
