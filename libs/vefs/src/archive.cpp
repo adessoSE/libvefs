@@ -49,16 +49,17 @@ namespace vefs
     {
     }
 
-    auto archive::open(filesystem::ptr fs, const std::filesystem::path &archivePath,
+    auto archive::open(llfio::mapped_file_handle mfh,
                        crypto::crypto_provider *cryptoProvider, ro_blob<32> userPRK,
-                       file_open_mode_bitset openMode) -> result<std::unique_ptr<archive>>
+                       bool createNew) -> result<std::unique_ptr<archive>>
     {
         BOOST_OUTCOME_TRY(primitives,
-                          sector_device::open(fs, archivePath, cryptoProvider, userPRK, openMode));
+                          sector_device::open(std::move(mfh), cryptoProvider, userPRK, createNew));
 
         std::unique_ptr<archive> arc{new archive(std::move(primitives))};
 
-        const auto createNew = openMode % file_open_mode::create;
+        //const auto createNew = openMode % file_open_mode::create;
+        // #TODO Discuss this point. Mode is defined at creation of mapped file
         if (createNew)
         {
             if (auto fblrx = free_block_list_file::create_new(*arc))

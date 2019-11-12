@@ -9,11 +9,31 @@
 #include <vefs/span.hpp>
 #include <vefs/platform/thread_pool.hpp>
 #include <vefs/disappointment.hpp>
-#include <vefs/platform/filesystem.hpp>
+#include <vefs/utils/enum_bitset.hpp>
+
+>>>>>>> 279d52d... Replaces use of filesystem by mapped file
 #include <vefs/utils/ref_ptr.hpp>
+
+#include <llfio.hpp>
+
+namespace llfio = LLFIO_V2_NAMESPACE;
 
 namespace vefs
 {
+
+    enum class file_open_mode
+    {
+        read = 0b0000,
+        write = 0b0001,
+        readwrite = read | write,
+        truncate = 0b0010,
+        create = 0b0100,
+    };
+
+    std::true_type allow_enum_bitset(file_open_mode &&);
+    using file_open_mode_bitset = enum_bitset<file_open_mode>;
+
+
     struct file_query_result
     {
         file_open_mode_bitset allowed_flags;
@@ -69,13 +89,12 @@ namespace vefs
         private:
             void add_reference();
             void release();
-
             file_lookup *mData;
         };
 
-        static auto open(filesystem::ptr fs, const std::filesystem::path &archivePath,
-                         crypto::crypto_provider *cryptoProvider,
-                         ro_blob<32> userPRK, file_open_mode_bitset openMode) -> result<std::unique_ptr<archive>>;
+
+        static auto open(llfio::mapped_file_handle mfh, crypto::crypto_provider *cryptoProvider,
+                         ro_blob<32> userPRK, bool createNew) -> result<std::unique_ptr<archive>>;
         ~archive();
 
         auto sync() -> result<void>;

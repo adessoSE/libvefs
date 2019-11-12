@@ -122,42 +122,31 @@ namespace vefs::detail
         return std::move(file);
     }
 
-    sector_device::sector_device(file::ptr archiveFile, crypto::crypto_provider *cryptoProvider)
+    sector_device::sector_device(llfio::mapped_file_handle mfh,
+                             crypto::crypto_provider *cryptoProvider)
         : mCryptoProvider(cryptoProvider)
-        , mArchiveFile(std::move(archiveFile))
+        , mArchiveFile(std::move(mfh))
         , mSessionSalt(cryptoProvider->generate_session_salt())
         , mNumSectors(0)
     {
-        mNumSectors = mArchiveFile->size() / sector_size;
+        // #TODO Exception handling or presume value ?
+        mNumSectors = mArchiveFile.maximum_extent().value() / sector_size;
     }
 
-    auto sector_device::open(filesystem::ptr fs, const std::filesystem::path &path,
+    auto sector_device::open(llfio::mapped_file_handle mfh,
                            crypto::crypto_provider *cryptoProvider, ro_blob<32> userPRK,
-                           file_open_mode_bitset openMode) -> result<std::unique_ptr<sector_device>>
+                           bool createNew) -> result<std::unique_ptr<raw_archive>>
     {
-        // no read only support as of now
-        openMode |= file_open_mode::readwrite;
-        const auto create = openMode % file_open_mode::create;
-        if (create)
-        {
-            openMode |= file_open_mode::truncate;
-        }
-
-        std::error_code scode;
-        auto file = fs->open(path, openMode, scode);
-        if (!file)
-        {
-            return error{scode};
-        }
 
         std::unique_ptr<sector_device> archive{new (std::nothrow)
-                                                 sector_device(std::move(file), cryptoProvider)};
+                                                 raw_archive(std::move(mfh), cryptoProvider)};
+        // #TODO Review the case
         if (!archive)
         {
             return errc::not_enough_memory;
         }
 
-        if (create)
+        if (createNew)
         {
             BOOST_OUTCOME_TRY(archive->resize(1));
 
@@ -192,14 +181,16 @@ namespace vefs::detail
         return std::move(archive);
     }
 
+    // #TODO This sync might not be useful since no classic flush takes place.
+    // However, we need to keep the header synced. Check with team mates.
     result<void> sector_device::sync()
     {
-        std::error_code scode;
-        mArchiveFile->sync(scode);
-        if (scode)
-        {
-            return error{scode};
-        }
+        // std::error_code scode;
+        // mArchiveFile->sync(scode);
+        // if (scode)
+        //{
+        //    return error{scode};
+        //}
         return outcome::success();
     }
 
@@ -209,10 +200,36 @@ namespace vefs::detail
 
         StaticArchiveHeaderPrefix archivePrefix;
         // #UB-ObjectLifetime
-        mArchiveFile->read(rw_blob_cast(archivePrefix), 0, scode);
-        if (scode)
+        // mArchiveFile->read(rw_blob_cast(archivePrefix), 0, scode);
+        // if (scode)
+        //{
+        //    return error{scode};
+        //}
+
+        // create io request
+        std::vector<llfio::io_handle::buffer_type> buffers(
+            {{nullptr, sizeof(archivePrefix.magic_number)},
+             {nullptr, sizeof(archivePrefix.static_header_salt)},
+             {nullptr, sizeof(archivePrefix.static_header_mac)},
+             {nullptr, sizeof(archivePrefix.static_header_length)}});
+        llfio::io_handle::io_request<llfio::io_handle::buffers_type> req({buffers}, 0);
+
+        auto io_res = mArchiveFile.read(req);
+        if (io_res)
         {
-            return error{scode};
+            // copy the result into static archive header prefix
+            // #TODO data is in the mapping, could it be suitable to simply point to the data
+            // instead ?
+            llfio::io_handle::buffers_type res_buf = io_res.value();
+            std::copy(res_buf[0].begin(), res_buf[0].end(), archivePrefix.magic_number.begin());
+            std::copy(res_buf[1].begin(), res_buf[1].end(), archivePrefix.static_header_salt.begin());
+            std::copy(res_buf[2].begin(), res_buf[2].end(), archivePrefix.static_header_mac.begin());
+            // #TODO to be analysed
+            memcpy(&archivePrefix.static_header_length, res_buf[3].data(), res_buf[3].size());
+        }
+        else
+        {
+            return error{scode}; // #TODO remove/replace stub
         }
 
         // check for magic number
@@ -235,8 +252,25 @@ namespace vefs::detail
                 : (staticHeaderHeap.resize(archivePrefix.static_header_length),
                    span(staticHeaderHeap));
 
-        mArchiveFile->read(staticHeader, sizeof(StaticArchiveHeaderPrefix), scode);
-        if (scode)
+        // mArchiveFile->read(staticHeader, sizeof(StaticArchiveHeaderPrefix), scode);
+        // if (scode)
+        //{
+        //    return error{scode};
+        //}
+
+        // create io request
+        buffers = {{nullptr, sizeof(staticHeader)}};
+        req.buffers = buffers;
+
+        io_res = mArchiveFile.read(req);
+        if (io_res)
+        {
+            // copy result into static header
+            // #TODO static header length may change? copy is better in this case?
+            llfio::io_handle::buffers_type res_buf = io_res.value();
+            std::copy(res_buf[0].begin(), res_buf[0].end(), staticHeader.begin());
+        }
+        else
         {
             return error{scode};
         }
@@ -296,10 +330,28 @@ namespace vefs::detail
         secure_vector<std::byte> headerAndPaddingMem(size, std::byte{});
         span headerAndPadding{headerAndPaddingMem};
 
-        mArchiveFile->read(headerAndPadding, position, scode);
-        if (scode)
+        // mArchiveFile->read(headerAndPadding, position, scode);
+        // if (scode)
+        //{
+        //    return error{scode};
+        //}
+
+        // create io request
+        std::vector<llfio::io_handle::buffer_type> buffers({{nullptr, headerAndPadding.size()}});
+        llfio::io_handle::io_request<llfio::io_handle::buffers_type> req({buffers}, position);
+
+        auto io_res = mArchiveFile.read(req);
+        if (io_res)
         {
-            return error{scode};
+            // copy the result into static archive header prefix
+            // #TODO data is in the mapping, could it be suitable to simply point to that data
+            // instead of copy?
+            llfio::io_handle::buffers_type res_buf = io_res.value();
+            std::copy(res_buf[0].begin(), res_buf[0].end(), headerAndPadding.begin());
+        }
+        else
+        {
+            return error{scode}; // #TODO remove/replace stub
         }
 
         auto archiveHeaderPrefix =
@@ -455,15 +507,33 @@ namespace vefs::detail
                                                     as_span(key), msg));
 
         std::error_code scode;
-        mArchiveFile->write(ro_blob_cast(headerPrefix), 0, scode);
-        if (scode)
+        // mArchiveFile->write(ro_blob_cast(headerPrefix), 0, scode);
+        // if (scode)
+        //{
+        //    return error{scode};
+        //}
+        // mArchiveFile->write(msg, sizeof(headerPrefix), scode);
+        // if (scode)
+        //{
+        //    return error{scode};
+        //}
+
+        auto io_res = mArchiveFile.write(0,
+            {
+                {headerPrefix.magic_number.data(), headerPrefix.magic_number.size()},
+                {headerPrefix.static_header_salt.data(), headerPrefix.static_header_salt.size()},
+                {headerPrefix.static_header_mac.data(), headerPrefix.static_header_mac.size()},
+                {reinterpret_cast<std::byte *>(&headerPrefix.static_header_length), sizeof(headerPrefix.static_header_length)}
+            }
+        );
+        if (!io_res)
         {
-            return error{scode};
+            return error{scode}; // #TODO remove/replace stub
         }
-        mArchiveFile->write(msg, sizeof(headerPrefix), scode);
-        if (scode)
+        io_res = mArchiveFile.write(sizeof(headerPrefix),{{msg.data(), msg.size()}});
+        if (!io_res)
         {
-            return error{scode};
+            return error{scode}; // #TODO remove/replace stub
         }
 
         mArchiveHeaderOffset = sizeof(headerPrefix) + headerPrefix.static_header_length;
@@ -486,15 +556,27 @@ namespace vefs::detail
         span sectorSalt = as_span(sectorSaltMem);
 
         std::error_code scode;
-        mArchiveFile->read(sectorSalt, sectorOffset, scode);
-        if (scode)
+        //mArchiveFile->read(sectorSalt, sectorOffset, scode);
+        //if (scode)
+        //{
+        //    return error{scode} << ed::sector_idx{sectorIdx};
+        //}
+        //mArchiveFile->read(buffer, sectorOffset + sectorSalt.size(), scode);
+        //if (scode)
+        //{
+        //    return error{scode} << ed::sector_idx{sectorIdx};
+        //}
+
+        
+        auto io_res = mArchiveFile.write({{reinterpret_cast<llfio::io_handle::const_buffer_type *>(sectorSalt.data()), sectorSalt.size()}, sectorOffset});
+        if (!io_res)
         {
-            return error{scode} << ed::sector_idx{sectorIdx};
+            return error{scode} << ed::sector_idx{sectorIdx}; // #TODO remove/replace stub
         }
-        mArchiveFile->read(buffer, sectorOffset + sectorSalt.size(), scode);
-        if (scode)
+        io_res = mArchiveFile.write({{reinterpret_cast<llfio::io_handle::const_buffer_type *>(buffer.data()), buffer.size()}, sectorOffset + sectorSalt.size()});
+        if (!io_res)
         {
-            return error{scode} << ed::sector_idx{sectorIdx};
+            return error{scode} << ed::sector_idx{sectorIdx}; // #TODO remove/replace stub
         }
 
         secure_byte_array<44> sectorKeyNonce;
@@ -547,15 +629,28 @@ namespace vefs::detail
 
         const auto sectorOffset = to_offset(sectorIdx);
         std::error_code scode;
-        mArchiveFile->write(salt, sectorOffset, scode);
-        if (scode)
+        //mArchiveFile->write(salt, sectorOffset, scode);
+        //if (scode)
+        //{
+        //    return error{scode} << ed::sector_idx{sectorIdx};
+        //}
+        //mArchiveFile->write(ciphertextBuffer, sectorOffset + salt.size(), scode);
+        //if (scode)
+        //{
+        //    return error{scode} << ed::sector_idx{sectorIdx};
+        //}
+
+        
+        auto io_res = mArchiveFile.write({{reinterpret_cast<llfio::io_handle::const_buffer_type *>(salt.data()), salt.size()}, sectorOffset});
+        if (!io_res)
         {
-            return error{scode} << ed::sector_idx{sectorIdx};
+            return error{scode} << ed::sector_idx{sectorIdx}; // #TODO remove/replace stub
         }
-        mArchiveFile->write(ciphertextBuffer, sectorOffset + salt.size(), scode);
-        if (scode)
+
+        io_res = mArchiveFile.write({{reinterpret_cast<llfio::io_handle::const_buffer_type *>(ciphertextBuffer.data()), ciphertextBuffer.size()}, sectorOffset + salt.size()});
+        if (!io_res)
         {
-            return error{scode} << ed::sector_idx{sectorIdx};
+            return error{scode} << ed::sector_idx{sectorIdx}; // #TODO remove/replace stub
         }
 
         return outcome::success();
@@ -576,11 +671,18 @@ namespace vefs::detail
 
         const auto offset = to_offset(sectorIdx);
         std::error_code scode;
-        mArchiveFile->write(salt, offset, scode);
-        if (scode)
+        //mArchiveFile->write(salt, offset, scode);
+        //if (scode)
+        //{
+        //    return error{scode};
+        //}
+
+        auto io_res = mArchiveFile.write({{reinterpret_cast<llfio::io_handle::const_buffer_type *>(salt.data()), salt.size()}, offset});
+        if (!io_res)
         {
-            return error{scode};
+            return error{scode}; // #TODO remove/replace stub
         }
+
         return outcome::success();
     }
 
@@ -634,8 +736,14 @@ namespace vefs::detail
                         ed::archive_file{"[archive-header]"});
 
         std::error_code scode;
-        mArchiveFile->write(span{headerMem}, headerOffset, scode);
-        if (scode)
+        //mArchiveFile->write(span{headerMem}, headerOffset, scode);
+        //if (scode)
+        //{
+        //    return error{scode} << ed::archive_file{"[archive-header]"};
+        //}
+
+        auto io_res = mArchiveFile.write({{reinterpret_cast<llfio::io_handle::const_buffer_type *>(headerMem.data()), headerMem.size()}, headerOffset});
+        if (!io_res)
         {
             return error{scode} << ed::archive_file{"[archive-header]"};
         }
