@@ -39,7 +39,6 @@ DEF_SOURCE_GROUP(vefs "detail"
         src/detail/file_crypto_ctx.hpp
         src/detail/reference_sector_layout.hpp
         src/detail/root_sector_info.hpp
-        src/detail/sector.hpp
         src/detail/sector_device.cpp
         src/detail/sector_device.hpp
         src/detail/sector_id.hpp
