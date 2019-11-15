@@ -28,6 +28,7 @@ namespace vefs::detail
             typename tree_allocator_type::sector_allocator;
         using executor_type = Executor;
 
+    private:
         class sector
         {
             friend class sector_tree_mt;
@@ -80,14 +81,22 @@ namespace vefs::detail
                 mBlockData;
         };
 
+        using sector_handle = cache_handle<sector>;
+
+    public:
         class write_handle;
 
         class read_handle
         {
+            friend class write_handle;
+
         public:
-            read_handle(cache_handle<sector> node) noexcept;
+            read_handle() noexcept = default;
+            read_handle(sector_handle node) noexcept;
             read_handle(const write_handle &writeHandle) noexcept;
             read_handle(write_handle &&writeHandle) noexcept;
+
+            explicit operator bool() const noexcept;
 
             inline void lock();
             inline auto try_lock() -> bool;
@@ -99,21 +108,26 @@ namespace vefs::detail
             inline friend auto as_span(const read_handle &node) noexcept
                 -> ro_blob<sector_device::sector_payload_size>
             {
-                return as_span(*mSector);
+                return as_span(*node.mSector);
             }
 
         private:
-            cache_handle<sector> mSector;
+            sector_handle mSector;
         };
 
         class write_handle
         {
+            friend class read_handle;
+
         public:
-            write_handle(cache_handle<sector> node) noexcept;
+            write_handle() noexcept = default;
+            write_handle(sector_handle node) noexcept;
             explicit write_handle(const read_handle &readHandle) noexcept;
             explicit write_handle(read_handle &&readHandle) noexcept;
 
             ~write_handle();
+
+            explicit operator bool() const noexcept;
 
             inline void lock();
             inline auto try_lock() -> bool;
@@ -122,22 +136,21 @@ namespace vefs::detail
             inline auto try_lock_shared() -> bool;
             inline void unlock_shared();
 
-            inline friend auto as_span(write_handle &node) noexcept
+            inline friend auto as_span(const write_handle &node) noexcept
                 -> rw_blob<sector_device::sector_payload_size>
             {
-                return as_span(*mSector);
+                return as_span(*node.mSector);
             }
 
         private:
-            cache_handle<sector> mSector;
+            sector_handle mSector;
         };
 
+    private:
         using sector_type = sector;
-        using sector_handle = cache_handle<sector>;
         using sector_cache =
             cache_car<tree_position, sector_type, 1 << 6>; // 64 cached pages
 
-    private:
         template <typename... AllocatorCtorArgs>
         sector_tree_mt(sector_device &device, file_crypto_ctx &cryptoCtx,
                        executor_type &executor, root_sector_info rootInfo,
@@ -164,12 +177,12 @@ namespace vefs::detail
          * Tries to access from or load into cache the sector at the given node
          * position. Fails if the sector is not allocated.
          */
-        auto access(tree_position node) -> result<sector_handle>;
+        auto access(tree_position node) -> result<read_handle>;
         /**
          * Tries to access the sector at the given node position and creates
          * said sector if it doesn't exist.
          */
-        auto access_or_create(tree_position node) -> result<sector_handle>;
+        auto access_or_create(tree_position node) -> result<read_handle>;
         /**
          * Erase a leaf node at the given position.
          */
@@ -283,6 +296,157 @@ namespace vefs::detail
     inline void sector_tree_mt<TreeAllocator, Executor>::sector::unlock_shared()
     {
         mSectorSync.unlock_shared();
+    }
+
+#pragma endregion
+
+#pragma region read_handle implementation
+
+    template <typename TreeAllocator, typename Executor>
+    inline sector_tree_mt<TreeAllocator, Executor>::read_handle::read_handle(
+        sector_handle node) noexcept
+        : mSector(std::move(node))
+    {
+    }
+    template <typename TreeAllocator, typename Executor>
+    inline sector_tree_mt<TreeAllocator, Executor>::read_handle::read_handle(
+        const write_handle &writeHandle) noexcept
+        : mSector(writeHandle.mSector)
+    {
+    }
+    template <typename TreeAllocator, typename Executor>
+    inline sector_tree_mt<TreeAllocator, Executor>::read_handle::read_handle(
+        write_handle &&writeHandle) noexcept
+        : mSector(std::exchange(writeHandle.mSector, nullptr))
+    {
+        if (mSector)
+        {
+            mSector.mark_dirty();
+        }
+    }
+
+    template <typename TreeAllocator, typename Executor>
+    sector_tree_mt<TreeAllocator, Executor>::read_handle::operator bool() const
+        noexcept
+    {
+        return mSector.operator bool();
+    }
+
+    template <typename TreeAllocator, typename Executor>
+    void sector_tree_mt<TreeAllocator, Executor>::read_handle::lock()
+    {
+        mSector->lock_shared();
+    }
+
+    template <typename TreeAllocator, typename Executor>
+    auto sector_tree_mt<TreeAllocator, Executor>::read_handle::try_lock()
+        -> bool
+    {
+        return mSector->try_lock_shared();
+    }
+
+    template <typename TreeAllocator, typename Executor>
+    void sector_tree_mt<TreeAllocator, Executor>::read_handle::unlock()
+    {
+        mSector->unlock_shared();
+    }
+
+    template <typename TreeAllocator, typename Executor>
+    void sector_tree_mt<TreeAllocator, Executor>::read_handle::lock_shared()
+    {
+        mSector->lock_shared();
+    }
+
+    template <typename TreeAllocator, typename Executor>
+    auto sector_tree_mt<TreeAllocator, Executor>::read_handle::try_lock_shared()
+        -> bool
+    {
+        return mSector->try_lock_shared();
+    }
+
+    template <typename TreeAllocator, typename Executor>
+    void sector_tree_mt<TreeAllocator, Executor>::read_handle::unlock_shared()
+    {
+        mSector->unlock_shared();
+    }
+
+#pragma endregion
+
+#pragma region write_handle implementation
+
+    template <typename TreeAllocator, typename Executor>
+    inline sector_tree_mt<TreeAllocator, Executor>::write_handle::write_handle(
+        sector_handle node) noexcept
+        : mSector(std::move(node))
+    {
+    }
+    template <typename TreeAllocator, typename Executor>
+    inline sector_tree_mt<TreeAllocator, Executor>::write_handle::write_handle(
+        const read_handle &writeHandle) noexcept
+        : mSector(writeHandle.mSector)
+    {
+    }
+    template <typename TreeAllocator, typename Executor>
+    inline sector_tree_mt<TreeAllocator, Executor>::write_handle::write_handle(
+        read_handle &&writeHandle) noexcept
+        : mSector(std::exchange(writeHandle.mSector, nullptr))
+    {
+    }
+
+    template <typename TreeAllocator, typename Executor>
+    sector_tree_mt<TreeAllocator, Executor>::write_handle::operator bool() const
+        noexcept
+    {
+        return mSector.operator bool();
+    }
+
+    template <typename TreeAllocator, typename Executor>
+    void sector_tree_mt<TreeAllocator, Executor>::write_handle::lock()
+    {
+        mSector->lock();
+    }
+
+    template <typename TreeAllocator, typename Executor>
+    auto sector_tree_mt<TreeAllocator, Executor>::write_handle::try_lock()
+        -> bool
+    {
+        return mSector->try_lock();
+    }
+
+    template <typename TreeAllocator, typename Executor>
+    void sector_tree_mt<TreeAllocator, Executor>::write_handle::unlock()
+    {
+        mSector->unlock();
+    }
+
+    template <typename TreeAllocator, typename Executor>
+    void sector_tree_mt<TreeAllocator, Executor>::write_handle::lock_shared()
+    {
+        mSector->lock_shared();
+    }
+
+    template <typename TreeAllocator, typename Executor>
+    auto
+    sector_tree_mt<TreeAllocator, Executor>::write_handle::try_lock_shared()
+        -> bool
+    {
+        return mSector->try_lock_shared();
+    }
+
+    template <typename TreeAllocator, typename Executor>
+    void sector_tree_mt<TreeAllocator, Executor>::write_handle::unlock_shared()
+    {
+        mSector->unlock_shared();
+    }
+
+    template <typename TreeAllocator, typename Executor>
+    inline sector_tree_mt<TreeAllocator,
+                          Executor>::write_handle::~write_handle()
+    {
+        if (mSector)
+        {
+            mSector.mark_dirty();
+        }
     }
 
 #pragma endregion
@@ -406,15 +570,16 @@ namespace vefs::detail
     template <typename TreeAllocator, typename Executor>
     inline auto
     sector_tree_mt<TreeAllocator, Executor>::access(tree_position nodePosition)
-        -> result<sector_handle>
+        -> result<read_handle>
     {
-        const tree_path accessPath(5, nodePosition);
-        return access<false>(accessPath.begin(), accessPath.end());
+        const tree_path accessPath(nodePosition);
+        VEFS_TRY(node, access<false>(accessPath.begin(), accessPath.end()));
+        return read_handle(std::move(node));
     }
 
     template <typename TreeAllocator, typename Executor>
     inline auto sector_tree_mt<TreeAllocator, Executor>::access_or_create(
-        tree_position node) -> result<sector_handle>
+        tree_position node) -> result<read_handle>
     {
         using boost::container::static_vector;
 
@@ -431,15 +596,11 @@ namespace vefs::detail
             }
         }
 
-        sector_handle mountPoint;
-        if (auto sectorrx = access<true>(sectorPath.begin(), sectorPath.end());
-            !sectorrx || sectorrx.assume_value()->node_position() == node)
+        VEFS_TRY(mountPoint,
+                 access<true>(sectorPath.begin(), sectorPath.end()));
+        if (mountPoint->node_position() == node)
         {
-            return std::move(sectorrx);
-        }
-        else
-        {
-            mountPoint = std::move(sectorrx).assume_value();
+            return read_handle(std::move(mountPoint));
         }
 
         int missingLayers = mountPoint->node_position().layer() - node.layer();
@@ -478,7 +639,7 @@ namespace vefs::detail
                 return std::move(rx).as_failure();
             }
         }
-        return std::move(mountPoint);
+        return read_handle(std::move(mountPoint));
     }
 
     template <typename TreeAllocator, typename Executor>
@@ -535,6 +696,25 @@ namespace vefs::detail
             else
             {
                 return std::move(rx).as_failure();
+            }
+        }
+
+        if (mRootInfo.tree_depth > 0)
+        {
+            // #TODO shrink tree height to fit
+
+            // sector at position 0 is mandatory
+            constexpr auto serialized_reference_size =
+                reference_sector_layout::serialized_reference_size;
+            auto rootData =
+                as_span(*mRootSector).subspan(serialized_reference_size);
+
+            // if no sector is referenced we shrink our tree
+            if (std::all_of(rootData.begin(), rootData.end(),
+                            [](std::byte v) { return v == std::byte{}; }))
+            {
+                VEFS_TRY(decrease_tree_depth(mRootInfo.tree_depth - 1));
+                VEFS_TRY(sync_to_device(mRootSector));
             }
         }
 
@@ -787,7 +967,8 @@ namespace vefs::detail
     {
         using boost::container::static_vector;
 
-        VEFS_TRY(newRoot, access(tree_position(0, targetDepth)));
+        const tree_path accessPath(tree_position(0, targetDepth));
+        VEFS_TRY(newRoot, access<false>(accessPath.begin(), accessPath.end()));
 
         static_vector<sector_handle, lut::max_tree_depth + 1> victimChildren;
 
@@ -797,6 +978,7 @@ namespace vefs::detail
             victimChildren.emplace_back(std::move(child));
             child = std::move(parent);
         }
+        mRootSector = nullptr;
 
         std::for_each(
             victimChildren.rbegin(), victimChildren.rend(),
@@ -822,6 +1004,7 @@ namespace vefs::detail
                 current = nullptr;
             });
 
+        mRootSector = std::move(newRoot);
         mRootInfo.tree_depth = targetDepth;
         return success();
     }

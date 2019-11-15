@@ -86,6 +86,8 @@ template class vefs::detail::sector_tree_mt<test_allocator, thread_pool>;
 struct sector_tree_mt_pre_create_fixture
 {
     using tree_type = sector_tree_mt<test_allocator, thread_pool>;
+    using read_handle = tree_type::read_handle;
+    using write_handle = tree_type::write_handle;
 
     static constexpr std::array<std::byte, 32> default_user_prk{};
 
@@ -124,6 +126,12 @@ struct sector_tree_mt_fixture : sector_tree_mt_pre_create_fixture
 
         rootSectorInfo = testTree->commit().value();
     }
+
+    auto open_test_tree() -> result<std::unique_ptr<tree_type>>
+    {
+        return tree_type::open_existing(*device, fileCryptoContext,
+                                        workExecutor, rootSectorInfo, *device);
+    }
 };
 
 BOOST_FIXTURE_TEST_SUITE(sector_tree_mt_tests, sector_tree_mt_fixture)
@@ -150,7 +158,7 @@ BOOST_FIXTURE_TEST_CASE(create_new, sector_tree_mt_pre_create_fixture)
 
     auto rootAccessRx = tree->access(tree_position{0, 0});
     TEST_RESULT_REQUIRE(rootAccessRx);
-    auto rootSpan = as_span(*rootAccessRx.assume_value());
+    auto rootSpan = as_span(rootAccessRx.assume_value());
     BOOST_TEST(std::all_of(rootSpan.begin(), rootSpan.end(),
                            [](std::byte v) { return v == std::byte{}; }));
 }
@@ -166,7 +174,7 @@ BOOST_AUTO_TEST_CASE(open_existing)
 
     auto rootAccessRx = testTree->access(tree_position{0, 0});
     TEST_RESULT_REQUIRE(rootAccessRx);
-    auto rootSpan = as_span(*rootAccessRx.assume_value());
+    auto rootSpan = as_span(rootAccessRx.assume_value());
     BOOST_TEST(std::all_of(rootSpan.begin(), rootSpan.end(),
                            [](std::byte v) { return v == std::byte{}; }));
 }
@@ -175,22 +183,54 @@ BOOST_AUTO_TEST_CASE(expand_to_two_sectors)
 {
     auto createRx = testTree->access_or_create(tree_position(1));
     TEST_RESULT_REQUIRE(createRx);
-    as_span(*createRx.assume_value())[0] = std::byte{0b1010'1010};
-    createRx.assume_value() = nullptr;
+    as_span(write_handle(createRx.assume_value()))[0] = std::byte{0b1010'1010};
+    createRx.assume_value() = read_handle();
 
-                          
     auto commitRx = testTree->commit();
     TEST_RESULT_REQUIRE(commitRx);
     auto &&newRootInfo = std::move(commitRx).assume_value();
-                       
+
     auto expectedRootMac =
         vefs::utils::make_byte_array<0xc2, 0xaa, 0x29, 0x03, 0x00, 0x60, 0xb8,
                                      0x4e, 0x3f, 0xc3, 0x57, 0x2e, 0xed, 0x2d,
-                                     0x0d, 0xb5>();                           
+                                     0x0d, 0xb5>();
 
     BOOST_TEST(newRootInfo.root.mac == expectedRootMac);
     BOOST_TEST(newRootInfo.root.sector == sector_id{3});
     BOOST_TEST(newRootInfo.tree_depth == 1);
+}
+
+BOOST_AUTO_TEST_CASE(shrink_on_commit_if_possible)
+{
+    TEST_RESULT_REQUIRE(testTree->access_or_create(tree_position(1)));
+
+    auto commitRx = testTree->commit();
+    TEST_RESULT_REQUIRE(commitRx);
+    rootSectorInfo = std::move(commitRx).assume_value();
+
+    auto expectedRootMac =
+        vefs::utils::make_byte_array<0xe2, 0x1b, 0x52, 0x74, 0xe1, 0xd5, 0x8b,
+                                     0x69, 0x87, 0x36, 0x88, 0x3f, 0x34, 0x4e,
+                                     0x5e, 0x2b>();
+
+    // BOOST_TEST(rootSectorInfo.root.mac == expectedRootMac);
+    BOOST_TEST(rootSectorInfo.root.sector == sector_id{3});
+    BOOST_TEST_REQUIRE(rootSectorInfo.tree_depth == 1);
+
+    testTree.reset();
+    auto reopenrx = open_test_tree();
+    TEST_RESULT_REQUIRE(reopenrx);
+    testTree = std::move(reopenrx).assume_value();
+
+    TEST_RESULT_REQUIRE(testTree->erase_leaf(1));
+
+    commitRx = testTree->commit();
+    TEST_RESULT_REQUIRE(commitRx);
+    auto &&newRootInfo = std::move(commitRx).assume_value();
+
+    BOOST_TEST(newRootInfo.root.mac == expectedRootMac);
+    BOOST_TEST(newRootInfo.root.sector == sector_id{1});
+    BOOST_TEST(newRootInfo.tree_depth == 0);
 }
 
 BOOST_AUTO_TEST_SUITE_END()
