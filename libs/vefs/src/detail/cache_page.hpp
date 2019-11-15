@@ -222,10 +222,14 @@ namespace vefs::detail
     {
         const state_type remainingReferences = ownsLastReference ? 1 : 0;
         state_type expected = remainingReferences;
-        if (!mEntryState.compare_exchange_strong(expected, dirty_tombstone,
+        while (!mEntryState.compare_exchange_strong(expected, dirty_tombstone,
                                                  std::memory_order_acq_rel))
         {
-            return false;
+            if (expected != (remainingReferences | second_chance_bit) &&
+                expected != remainingReferences)
+            {
+                return false;
+            }
         }
 
         if constexpr (!std::is_trivially_destructible_v<T>)
