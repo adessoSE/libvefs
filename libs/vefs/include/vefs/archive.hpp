@@ -11,7 +11,6 @@
 #include <vefs/disappointment.hpp>
 #include <vefs/utils/enum_bitset.hpp>
 
->>>>>>> 279d52d... Replaces use of filesystem by mapped file
 #include <vefs/utils/ref_ptr.hpp>
 
 #include <llfio.hpp>

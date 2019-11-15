@@ -44,7 +44,7 @@ namespace vefs::detail
 
         static auto open(llfio::mapped_file_handle mfh,
                          crypto::crypto_provider *cryptoProvider, ro_blob<32> userPRK,
-                         bool createNew) -> result<std::unique_ptr<raw_archive>>;
+                         bool createNew) -> result<std::unique_ptr<sector_device>>;
 
         // #TODO Not sure about their usage.
         // sector_device(file::ptr archiveFile, crypto::crypto_provider *cryptoProvider,

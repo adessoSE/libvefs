@@ -135,11 +135,11 @@ namespace vefs::detail
 
     auto sector_device::open(llfio::mapped_file_handle mfh,
                            crypto::crypto_provider *cryptoProvider, ro_blob<32> userPRK,
-                           bool createNew) -> result<std::unique_ptr<raw_archive>>
+                           bool createNew) -> result<std::unique_ptr<sector_device>>
     {
 
         std::unique_ptr<sector_device> archive{new (std::nothrow)
-                                                 raw_archive(std::move(mfh), cryptoProvider)};
+                                                 sector_device(std::move(mfh), cryptoProvider)};
         // #TODO Review the case
         if (!archive)
         {
