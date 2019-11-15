@@ -151,8 +151,11 @@ namespace vefs
         case errc::entry_was_disposed:
             return "the object has already been disposed"sv;
 
-        case errc::no_more_data:
+        case errc::no_more_data:                                                            
             return "all available data has been consumed"sv;
+
+        case errc::resource_exhausted:
+            return "the request could not be served, because the resource was exhausted"sv;
 
         default:
             return "unknown generic error code"sv;
