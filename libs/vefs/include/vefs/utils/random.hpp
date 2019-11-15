@@ -4,7 +4,7 @@
 
 #include <limits>
 
-#include <vefs/blob.hpp>
+#include <vefs/span.hpp>
 
 namespace vefs::utils
 {

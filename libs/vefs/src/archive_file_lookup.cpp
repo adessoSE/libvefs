@@ -1,12 +1,11 @@
-#include "precompiled.hpp"
 #include "archive_file_lookup.hpp"
 
 #include <cassert>
 
-#include <vefs/detail/thread_pool.hpp>
+#include <vefs/platform/thread_pool.hpp>
 #include <vefs/utils/ref_ptr.hpp>
 
-#include "archive_index_file.hpp"
+#include "detail/archive_index_file.hpp"
 
 namespace vefs
 {

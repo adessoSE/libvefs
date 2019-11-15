@@ -1,4 +1,3 @@
-#include "precompiled.hpp"
 #include <vefs/archive.hpp>
 
 #include <cassert>
@@ -15,17 +14,17 @@
 #include <boost/iterator/iterator_facade.hpp>
 #include <boost/range/adaptor/reversed.hpp>
 
-#include <vefs/detail/raw_archive.hpp>
-#include <vefs/detail/thread_pool.hpp>
-#include <vefs/detail/tree_walker.hpp>
+#include <vefs/platform/thread_pool.hpp>
 #include <vefs/utils/bitset_overlay.hpp>
 #include <vefs/utils/misc.hpp>
 
 #include "archive_file.hpp"
 #include "archive_file_lookup.hpp"
-#include "archive_free_block_list_file.hpp"
-#include "archive_index_file.hpp"
-#include "proto-helper.hpp"
+#include "detail/archive_free_block_list_file.hpp"
+#include "detail/archive_index_file.hpp"
+#include "detail/proto-helper.hpp"
+#include "detail/sector_device.hpp"
+#include "detail/tree_walker.hpp"
 
 using namespace std::string_view_literals;
 
@@ -44,7 +43,7 @@ namespace vefs
     {
     }
 
-    archive::archive(std::unique_ptr<detail::raw_archive> primitives)
+    archive::archive(std::unique_ptr<detail::sector_device> primitives)
         : mArchive{std::move(primitives)}
         , mWorkTracker{&thread_pool::shared()}
     {
@@ -55,7 +54,7 @@ namespace vefs
                        file_open_mode_bitset openMode) -> result<std::unique_ptr<archive>>
     {
         BOOST_OUTCOME_TRY(primitives,
-                          raw_archive::open(fs, archivePath, cryptoProvider, userPRK, openMode));
+                          sector_device::open(fs, archivePath, cryptoProvider, userPRK, openMode));
 
         std::unique_ptr<archive> arc{new archive(std::move(primitives))};
 

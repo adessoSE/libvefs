@@ -10,10 +10,10 @@
 #     http://creativecommons.org/publicdomain/zero/1.0/
 #
 ########################################################################
-cmake_minimum_required(VERSION 3.13)
+cmake_minimum_required(VERSION 3.15)
 project(vefs VERSION 0.0.0 LANGUAGES CXX)
 
-if(${CMAKE_SOURCE_DIR} STREQUAL ${CMAKE_BINARY_DIR})
+if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
     message(FATAL_ERROR "in-source builds are not supported!")
 endif()
 
@@ -41,9 +41,6 @@ endif()
 ########################################################################
 # cmake modules
 include(src-helper)
-
-# cotire
-include(cotire)
 
 
 ##########################################################################

@@ -5,8 +5,9 @@
 #include "boost-unit-test.hpp"
 #include <boost/predef.h>
 
-#include <vefs/detail/thread_pool.hpp>
 #include <vefs/disappointment.hpp>
+#include <vefs/platform/thread_pool.hpp> 
+
 
 namespace vefs::tests
 {

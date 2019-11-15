@@ -1,4 +1,4 @@
-#include <vefs/filesystem.hpp>
+#include <vefs/platform/filesystem.hpp>
 #include "boost-unit-test.hpp"
 
 using namespace vefs;

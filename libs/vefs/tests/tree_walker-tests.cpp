@@ -1,6 +1,7 @@
+#include "../src/detail/tree_walker.hpp"
 #include "boost-unit-test.hpp"
+
 #include <limits>
-#include <vefs/detail/tree_walker.hpp>
 
 BOOST_AUTO_TEST_SUITE(vefs_tree_walker_tests)
 

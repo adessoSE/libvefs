@@ -6,10 +6,11 @@
 #include <shared_mutex>
 
 #include <vefs/archive.hpp>
-#include <vefs/detail/basic_archive_file_meta.hpp>
-#include <vefs/detail/cache_car.hpp>
-#include <vefs/detail/tree_walker.hpp>
 #include <vefs/utils/dirt_flag.hpp>
+
+#include "detail/basic_archive_file_meta.hpp"
+#include "detail/cache_car.hpp"
+#include "detail/tree_walker.hpp"
 
 namespace vefs
 {
@@ -36,9 +37,9 @@ namespace vefs
             inline auto parent() const -> const handle &;
             inline void update_parent(handle newParent);
 
-            inline auto data() -> rw_blob<detail::raw_archive::sector_payload_size>;
-            inline auto data() const -> ro_blob<detail::raw_archive::sector_payload_size>;
-            inline auto data_view() const -> ro_blob<detail::raw_archive::sector_payload_size>;
+            inline auto data() -> rw_blob<detail::sector_device::sector_payload_size>;
+            inline auto data() const -> ro_blob<detail::sector_device::sector_payload_size>;
+            inline auto data_view() const -> ro_blob<detail::sector_device::sector_payload_size>;
 
             inline std::shared_mutex &data_sync();
             inline std::atomic_flag &write_queued_flag();
@@ -49,7 +50,7 @@ namespace vefs
             detail::sector_id mSectorId;
             std::atomic_flag mWriteQueued = ATOMIC_FLAG_INIT;
             handle mParent;
-            std::array<std::byte, detail::raw_archive::sector_payload_size> mBlockData;
+            std::array<std::byte, detail::sector_device::sector_payload_size> mBlockData;
         };
 
     private:
@@ -164,17 +165,17 @@ namespace vefs
         mParent = std::move(newParent);
     }
 
-    inline auto archive::file::sector::data() -> rw_blob<detail::raw_archive::sector_payload_size>
+    inline auto archive::file::sector::data() -> rw_blob<detail::sector_device::sector_payload_size>
     {
         return mBlockData;
     }
     inline auto archive::file::sector::data() const
-        -> ro_blob<detail::raw_archive::sector_payload_size>
+        -> ro_blob<detail::sector_device::sector_payload_size>
     {
         return mBlockData;
     }
     inline auto archive::file::sector::data_view() const
-        -> ro_blob<detail::raw_archive::sector_payload_size>
+        -> ro_blob<detail::sector_device::sector_payload_size>
     {
         return mBlockData;
     }
