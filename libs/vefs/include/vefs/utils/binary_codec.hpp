@@ -10,6 +10,7 @@
 #include <type_traits>
 
 #include <boost/endian/conversion.hpp>
+#include <boost/type_traits/type_identity.hpp>
 
 #include <vefs/span.hpp>
 
@@ -26,14 +27,19 @@ namespace vefs::utils
         }
 
         template <typename T>
-        auto read(std::size_t offset) const noexcept -> std::remove_cv_t<std::remove_reference_t<T>>
+        auto read(std::size_t offset) const noexcept
+            -> std::remove_cv_t<std::remove_reference_t<T>>
         {
-            using type = std::remove_cv_t<std::remove_reference_t<T>>;
+            using type = utils::remove_cvref_t<T>;
             static_assert(std::is_integral_v<type> || std::is_enum_v<type>);
+            using underlying_type =
+                typename std::conditional_t<std::is_enum_v<type>,
+                                            std::underlying_type<type>,
+                                            boost::type_identity<type>>::type;
 
-            assert(offset + sizeof(type) <= mBuffer.size_bytes());
+            assert(offset + sizeof(underlying_type) <= mBuffer.size_bytes());
 
-            using namespace boost::endian;
+            using boost::endian::little_to_native;
 
             if constexpr (std::is_same_v<type, std::byte>)
             {
@@ -41,9 +47,10 @@ namespace vefs::utils
             }
             else
             {
-                type mem;
-                std::memcpy(&mem, mBuffer.data() + offset, sizeof(type));
-                return little_to_native(mem);
+                underlying_type mem;
+                std::memcpy(&mem, mBuffer.data() + offset,
+                            sizeof(underlying_type));
+                return type{little_to_native(mem)};
             }
         }
 
@@ -52,10 +59,14 @@ namespace vefs::utils
         {
             using type = std::remove_cv_t<std::remove_reference_t<T>>;
             static_assert(std::is_integral_v<type> || std::is_enum_v<type>);
+            using underlying_type =
+                typename std::conditional_t<std::is_enum_v<type>,
+                                            std::underlying_type<type>,
+                                            boost::type_identity<type>>::type;
 
             assert(offset + sizeof(type) <= mBuffer.size_bytes());
 
-            using namespace boost::endian;
+            using boost::endian::native_to_little;
 
             if constexpr (std::is_same_v<type, std::byte>)
             {
@@ -63,8 +74,10 @@ namespace vefs::utils
             }
             else
             {
-                type mem{native_to_little<type>(value)};
-                std::memcpy(mBuffer.data() + offset, &mem, sizeof(type));
+                underlying_type mem{native_to_little<underlying_type>(
+                    static_cast<underlying_type>(value))};
+                std::memcpy(mBuffer.data() + offset, &mem,
+                            sizeof(underlying_type));
             }
         }
 
