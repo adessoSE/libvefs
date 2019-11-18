@@ -33,6 +33,7 @@ DEF_SOURCE_GROUP(vefs "detail"
         src/detail/cache_page.hpp
 
         src/detail/archive_file_id.hpp
+        src/detail/archive_sector_allocator.hpp
         src/detail/basic_archive_file_meta.hpp
         src/detail/block_manager.hpp
         src/detail/file_crypto_ctx.cpp
