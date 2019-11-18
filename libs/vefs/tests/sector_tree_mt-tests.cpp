@@ -4,6 +4,7 @@
 #include <vefs/platform/thread_pool.hpp>
 
 #include "../src/detail/basic_archive_file_meta.hpp" // #TODO to be removed
+#include "../src/detail/archive_sector_allocator.hpp"
 
 #include "memfs.hpp"
 #include "test-utils.hpp"
@@ -147,10 +148,9 @@ BOOST_FIXTURE_TEST_CASE(create_new, sector_tree_mt_pre_create_fixture)
     TEST_RESULT_REQUIRE(commitRx);
     auto &&newRootInfo = std::move(commitRx).assume_value();
 
-    auto expectedRootMac =
-        vefs::utils::make_byte_array<0xe2, 0x1b, 0x52, 0x74, 0xe1, 0xd5, 0x8b,
-                                     0x69, 0x87, 0x36, 0x88, 0x3f, 0x34, 0x4e,
-                                     0x5e, 0x2b>();
+    auto expectedRootMac = vefs::utils::make_byte_array(
+        0xe2, 0x1b, 0x52, 0x74, 0xe1, 0xd5, 0x8b, 0x69, 0x87, 0x36, 0x88, 0x3f,
+        0x34, 0x4e, 0x5e, 0x2b);
 
     BOOST_TEST(newRootInfo.root.mac == expectedRootMac);
     BOOST_TEST(newRootInfo.root.sector == sector_id{1});
@@ -190,10 +190,9 @@ BOOST_AUTO_TEST_CASE(expand_to_two_sectors)
     TEST_RESULT_REQUIRE(commitRx);
     auto &&newRootInfo = std::move(commitRx).assume_value();
 
-    auto expectedRootMac =
-        vefs::utils::make_byte_array<0xc2, 0xaa, 0x29, 0x03, 0x00, 0x60, 0xb8,
-                                     0x4e, 0x3f, 0xc3, 0x57, 0x2e, 0xed, 0x2d,
-                                     0x0d, 0xb5>();
+    auto expectedRootMac = vefs::utils::make_byte_array(
+        0xc2, 0xaa, 0x29, 0x03, 0x00, 0x60, 0xb8, 0x4e, 0x3f, 0xc3, 0x57, 0x2e,
+        0xed, 0x2d, 0x0d, 0xb5);
 
     BOOST_TEST(newRootInfo.root.mac == expectedRootMac);
     BOOST_TEST(newRootInfo.root.sector == sector_id{3});
@@ -208,10 +207,9 @@ BOOST_AUTO_TEST_CASE(shrink_on_commit_if_possible)
     TEST_RESULT_REQUIRE(commitRx);
     rootSectorInfo = std::move(commitRx).assume_value();
 
-    auto expectedRootMac =
-        vefs::utils::make_byte_array<0xe2, 0x1b, 0x52, 0x74, 0xe1, 0xd5, 0x8b,
-                                     0x69, 0x87, 0x36, 0x88, 0x3f, 0x34, 0x4e,
-                                     0x5e, 0x2b>();
+    auto expectedRootMac = vefs::utils::make_byte_array(
+        0xe2, 0x1b, 0x52, 0x74, 0xe1, 0xd5, 0x8b, 0x69, 0x87, 0x36, 0x88, 0x3f,
+        0x34, 0x4e, 0x5e, 0x2b);
 
     // BOOST_TEST(rootSectorInfo.root.mac == expectedRootMac);
     BOOST_TEST(rootSectorInfo.root.sector == sector_id{3});
