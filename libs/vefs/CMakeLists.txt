@@ -44,6 +44,7 @@ DEF_SOURCE_GROUP(vefs "detail"
         src/detail/sector_device.hpp
         src/detail/sector_id.hpp
         src/detail/sector_tree_mt.hpp
+        src/detail/sector_tree_seq.hpp
         src/detail/tree_lut.hpp
         src/detail/tree_walker.cpp
         src/detail/tree_walker.hpp
@@ -244,6 +245,7 @@ add_executable(vefs-tests
 
     tests/sector_device-tests.cpp
     tests/sector_tree_mt-tests.cpp
+    tests/sector_tree_seq-tests.cpp
     tests/archive-tests.cpp
 
     tests/span-tests.cpp
