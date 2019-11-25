@@ -122,8 +122,14 @@ DEF_SOURCE_GROUP(vefs "platform"
         src/platform/secure_memzero.cpp 
         src/platform/sysrandom.cpp
         src/platform/sysrandom.hpp
-
 )
+if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    DEF_SOURCE_GROUP(vefs "platform"
+        SOURCES
+            src/platform/thread_pool_win32.cpp
+            src/platform/thread_pool_win32.hpp
+    )
+endif()
 
 
 DEF_SOURCE_GROUP(vefs "utils"
@@ -214,11 +220,6 @@ add_executable(vefs-tests
     tests/allocator-tests.cpp
     tests/cache-tests.cpp
     tests/cache_clock-tests.cpp
-
-    tests/osfilesystem-tests.cpp
-    tests/memfs.cpp
-    tests/memfs-tests.cpp
-    tests/memfs.hpp
 
     tests/sector_device-tests.cpp
     tests/archive-tests.cpp
