@@ -160,6 +160,7 @@ DEF_SOURCE_GROUP(vefs "utils"
         include/vefs/utils/misc.hpp
         include/vefs/utils/ref_ptr.hpp
         include/vefs/utils/dirt_flag.hpp
+        include/vefs/utils/object_storage.hpp
 
         include/vefs/utils/uuid.hpp
         include/vefs/utils/random.hpp

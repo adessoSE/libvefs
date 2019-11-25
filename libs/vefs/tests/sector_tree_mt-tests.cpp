@@ -77,6 +77,10 @@ public:
         return success();
     }
 
+    void on_leak_detected() noexcept
+    {
+    }
+
     std::mutex alloc_sync;
     uint64_t alloc_counter;
     sector_device &device;
