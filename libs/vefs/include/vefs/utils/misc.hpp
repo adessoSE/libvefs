@@ -69,6 +69,15 @@ namespace vefs::utils
         return {static_cast<std::byte>(ts)...};
     }
 
+    constexpr auto is_null_byte(const std::byte value) noexcept -> bool
+    {
+        return value == std::byte{};
+    }
+    constexpr auto is_non_null_byte(const std::byte value) noexcept -> bool
+    {
+        return !is_null_byte(value);
+    }
+
     template <typename R, typename Fn, std::size_t... is, typename... Args>
     constexpr auto sequence_init(Fn &&initFn, std::index_sequence<is...>,
                                  Args &&... args) -> R
