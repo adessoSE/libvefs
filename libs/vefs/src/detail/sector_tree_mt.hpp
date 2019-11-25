@@ -24,7 +24,7 @@ namespace vefs::detail
     {
     public:
         using tree_allocator_type = TreeAllocator;
-        using sector_allocator_type =
+        using node_allocator_type =
             typename tree_allocator_type::sector_allocator;
         using executor_type = Executor;
 
@@ -73,7 +73,7 @@ namespace vefs::detail
             tree_position mNodePosition;
             sector_tree_mt &mTree;
             handle_type mParent;
-            sector_allocator_type mSectorAllocator;
+            node_allocator_type mNodeAllocator;
 
             std::shared_mutex mSectorSync;
 
@@ -239,7 +239,7 @@ namespace vefs::detail
         : mNodePosition(nodePosition)
         , mTree(tree)
         , mParent(std::move(parent))
-        , mSectorAllocator(mTree.mTreeAllocator, current)
+        , mNodeAllocator(mTree.mTreeAllocator, current)
         , mSectorSync()
     {
     }
@@ -647,6 +647,11 @@ namespace vefs::detail
     sector_tree_mt<TreeAllocator, Executor>::erase_leaf(std::uint64_t leafId)
         -> result<void>
     {
+        if (leafId == 0)
+        {
+            return errc::not_supported;
+        }
+
         const tree_position leafPos(leafId, 0);
         const tree_path leafPath(5, leafPos);
 
@@ -851,7 +856,7 @@ namespace vefs::detail
             return success();
         }
 
-        VEFS_TRY(writePosition, mTreeAllocator.reallocate(h->mSectorAllocator));
+        VEFS_TRY(writePosition, mTreeAllocator.reallocate(h->mNodeAllocator));
 
         sector_reference updated{writePosition, {}};
         if (result<void> writerx = mDevice.write_sector(
