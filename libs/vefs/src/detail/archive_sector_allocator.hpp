@@ -2,6 +2,8 @@
 
 #include <mutex>
 
+#include <vefs/span.hpp>
+
 #include "block_manager.hpp"
 #include "sector_device.hpp"
 
@@ -10,56 +12,29 @@ namespace vefs::detail
     class archive_sector_allocator
     {
     public:
-        auto alloc_one() noexcept -> result<sector_id>
+        enum class leak_on_failure
         {
-            std::lock_guard allocGuard{mAllocatorSync};
+        };
+        static constexpr auto leak_on_failure_v = leak_on_failure{};
 
-            if (auto allocationrx = mSectorManager.alloc_one();
-                allocationrx ||
-                allocationrx.assume_error() != errc::resource_exhausted)
-            {
-                return allocationrx;
-            }
+        archive_sector_allocator(sector_device &device);
 
-            auto oldSize = mSectorDevice.size();
-            if (auto resizerx = mSectorDevice.resize(oldSize + 4); !resizerx)
-            {
-                return error(errc::resource_exhausted)
-                       << ed::wrapped_error(std::move(resizerx).assume_error());
-            }
+        auto alloc_one() noexcept -> result<sector_id>;
+        auto alloc_multiple(span<sector_id> ids) noexcept
+            -> result<std::size_t>;
 
-            sector_id allocated{oldSize};
-            if (auto insertrx = mSectorManager.dealloc_contiguous(
-                    sector_id{oldSize + 1}, 3);
-                !insertrx)
-            {
-                if (auto shrinkrx = mSectorDevice.resize(oldSize + 1);
-                    !shrinkrx)
-                {
-                    // can't keep track of the newly allocated sectors
-                    // neither the manager had space nor could we deallocate
-                    // them, therefore we leak them until the recovery is
-                    // invoked
-                    sectors_leaked();
+        void dealloc_one(sector_id which) noexcept;
 
-                    shrinkrx.assume_error() << ed::wrapped_error(
-                        std::move(insertrx).assume_error());
-                    return std::move(shrinkrx).assume_error();
-                }
-            }
-            return allocated;
-        }
-
-        void dealloc_one(sector_id which) noexcept
-        {
-            if (!mSectorManager.dealloc_one(which))
-            {
-                sectors_leaked();
-            }
-        }
+        auto merge_from(utils::block_manager<sector_id> &other) noexcept
+            -> result<void>;
+        auto merge_disjunct(utils::block_manager<sector_id> &other) noexcept
+            -> result<void>;
 
     private:
-        void sectors_leaked();
+        auto mine_new_raw(int num) noexcept -> result<utils::id_range<sector_id>>;
+        auto mine_new(int num) noexcept -> result<void>;
+
+        void sectors_leaked() noexcept;
 
         sector_device &mSectorDevice;
         utils::block_manager<sector_id> mSectorManager;
