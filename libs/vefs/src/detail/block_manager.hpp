@@ -119,6 +119,11 @@ namespace vefs::utils
          */
         auto is_successor_of(id_type id) const noexcept -> bool;
 
+        /**
+         * return true if this range contains the given id
+         */
+        auto contains(id_type id) const noexcept -> bool;
+
     private:
         underlying_type mFirstId;
         underlying_type mLastId;
@@ -227,6 +232,9 @@ namespace vefs::utils
          * removes all blocks from the pool
          */
         void clear() noexcept;
+
+        auto merge_from(block_manager &other) noexcept -> result<void>;
+        auto merge_disjunct(block_manager &other) noexcept -> result<void>;
 
     private:
         void dispose(typename block_set::const_iterator cit) noexcept;
@@ -349,6 +357,14 @@ namespace vefs::utils
         -> bool
     {
         return mFirstId == static_cast<underlying_type>(id) + 1;
+    }
+
+    template <typename IdType>
+    inline auto id_range<IdType>::contains(id_type id) const noexcept -> bool
+    {
+        const auto idValue = static_cast<underlying_type>(id);
+        return static_cast<underlying_type>(mFirstId) <= idValue &&
+               static_cast<underlying_type>(mLastId) >= idValue;
     }
 
 #pragma endregion
@@ -626,6 +642,80 @@ namespace vefs::utils
             allocator_traits::destroy(mAllocator, p);
             allocator_traits::deallocate(mAllocator, p, 1);
         });
+    }
+
+    template <typename IdType>
+    inline auto block_manager<IdType>::merge_from(block_manager &other) noexcept
+        -> result<void>
+    {
+        const auto &otherBlocks = other.mFreeBlocks;
+        for (const auto &block : otherBlocks)
+        {
+            auto first = block.first();
+            auto num = block.size();
+            const auto last = block.last();
+
+            do
+            {
+                auto nxt = mFreeBlocks.lower_bound(first);
+
+                if (nxt == mFreeBlocks.end())
+                {
+                    VEFS_TRY(dealloc_contiguous(first, num));
+                    break;
+                }
+
+                if (nxt->contains(first))
+                {
+                    if (nxt->contains(last))
+                    {
+                        // block is included in nxt
+                        break;
+                    }
+
+                    // block overlaps with nxt
+                    first = range_type::advance(nxt->last(), 1);
+                    num -= range_type::distance(first, nxt->last()) + 1;
+                }
+                if (auto nxt2 = std::next(nxt);
+                    nxt2 == mFreeBlocks.end() || last < nxt2->first())
+                {
+                    // [first, first + num) doesn't overlap with anything
+                    // (anymore)
+                    VEFS_TRY(dealloc_contiguous(first, num));
+                    break;
+                }
+                else
+                {
+                    auto numDealloc =
+                        range_type::distance(first, nxt2->first());
+                    VEFS_TRY(dealloc_contiguous(first, numDealloc));
+
+                    // num might wrap around 0, therefore we compare
+                    // last and first in the loop condition
+                    num -= range_type::distance(first, nxt2->last()) + 1;
+                    first = range_type::advance(nxt2->last(), 1);
+                }
+            } while (!(last < first));
+        }
+        other.clear();
+        return success();
+    }
+
+    template <typename IdType>
+    inline auto
+    block_manager<IdType>::merge_disjunct(block_manager &other) noexcept
+        -> result<void>
+    {
+        const auto &otherBlocks = other.mFreeBlocks;
+        for (const auto &block : otherBlocks)
+        {
+            auto first = block.first();
+            auto num = block.size();
+            VEFS_TRY(dealloc_contiguous(first, num));
+        }
+        other.clear();
+        return success();
     }
 
     template <typename IdType>
