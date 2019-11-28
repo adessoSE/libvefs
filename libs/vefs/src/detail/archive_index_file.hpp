@@ -74,7 +74,7 @@ namespace vefs
         auto parse_content()
             -> result<void>;
 
-        void dealloc_blocks(int first, int num);
+        auto dealloc_blocks(int first, int num) -> result<void>;
 
         auto write_blocks(int indexBlockPos, ro_dynblob data, bool updateAllocMap)
             -> result<void>;

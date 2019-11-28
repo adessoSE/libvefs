@@ -26,10 +26,10 @@ namespace vefs
     auto archive::index_file::create_new(archive &owner)
         -> result<std::shared_ptr<archive::index_file>>
     {
-        BOOST_OUTCOME_TRY(self, internal_file::create_new<index_file>(owner));
+		VEFS_TRY(self, internal_file::create_new<index_file>(owner));
 
-        BOOST_OUTCOME_TRY(self->resize(detail::sector_device::sector_payload_size));
-        self->mFreeBlocks.dealloc(0, blocks_per_sector);
+		VEFS_TRY(self->resize(detail::sector_device::sector_payload_size));
+		VEFS_TRY(self->mFreeBlocks.dealloc_contiguous(0, blocks_per_sector));
 
         return std::move(self);
     }
@@ -122,11 +122,10 @@ namespace vefs
 
             if (lookup->mIndexBlockPosition != -1)
             {
-                dealloc_blocks(lookup->mIndexBlockPosition, lookup->mReservedIndexBlocks);
+                BOOST_OUTCOME_TRY(dealloc_blocks(lookup->mIndexBlockPosition, lookup->mReservedIndexBlocks));
                 auto treePos = treepos_of(lookup->mIndexBlockPosition);
                 auto endPos =
                     treepos_of(lookup->mIndexBlockPosition + lookup->mReservedIndexBlocks - 1);
-                sector::handle hSector;
                 do
                 {
                     BOOST_OUTCOME_TRY(hSector, access(treePos));
@@ -206,24 +205,16 @@ namespace vefs
                 {
                     // first we try to extend our existing allocation
                     auto gap = neededBlocks - lookup->mReservedIndexBlocks;
-                    auto r = mFreeBlocks.try_extend(
-                        lookup->mIndexBlockPosition,
-                        lookup->mIndexBlockPosition + lookup->mReservedIndexBlocks - 1, gap);
-
-                    if (r != 0)
+                    if (auto beginrx = mFreeBlocks.extend(
+                            lookup->mIndexBlockPosition,
+                            lookup->mIndexBlockPosition + lookup->mReservedIndexBlocks, gap))
                     {
-                        // extension was successful
-                        // r = -1 if blocks were reserved before block pos
-                        // r = 1 if blocks were reserved after the end of current block
-                        if (r < 0)
-                        {
-                            lookup->mIndexBlockPosition -= static_cast<int>(gap);
-                        }
+                        lookup->mIndexBlockPosition = static_cast<int>(beginrx.assume_value());
                         lookup->mReservedIndexBlocks = static_cast<int>(neededBlocks);
                     }
                     else
                     {
-                        dealloc_blocks(lookup->mIndexBlockPosition, lookup->mReservedIndexBlocks);
+                        BOOST_OUTCOME_TRY(dealloc_blocks(lookup->mIndexBlockPosition, lookup->mReservedIndexBlocks));
                         lookup->mIndexBlockPosition = -1;
                         lookup->mReservedIndexBlocks = 0;
                     }
@@ -233,21 +224,21 @@ namespace vefs
                 {
                     // no existing allocation could be used
 
-                    auto newPos = mFreeBlocks.alloc_consecutive(neededBlocks);
+                    auto newPos = mFreeBlocks.alloc_contiguous(neededBlocks);
                     while (!newPos.has_value())
                     {
                         // grow one sector
                         auto oldFileSize = this->size();
-                        BOOST_OUTCOME_TRY(
-                            resize(oldFileSize + detail::sector_device::sector_payload_size));
-                        mFreeBlocks.dealloc(detail::lut::sector_position_of(oldFileSize) /
-                                                blocks_per_sector,
-                                            blocks_per_sector);
+						VEFS_TRY(
+							resize(oldFileSize + detail::sector_device::sector_payload_size));
+						VEFS_TRY(mFreeBlocks.dealloc_contiguous(
+							detail::lut::sector_position_of(oldFileSize) / blocks_per_sector,
+							blocks_per_sector));
 
-                        newPos = mFreeBlocks.alloc_consecutive(neededBlocks);
+                        newPos = mFreeBlocks.alloc_contiguous(neededBlocks);
                     }
 
-                    lookup->mIndexBlockPosition = static_cast<int>(newPos.value());
+                    lookup->mIndexBlockPosition = static_cast<int>(newPos.assume_value());
                     lookup->mReservedIndexBlocks = static_cast<int>(neededBlocks);
                 }
             }
@@ -353,7 +344,7 @@ namespace vefs
 
                 if (!allocMap[i])
                 {
-                    mFreeBlocks.dealloc(startBlock);
+                    BOOST_OUTCOME_TRY(mFreeBlocks.dealloc_one(startBlock));
                     ++i;
                     sectorBlob = sectorBlob.subspan(block_size);
                     continue;
@@ -409,9 +400,10 @@ namespace vefs
         return outcome::success();
     }
 
-    void archive::index_file::dealloc_blocks(int first, int num)
+    auto archive::index_file::dealloc_blocks(int first, int num) -> result<void>
     {
-        mFreeBlocks.dealloc(static_cast<std::uint64_t>(first), static_cast<std::uint64_t>(num));
+        BOOST_OUTCOME_TRY(mFreeBlocks.dealloc_contiguous(static_cast<std::uint64_t>(first),
+                                                         static_cast<std::uint64_t>(num)));
 
         while (num > 0)
         {
@@ -426,7 +418,7 @@ namespace vefs
                 // #TODO damage mitigation
                 continue;
             }
-            std::lock_guard<std::shared_mutex> sectorLock{sector->data_sync()};
+            std::lock_guard sectorLock{sector->data_sync()};
             sector.mark_dirty();
 
             write_block_header(sector);
@@ -434,6 +426,7 @@ namespace vefs
             num -= blocks_per_sector;
             first += blocks_per_sector;
         }
+        return success();
     }
 
     auto archive::index_file::write_blocks(int indexBlockPos, ro_dynblob data, bool updateAllocMap)

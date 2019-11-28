@@ -74,26 +74,51 @@ BOOST_AUTO_TEST_CASE(required_tree_depth_for_pos_2_to_the_exp_of_40_is_5)
     BOOST_TEST(required_tree_depth == 5);
 }
 
-BOOST_AUTO_TEST_CASE(required_sector_count)
+BOOST_AUTO_TEST_SUITE(required_sector_count)
+
+BOOST_AUTO_TEST_CASE(first_sector_is_always_allocated)
 {
-    using vefs::detail::sector_device;
+    using vefs::detail::lut::required_sector_count;
+
+    BOOST_TEST(required_sector_count(0) == 1);
+}
+
+BOOST_AUTO_TEST_CASE(first_sector_allocation_sizes)
+{
+    constexpr auto sector_payload_size =
+        vefs::detail::sector_device::sector_payload_size;
+    using vefs::detail::lut::required_sector_count;
+
+    BOOST_TEST(required_sector_count(1) == 1);
+    BOOST_TEST(required_sector_count(sector_payload_size) == 1);
+    BOOST_TEST(required_sector_count(sector_payload_size + 1) > 1);
+}
+
+BOOST_AUTO_TEST_CASE(tree_height_increases_for_two_sectors)
+{
+    constexpr auto sector_payload_size =
+        vefs::detail::sector_device::sector_payload_size;
+    using vefs::detail::lut::required_sector_count;
+
+    // reference sector
+    BOOST_TEST(required_sector_count(sector_payload_size) == 1);
+    BOOST_TEST(required_sector_count(sector_payload_size + 1) == 3);
+    BOOST_TEST(required_sector_count(sector_payload_size * 2 + 1) == 4);
+}
+
+BOOST_AUTO_TEST_CASE(tree_height_increase_2)
+{
+    constexpr auto sector_payload_size =
+        vefs::detail::sector_device::sector_payload_size;
     using vefs::detail::lut::references_per_sector;
     using vefs::detail::lut::required_sector_count;
 
-    // first sector is always allocated
-    BOOST_TEST(required_sector_count(0) == 1);
-    BOOST_TEST(required_sector_count(1) == 1);
-    BOOST_TEST(required_sector_count(sector_device::sector_payload_size) == 1);
-
-    // after the first sector we need one additional data sector + the first reference sector
-    BOOST_TEST(required_sector_count(sector_device::sector_payload_size + 1) == 3);
-    BOOST_TEST(required_sector_count(sector_device::sector_payload_size * 2 + 1) == 4);
-
-    // next boundary is at references_per_sector * payload_size
-    BOOST_TEST(required_sector_count(sector_device::sector_payload_size * references_per_sector) ==
-               1024);
-    BOOST_TEST(required_sector_count(sector_device::sector_payload_size * references_per_sector + 1) ==
-               1027);
+    BOOST_TEST(required_sector_count(sector_payload_size *
+                                     references_per_sector) == 1024);
+    BOOST_TEST(required_sector_count(
+                   sector_payload_size * references_per_sector + 1) == 1027);
 }
+
+BOOST_AUTO_TEST_SUITE_END()
 
 BOOST_AUTO_TEST_SUITE_END()
