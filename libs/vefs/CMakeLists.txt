@@ -5,6 +5,7 @@ DEF_SOURCE_GROUP(vefs "core"
     HEADERS
         include/vefs/archive.hpp
         include/vefs/archive_fwd.hpp
+        include/vefs/llfio.hpp
         include/vefs/span.hpp
 
     SOURCES
@@ -57,6 +58,7 @@ DEF_SOURCE_GROUP(vefs "disappointment"
         include/vefs/disappointment/error_exception.hpp
         include/vefs/disappointment/fwd.hpp
         include/vefs/disappointment/generic_errc.hpp
+        include/vefs/disappointment/llfio_adapter.hpp
         include/vefs/disappointment/std_adapter.hpp
 
     SOURCES

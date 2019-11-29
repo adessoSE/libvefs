@@ -3,7 +3,10 @@
 #include <array>
 #include <memory>
 
+#include <llfio.hpp>
+
 #include <vefs/disappointment.hpp>
+#include <vefs/disappointment/llfio_adapter.hpp>
 #include <vefs/span.hpp>
 #include <vefs/utils/secure_array.hpp>
 
@@ -11,9 +14,6 @@
 #include "../crypto/provider.hpp"
 #include "sector_id.hpp"
 
-#include <llfio.hpp>
-
-namespace llfio = LLFIO_V2_NAMESPACE;
 
 namespace adesso::vefs
 {
