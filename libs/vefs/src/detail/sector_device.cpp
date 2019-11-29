@@ -677,12 +677,11 @@ namespace vefs::detail
         //    return error{scode};
         //}
 
-        auto io_res = mArchiveFile.write({{reinterpret_cast<llfio::io_handle::const_buffer_type *>(salt.data()), salt.size()}, offset});
-        if (!io_res)
-        {
-            return error{scode}; // #TODO remove/replace stub
-        }
-
+        VEFS_TRY(mArchiveFile.write(
+            {{reinterpret_cast<llfio::io_handle::const_buffer_type *>(
+                  salt.data()),
+              salt.size()},
+             offset}));
         return outcome::success();
     }
 

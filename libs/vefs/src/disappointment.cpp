@@ -1,4 +1,5 @@
 #include <vefs/disappointment.hpp>
+#include <vefs/disappointment/llfio_adapter.hpp>
 
 #include <ios>
 #include <mutex>
@@ -395,6 +396,12 @@ namespace vefs::adl::disappointment
             static_cast<error_code>(ec),
             generic_cat_adapter
         };
+    }
+
+    auto make_error(const llfio::error_info &info,
+                    adl::disappointment::type) noexcept -> error
+    {
+        return make_error_code(info);
     }
 }
 
