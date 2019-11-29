@@ -129,7 +129,7 @@ DEF_SOURCE_GROUP(vefs "platform"
         src/platform/thread_pool_gen.hpp
         src/platform/thread_pool_gen.cpp
 
-        src/platform/secure_memzero.cpp 
+        src/platform/secure_memzero.cpp
         src/platform/sysrandom.cpp
         src/platform/sysrandom.hpp
 )
@@ -241,6 +241,8 @@ add_executable(vefs-tests
 
     tests/span-tests.cpp
     tests/crypto_provider-tests.cpp
+
+    tests/block_manager-tests.cpp
 
     tests/tree_lut-tests.cpp
     tests/tree_walker-tests.cpp
