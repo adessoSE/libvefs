@@ -122,25 +122,25 @@ namespace vefs::detail
         return std::move(file);
     }
 
-    sector_device::sector_device(llfio::mapped_file_handle mfh,
-                             crypto::crypto_provider *cryptoProvider)
+    sector_device::sector_device(vefs::llfio::mapped_file_handle mfh,
+                                 crypto::crypto_provider *cryptoProvider,
+                                 const size_t numSectors)
         : mCryptoProvider(cryptoProvider)
         , mArchiveFile(std::move(mfh))
         , mSessionSalt(cryptoProvider->generate_session_salt())
-        , mNumSectors(0)
-    {
-        // #TODO Exception handling or presume value ?
-        mNumSectors = mArchiveFile.maximum_extent().value() / sector_size;
-    }
+        , mNumSectors(numSectors) {}
 
-    auto sector_device::open(llfio::mapped_file_handle mfh,
+    auto sector_device::open(vefs::llfio::mapped_file_handle mfh,
                            crypto::crypto_provider *cryptoProvider, ro_blob<32> userPRK,
                            bool createNew) -> result<std::unique_ptr<sector_device>>
     {
 
+        VEFS_TRY(max_extent, mfh.maximum_extent());
+        const size_t numSectors = max_extent / sector_size;
+
         std::unique_ptr<sector_device> archive{new (std::nothrow)
-                                                 sector_device(std::move(mfh), cryptoProvider)};
-        // #TODO Review the case
+                                                 sector_device(std::move(mfh), cryptoProvider, numSectors)};
+
         if (!archive)
         {
             return errc::not_enough_memory;
@@ -151,8 +151,7 @@ namespace vefs::detail
             BOOST_OUTCOME_TRY(archive->resize(1));
 
             BOOST_OUTCOME_TRY(cryptoProvider->random_bytes(as_span(archive->mArchiveMasterSecret)));
-            BOOST_OUTCOME_TRY(
-                cryptoProvider->random_bytes(as_span(archive->mStaticHeaderWriteCounter)));
+            BOOST_OUTCOME_TRY(cryptoProvider->random_bytes(as_span(archive->mStaticHeaderWriteCounter)));
 
             BOOST_OUTCOME_TRY(archive->write_static_archive_header(userPRK));
 
@@ -196,15 +195,8 @@ namespace vefs::detail
 
     result<void> sector_device::parse_static_archive_header(ro_blob<32> userPRK)
     {
-        std::error_code scode;
-
         StaticArchiveHeaderPrefix archivePrefix;
         // #UB-ObjectLifetime
-        // mArchiveFile->read(rw_blob_cast(archivePrefix), 0, scode);
-        // if (scode)
-        //{
-        //    return error{scode};
-        //}
 
         // create io request
         std::vector<llfio::io_handle::buffer_type> buffers(
@@ -213,24 +205,12 @@ namespace vefs::detail
              {nullptr, sizeof(archivePrefix.static_header_mac)},
              {nullptr, sizeof(archivePrefix.static_header_length)}});
         llfio::io_handle::io_request<llfio::io_handle::buffers_type> req({buffers}, 0);
-
-        auto io_res = mArchiveFile.read(req);
-        if (io_res)
-        {
-            // copy the result into static archive header prefix
-            // #TODO data is in the mapping, could it be suitable to simply point to the data
-            // instead ?
-            llfio::io_handle::buffers_type res_buf = io_res.value();
-            std::copy(res_buf[0].begin(), res_buf[0].end(), archivePrefix.magic_number.begin());
-            std::copy(res_buf[1].begin(), res_buf[1].end(), archivePrefix.static_header_salt.begin());
-            std::copy(res_buf[2].begin(), res_buf[2].end(), archivePrefix.static_header_mac.begin());
-            // #TODO to be analysed
-            memcpy(&archivePrefix.static_header_length, res_buf[3].data(), res_buf[3].size());
-        }
-        else
-        {
-            return error{scode}; // #TODO remove/replace stub
-        }
+        // read request
+        VEFS_TRY(res_buf_archivePrefix, mArchiveFile.read(req));
+        std::copy(res_buf_archivePrefix[0].begin(), res_buf_archivePrefix[0].end(), archivePrefix.magic_number.begin());
+        std::copy(res_buf_archivePrefix[1].begin(), res_buf_archivePrefix[1].end(), archivePrefix.static_header_salt.begin());
+        std::copy(res_buf_archivePrefix[2].begin(), res_buf_archivePrefix[2].end(), archivePrefix.static_header_mac.begin());
+        memcpy(&archivePrefix.static_header_length, res_buf_archivePrefix[3].data(), res_buf_archivePrefix[3].size());
 
         // check for magic number
         if (!equal(span(archivePrefix.magic_number), archive_magic_number_view))
@@ -252,29 +232,13 @@ namespace vefs::detail
                 : (staticHeaderHeap.resize(archivePrefix.static_header_length),
                    span(staticHeaderHeap));
 
-        // mArchiveFile->read(staticHeader, sizeof(StaticArchiveHeaderPrefix), scode);
-        // if (scode)
-        //{
-        //    return error{scode};
-        //}
-
         // create io request
         buffers = {{nullptr, sizeof(staticHeader)}};
         req.buffers = buffers;
-
-        io_res = mArchiveFile.read(req);
-        if (io_res)
-        {
-            // copy result into static header
-            // #TODO static header length may change? copy is better in this case?
-            llfio::io_handle::buffers_type res_buf = io_res.value();
-            std::copy(res_buf[0].begin(), res_buf[0].end(), staticHeader.begin());
-        }
-        else
-        {
-            return error{scode};
-        }
-
+        // read request
+        VEFS_TRY(res_buf_staticHeader, mArchiveFile.read(req));
+        std::copy(res_buf_staticHeader[0].begin(), res_buf_staticHeader[0].end(), staticHeader.begin());
+        
         secure_byte_array<44> keyNonce;
         BOOST_OUTCOME_TRY(
             crypto::kdf(as_span(keyNonce), userPRK, archivePrefix.static_header_salt));
@@ -325,34 +289,16 @@ namespace vefs::detail
                                                    adesso::vefs::ArchiveHeader &out)
     {
         using adesso::vefs::ArchiveHeader;
-        std::error_code scode;
 
         secure_vector<std::byte> headerAndPaddingMem(size, std::byte{});
         span headerAndPadding{headerAndPaddingMem};
 
-        // mArchiveFile->read(headerAndPadding, position, scode);
-        // if (scode)
-        //{
-        //    return error{scode};
-        //}
-
         // create io request
         std::vector<llfio::io_handle::buffer_type> buffers({{nullptr, headerAndPadding.size()}});
         llfio::io_handle::io_request<llfio::io_handle::buffers_type> req({buffers}, position);
-
-        auto io_res = mArchiveFile.read(req);
-        if (io_res)
-        {
-            // copy the result into static archive header prefix
-            // #TODO data is in the mapping, could it be suitable to simply point to that data
-            // instead of copy?
-            llfio::io_handle::buffers_type res_buf = io_res.value();
-            std::copy(res_buf[0].begin(), res_buf[0].end(), headerAndPadding.begin());
-        }
-        else
-        {
-            return error{scode}; // #TODO remove/replace stub
-        }
+        // read request
+        VEFS_TRY(res_buf_headerAndPadding, mArchiveFile.read(req));
+        std::copy(res_buf_headerAndPadding[0].begin(), res_buf_headerAndPadding[0].end(), headerAndPadding.begin());
 
         auto archiveHeaderPrefix =
             reinterpret_cast<ArchiveHeaderPrefix *>(headerAndPaddingMem.data());
@@ -506,35 +452,16 @@ namespace vefs::detail
         BOOST_OUTCOME_TRY(mCryptoProvider->box_seal(msg, span{headerPrefix.static_header_mac},
                                                     as_span(key), msg));
 
-        std::error_code scode;
-        // mArchiveFile->write(ro_blob_cast(headerPrefix), 0, scode);
-        // if (scode)
-        //{
-        //    return error{scode};
-        //}
-        // mArchiveFile->write(msg, sizeof(headerPrefix), scode);
-        // if (scode)
-        //{
-        //    return error{scode};
-        //}
-
-        auto io_res = mArchiveFile.write(0,
+        VEFS_TRY(mArchiveFile.write(0,
             {
                 {headerPrefix.magic_number.data(), headerPrefix.magic_number.size()},
                 {headerPrefix.static_header_salt.data(), headerPrefix.static_header_salt.size()},
                 {headerPrefix.static_header_mac.data(), headerPrefix.static_header_mac.size()},
                 {reinterpret_cast<std::byte *>(&headerPrefix.static_header_length), sizeof(headerPrefix.static_header_length)}
             }
-        );
-        if (!io_res)
-        {
-            return error{scode}; // #TODO remove/replace stub
-        }
-        io_res = mArchiveFile.write(sizeof(headerPrefix),{{msg.data(), msg.size()}});
-        if (!io_res)
-        {
-            return error{scode}; // #TODO remove/replace stub
-        }
+        ));
+
+        VEFS_TRY(mArchiveFile.write(sizeof(headerPrefix), {{msg.data(), msg.size()}}));
 
         mArchiveHeaderOffset = sizeof(headerPrefix) + headerPrefix.static_header_length;
 
@@ -555,29 +482,18 @@ namespace vefs::detail
         secure_byte_array<32> sectorSaltMem;
         span sectorSalt = as_span(sectorSaltMem);
 
-        std::error_code scode;
-        //mArchiveFile->read(sectorSalt, sectorOffset, scode);
-        //if (scode)
-        //{
-        //    return error{scode} << ed::sector_idx{sectorIdx};
-        //}
-        //mArchiveFile->read(buffer, sectorOffset + sectorSalt.size(), scode);
-        //if (scode)
-        //{
-        //    return error{scode} << ed::sector_idx{sectorIdx};
-        //}
+        // create io request
+        std::vector<llfio::io_handle::buffer_type> buffers({{nullptr, sectorSalt.size()}});
+        llfio::io_handle::io_request<llfio::io_handle::buffers_type> req( {buffers}, sectorOffset);
+        // read request
+        VEFS_TRY(res_buf_sectorSalt, mArchiveFile.read(req));
+        std::copy(res_buf_sectorSalt[0].begin(), res_buf_sectorSalt[0].end(), sectorSalt.data());
 
-        
-        auto io_res = mArchiveFile.write({{reinterpret_cast<llfio::io_handle::const_buffer_type *>(sectorSalt.data()), sectorSalt.size()}, sectorOffset});
-        if (!io_res)
-        {
-            return error{scode} << ed::sector_idx{sectorIdx}; // #TODO remove/replace stub
-        }
-        io_res = mArchiveFile.write({{reinterpret_cast<llfio::io_handle::const_buffer_type *>(buffer.data()), buffer.size()}, sectorOffset + sectorSalt.size()});
-        if (!io_res)
-        {
-            return error{scode} << ed::sector_idx{sectorIdx}; // #TODO remove/replace stub
-        }
+        // create io request
+        req.buffers = {nullptr, sectorOffset + sectorSalt.size()};
+        // read request
+        VEFS_TRY(res_buf_payload, mArchiveFile.read(req));
+        std::copy(res_buf_payload[0].begin(), res_buf_payload[0].end(), buffer.data());
 
         secure_byte_array<44> sectorKeyNonce;
         BOOST_OUTCOME_TRY(
@@ -628,30 +544,19 @@ namespace vefs::detail
             ed::sector_idx{sectorIdx});
 
         const auto sectorOffset = to_offset(sectorIdx);
-        std::error_code scode;
-        //mArchiveFile->write(salt, sectorOffset, scode);
-        //if (scode)
-        //{
-        //    return error{scode} << ed::sector_idx{sectorIdx};
-        //}
-        //mArchiveFile->write(ciphertextBuffer, sectorOffset + salt.size(), scode);
-        //if (scode)
-        //{
-        //    return error{scode} << ed::sector_idx{sectorIdx};
-        //}
 
-        
-        auto io_res = mArchiveFile.write({{reinterpret_cast<llfio::io_handle::const_buffer_type *>(salt.data()), salt.size()}, sectorOffset});
-        if (!io_res)
-        {
-            return error{scode} << ed::sector_idx{sectorIdx}; // #TODO remove/replace stub
-        }
+        // #TODO Was ist VEFS_TRY_INJECT genau? 
+        // Macht diese Anpassung Sinn? llfio wirft system bezogenes error?
+        // Brauchen wir diese Information? -> ed::sector_idx{sectorIdx}
+        VEFS_TRY(mArchiveFile.write(
+            {{reinterpret_cast<llfio::io_handle::const_buffer_type *>(salt.data()), salt.size()},
+             sectorOffset}
+        ));
 
-        io_res = mArchiveFile.write({{reinterpret_cast<llfio::io_handle::const_buffer_type *>(ciphertextBuffer.data()), ciphertextBuffer.size()}, sectorOffset + salt.size()});
-        if (!io_res)
-        {
-            return error{scode} << ed::sector_idx{sectorIdx}; // #TODO remove/replace stub
-        }
+        VEFS_TRY(mArchiveFile.write(
+            {{reinterpret_cast<llfio::io_handle::const_buffer_type *>(ciphertextBuffer.data()), ciphertextBuffer.size()},
+             sectorOffset + salt.size()}
+        ));
 
         return outcome::success();
     }
@@ -670,18 +575,11 @@ namespace vefs::detail
         BOOST_OUTCOME_TRY(crypto::kdf(salt, nonce.view(), sector_kdf_erase, mSessionSalt));
 
         const auto offset = to_offset(sectorIdx);
-        std::error_code scode;
-        //mArchiveFile->write(salt, offset, scode);
-        //if (scode)
-        //{
-        //    return error{scode};
-        //}
 
         VEFS_TRY(mArchiveFile.write(
-            {{reinterpret_cast<llfio::io_handle::const_buffer_type *>(
-                  salt.data()),
-              salt.size()},
-             offset}));
+            {{reinterpret_cast<llfio::io_handle::const_buffer_type *>(salt.data()), salt.size()}, offset})
+        );
+
         return outcome::success();
     }
 
@@ -734,18 +632,13 @@ namespace vefs::detail
                                                   as_span(headerKeyNonce), encryptedHeader),
                         ed::archive_file{"[archive-header]"});
 
-        std::error_code scode;
-        //mArchiveFile->write(span{headerMem}, headerOffset, scode);
-        //if (scode)
-        //{
-        //    return error{scode} << ed::archive_file{"[archive-header]"};
-        //}
+        // TODO siehe vorige Bemerkung einer inject Anpassung
+        // ed::archive_file{"[archive-header]"}
+        VEFS_TRY(mArchiveFile.write(
+            {{reinterpret_cast<llfio::io_handle::const_buffer_type *>(headerMem.data()), headerMem.size()},
+             headerOffset}
+        ));
 
-        auto io_res = mArchiveFile.write({{reinterpret_cast<llfio::io_handle::const_buffer_type *>(headerMem.data()), headerMem.size()}, headerOffset});
-        if (!io_res)
-        {
-            return error{scode} << ed::archive_file{"[archive-header]"};
-        }
         return outcome::success();
     }
 

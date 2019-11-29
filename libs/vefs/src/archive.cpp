@@ -58,8 +58,6 @@ namespace vefs
 
         std::unique_ptr<archive> arc{new archive(std::move(primitives))};
 
-        //const auto createNew = openMode % file_open_mode::create;
-        // #TODO Discuss this point. Mode is defined at creation of mapped file
         if (createNew)
         {
             if (auto fblrx = free_block_list_file::create_new(*arc))

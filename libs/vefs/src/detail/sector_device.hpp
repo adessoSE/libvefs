@@ -46,11 +46,6 @@ namespace vefs::detail
                          crypto::crypto_provider *cryptoProvider, ro_blob<32> userPRK,
                          bool createNew) -> result<std::unique_ptr<sector_device>>;
 
-        // #TODO Not sure about their usage.
-        // sector_device(file::ptr archiveFile, crypto::crypto_provider *cryptoProvider,
-        //               ro_blob<64> userPRK);
-        //sector_device(file::ptr archiveFile, crypto::crypto_provider *cryptoProvider,
-        //              ro_blob<64> userPRK, create_tag);
         ~sector_device() = default;
 
         result<void> read_sector(rw_blob<sector_payload_size> buffer,
@@ -83,7 +78,7 @@ namespace vefs::detail
         auto create_file() noexcept -> result<basic_archive_file_meta>;
 
     private:
-        sector_device(llfio::mapped_file_handle mfh, crypto::crypto_provider *cryptoProvider);
+        sector_device(vefs::llfio::mapped_file_handle mfh, crypto::crypto_provider *cryptoProvider, const size_t numSectors);
 
         result<void> parse_static_archive_header(ro_blob<32> userPRK);
         result<void> parse_archive_header();
@@ -128,25 +123,8 @@ namespace vefs::detail
 
     inline auto vefs::detail::sector_device::resize(std::uint64_t numSectors) -> result<void>
     {
-        std::error_code scode;
-        //mArchiveFile->resize(numSectors * sector_size, scode);
-        //if (scode)
-        //{
-        //    return error{scode};
-        //}
-        //mNumSectors = numSectors;
-        //return outcome::success();
 
-        // #TODO See Note in the method's documentation for analysis
-        // #TODO Adapt llfio outcome to vefs outcome properly
-        if (auto result = mArchiveFile.truncate(numSectors * sector_size))
-        {
-            mNumSectors = result.value();
-        }
-        else
-        {
-            return outcome::failure(scode); // #TODO remove/replace the stub
-        }
+        VEFS_TRY(nNumSectors, mArchiveFile.truncate(numSectors * sector_size));
         
         return outcome::success();
     }
