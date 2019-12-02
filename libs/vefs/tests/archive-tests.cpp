@@ -24,7 +24,7 @@ BOOST_AUTO_TEST_CASE(archive_create)
     using namespace vefs;
 
     auto cprov = crypto::debug_crypto_provider();
-    auto archiveFileHandle = llfio::mapped_temp_inode().value();
+    auto archiveFileHandle = vefs::llfio::mapped_temp_inode().value();
 
     auto openrx = archive::open(std::move(archiveFileHandle), cprov,
                                 default_user_prk, true);
@@ -36,7 +36,7 @@ BOOST_AUTO_TEST_CASE(archive_create_reopen)
     using namespace vefs;
 
     auto cprov = crypto::debug_crypto_provider();
-    auto archiveFileHandle = llfio::mapped_temp_inode().value();
+    auto archiveFileHandle = vefs::llfio::mapped_temp_inode().value();
 
     {
         auto cloned = archiveFileHandle.clone(0).value();
@@ -56,7 +56,7 @@ BOOST_AUTO_TEST_CASE(archive_create_file)
 {
     using namespace vefs;
 
-    auto archiveFileHandle = llfio::mapped_temp_inode().value();
+    auto archiveFileHandle = vefs::llfio::mapped_temp_inode().value();
     auto cprov = crypto::debug_crypto_provider();
 
     {
@@ -84,7 +84,7 @@ BOOST_AUTO_TEST_CASE(archive_readwrite)
 {
     using namespace vefs;
 
-    auto archiveFileHandle = llfio::mapped_temp_inode().value();
+    auto archiveFileHandle = vefs::llfio::mapped_temp_inode().value();
     auto cprov = crypto::boringssl_aes_256_gcm_crypto_provider();
 
     constexpr std::uint64_t pos =
@@ -131,7 +131,7 @@ BOOST_AUTO_TEST_CASE(archive_file_shrink)
 {
     using namespace vefs;
 
-    auto archiveFileHandle = llfio::mapped_temp_inode().value();
+    auto archiveFileHandle = vefs::llfio::mapped_temp_inode().value();
     auto cprov = crypto::boringssl_aes_256_gcm_crypto_provider();
 
     constexpr std::uint64_t pos =
@@ -188,7 +188,7 @@ BOOST_AUTO_TEST_CASE(archive_file_erase)
 {
     using namespace vefs;
 
-    auto archiveFileHandle = llfio::mapped_temp_inode().value();
+    auto archiveFileHandle = vefs::llfio::mapped_temp_inode().value();
     auto cprov = crypto::boringssl_aes_256_gcm_crypto_provider();
 
     constexpr std::uint64_t pos =
@@ -240,7 +240,7 @@ BOOST_AUTO_TEST_CASE(archive_empty_userprk)
 {
     using namespace vefs;
 
-    auto archiveFileHandle = llfio::mapped_temp_inode().value();
+    auto archiveFileHandle =vefs::llfio::mapped_temp_inode().value();
     auto cprov = crypto::boringssl_aes_256_gcm_crypto_provider();
 
     constexpr std::uint64_t pos =
@@ -291,7 +291,7 @@ BOOST_AUTO_TEST_CASE(archive_query)
 {
     using namespace vefs;
 
-    auto archiveFileHandle = llfio::mapped_temp_inode().value();
+    auto archiveFileHandle =vefs::llfio::mapped_temp_inode().value();
     auto cprov = crypto::boringssl_aes_256_gcm_crypto_provider();
 
     constexpr std::uint64_t pos =
@@ -341,7 +341,7 @@ BOOST_AUTO_TEST_CASE(sqlite_bridge_regression_1)
 {
     using namespace vefs;
 
-    auto archiveFileHandle = llfio::mapped_temp_inode().value();
+    auto archiveFileHandle =vefs::llfio::mapped_temp_inode().value();
     auto cprov = crypto::boringssl_aes_256_gcm_crypto_provider();
 
     using file_type = std::array<std::byte, 8192>;
