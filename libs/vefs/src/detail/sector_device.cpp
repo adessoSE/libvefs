@@ -195,16 +195,18 @@ namespace vefs::detail
 
     result<void> sector_device::parse_static_archive_header(ro_blob<32> userPRK)
     {
-        StaticArchiveHeaderPrefix archivePrefix;
+        StaticArchiveHeaderPrefix archivePrefix{};
         // #UB-ObjectLifetime
 
         // create io request
-        std::vector<llfio::io_handle::buffer_type> buffers(
-            {{nullptr, sizeof(archivePrefix.magic_number)},
-             {nullptr, sizeof(archivePrefix.static_header_salt)},
-             {nullptr, sizeof(archivePrefix.static_header_mac)},
-             {nullptr, sizeof(archivePrefix.static_header_length)}});
-        llfio::io_handle::io_request<llfio::io_handle::buffers_type> req({buffers}, 0);
+        llfio::io_handle::buffer_type buffer_magic_number = {nullptr, sizeof(StaticArchiveHeaderPrefix::magic_number)};
+        llfio::io_handle::buffer_type buffer_static_header_salt = {nullptr, sizeof(StaticArchiveHeaderPrefix::static_header_salt)};
+        llfio::io_handle::buffer_type buffer_static_header_mac = {nullptr, sizeof(StaticArchiveHeaderPrefix::static_header_mac)};
+        llfio::io_handle::buffer_type buffer_static_header_length = {nullptr, sizeof(StaticArchiveHeaderPrefix::static_header_length)};
+        std::array<llfio::io_handle::buffer_type, 4> buffers = {
+            buffer_magic_number, buffer_static_header_salt, buffer_static_header_mac, buffer_static_header_length
+        };
+        llfio::io_handle::io_request<llfio::io_handle::buffers_type> req(buffers, 0);
         // read request
         VEFS_TRY(res_buf_archivePrefix, mArchiveFile.read(req));
         std::copy(res_buf_archivePrefix[0].begin(), res_buf_archivePrefix[0].end(), archivePrefix.magic_number.begin());
@@ -233,8 +235,7 @@ namespace vefs::detail
                    span(staticHeaderHeap));
 
         // create io request
-        buffers = {{nullptr, sizeof(staticHeader)}};
-        req.buffers = buffers;
+        req.buffers = {nullptr, sizeof(staticHeader)};
         // read request
         VEFS_TRY(res_buf_staticHeader, mArchiveFile.read(req));
         std::copy(res_buf_staticHeader[0].begin(), res_buf_staticHeader[0].end(), staticHeader.begin());
@@ -294,8 +295,8 @@ namespace vefs::detail
         span headerAndPadding{headerAndPaddingMem};
 
         // create io request
-        std::vector<llfio::io_handle::buffer_type> buffers({{nullptr, headerAndPadding.size()}});
-        llfio::io_handle::io_request<llfio::io_handle::buffers_type> req({buffers}, position);
+        llfio::io_handle::buffer_type buffer_heaerAndPadding = {nullptr, headerAndPadding.size()};
+        llfio::io_handle::io_request<llfio::io_handle::buffers_type> req(buffer_heaerAndPadding, position);
         // read request
         VEFS_TRY(res_buf_headerAndPadding, mArchiveFile.read(req));
         std::copy(res_buf_headerAndPadding[0].begin(), res_buf_headerAndPadding[0].end(), headerAndPadding.begin());
@@ -483,8 +484,8 @@ namespace vefs::detail
         span sectorSalt = as_span(sectorSaltMem);
 
         // create io request
-        std::vector<llfio::io_handle::buffer_type> buffers({{nullptr, sectorSalt.size()}});
-        llfio::io_handle::io_request<llfio::io_handle::buffers_type> req( {buffers}, sectorOffset);
+        llfio::io_handle::buffer_type buffer_sectorSalt = {nullptr, sectorSalt.size()};
+        llfio::io_handle::io_request<llfio::io_handle::buffers_type> req(buffer_sectorSalt, sectorOffset);
         // read request
         VEFS_TRY(res_buf_sectorSalt, mArchiveFile.read(req));
         std::copy(res_buf_sectorSalt[0].begin(), res_buf_sectorSalt[0].end(), sectorSalt.data());
