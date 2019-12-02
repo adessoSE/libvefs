@@ -122,7 +122,7 @@ namespace vefs::detail
         return std::move(file);
     }
 
-    sector_device::sector_device(vefs::llfio::mapped_file_handle mfh,
+    sector_device::sector_device(llfio::mapped_file_handle mfh,
                                  crypto::crypto_provider *cryptoProvider,
                                  const size_t numSectors)
         : mCryptoProvider(cryptoProvider)
@@ -130,7 +130,7 @@ namespace vefs::detail
         , mSessionSalt(cryptoProvider->generate_session_salt())
         , mNumSectors(numSectors) {}
 
-    auto sector_device::open(vefs::llfio::mapped_file_handle mfh,
+    auto sector_device::open(llfio::mapped_file_handle mfh,
                            crypto::crypto_provider *cryptoProvider, ro_blob<32> userPRK,
                            bool createNew) -> result<std::unique_ptr<sector_device>>
     {
@@ -549,15 +549,9 @@ namespace vefs::detail
         // #TODO Was ist VEFS_TRY_INJECT genau? 
         // Macht diese Anpassung Sinn? llfio wirft system bezogenes error?
         // Brauchen wir diese Information? -> ed::sector_idx{sectorIdx}
-        VEFS_TRY(mArchiveFile.write(
-            {{reinterpret_cast<llfio::io_handle::const_buffer_type *>(salt.data()), salt.size()},
-             sectorOffset}
-        ));
+        VEFS_TRY(mArchiveFile.write(sectorOffset, {{salt.data(), salt.size()}}));
 
-        VEFS_TRY(mArchiveFile.write(
-            {{reinterpret_cast<llfio::io_handle::const_buffer_type *>(ciphertextBuffer.data()), ciphertextBuffer.size()},
-             sectorOffset + salt.size()}
-        ));
+        VEFS_TRY(mArchiveFile.write(sectorOffset + salt.size(), {{ciphertextBuffer.data(), ciphertextBuffer.size()}}));
 
         return outcome::success();
     }
@@ -635,10 +629,7 @@ namespace vefs::detail
 
         // TODO siehe vorige Bemerkung einer inject Anpassung
         // ed::archive_file{"[archive-header]"}
-        VEFS_TRY(mArchiveFile.write(
-            {{reinterpret_cast<llfio::io_handle::const_buffer_type *>(headerMem.data()), headerMem.size()},
-             headerOffset}
-        ));
+        VEFS_TRY(mArchiveFile.write(headerOffset, {{headerMem.data(), headerMem.size()}}));
 
         return outcome::success();
     }
