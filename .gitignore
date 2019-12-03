@@ -7,3 +7,5 @@
 /.vs/
 # visual studio code settings
 /.vscode/
+# generated output
+/out/
