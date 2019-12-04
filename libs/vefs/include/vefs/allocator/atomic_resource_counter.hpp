@@ -2,6 +2,7 @@
 
 #include <atomic>
 #include <limits>
+#include <thread>
 
 namespace vefs::detail
 {
@@ -39,6 +40,8 @@ namespace vefs::detail
 
     public:
         constexpr atomic_resource_counter() noexcept;
+        // TODO constructor is never used
+        // single argument may be explicit
         constexpr atomic_resource_counter(resource_is_initialized_t) noexcept;
 
         [[nodiscard]] inline auto try_aquire_one() noexcept -> resource_acquire_result;
