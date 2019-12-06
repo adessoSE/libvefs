@@ -78,7 +78,7 @@ namespace vefs::detail
         auto create_file() noexcept -> result<basic_archive_file_meta>;
 
     private:
-        sector_device(vefs::llfio::mapped_file_handle mfh, crypto::crypto_provider *cryptoProvider, const size_t numSectors);
+        sector_device(llfio::mapped_file_handle mfh, crypto::crypto_provider *cryptoProvider, const size_t numSectors);
 
         result<void> parse_static_archive_header(ro_blob<32> userPRK);
         result<void> parse_archive_header();
