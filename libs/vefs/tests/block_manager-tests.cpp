@@ -1,5 +1,7 @@
-#include "../src/block_manager.hpp"
+#include "../src/detail/block_manager.hpp"
 #include <boost/test/included/unit_test.hpp>
+
+#include <fmt/ostream.h>
 
 
 struct block_manager_fixture
@@ -50,14 +52,14 @@ BOOST_AUTO_TEST_CASE(alloc_contigouus_returns_first_free_id)
     BOOST_TEST(result.value() == 5);
 }
 
-BOOST_AUTO_TEST_CASE(extends_returns_first_free_id)
+BOOST_AUTO_TEST_CASE(extends_returns_first_block_id)
 {
    (void)test_subject.dealloc_contiguous(5, 20);
-    test_subject.alloc_contiguous(5);
-    auto extend_result = test_subject.extend(5, 6, 1);
 
-    BOOST_TEST(extend_result.has_error());
-    BOOST_TEST(extend_result.value() == 5);
+    auto extend_result = test_subject.extend(3, 4, 1);
+
+    BOOST_TEST(!extend_result.has_error());
+    BOOST_TEST(extend_result.value() == 3);
 }
 
 BOOST_AUTO_TEST_CASE(alloc_contiguous_returns_resource_exhausted_error_if_no_blocks_free)
@@ -95,7 +97,7 @@ BOOST_AUTO_TEST_CASE(write_to_bitset_zeros_all_empty_blocks_indizes)
 
     auto serializedDataStorage =
         vefs::utils::make_byte_array(0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF);
-   
+
     vefs::span serializedData{serializedDataStorage};
     vefs::utils::bitset_overlay allocMap{serializedData};
 
@@ -105,7 +107,7 @@ BOOST_AUTO_TEST_CASE(write_to_bitset_zeros_all_empty_blocks_indizes)
         vefs::utils::make_byte_array(0x00, 0x00, 0xF0, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF);
 
    BOOST_TEST(serializedDataStorage == resultBitset);
-   
+
 }
 
 BOOST_AUTO_TEST_CASE(write_to_bitset_zeros_all_empty_blocks_indizes2)
@@ -128,25 +130,8 @@ BOOST_AUTO_TEST_CASE(write_to_bitset_zeros_all_empty_blocks_indizes2)
 }
 
 
+
 BOOST_AUTO_TEST_CASE(write_to_bitset_sets_all_bits_for_used_blocks)
-{
-    (void)test_subject.dealloc_contiguous(0, 20);
-
-    auto serializedDataStorage =
-        vefs::utils::make_byte_array(0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00);
-
-    vefs::span serializedData{serializedDataStorage};
-    vefs::utils::bitset_overlay allocMap{serializedData};
-
-    (void)test_subject.write_to_bitset(allocMap, 0, 50);
-
-      auto resultBitset =
-        vefs::utils::make_byte_array(0x00, 0x00, 0xF0, 0xFF, 0xFF, 0xFF, 0x03, 0x00);
-
-  BOOST_TEST(serializedDataStorage == resultBitset);
-}
-
-BOOST_AUTO_TEST_CASE(write_to_bitset_sets_all_bits_for_used_blocks2)
 {
     (void)test_subject.dealloc_contiguous(0, 20);
     (void)test_subject.dealloc_contiguous(29, 11);

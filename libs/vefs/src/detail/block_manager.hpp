@@ -666,8 +666,8 @@ namespace vefs::utils
             {
                 if (start >= 0)
                 {
-                    dealloc_contiguous(range_type::advance(begin, start),
-                                       i - start);
+                    VEFS_TRY(dealloc_contiguous(
+                        range_type::advance(begin, start), i - start));
                 }
                 start = -1;
             }
@@ -678,8 +678,10 @@ namespace vefs::utils
         }
         if (start >= 0)
         {
-            dealloc_contiguous(range_type::advance(begin, start), num - start);
+            VEFS_TRY(dealloc_contiguous(range_type::advance(begin, start),
+                                        num - start));
         }
+        return success();
     }
 
     template <typename IdType>
