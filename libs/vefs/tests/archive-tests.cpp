@@ -146,7 +146,7 @@ BOOST_AUTO_TEST_CASE(archive_file_shrink)
     {
         auto cloned = archiveFileHandle.clone(0).value();
         auto openrx =
-            archive::open(std::move(cloned), cprov, default_user_prk, false);
+            archive::open(std::move(cloned), cprov, default_user_prk, true);
         TEST_RESULT_REQUIRE(openrx);
         auto ac = std::move(openrx).assume_value();
         auto fileOpenRx =
