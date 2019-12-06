@@ -6,7 +6,6 @@
 
 #include <boost/uuid/random_generator.hpp>
 
-#include <vefs/exceptions.hpp>
 #include <vefs/span.hpp>
 #include <vefs/utils/misc.hpp>
 #include <vefs/utils/random.hpp>
@@ -20,7 +19,6 @@
 
 using namespace vefs::utils;
 
-// TODO llfio reads and writes: verify bytes read/written and handle the cases
 namespace vefs::detail
 {
     namespace
@@ -103,7 +101,7 @@ namespace vefs::detail
     auto sector_device::create_file() noexcept -> result<basic_archive_file_meta>
     {
         thread_local utils::xoroshiro128plus fileid_prng = []() {
-            std::array<std::uint64_t, 2> randomState;
+            std::array<std::uint64_t, 2> randomState{};
             auto rx = random_bytes(as_writable_bytes(span(randomState)));
             if (!rx)
             {
@@ -210,6 +208,16 @@ namespace vefs::detail
         llfio::io_handle::io_request<llfio::io_handle::buffers_type> req_archivePrefix(buffers, 0);
         // read request
         VEFS_TRY(res_buf_archivePrefix, mArchiveFile.read(req_archivePrefix));
+        // verify bytes_read
+        size_t bytes_read_archivePrefix = 0;
+        for (auto buf_archivePrefix: res_buf_archivePrefix)
+            bytes_read_archivePrefix += buf_archivePrefix.size();
+        if (bytes_read_archivePrefix != 56)
+        {
+            // TODO review suitable the error code
+            return outcome::failure(vefs::error{});
+        }
+        // copy buffer into data structure
         std::copy(res_buf_archivePrefix[0].begin(), res_buf_archivePrefix[0].end(), archivePrefix.magic_number.begin());
         std::copy(res_buf_archivePrefix[1].begin(), res_buf_archivePrefix[1].end(), archivePrefix.static_header_salt.begin());
         std::copy(res_buf_archivePrefix[2].begin(), res_buf_archivePrefix[2].end(), archivePrefix.static_header_mac.begin());
@@ -240,6 +248,13 @@ namespace vefs::detail
         llfio::io_handle::io_request<llfio::io_handle::buffers_type> req_staticHeader(buffer_staticHeader, sizeof(StaticArchiveHeaderPrefix));
         // read request
         VEFS_TRY(res_buf_staticHeader, mArchiveFile.read(req_staticHeader));
+        // verify bytes read
+        if (res_buf_staticHeader[0].size() != staticHeader.size())
+        {
+            // TODO review suitable the error code
+            return outcome::failure(vefs::error{});
+        }
+        // copy buffer into data structure
         std::copy(res_buf_staticHeader[0].begin(), res_buf_staticHeader[0].end(), staticHeader.begin());
 
         secure_byte_array<44> keyNonce;
@@ -301,6 +316,13 @@ namespace vefs::detail
         llfio::io_handle::io_request<llfio::io_handle::buffers_type> req_headerAndPadding(buffer_headerAndPadding, position);
         // read request
         VEFS_TRY(res_buf_headerAndPadding, mArchiveFile.read(req_headerAndPadding));
+        // verify bytes read
+        if (res_buf_headerAndPadding[0].size() != headerAndPadding.size())
+        {
+            // TODO review suitable the error code
+            return outcome::failure(vefs::error{});
+        }
+        // copy buffer into data structure
         std::copy(res_buf_headerAndPadding[0].begin(), res_buf_headerAndPadding[0].end(), headerAndPadding.begin());
 
         auto archiveHeaderPrefix =
@@ -416,7 +438,7 @@ namespace vefs::detail
     {
         using adesso::vefs::StaticArchiveHeader;
 
-        StaticArchiveHeaderPrefix headerPrefix;
+        StaticArchiveHeaderPrefix headerPrefix{};
         copy(archive_magic_number_view, span(headerPrefix.magic_number));
 
         StaticArchiveHeader header;
@@ -455,7 +477,7 @@ namespace vefs::detail
         BOOST_OUTCOME_TRY(mCryptoProvider->box_seal(msg, span{headerPrefix.static_header_mac},
                                                     as_span(key), msg));
 
-        VEFS_TRY(mArchiveFile.write(0,
+        VEFS_TRY(bytes_written_headerPrefix, mArchiveFile.write(0,
             {
                 {headerPrefix.magic_number.data(), headerPrefix.magic_number.size()},
                 {headerPrefix.static_header_salt.data(), headerPrefix.static_header_salt.size()},
@@ -463,7 +485,20 @@ namespace vefs::detail
                 {reinterpret_cast<std::byte *>(&headerPrefix.static_header_length), sizeof(headerPrefix.static_header_length)}
             }
         ));
-        VEFS_TRY(mArchiveFile.write(sizeof(headerPrefix), {{msg.data(), msg.size()}}));
+        // verify bytes written
+        if (bytes_written_headerPrefix != 56)
+        {
+            // TODO review suitable the error code
+            return outcome::failure(vefs::error{});
+        }
+
+        VEFS_TRY(bytes_written_msg, mArchiveFile.write(sizeof(headerPrefix), {{msg.data(), msg.size()}}));
+        // verify bytes written
+        if (bytes_written_msg != msg.size())
+        {
+            // TODO review suitable the error code
+            return outcome::failure(vefs::error{});
+        }
 
         mArchiveHeaderOffset = sizeof(headerPrefix) + headerPrefix.static_header_length;
 
@@ -489,6 +524,13 @@ namespace vefs::detail
         llfio::io_handle::io_request<llfio::io_handle::buffers_type> req_sectorSalt(buffer_sectorSalt, sectorOffset);
         // read request
         VEFS_TRY(res_buf_sectorSalt, mArchiveFile.read(req_sectorSalt));
+        // verify bytes read
+        if (res_buf_sectorSalt[0].size() != sectorSalt.size())
+        {
+            // TODO review suitable the error code
+            return outcome::failure(vefs::error{});
+        }
+        // copy buffer into data structure
         std::copy(res_buf_sectorSalt[0].begin(), res_buf_sectorSalt[0].end(), sectorSalt.data());
 
         // create io request
@@ -496,6 +538,13 @@ namespace vefs::detail
         llfio::io_handle::io_request<llfio::io_handle::buffers_type> req_payload(buffer_payload, sectorOffset + sectorSalt.size());
         // read request
         VEFS_TRY(res_buf_payload, mArchiveFile.read(req_payload));
+        // verify bytes read
+        if (res_buf_payload[0].size() != buffer.size())
+        {
+            // TODO review suitable the error code
+            return outcome::failure(vefs::error{});
+        }
+        // copy buffer into data structure
         std::copy(res_buf_payload[0].begin(), res_buf_payload[0].end(), buffer.data());
 
         secure_byte_array<44> sectorKeyNonce;
@@ -534,7 +583,7 @@ namespace vefs::detail
             return errc::invalid_argument;
         }
 
-        std::array<std::byte, 32> salt;
+        std::array<std::byte, 32> salt{};
         auto nonce = file.write_counter.fetch_increment();
         BOOST_OUTCOME_TRY(crypto::kdf(span(salt), nonce.view(), sector_kdf_salt, mSessionSalt));
 
@@ -551,9 +600,21 @@ namespace vefs::detail
         // #TODO Was ist VEFS_TRY_INJECT genau?
         // Macht diese Anpassung Sinn? llfio wirft system bezogenes error?
         // Brauchen wir diese Information? -> ed::sector_idx{sectorIdx}
-        VEFS_TRY(mArchiveFile.write(sectorOffset, {{salt.data(), salt.size()}}));
+        VEFS_TRY(bytes_written_salt, mArchiveFile.write(sectorOffset, {{salt.data(), salt.size()}}));
+        // verify bytes written
+        if (bytes_written_salt != salt.size())
+        {
+            // TODO review suitable the error code
+            return outcome::failure(vefs::error{});
+        }
 
-        VEFS_TRY(mArchiveFile.write(sectorOffset + salt.size(), {{ciphertextBuffer.data(), ciphertextBuffer.size()}}));
+        VEFS_TRY(bytes_written_ciphertextBuffer, mArchiveFile.write(sectorOffset + salt.size(), {{ciphertextBuffer.data(), ciphertextBuffer.size()}}));
+        // verify bytes written
+        if (bytes_written_ciphertextBuffer != ciphertextBuffer.size())
+        {
+            // TODO review suitable the error code
+            return outcome::failure(vefs::error{});
+        }
 
         return outcome::success();
     }
@@ -565,7 +626,7 @@ namespace vefs::detail
         {
             return errc::invalid_argument;
         }
-        std::array<std::byte, 32> saltBuffer;
+        std::array<std::byte, 32> saltBuffer{};
         span salt{saltBuffer};
 
         auto nonce = file.write_counter.fetch_increment();
@@ -573,7 +634,13 @@ namespace vefs::detail
 
         const auto offset = to_offset(sectorIdx);
 
-        VEFS_TRY(mArchiveFile.write(offset, {{salt.data(), salt.size()}}));
+        VEFS_TRY(bytes_written_salt, mArchiveFile.write(offset, {{salt.data(), salt.size()}}));
+        // verify bytes written
+        if (bytes_written_salt != salt.size())
+        {
+            // TODO review suitable the error code
+            return outcome::failure(vefs::error{});
+        }
 
         return outcome::success();
     }
@@ -629,7 +696,13 @@ namespace vefs::detail
 
         // TODO siehe vorige Bemerkung einer inject Anpassung
         // ed::archive_file{"[archive-header]"}
-        VEFS_TRY(mArchiveFile.write(headerOffset, {{headerMem.data(), headerMem.size()}}));
+        VEFS_TRY(bytes_written_headerMem, mArchiveFile.write(headerOffset, {{headerMem.data(), headerMem.size()}}));
+        // verify bytes written
+        if (bytes_written_headerMem != headerMem.size())
+        {
+            // TODO review suitable the error code
+            return outcome::failure(vefs::error{});
+        }
 
         return outcome::success();
     }
