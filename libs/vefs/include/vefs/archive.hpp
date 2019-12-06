@@ -102,11 +102,11 @@ namespace vefs
         auto open(const std::string_view filePath, const file_open_mode_bitset mode) -> result<file_handle>;
         auto query(const std::string_view filePath) -> result<file_query_result>;
         auto erase(std::string_view filePath) -> result<void>;
-        auto read(file_handle handle, rw_dynblob buffer, std::uint64_t readFilePos) -> result<void>;
-        auto write(file_handle handle, ro_dynblob data, std::uint64_t writeFilePos) -> result<void>;
-        auto resize(file_handle handle, std::uint64_t size) -> result<void>;
-        auto size_of(file_handle handle) -> result<std::uint64_t>;
-        auto sync(file_handle handle) -> result<void>;
+        auto read(const file_handle& handle, rw_dynblob buffer, std::uint64_t readFilePos) -> result<void>;
+        auto write(const file_handle& handle, ro_dynblob data, std::uint64_t writeFilePos) -> result<void>;
+        auto resize(const file_handle& handle, std::uint64_t size) -> result<void>;
+        auto size_of(const file_handle& handle) -> result<std::uint64_t>;
+        auto sync(const file_handle& handle) -> result<void>;
 
         void erase_async(std::string filePath, std::function<void(op_outcome<void>)> cb);
         void read_async(file_handle handle, rw_dynblob buffer, std::uint64_t readFilePos,

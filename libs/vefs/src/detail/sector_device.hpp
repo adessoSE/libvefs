@@ -62,7 +62,6 @@ namespace vefs::detail
         // numSectors = number of sectors (i.e. including the master sector)
         result<void> resize(std::uint64_t numSectors);
         std::uint64_t size() const;
-        result<void> sync();
 
         basic_archive_file_meta &index_file();
         basic_archive_file_meta &free_sector_index_file();
@@ -78,7 +77,7 @@ namespace vefs::detail
         auto create_file() noexcept -> result<basic_archive_file_meta>;
 
     private:
-        sector_device(llfio::mapped_file_handle mfh, crypto::crypto_provider *cryptoProvider, const size_t numSectors);
+        sector_device(llfio::mapped_file_handle mfh, crypto::crypto_provider *cryptoProvider, size_t numSectors);
 
         result<void> parse_static_archive_header(ro_blob<32> userPRK);
         result<void> parse_archive_header();

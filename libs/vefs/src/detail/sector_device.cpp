@@ -179,19 +179,6 @@ namespace vefs::detail
         return std::move(archive);
     }
 
-    // #TODO This sync might not be useful since no classic flush takes place.
-    // However, we need to keep the header synced. Check with team mates.
-    result<void> sector_device::sync()
-    {
-        // std::error_code scode;
-        // mArchiveFile->sync(scode);
-        // if (scode)
-        //{
-        //    return error{scode};
-        //}
-        return outcome::success();
-    }
-
     result<void> sector_device::parse_static_archive_header(ro_blob<32> userPRK)
     {
         StaticArchiveHeaderPrefix archivePrefix{};
