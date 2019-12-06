@@ -12,3 +12,4 @@
 # generated output
 /out/
 cmake-build-debug/
+/libs/vefs/out/
