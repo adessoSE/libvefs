@@ -186,7 +186,6 @@ BOOST_AUTO_TEST_CASE(iterator_test_previous_in_beginning_of_layer)
 
     BOOST_TEST(0u == path.position(3));
     BOOST_TEST(0xffffffffffffffffu == path.position(2));
-//    BOOST_TEST(0xffffffffffffffffu == path.position(1));
 }
 
 BOOST_AUTO_TEST_CASE(iterator_test_end)
