@@ -20,6 +20,7 @@
 
 using namespace vefs::utils;
 
+// TODO llfio reads and writes: verify bytes read/written and handle the cases
 namespace vefs::detail
 {
     namespace
@@ -206,9 +207,9 @@ namespace vefs::detail
         std::array<llfio::io_handle::buffer_type, 4> buffers = {
             buffer_magic_number, buffer_static_header_salt, buffer_static_header_mac, buffer_static_header_length
         };
-        llfio::io_handle::io_request<llfio::io_handle::buffers_type> req(buffers, 0);
+        llfio::io_handle::io_request<llfio::io_handle::buffers_type> req_archivePrefix(buffers, 0);
         // read request
-        VEFS_TRY(res_buf_archivePrefix, mArchiveFile.read(req));
+        VEFS_TRY(res_buf_archivePrefix, mArchiveFile.read(req_archivePrefix));
         std::copy(res_buf_archivePrefix[0].begin(), res_buf_archivePrefix[0].end(), archivePrefix.magic_number.begin());
         std::copy(res_buf_archivePrefix[1].begin(), res_buf_archivePrefix[1].end(), archivePrefix.static_header_salt.begin());
         std::copy(res_buf_archivePrefix[2].begin(), res_buf_archivePrefix[2].end(), archivePrefix.static_header_mac.begin());
@@ -235,11 +236,12 @@ namespace vefs::detail
                    span(staticHeaderHeap));
 
         // create io request
-        req.buffers = {nullptr, sizeof(staticHeader)};
+        llfio::io_handle::buffer_type buffer_staticHeader = {nullptr, staticHeader.size()};
+        llfio::io_handle::io_request<llfio::io_handle::buffers_type> req_staticHeader(buffer_staticHeader, sizeof(StaticArchiveHeaderPrefix));
         // read request
-        VEFS_TRY(res_buf_staticHeader, mArchiveFile.read(req));
+        VEFS_TRY(res_buf_staticHeader, mArchiveFile.read(req_staticHeader));
         std::copy(res_buf_staticHeader[0].begin(), res_buf_staticHeader[0].end(), staticHeader.begin());
-        
+
         secure_byte_array<44> keyNonce;
         BOOST_OUTCOME_TRY(
             crypto::kdf(as_span(keyNonce), userPRK, archivePrefix.static_header_salt));
@@ -295,10 +297,10 @@ namespace vefs::detail
         span headerAndPadding{headerAndPaddingMem};
 
         // create io request
-        llfio::io_handle::buffer_type buffer_heaerAndPadding = {nullptr, headerAndPadding.size()};
-        llfio::io_handle::io_request<llfio::io_handle::buffers_type> req(buffer_heaerAndPadding, position);
+        llfio::io_handle::buffer_type buffer_headerAndPadding = {nullptr, headerAndPadding.size()};
+        llfio::io_handle::io_request<llfio::io_handle::buffers_type> req_headerAndPadding(buffer_headerAndPadding, position);
         // read request
-        VEFS_TRY(res_buf_headerAndPadding, mArchiveFile.read(req));
+        VEFS_TRY(res_buf_headerAndPadding, mArchiveFile.read(req_headerAndPadding));
         std::copy(res_buf_headerAndPadding[0].begin(), res_buf_headerAndPadding[0].end(), headerAndPadding.begin());
 
         auto archiveHeaderPrefix =
@@ -461,7 +463,6 @@ namespace vefs::detail
                 {reinterpret_cast<std::byte *>(&headerPrefix.static_header_length), sizeof(headerPrefix.static_header_length)}
             }
         ));
-
         VEFS_TRY(mArchiveFile.write(sizeof(headerPrefix), {{msg.data(), msg.size()}}));
 
         mArchiveHeaderOffset = sizeof(headerPrefix) + headerPrefix.static_header_length;
@@ -485,15 +486,16 @@ namespace vefs::detail
 
         // create io request
         llfio::io_handle::buffer_type buffer_sectorSalt = {nullptr, sectorSalt.size()};
-        llfio::io_handle::io_request<llfio::io_handle::buffers_type> req(buffer_sectorSalt, sectorOffset);
+        llfio::io_handle::io_request<llfio::io_handle::buffers_type> req_sectorSalt(buffer_sectorSalt, sectorOffset);
         // read request
-        VEFS_TRY(res_buf_sectorSalt, mArchiveFile.read(req));
+        VEFS_TRY(res_buf_sectorSalt, mArchiveFile.read(req_sectorSalt));
         std::copy(res_buf_sectorSalt[0].begin(), res_buf_sectorSalt[0].end(), sectorSalt.data());
 
         // create io request
-        req.buffers = {nullptr, sectorOffset + sectorSalt.size()};
+        llfio::io_handle::buffer_type buffer_payload = {nullptr, buffer.size()};
+        llfio::io_handle::io_request<llfio::io_handle::buffers_type> req_payload(buffer_payload, sectorOffset + sectorSalt.size());
         // read request
-        VEFS_TRY(res_buf_payload, mArchiveFile.read(req));
+        VEFS_TRY(res_buf_payload, mArchiveFile.read(req_payload));
         std::copy(res_buf_payload[0].begin(), res_buf_payload[0].end(), buffer.data());
 
         secure_byte_array<44> sectorKeyNonce;
@@ -546,7 +548,7 @@ namespace vefs::detail
 
         const auto sectorOffset = to_offset(sectorIdx);
 
-        // #TODO Was ist VEFS_TRY_INJECT genau? 
+        // #TODO Was ist VEFS_TRY_INJECT genau?
         // Macht diese Anpassung Sinn? llfio wirft system bezogenes error?
         // Brauchen wir diese Information? -> ed::sector_idx{sectorIdx}
         VEFS_TRY(mArchiveFile.write(sectorOffset, {{salt.data(), salt.size()}}));
@@ -571,9 +573,7 @@ namespace vefs::detail
 
         const auto offset = to_offset(sectorIdx);
 
-        VEFS_TRY(mArchiveFile.write(
-            {{reinterpret_cast<llfio::io_handle::const_buffer_type *>(salt.data()), salt.size()}, offset})
-        );
+        VEFS_TRY(mArchiveFile.write(offset, {{salt.data(), salt.size()}}));
 
         return outcome::success();
     }
@@ -622,7 +622,7 @@ namespace vefs::detail
         BOOST_OUTCOME_TRY(crypto::kdf(as_span(headerKeyNonce), master_secret_view(),
                                       archive_header_kdf_prk, prefix->header_salt));
 
-        auto encryptedHeader = span{headerMem}.subspan(prefix->unencrypted_prefix_size);
+        auto encryptedHeader = span{headerMem}.subspan(vefs::detail::ArchiveHeaderPrefix::unencrypted_prefix_size);
         VEFS_TRY_INJECT(mCryptoProvider->box_seal(encryptedHeader, span{prefix->header_mac},
                                                   as_span(headerKeyNonce), encryptedHeader),
                         ed::archive_file{"[archive-header]"});
