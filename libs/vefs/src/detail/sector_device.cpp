@@ -501,20 +501,18 @@ namespace vefs::detail
         BOOST_OUTCOME_TRY(mCryptoProvider->box_seal(
             msg, span{headerPrefix.static_header_mac}, as_span(key), msg));
 
-        VEFS_TRY(bytes_written_headerPrefix,
-                 mArchiveFile.write(
-                     0, {{headerPrefix.magic_number.data(),
-                          headerPrefix.magic_number.size()},
-                         {headerPrefix.static_header_salt.data(),
-                          headerPrefix.static_header_salt.size()},
-                         {headerPrefix.static_header_mac.data(),
-                          headerPrefix.static_header_mac.size()},
-                         {reinterpret_cast<std::byte *>(
-                              &headerPrefix.static_header_length),
-                          sizeof(headerPrefix.static_header_length)}}));
+        VEFS_TRY(mArchiveFile.write(
+            0,
+            {{headerPrefix.magic_number.data(),
+              headerPrefix.magic_number.size()},
+             {headerPrefix.static_header_salt.data(),
+              headerPrefix.static_header_salt.size()},
+             {headerPrefix.static_header_mac.data(),
+              headerPrefix.static_header_mac.size()},
+             {reinterpret_cast<std::byte *>(&headerPrefix.static_header_length),
+              sizeof(headerPrefix.static_header_length)}}));
 
-        VEFS_TRY(bytes_written_msg,
-                 mArchiveFile.write(sizeof(headerPrefix),
+        VEFS_TRY(mArchiveFile.write(sizeof(headerPrefix),
                                     {{msg.data(), msg.size()}}));
 
         mArchiveHeaderOffset =
@@ -613,16 +611,14 @@ namespace vefs::detail
 
         const auto sectorOffset = to_offset(sectorIdx);
 
-        // TODO VEFS_TRY_INJECT contextual information for io result
-        // ed::sector_idx{sectorIdx}
-        VEFS_TRY(
-            bytes_written_salt,
-            mArchiveFile.write(sectorOffset, {{salt.data(), salt.size()}}));
+        VEFS_TRY_INJECT(
+            mArchiveFile.write(sectorOffset, {{salt.data(), salt.size()}}),
+            ed::sector_idx{sectorIdx});
 
-        VEFS_TRY(bytes_written_ciphertextBuffer,
-                 mArchiveFile.write(
-                     sectorOffset + salt.size(),
-                     {{ciphertextBuffer.data(), ciphertextBuffer.size()}}));
+        VEFS_TRY_INJECT(mArchiveFile.write(sectorOffset + salt.size(),
+                                           {{ciphertextBuffer.data(),
+                                             ciphertextBuffer.size()}}),
+                        ed::sector_idx{sectorIdx});
 
         return outcome::success();
     }
@@ -644,8 +640,7 @@ namespace vefs::detail
 
         const auto offset = to_offset(sectorIdx);
 
-        VEFS_TRY(bytes_written_salt,
-                 mArchiveFile.write(offset, {{salt.data(), salt.size()}}));
+        VEFS_TRY(mArchiveFile.write(offset, {{salt.data(), salt.size()}}));
 
         return outcome::success();
     }
@@ -707,11 +702,9 @@ namespace vefs::detail
                                       as_span(headerKeyNonce), encryptedHeader),
             ed::archive_file{"[archive-header]"});
 
-        // TODO see previous comment about VEFS_TRY_INJECT
-        // ed::archive_file{"[archive-header]"}
-        VEFS_TRY(bytes_written_headerMem,
-                 mArchiveFile.write(headerOffset,
-                                    {{headerMem.data(), headerMem.size()}}));
+        VEFS_TRY_INJECT(mArchiveFile.write(headerOffset, {{headerMem.data(),
+                                                           headerMem.size()}}),
+                        ed::archive_file{"[archive-header]"});
 
         return outcome::success();
     }
