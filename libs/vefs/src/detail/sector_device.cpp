@@ -539,9 +539,8 @@ namespace vefs::detail
 
         const auto sectorOffset = to_offset(sectorIdx);
 
-        // #TODO Was ist VEFS_TRY_INJECT genau?
-        // Macht diese Anpassung Sinn? llfio wirft system bezogenes error?
-        // Brauchen wir diese Information? -> ed::sector_idx{sectorIdx}
+        // TODO VEFS_TRY_INJECT contextual information for io result
+        // ed::sector_idx{sectorIdx}
         VEFS_TRY(bytes_written_salt, mArchiveFile.write(sectorOffset, {{salt.data(), salt.size()}}));
 
         VEFS_TRY(bytes_written_ciphertextBuffer, mArchiveFile.write(sectorOffset + salt.size(), {{ciphertextBuffer.data(), ciphertextBuffer.size()}}));
@@ -613,12 +612,12 @@ namespace vefs::detail
         BOOST_OUTCOME_TRY(crypto::kdf(as_span(headerKeyNonce), master_secret_view(),
                                       archive_header_kdf_prk, prefix->header_salt));
 
-        auto encryptedHeader = span{headerMem}.subspan(vefs::detail::ArchiveHeaderPrefix::unencrypted_prefix_size);
+        auto encryptedHeader = span{headerMem}.subspan(ArchiveHeaderPrefix::unencrypted_prefix_size);
         VEFS_TRY_INJECT(mCryptoProvider->box_seal(encryptedHeader, span{prefix->header_mac},
                                                   as_span(headerKeyNonce), encryptedHeader),
                         ed::archive_file{"[archive-header]"});
 
-        // TODO siehe vorige Bemerkung einer inject Anpassung
+        // TODO see previous comment about VEFS_TRY_INJECT
         // ed::archive_file{"[archive-header]"}
         VEFS_TRY(bytes_written_headerMem, mArchiveFile.write(headerOffset, {{headerMem.data(), headerMem.size()}}));
 
