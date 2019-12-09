@@ -3,7 +3,6 @@
 #include "../src/detail/basic_archive_file_meta.hpp" // #TODO to be removed
 
 #include "boost-unit-test.hpp"
-#include "memfs.hpp"
 #include "test-utils.hpp"
 
 using namespace vefs;
@@ -37,26 +36,6 @@ public:
     {
     }
 
-    auto alloc_one_() noexcept -> result<sector_id>
-    {
-        std::lock_guard allocGuard{alloc_sync};
-        sector_id allocated{++alloc_counter};
-        VEFS_TRY(device.resize(alloc_counter));
-        return allocated;
-    }
-    auto alloc_multiple_(span<sector_id> ids) noexcept -> result<std::size_t>
-    {
-        std::lock_guard allocGuard{alloc_sync};
-        auto newSize = alloc_counter + ids.size();
-        VEFS_TRY(device.resize(newSize));
-        for (std::size_t i = 0; i < ids.size(); ++i)
-        {
-            ids[i] = sector_id{alloc_counter + i};
-        }
-        alloc_counter = newSize;
-        return ids.size();
-    }
-
     auto reallocate(sector_allocator &forWhich) noexcept -> result<sector_id>
     {
         if (forWhich.mCurrent != sector_id{})
@@ -64,7 +43,7 @@ public:
             return forWhich.mCurrent;
         }
         std::lock_guard allocGuard{alloc_sync};
-        sector_id allocated{++alloc_counter};
+        sector_id allocated{alloc_counter++};
         VEFS_TRY(device.resize(alloc_counter));
         return allocated;
     }
@@ -99,18 +78,17 @@ struct sector_tree_seq_pre_create_fixture
 
     static constexpr std::array<std::byte, 32> default_user_prk{};
 
-    filesystem::ptr testFilesystem;
+    vefs::llfio::mapped_file_handle testFile;
     std::unique_ptr<sector_device> device;
 
     file_crypto_ctx fileCryptoContext;
     root_sector_info rootSectorInfo;
 
     sector_tree_seq_pre_create_fixture()
-        : testFilesystem(tests::memory_filesystem::create())
-        , device(sector_device::open(
-                     testFilesystem, "tree-test.vefs",
-                     crypto::debug_crypto_provider(), default_user_prk,
-                     file_open_mode::readwrite | file_open_mode::create)
+        : testFile(vefs::llfio::mapped_temp_inode().value())
+        , device(sector_device::open(testFile.clone(0).value(),
+                                     crypto::debug_crypto_provider(),
+                                     default_user_prk, true)
                      .value())
         , fileCryptoContext()
         , rootSectorInfo()
@@ -200,7 +178,8 @@ BOOST_AUTO_TEST_CASE(expand_to_two_sectors)
 
 BOOST_AUTO_TEST_CASE(shrink_on_commit_if_possible)
 {
-    TEST_RESULT_REQUIRE(testTree->move_to(2019, tree_type::access_mode::create));
+    TEST_RESULT_REQUIRE(
+        testTree->move_to(2019, tree_type::access_mode::create));
 
     auto commitRx = testTree->commit();
     TEST_RESULT_REQUIRE(commitRx);
@@ -225,7 +204,7 @@ BOOST_AUTO_TEST_CASE(shrink_on_commit_if_possible)
     TEST_RESULT_REQUIRE(commitRx);
     auto &&newRootInfo = std::move(commitRx).assume_value();
 
-    //BOOST_TEST(newRootInfo.root.mac == expectedRootMac);
+    // BOOST_TEST(newRootInfo.root.mac == expectedRootMac);
     BOOST_TEST(newRootInfo.root.sector == sector_id{1});
     BOOST_TEST(newRootInfo.tree_depth == 0);
 }

@@ -79,7 +79,7 @@ namespace fmt
 namespace vefs::detail
 {
     template <typename T>
-    inline auto operator<<(std::ostream &s, const cache_handle<T> &h)
+    inline auto boost_test_print_type(std::ostream &s, const cache_handle<T> &h)
         -> std::ostream &
     {
         fmt::print(s, FMT_STRING("{}"), h);
@@ -92,7 +92,7 @@ namespace std
     inline auto boost_test_print_type(std::ostream &s, std::byte b)
         -> std::ostream &
     {
-        fmt::print(s, FMT_STRING("{}"), b);
+        fmt::print(s, FMT_STRING("{:x}"), static_cast<std::uint8_t>(b));
         return s;
     }
-}
+} // namespace std

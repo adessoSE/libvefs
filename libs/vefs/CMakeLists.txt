@@ -5,6 +5,7 @@ DEF_SOURCE_GROUP(vefs "core"
     HEADERS
         include/vefs/archive.hpp
         include/vefs/archive_fwd.hpp
+        include/vefs/llfio.hpp
         include/vefs/span.hpp
 
     SOURCES
@@ -70,6 +71,7 @@ DEF_SOURCE_GROUP(vefs "disappointment"
         include/vefs/disappointment/error_exception.hpp
         include/vefs/disappointment/fwd.hpp
         include/vefs/disappointment/generic_errc.hpp
+        include/vefs/disappointment/llfio_adapter.hpp
         include/vefs/disappointment/std_adapter.hpp
 
     SOURCES
@@ -119,7 +121,6 @@ endif()
 
 DEF_SOURCE_GROUP(vefs "platform"
     HEADERS
-        include/vefs/platform/filesystem.hpp
         include/vefs/platform/platform.hpp
         include/vefs/platform/secure_memzero.hpp
         include/vefs/platform/thread_pool.hpp
@@ -128,9 +129,6 @@ DEF_SOURCE_GROUP(vefs "platform"
         src/platform/platform.cpp
         src/platform/windows-proper.h
 
-        src/platform/filesystem.cpp
-        src/platform/os_filesystem.hpp
-        src/platform/os_filesystem.cpp
         
         src/platform/thread_pool.cpp
         src/platform/thread_pool_gen.hpp
@@ -139,19 +137,10 @@ DEF_SOURCE_GROUP(vefs "platform"
         src/platform/secure_memzero.cpp 
         src/platform/sysrandom.cpp
         src/platform/sysrandom.hpp
-
 )
-
-if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
+if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
     DEF_SOURCE_GROUP(vefs "platform"
         SOURCES
-            src/platform/os_filesystem_linux.cpp
-    )
-elseif(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-    DEF_SOURCE_GROUP(vefs "platform"
-        SOURCES
-            src/platform/os_filesystem_win.cpp
-
             src/platform/thread_pool_win32.cpp
             src/platform/thread_pool_win32.hpp
     )
@@ -215,6 +204,9 @@ target_link_libraries(vefs
         libb2
         protobuf::libprotobuf
         fmt::fmt
+        llfio
+        ntkernel-error-category
+        quickcpplib
 
         concurrentqueue
         cuckoohash
@@ -244,11 +236,6 @@ add_executable(vefs-tests
     tests/allocator-tests.cpp
     tests/cache-tests.cpp
     tests/cache_clock-tests.cpp
-
-    tests/osfilesystem-tests.cpp
-    tests/memfs.cpp
-    tests/memfs-tests.cpp
-    tests/memfs.hpp
 
     tests/sector_device-tests.cpp
     tests/sector_tree_mt-tests.cpp

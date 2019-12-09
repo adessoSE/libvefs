@@ -13,7 +13,8 @@
 #if defined BOOST_ARCH_X86_AVAILABLE
 
 #include <intrin.h>
-#define VEFS_PREFETCH_NTA(ptr) _mm_prefetch(reinterpret_cast<const char *>(ptr), _MM_HINT_NTA)
+#define VEFS_PREFETCH_NTA(ptr)                                                 \
+    _mm_prefetch(reinterpret_cast<const char *>(ptr), _MM_HINT_NTA)
 
 #elif defined BOOST_ARCH_ARM_AVAILABLE
 
