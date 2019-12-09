@@ -25,10 +25,10 @@ public:
         sector_id mCurrent;
     };
 
-    enum class leak_on_failure
+    enum class leak_on_failure_t
     {
     };
-    static constexpr auto leak_on_failure_v = leak_on_failure{};
+    static constexpr auto leak_on_failure = leak_on_failure_t{};
 
     test_allocator(sector_device &device)
         : alloc_sync()
@@ -73,7 +73,7 @@ public:
     {
         return success();
     }
-    void dealloc_one(const sector_id which, leak_on_failure) noexcept
+    void dealloc_one(const sector_id which, leak_on_failure_t) noexcept
     {
     }
 

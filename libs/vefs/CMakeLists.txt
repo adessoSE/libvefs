@@ -8,7 +8,7 @@ DEF_SOURCE_GROUP(vefs "core"
         include/vefs/span.hpp
 
     SOURCES
-        # the first added source file determines targe language
+        # the first added source file determines target language
         # it must therefore be a c++ TU
 
         src/archive.cpp
@@ -49,6 +49,11 @@ DEF_SOURCE_GROUP(vefs "detail"
         src/detail/tree_lut.hpp
         src/detail/tree_walker.cpp
         src/detail/tree_walker.hpp
+
+        src/detail/archive_sector_allocator.cpp
+        src/detail/archive_sector_allocator.hpp
+        src/detail/preallocated_tree_allocator.cpp
+        src/detail/preallocated_tree_allocator.hpp
 
         src/detail/proto-helper.hpp
 )
