@@ -107,6 +107,7 @@ namespace vefs::detail
             -> result<void>;
 
         auto erase_leaf(std::uint64_t leafId) noexcept -> result<void>;
+        auto erase_self() noexcept -> result<void>;
 
         auto commit() noexcept -> result<root_sector_info>;
 
@@ -389,7 +390,7 @@ namespace vefs::detail
         }
 
         int refOffset;
-        if (mCurrentPath.position(0) == leafId)
+        if (mCurrentPath.position(0) == leafId && is_loaded())
         {
             mNodeInfos[0].destroy();
             fill_blob(node_data_span(0));
@@ -421,11 +422,30 @@ namespace vefs::detail
         VEFS_TRY(mDevice.erase_sector(ref.sector));
 
         mTreeAllocator.dealloc_one(ref.sector,
-                                   tree_allocator_type::leak_on_failure_v);
+                                   tree_allocator_type::leak_on_failure);
         node(1).mDirty = true;
         refNode.write(refOffset, {});
 
         return collect_intermediate_nodes();
+    }
+
+    template <typename TreeAllocator>
+    inline auto sector_tree_seq<TreeAllocator>::erase_self() noexcept
+        -> result<void>
+    {
+        if (mRootInfo.tree_depth > 0)
+        {
+            return errc::bad;
+        }
+        node(0).mDirty = false;
+        if (mRootInfo.root.sector == sector_id{})
+        {
+            return success();
+        }
+        VEFS_TRY(mDevice.erase_sector(mRootInfo.root.sector));
+        mTreeAllocator.dealloc_one(mRootInfo.root.sector,
+                                   tree_allocator_type::leak_on_failure);
+        return success();
     }
 
     template <typename TreeAllocator>
@@ -566,7 +586,7 @@ namespace vefs::detail
             VEFS_TRY(mDevice.erase_sector(nodeRef.sector));
 
             mTreeAllocator.dealloc_one(nodeRef.sector,
-                                       tree_allocator_type::leak_on_failure_v);
+                                       tree_allocator_type::leak_on_failure);
             refs.write(nodeRefOffset, {});
             node(i + 1).mDirty = true;
         }
@@ -595,7 +615,7 @@ namespace vefs::detail
             const auto newRootRef = ref_node(i).read(0);
             VEFS_TRY(mDevice.erase_sector(mRootInfo.root.sector));
             mTreeAllocator.dealloc_one(mRootInfo.root.sector,
-                                       tree_allocator_type::leak_on_failure_v);
+                                       tree_allocator_type::leak_on_failure);
 
             mRootInfo.root = newRootRef;
             mRootInfo.tree_depth -= 1;
