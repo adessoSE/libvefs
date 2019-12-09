@@ -9,11 +9,30 @@
 #include <vefs/span.hpp>
 #include <vefs/platform/thread_pool.hpp>
 #include <vefs/disappointment.hpp>
-#include <vefs/platform/filesystem.hpp>
+#include <vefs/utils/enum_bitset.hpp>
+
 #include <vefs/utils/ref_ptr.hpp>
+
+#include <llfio.hpp>
+
+namespace llfio = LLFIO_V2_NAMESPACE;
 
 namespace vefs
 {
+
+    enum class file_open_mode
+    {
+        read = 0b0000,
+        write = 0b0001,
+        readwrite = read | write,
+        truncate = 0b0010,
+        create = 0b0100,
+    };
+
+    std::true_type allow_enum_bitset(file_open_mode &&);
+    using file_open_mode_bitset = enum_bitset<file_open_mode>;
+
+
     struct file_query_result
     {
         file_open_mode_bitset allowed_flags;
@@ -69,13 +88,12 @@ namespace vefs
         private:
             void add_reference();
             void release();
-
             file_lookup *mData;
         };
 
-        static auto open(filesystem::ptr fs, const std::filesystem::path &archivePath,
-                         crypto::crypto_provider *cryptoProvider,
-                         ro_blob<32> userPRK, file_open_mode_bitset openMode) -> result<std::unique_ptr<archive>>;
+
+        static auto open(llfio::mapped_file_handle mfh, crypto::crypto_provider *cryptoProvider,
+                         ro_blob<32> userPRK, bool createNew) -> result<std::unique_ptr<archive>>;
         ~archive();
 
         auto sync() -> result<void>;
@@ -84,11 +102,11 @@ namespace vefs
         auto open(const std::string_view filePath, const file_open_mode_bitset mode) -> result<file_handle>;
         auto query(const std::string_view filePath) -> result<file_query_result>;
         auto erase(std::string_view filePath) -> result<void>;
-        auto read(file_handle handle, rw_dynblob buffer, std::uint64_t readFilePos) -> result<void>;
-        auto write(file_handle handle, ro_dynblob data, std::uint64_t writeFilePos) -> result<void>;
-        auto resize(file_handle handle, std::uint64_t size) -> result<void>;
-        auto size_of(file_handle handle) -> result<std::uint64_t>;
-        auto sync(file_handle handle) -> result<void>;
+        auto read(const file_handle& handle, rw_dynblob buffer, std::uint64_t readFilePos) -> result<void>;
+        auto write(const file_handle& handle, ro_dynblob data, std::uint64_t writeFilePos) -> result<void>;
+        auto resize(const file_handle& handle, std::uint64_t size) -> result<void>;
+        auto size_of(const file_handle& handle) -> result<std::uint64_t>;
+        auto sync(const file_handle& handle) -> result<void>;
 
         void erase_async(std::string filePath, std::function<void(op_outcome<void>)> cb);
         void read_async(file_handle handle, rw_dynblob buffer, std::uint64_t readFilePos,

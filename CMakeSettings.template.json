@@ -18,13 +18,8 @@
                     "type": "STRING"
                 },
                 {
-                    "name": "CMAKE_CXX_FLAGS_DEBUG",
-                    "value": "/MTd /Zi /Ob0 /Od /RTC1",
-                    "type": "STRING"
-                },
-                {
-                    "name": "CMAKE_EXE_LINKER_FLAGS",
-                    "value": "/debug /INCREMENTAL",
+                    "name": "CMAKE_MSVC_RUNTIME_LIBRARY",
+                    "value": "MultiThreadedDebug",
                     "type": "STRING"
                 }
             ]
@@ -47,8 +42,8 @@
                     "type": "STRING"
                 },
                 {
-                    "name": "CMAKE_CXX_FLAGS_RELEASE",
-                    "value": "/MT /O2 /Ob2 /DNDEBUG /Zi",
+                    "name": "CMAKE_MSVC_RUNTIME_LIBRARY",
+                    "value": "MultiThreaded",
                     "type": "STRING"
                 },
                 {

@@ -3,14 +3,17 @@
 #include <array>
 #include <memory>
 
+#include <llfio.hpp>
+
 #include <vefs/disappointment.hpp>
-#include <vefs/platform/filesystem.hpp>
+#include <vefs/disappointment/llfio_adapter.hpp>
 #include <vefs/span.hpp>
 #include <vefs/utils/secure_array.hpp>
 
 #include "../crypto/counter.hpp"
 #include "../crypto/provider.hpp"
 #include "sector_id.hpp"
+
 
 namespace adesso::vefs
 {
@@ -39,14 +42,10 @@ namespace vefs::detail
 
         static constexpr auto to_offset(sector_id id) -> std::uint64_t;
 
-        static auto open(filesystem::ptr fs, const std::filesystem::path &path,
+        static auto open(llfio::mapped_file_handle mfh,
                          crypto::crypto_provider *cryptoProvider, ro_blob<32> userPRK,
-                         file_open_mode_bitset openMode) -> result<std::unique_ptr<sector_device>>;
+                         bool createNew) -> result<std::unique_ptr<sector_device>>;
 
-        sector_device(file::ptr archiveFile, crypto::crypto_provider *cryptoProvider,
-                    ro_blob<64> userPRK);
-        sector_device(file::ptr archiveFile, crypto::crypto_provider *cryptoProvider,
-                    ro_blob<64> userPRK, create_tag);
         ~sector_device() = default;
 
         result<void> read_sector(rw_blob<sector_payload_size> buffer,
@@ -63,7 +62,6 @@ namespace vefs::detail
         // numSectors = number of sectors (i.e. including the master sector)
         result<void> resize(std::uint64_t numSectors);
         std::uint64_t size() const;
-        result<void> sync();
 
         basic_archive_file_meta &index_file();
         basic_archive_file_meta &free_sector_index_file();
@@ -79,7 +77,7 @@ namespace vefs::detail
         auto create_file() noexcept -> result<basic_archive_file_meta>;
 
     private:
-        sector_device(file::ptr archiveFile, crypto::crypto_provider *cryptoProvider);
+        sector_device(llfio::mapped_file_handle mfh, crypto::crypto_provider *cryptoProvider, size_t numSectors);
 
         result<void> parse_static_archive_header(ro_blob<32> userPRK);
         result<void> parse_archive_header();
@@ -95,7 +93,7 @@ namespace vefs::detail
         void switch_header() noexcept;
 
         crypto::crypto_provider *const mCryptoProvider;
-        file::ptr mArchiveFile;
+        llfio::mapped_file_handle mArchiveFile;
 
         std::unique_ptr<basic_archive_file_meta> mFreeBlockIdx;
         std::unique_ptr<basic_archive_file_meta> mArchiveIdx;
@@ -124,13 +122,13 @@ namespace vefs::detail
 
     inline auto vefs::detail::sector_device::resize(std::uint64_t numSectors) -> result<void>
     {
-        std::error_code scode;
-        mArchiveFile->resize(numSectors * sector_size, scode);
-        if (scode)
-        {
-            return error{scode};
+
+        VEFS_TRY(bytes_truncated, mArchiveFile.truncate(numSectors * sector_size));
+        if (bytes_truncated != (numSectors * sector_size)) {
+            return outcome::failure(errc::bad);
         }
         mNumSectors = numSectors;
+
         return outcome::success();
     }
     inline std::uint64_t sector_device::size() const
