@@ -125,8 +125,7 @@ namespace vefs::detail
 
         VEFS_TRY(bytes_truncated, mArchiveFile.truncate(numSectors * sector_size));
         if (bytes_truncated != (numSectors * sector_size)) {
-            // TODO review suitable the error code
-            return outcome::failure(std::error_code{-1, std::system_category()});
+            return outcome::failure(errc::bad);
         }
         mNumSectors = numSectors;
 
