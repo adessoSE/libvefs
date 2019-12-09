@@ -166,6 +166,9 @@ namespace vefs::utils
             boost::intrusive::key_of_value<block_range_key_accessor<id_type>>>;
 
     public:
+        using iterator = typename block_set::const_iterator;
+        using const_iterator = typename block_set::const_iterator;
+
         block_manager();
         ~block_manager();
 
@@ -233,8 +236,50 @@ namespace vefs::utils
          */
         void clear() noexcept;
 
+        /**
+         * Copies all deallocated ids from another block manager.
+         * The other block manager may manage overlapping id ranges.
+         */
         auto merge_from(block_manager &other) noexcept -> result<void>;
+        /**
+         * Copies all deallocated ids from another block manager.
+         * The free lists must not contain overlapping id ranges.
+         * 
+         * (More efficient than merge_from)
+         */
         auto merge_disjunct(block_manager &other) noexcept -> result<void>;
+
+        auto begin() const noexcept -> const_iterator
+        {
+            return mFreeBlocks.cbegin();
+        }
+        auto cbegin() const noexcept -> const_iterator
+        {
+            return mFreeBlocks.cbegin();
+        }
+        auto end() const noexcept -> const_iterator
+        {
+            return mFreeBlocks.cend();
+        }
+        auto cend() const noexcept -> const_iterator
+        {
+            return mFreeBlocks.cend();
+        }
+
+        /**
+         * The number of id ranges, useful mostly for serialization purposes.
+         */
+        auto num_nodes() const noexcept -> std::uint64_t
+        {
+            return mFreeBlocks.size();
+        }
+        /**
+         * Tries to deallocate the contiguous id node preceeding the given id
+         *
+         * \param endId the past the end id
+         * \returns the number of ids deallocated
+         */
+        [[nodiscard]] auto trim_ids(id_type endId) noexcept -> std::uint64_t;
 
     private:
         void dispose(typename block_set::const_iterator cit) noexcept;
@@ -716,6 +761,24 @@ namespace vefs::utils
         }
         other.clear();
         return success();
+    }
+
+    template <typename IdType>
+    inline auto block_manager<IdType>::trim_ids(id_type endId) noexcept
+        -> std::uint64_t
+    {
+        if (mFreeBlocks.empty())
+        {
+            return 0;
+        }
+        auto lastNode = std::prev(mFreeBlocks.end());
+        if (!lastNode->is_predecessor_of(endId))
+        {
+            return 0;
+        }
+        auto numTrimmed = lastNode->size();
+        dispose(lastNode);
+        return numTrimmed;
     }
 
     template <typename IdType>
