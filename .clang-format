@@ -19,7 +19,7 @@ BreakInheritanceList: BeforeComma
 BreakConstructorInitializers: BeforeComma
 AllowShortBlocksOnASingleLine: false
 AllowShortFunctionsOnASingleLine: None
-AllowShortIfStatementsOnASingleLine: Never
+AllowShortIfStatementsOnASingleLine: false
 AllowShortLoopsOnASingleLine: false
 NamespaceIndentation: All
 
