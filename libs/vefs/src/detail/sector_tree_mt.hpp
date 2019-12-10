@@ -478,7 +478,7 @@ namespace vefs::detail
 
         auto loadrx = mSectorCache.access(
             rootPosition,
-            [ this, rootPosition ](void *mem) noexcept->result<sector_type *> {
+            [this, rootPosition](void *mem) noexcept -> result<sector_type *> {
                 auto ptr = new (mem) sector_type(*this, nullptr, rootPosition,
                                                  mRootInfo.root.sector);
 
@@ -518,8 +518,9 @@ namespace vefs::detail
         //}
 
         auto loadrx = mSectorCache.access(
-            rootPosition, [ this, rootPosition ](
-                              void *mem) noexcept->result<sector_type *, void> {
+            rootPosition,
+            [this,
+             rootPosition](void *mem) noexcept -> result<sector_type *, void> {
                 return new (mem)
                     sector_type(*this, nullptr, rootPosition, sector_id{});
             });
@@ -685,7 +686,7 @@ namespace vefs::detail
         for (int i = 0; anyDirty && i <= mRootInfo.tree_depth; ++i)
         {
             auto rx = mSectorCache.for_dirty(
-                [ this, i ](sector_handle node) noexcept->result<void> {
+                [this, i](sector_handle node) noexcept -> result<void> {
                     if (node->node_position().layer() != i)
                     {
                         return success();
@@ -940,8 +941,8 @@ namespace vefs::detail
             std::unique_lock oldRootLock{*mRootSector};
             auto createrx = mSectorCache.access(
                 nextRootPos,
-                [ this, nextRootPos ](
-                    void *mem) noexcept->result<sector_type *, void> {
+                [this, nextRootPos](
+                    void *mem) noexcept -> result<sector_type *, void> {
                     auto xsec = new (mem)
                         sector_type(*this, nullptr, nextRootPos, sector_id{});
                     // zero out the sector content
@@ -1020,7 +1021,7 @@ namespace vefs::detail
         int childParentOffset) noexcept -> result<sector_handle>
     {
         return mSectorCache.access(
-            childPosition, [&](void *mem) noexcept->result<sector_type *> {
+            childPosition, [&](void *mem) noexcept -> result<sector_type *> {
                 const auto ref = reference_sector_layout{as_span(*parent)}.read(
                     childParentOffset);
 
@@ -1050,7 +1051,7 @@ namespace vefs::detail
         int childParentOffset) noexcept -> result<sector_handle>
     {
         return mSectorCache.access(
-            childPosition, [&](void *mem) noexcept->result<sector_type *> {
+            childPosition, [&](void *mem) noexcept -> result<sector_type *> {
                 auto ref = reference_sector_layout{as_span(*parent)}.read(
                     childParentOffset);
 
@@ -1119,5 +1120,54 @@ namespace vefs::detail
     }
 
 #pragma endregion
+
+    template <typename TreeAllocator, typename Executor>
+    inline auto read(sector_tree_mt<TreeAllocator, Executor> &tree,
+                     rw_dynblob buffer, std::uint64_t readPos) -> result<void>
+    {
+        auto offset = readPos % detail::sector_device::sector_payload_size;
+        tree_position it{detail::lut::sector_position_of(readPos)};
+
+        while (buffer)
+        {
+            VEFS_TRY(sector, tree.access(std::exchange(
+                                 it, tree_position{it.position() + 1})));
+
+            auto chunk = as_span(sector).subspan(std::exchange(offset, 0));
+
+            auto chunked = std::min(chunk.size(), buffer.size());
+            copy(chunk, std::exchange(buffer, buffer.subspan(chunked)));
+        }
+        return success();
+    }
+
+    template <typename TreeAllocator, typename Executor>
+    inline auto write(sector_tree_mt<TreeAllocator, Executor> &tree,
+                      ro_dynblob data, std::uint64_t writePos) -> result<void>
+    {
+        if (!data)
+        {
+            return outcome::success();
+        }
+
+        using write_handle = typename decltype(tree)::write_handle;
+
+        tree_position it{detail::lut::sector_position_of(writePos)};
+        auto offset = writeFilePos % detail::sector_device::sector_payload_size;
+
+        while (data)
+        {
+            VEFS_TRY(sector, tree.access_or_create(std::exchange(
+                                 it, tree_position{it.position() + 1})));
+
+            write_handle writableSector{std::move(sector)};
+
+            auto chunked = std::min(chunk.size(), buffer.size());
+            copy(std::exchange(data, data.subspan(chunked)),
+                 as_span(writableSector));
+        }
+
+        return success();
+    }
 
 } // namespace vefs::detail
