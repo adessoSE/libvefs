@@ -7,6 +7,11 @@
 
 #include "sector_id.hpp"
 
+namespace adesso::vefs
+{
+    class FileDescriptor;
+}
+
 namespace vefs::detail
 {
     struct sector_reference
@@ -18,6 +23,10 @@ namespace vefs::detail
     class root_sector_info
     {
     public:
+        void pack_to(adesso::vefs::FileDescriptor &descriptor);
+        static auto unpack_from(adesso::vefs::FileDescriptor &descriptor)
+            -> root_sector_info;
+
         sector_reference root;
         std::uint64_t maximum_extent;
         int tree_depth;

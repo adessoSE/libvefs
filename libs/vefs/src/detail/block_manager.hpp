@@ -11,6 +11,7 @@
 #include <boost/type_traits/type_identity.hpp>
 
 #include <vefs/disappointment.hpp>
+#include <vefs/utils/bit.hpp>
 #include <vefs/utils/bitset_overlay.hpp>
 #include <vefs/utils/misc.hpp>
 
@@ -244,7 +245,7 @@ namespace vefs::utils
         /**
          * Copies all deallocated ids from another block manager.
          * The free lists must not contain overlapping id ranges.
-         * 
+         *
          * (More efficient than merge_from)
          */
         auto merge_disjunct(block_manager &other) noexcept -> result<void>;
@@ -343,7 +344,8 @@ namespace vefs::utils
     template <typename IdType>
     inline auto id_range<IdType>::pop_front(std::size_t num) noexcept -> id_type
     {
-        return static_cast<id_type>(std::exchange(mFirstId, mFirstId + num));
+        return static_cast<id_type>(
+            std::exchange(mFirstId, static_cast<id_type>(mFirstId + num)));
     }
 
     template <typename IdType>

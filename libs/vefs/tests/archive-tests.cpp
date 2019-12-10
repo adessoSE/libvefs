@@ -10,11 +10,15 @@
 #include "test-utils.hpp"
 
 using namespace std::string_view_literals;
-constexpr std::array<std::byte, 32> default_user_prk{};
-static_assert(default_user_prk.size() == 32);
 
-constexpr auto default_archive_path = "./test-archive.vefs"sv;
-constexpr auto default_file_path = "diupdope"sv;
+namespace
+{
+    constexpr std::array<std::byte, 32> default_user_prk{};
+    static_assert(default_user_prk.size() == 32);
+
+    constexpr auto default_archive_path = "./test-archive.vefs"sv;
+    constexpr auto default_file_path = "diupdope"sv;
+} // namespace
 
 BOOST_AUTO_TEST_SUITE(vefs_archive_tests)
 
@@ -27,7 +31,8 @@ BOOST_AUTO_TEST_CASE(archive_create)
 
     auto openrx = archive::open(std::move(archiveFileHandle), cprov,
                                 default_user_prk, true);
-    TEST_RESULT(openrx);
+    TEST_RESULT_REQUIRE(openrx);
+    TEST_RESULT(openrx.assume_value()->commit());
 }
 
 BOOST_AUTO_TEST_CASE(archive_create_reopen)
@@ -42,6 +47,7 @@ BOOST_AUTO_TEST_CASE(archive_create_reopen)
         auto openrx =
             archive::open(std::move(cloned), cprov, default_user_prk, true);
         TEST_RESULT_REQUIRE(openrx);
+        TEST_RESULT_REQUIRE(openrx.assume_value()->commit());
     }
     {
         auto cloned = archiveFileHandle.clone(0).value();
@@ -67,6 +73,9 @@ BOOST_AUTO_TEST_CASE(archive_create_file)
         auto fopenrx = ac->open(default_file_path, file_open_mode::readwrite |
                                                        file_open_mode::create);
         TEST_RESULT_REQUIRE(fopenrx);
+        TEST_RESULT_REQUIRE(
+            ac->commit(fopenrx.assume_value()));
+        TEST_RESULT_REQUIRE(ac->commit());
     }
     {
         auto cloned = archiveFileHandle.clone(0).value();
@@ -92,7 +101,7 @@ BOOST_AUTO_TEST_CASE(archive_readwrite)
     auto bigFile = std::make_unique<file_type>();
     span file{*bigFile};
 
-    utils::xoroshiro128plus dataGenerator{0};
+    utils::xoroshiro128plus dataGenerator{0xC0DE'DEAD'BEEF'3ABA};
     dataGenerator.fill(file);
 
     {
@@ -108,6 +117,8 @@ BOOST_AUTO_TEST_CASE(archive_readwrite)
         auto hFile = std::move(fileOpenRx).assume_value();
 
         TEST_RESULT(ac->write(hFile, file, pos));
+        TEST_RESULT_REQUIRE(ac->commit(hFile));
+        TEST_RESULT_REQUIRE(ac->commit());
     }
     {
         auto cloned = archiveFileHandle.clone(0).value();
@@ -155,6 +166,8 @@ BOOST_AUTO_TEST_CASE(archive_file_shrink)
         auto hFile = std::move(fileOpenRx).assume_value();
 
         TEST_RESULT(ac->write(hFile, file, pos));
+        TEST_RESULT_REQUIRE(ac->commit(hFile));
+        TEST_RESULT_REQUIRE(ac->commit());
     }
     {
         auto cloned = archiveFileHandle.clone(0).value();
@@ -166,8 +179,11 @@ BOOST_AUTO_TEST_CASE(archive_file_shrink)
         TEST_RESULT_REQUIRE(fopenrx);
         auto hFile = std::move(fopenrx).assume_value();
 
-        TEST_RESULT(
-            ac->resize(hFile, 2 * detail::sector_device::sector_payload_size));
+        TEST_RESULT(ac->truncate(
+            hFile, 2 * detail::sector_device::sector_payload_size));
+
+        TEST_RESULT_REQUIRE(ac->commit(hFile));
+        TEST_RESULT_REQUIRE(ac->commit());
     }
     {
         auto cloned = archiveFileHandle.clone(0).value();
@@ -179,7 +195,10 @@ BOOST_AUTO_TEST_CASE(archive_file_shrink)
         TEST_RESULT_REQUIRE(fopenrx);
         auto hFile = std::move(fopenrx).assume_value();
 
-        TEST_RESULT(ac->resize(hFile, 0));
+        TEST_RESULT(ac->truncate(hFile, 0));
+
+        TEST_RESULT_REQUIRE(ac->commit(hFile));
+        TEST_RESULT_REQUIRE(ac->commit());
     }
 }
 
@@ -212,6 +231,9 @@ BOOST_AUTO_TEST_CASE(archive_file_erase)
         auto hFile = std::move(fileOpenRx).assume_value();
 
         TEST_RESULT(ac->write(hFile, file, pos));
+
+        TEST_RESULT_REQUIRE(ac->commit(hFile));
+        TEST_RESULT_REQUIRE(ac->commit());
     }
     {
         auto cloned = archiveFileHandle.clone(0).value();
@@ -221,6 +243,8 @@ BOOST_AUTO_TEST_CASE(archive_file_erase)
         auto ac = std::move(openrx).assume_value();
 
         TEST_RESULT(ac->erase(default_file_path));
+
+        TEST_RESULT_REQUIRE(ac->commit());
     }
     {
         auto cloned = archiveFileHandle.clone(0).value();
@@ -239,7 +263,7 @@ BOOST_AUTO_TEST_CASE(archive_empty_userprk)
 {
     using namespace vefs;
 
-    auto archiveFileHandle =vefs::llfio::mapped_temp_inode().value();
+    auto archiveFileHandle = vefs::llfio::mapped_temp_inode().value();
     auto cprov = crypto::boringssl_aes_256_gcm_crypto_provider();
 
     constexpr std::uint64_t pos =
@@ -265,7 +289,11 @@ BOOST_AUTO_TEST_CASE(archive_empty_userprk)
 
         TEST_RESULT(ac->write(hFile, file, pos));
 
-        BOOST_TEST_REQUIRE(ac->size_of(hFile).value() == file.size() + pos);
+        BOOST_TEST_REQUIRE(ac->maximum_extent_of(hFile).value() ==
+                           file.size() + pos);
+
+        TEST_RESULT_REQUIRE(ac->commit(hFile));
+        TEST_RESULT_REQUIRE(ac->commit());
     }
     {
         auto cloned = archiveFileHandle.clone(0).value();
@@ -277,7 +305,8 @@ BOOST_AUTO_TEST_CASE(archive_empty_userprk)
         TEST_RESULT_REQUIRE(fopenrx);
         auto hFile = std::move(fopenrx).assume_value();
 
-        BOOST_TEST_REQUIRE(ac->size_of(hFile).value() == file.size() + pos);
+        BOOST_TEST_REQUIRE(ac->maximum_extent_of(hFile).value() ==
+                           file.size() + pos);
 
         auto readBuffer = std::make_unique<file_type>();
         TEST_RESULT_REQUIRE(ac->read(hFile, span{*readBuffer}, pos));
@@ -290,7 +319,7 @@ BOOST_AUTO_TEST_CASE(archive_query)
 {
     using namespace vefs;
 
-    auto archiveFileHandle =vefs::llfio::mapped_temp_inode().value();
+    auto archiveFileHandle = vefs::llfio::mapped_temp_inode().value();
     auto cprov = crypto::boringssl_aes_256_gcm_crypto_provider();
 
     constexpr std::uint64_t pos =
@@ -316,7 +345,11 @@ BOOST_AUTO_TEST_CASE(archive_query)
 
         TEST_RESULT(ac->write(hFile, file, pos));
 
-        BOOST_TEST_REQUIRE(ac->size_of(hFile).value() == file.size() + pos);
+        BOOST_TEST_REQUIRE(ac->maximum_extent_of(hFile).value() ==
+                           file.size() + pos);
+
+        TEST_RESULT_REQUIRE(ac->commit(hFile));
+        TEST_RESULT_REQUIRE(ac->commit());
     }
     BOOST_TEST_PASSPOINT();
     {
@@ -340,7 +373,7 @@ BOOST_AUTO_TEST_CASE(sqlite_bridge_regression_1)
 {
     using namespace vefs;
 
-    auto archiveFileHandle =vefs::llfio::mapped_temp_inode().value();
+    auto archiveFileHandle = vefs::llfio::mapped_temp_inode().value();
     auto cprov = crypto::boringssl_aes_256_gcm_crypto_provider();
 
     using file_type = std::array<std::byte, 8192>;
@@ -377,7 +410,7 @@ BOOST_AUTO_TEST_CASE(sqlite_bridge_regression_1)
         dataGenerator.fill(fileData);
         TEST_RESULT_REQUIRE(ac->write(f, fileData, 4 * 8192));
 
-        TEST_RESULT_REQUIRE(ac->sync(f));
+        TEST_RESULT_REQUIRE(ac->commit(f));
         f = nullptr;
 
         TEST_RESULT_REQUIRE(ac->erase("blob-test-journal"));
@@ -415,7 +448,7 @@ BOOST_AUTO_TEST_CASE(sqlite_bridge_regression_1)
         dataGenerator.fill(fileData);
         TEST_RESULT_REQUIRE(ac->write(f, fileData.subspan(0, 4), 49164));
 
-        TEST_RESULT_REQUIRE(ac->sync(f));
+        TEST_RESULT_REQUIRE(ac->commit(f));
         f = nullptr;
 
         TEST_RESULT_REQUIRE(ac->erase("blob-test-journal"));

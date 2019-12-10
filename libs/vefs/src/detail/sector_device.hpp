@@ -17,15 +17,25 @@
 #include "root_sector_info.hpp"
 #include "sector_id.hpp"
 
-
 namespace adesso::vefs
 {
     class ArchiveHeader;
-}
+    class FileDescriptor;
+} // namespace adesso::vefs
 
 namespace vefs::detail
 {
-    struct basic_archive_file_meta;
+    struct master_file_info
+    {
+        file_crypto_ctx crypto_ctx;
+        root_sector_info tree_info;
+    };
+
+    struct archive_header_content
+    {
+        master_file_info filesystem_index;
+        master_file_info free_sector_index;
+    };
 
     class sector_device
     {
@@ -40,29 +50,27 @@ namespace vefs::detail
         {
         };
 
-        static constexpr size_t sector_size = 1 << 15;                        // 2^15
-        static constexpr size_t sector_payload_size = sector_size - (1 << 5); // 2^15-2^5
+        static constexpr size_t sector_size = 1 << 15; // 2^15
+        static constexpr size_t sector_payload_size =
+            sector_size - (1 << 5); // 2^15-2^5
 
         static constexpr auto to_offset(sector_id id) -> std::uint64_t;
 
         static auto open(llfio::mapped_file_handle mfh,
-                         crypto::crypto_provider *cryptoProvider, ro_blob<32> userPRK,
-                         bool createNew) -> result<std::unique_ptr<sector_device>>;
+                         crypto::crypto_provider *cryptoProvider,
+                         ro_blob<32> userPRK, bool createNew)
+            -> result<std::unique_ptr<sector_device>>;
 
         ~sector_device() = default;
 
-        auto read_sector(rw_blob<sector_payload_size> contentDest, const file_crypto_ctx &fileCtx,
-                         sector_id sectorIdx, ro_blob<16> contentMAC) noexcept -> result<void>;
-        auto write_sector(rw_blob<16> mac, file_crypto_ctx &fileCtx, sector_id sectorIdx,
-                          ro_blob<sector_payload_size> data) noexcept -> result<void>;
+        auto read_sector(rw_blob<sector_payload_size> contentDest,
+                         const file_crypto_ctx &fileCtx, sector_id sectorIdx,
+                         ro_blob<16> contentMAC) noexcept -> result<void>;
+        auto write_sector(rw_blob<16> mac, file_crypto_ctx &fileCtx,
+                          sector_id sectorIdx,
+                          ro_blob<sector_payload_size> data) noexcept
+            -> result<void>;
         auto erase_sector(sector_id sectorIdx) noexcept -> result<void>;
-
-        result<void> read_sector(rw_blob<sector_payload_size> buffer,
-                                 const basic_archive_file_meta &file, sector_id sectorIdx,
-                                 ro_dynblob contentMAC);
-        result<void> write_sector(rw_blob<sector_payload_size> ciphertextBuffer, rw_dynblob mac,
-                                  basic_archive_file_meta &file, sector_id sectorIdx,
-                                  ro_blob<sector_payload_size> data);
 
         result<void> update_header();
         result<void> update_static_header(ro_blob<32> newUserPRK);
@@ -71,8 +79,7 @@ namespace vefs::detail
         result<void> resize(std::uint64_t numSectors);
         std::uint64_t size() const;
 
-        basic_archive_file_meta &index_file();
-        basic_archive_file_meta &free_sector_index_file();
+        auto archive_header() noexcept -> archive_header_content &;
 
         ro_blob<64> master_secret_view() const;
         ro_blob<16> session_salt_view() const;
@@ -80,29 +87,31 @@ namespace vefs::detail
         const crypto::crypto_provider *crypto() const;
         crypto::atomic_counter &master_secret_counter();
 
-        auto create_file() noexcept -> result<basic_archive_file_meta>;
+        auto create_file_secrets() noexcept
+            -> result<std::unique_ptr<file_crypto_ctx>>;
 
     private:
-        sector_device(llfio::mapped_file_handle mfh, crypto::crypto_provider *cryptoProvider, size_t numSectors);
+        sector_device(llfio::mapped_file_handle mfh,
+                      crypto::crypto_provider *cryptoProvider,
+                      size_t numSectors);
 
         result<void> parse_static_archive_header(ro_blob<32> userPRK);
         result<void> parse_archive_header();
-        result<void> parse_archive_header(std::size_t position, std::size_t size,
+        result<void> parse_archive_header(std::size_t position,
+                                          std::size_t size,
                                           adesso::vefs::ArchiveHeader &out);
 
         result<void> write_static_archive_header(ro_blob<32> userPRK);
 
-        result<void> initialize_file(basic_archive_file_meta &file);
-
-        auto header_size(header_id which) const noexcept;
-        auto header_offset(header_id which) const noexcept;
+        static constexpr auto header_size(header_id which) noexcept
+            -> std::size_t;
+        auto header_offset(header_id which) const noexcept -> std::size_t;
         void switch_header() noexcept;
 
         crypto::crypto_provider *const mCryptoProvider;
         llfio::mapped_file_handle mArchiveFile;
 
-        std::unique_ptr<basic_archive_file_meta> mFreeBlockIdx;
-        std::unique_ptr<basic_archive_file_meta> mArchiveIdx;
+        archive_header_content mHeaderContent;
 
         utils::secure_byte_array<64> mArchiveMasterSecret;
         utils::secure_byte_array<16> mStaticHeaderWriteCounter;
@@ -113,7 +122,7 @@ namespace vefs::detail
 
         std::atomic<uint64_t> mNumSectors;
 
-        size_t mArchiveHeaderOffset;
+        static inline constexpr size_t mArchiveHeaderOffset = 1 << 13;
         header_id mHeaderSelector;
     };
     static_assert(!std::is_default_constructible_v<sector_device>);
@@ -127,10 +136,13 @@ namespace vefs::detail
         return static_cast<std::uint64_t>(id) * sector_size;
     }
 
-    inline auto vefs::detail::sector_device::resize(std::uint64_t numSectors) -> result<void>
+    inline auto vefs::detail::sector_device::resize(std::uint64_t numSectors)
+        -> result<void>
     {
-        VEFS_TRY(bytes_truncated, mArchiveFile.truncate(numSectors * sector_size));
-        if (bytes_truncated != (numSectors * sector_size)) {
+        VEFS_TRY(bytes_truncated,
+                 mArchiveFile.truncate(numSectors * sector_size));
+        if (bytes_truncated != (numSectors * sector_size))
+        {
             return outcome::failure(errc::bad);
         }
         mNumSectors = numSectors;
@@ -142,14 +154,10 @@ namespace vefs::detail
         return mNumSectors.load();
     }
 
-    inline basic_archive_file_meta &sector_device::index_file()
+    inline auto sector_device::archive_header() noexcept
+        -> archive_header_content &
     {
-        return *mArchiveIdx;
-    }
-
-    inline basic_archive_file_meta &sector_device::free_sector_index_file()
-    {
-        return *mFreeBlockIdx;
+        return mHeaderContent;
     }
 
     inline ro_blob<64> sector_device::master_secret_view() const
@@ -174,23 +182,28 @@ namespace vefs::detail
 
 #if defined BOOST_COMP_MSVC_AVAILABLE
 #pragma warning(push)
-#pragma warning(disable : 4146) // unary minus operator on unsigned type in header_offset
+// C4146: unary minus operator on unsigned type in header_offset
+#pragma warning(disable : 4146)
 #endif
 
-    inline auto vefs::detail::sector_device::header_size(header_id which) const noexcept
+    constexpr auto
+    vefs::detail::sector_device::header_size(header_id which) noexcept
+        -> std::size_t
     {
-        return (sector_size - mArchiveHeaderOffset) / 2 +
-               (static_cast<size_t>(which) & mArchiveHeaderOffset);
+        constexpr auto xsize = (sector_size - mArchiveHeaderOffset) / 2;
+        return xsize;
     }
+
     inline auto sector_device::header_offset(header_id which) const noexcept
+        -> std::size_t
     {
-        return mArchiveHeaderOffset +
-               ((-static_cast<std::size_t>(which)) & header_size(header_id::first));
+        return mArchiveHeaderOffset + ((-static_cast<std::size_t>(which)) &
+                                       header_size(header_id::first));
     }
     inline void sector_device::switch_header() noexcept
     {
-        mHeaderSelector =
-            header_id{!static_cast<std::underlying_type_t<header_id>>(mHeaderSelector)};
+        mHeaderSelector = header_id{
+            !static_cast<std::underlying_type_t<header_id>>(mHeaderSelector)};
     }
 
 #if defined BOOST_COMP_MSVC_AVAILABLE

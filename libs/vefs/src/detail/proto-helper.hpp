@@ -3,7 +3,6 @@
 #include <vefs/platform/secure_memzero.hpp>
 #include <vefs/span.hpp>
 
-#include "basic_archive_file_meta.hpp"
 #include "sector_device.hpp"
 
 #if defined BOOST_COMP_MSVC_AVAILABLE
@@ -29,45 +28,6 @@ namespace vefs
     inline bool serialize_to_blob(rw_dynblob out, T &data)
     {
         return data.SerializeToArray(out.data(), static_cast<int>(out.size()));
-    }
-
-    inline void unpack(detail::basic_archive_file_meta &rawFile, adesso::vefs::FileDescriptor &fd)
-    {
-        copy(as_bytes(span(fd.filesecret())), as_span(rawFile.secret));
-        rawFile.write_counter = crypto::counter(as_bytes(span(fd.filesecretcounter())).first<16>());
-        copy(as_bytes(span(fd.startblockmac())), span(rawFile.start_block_mac));
-
-        rawFile.id = detail::file_id{as_bytes(span(fd.fileid())).first<16>()};
-
-        rawFile.start_block_idx = detail::sector_id{fd.startblockidx()};
-        rawFile.size = fd.filesize();
-        rawFile.tree_depth = fd.reftreedepth();
-    }
-    inline std::unique_ptr<detail::basic_archive_file_meta> unpack(adesso::vefs::FileDescriptor &fd)
-    {
-        auto rawFilePtr = std::make_unique<detail::basic_archive_file_meta>();
-        unpack(*rawFilePtr, fd);
-        return rawFilePtr;
-    }
-    inline void pack(adesso::vefs::FileDescriptor &fd,
-                     const detail::basic_archive_file_meta &rawFile)
-    {
-        fd.set_filesecret(rawFile.secret.data(), rawFile.secret.size());
-        auto ctr = rawFile.write_counter.load();
-        fd.set_filesecretcounter(ctr.view().data(), ctr.view().size());
-        fd.set_startblockmac(rawFile.start_block_mac.data(), rawFile.start_block_mac.size());
-
-        fd.set_fileid(rawFile.id.as_uuid().data, utils::uuid::static_size());
-
-        fd.set_startblockidx(static_cast<std::uint64_t>(rawFile.start_block_idx));
-        fd.set_filesize(rawFile.size);
-        fd.set_reftreedepth(rawFile.tree_depth);
-    }
-    inline adesso::vefs::FileDescriptor *pack(const detail::basic_archive_file_meta &rawFile)
-    {
-        auto *fd = new adesso::vefs::FileDescriptor;
-        pack(*fd, rawFile);
-        return fd;
     }
 
     inline void erase_secrets(adesso::vefs::FileDescriptor &fd)

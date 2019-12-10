@@ -100,7 +100,7 @@ namespace vefs::detail
                     on_leak_detected();
                 }
             }
-            return success();
+            return allocation;
         }
 
         auto dealloc_one(const sector_id which) noexcept -> result<void>

@@ -37,8 +37,7 @@ namespace vefs::detail
     private:
         struct node_info
         {
-            node_info(node_allocator_type sectorAllocator,
-                      bool dirty) noexcept
+            node_info(node_allocator_type sectorAllocator, bool dirty) noexcept
                 : mSectorAllocator(std::move(sectorAllocator))
                 , mDirty(dirty)
             {
@@ -239,8 +238,7 @@ namespace vefs::detail
                                      mRootInfo.root.mac));
 
         mNodeInfos[mRootInfo.tree_depth].construct(
-            node_allocator_type{mTreeAllocator, mRootInfo.root.sector},
-            false);
+            node_allocator_type{mTreeAllocator, mRootInfo.root.sector}, false);
         mLoaded = 0;
 
         auto [updateIt, end] = compute_update_range(mCurrentPath, true);
@@ -680,5 +678,21 @@ namespace vefs::detail
     {
         node(0).mDirty = true;
         return mDataBlocks[0];
+    }
+
+    template <typename TreeAllocator>
+    inline auto erase_contiguous(sector_tree_seq<TreeAllocator> &tree,
+                                 std::uint64_t maxExtent) noexcept
+        -> result<void>
+    {
+        if (maxExtent > sector_device::sector_payload_size)
+        {
+            for (auto it = lut::sector_position_of(maxExtent - 1); it > 0; --it)
+            {
+                VEFS_TRY(tree.erase_leaf(it));
+            }
+        }
+
+        return tree.erase_self();
     }
 } // namespace vefs::detail

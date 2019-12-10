@@ -105,6 +105,8 @@ namespace vefs::detail
             inline auto try_lock_shared() -> bool;
             inline void unlock_shared();
 
+            inline auto node_position() noexcept -> tree_position;
+
             inline friend auto as_span(const read_handle &node) noexcept
                 -> ro_blob<sector_device::sector_payload_size>
             {
@@ -135,6 +137,8 @@ namespace vefs::detail
             inline void lock_shared();
             inline auto try_lock_shared() -> bool;
             inline void unlock_shared();
+
+            inline auto node_position() noexcept -> tree_position;
 
             inline friend auto as_span(const write_handle &node) noexcept
                 -> rw_blob<sector_device::sector_payload_size>
@@ -333,6 +337,14 @@ namespace vefs::detail
     }
 
     template <typename TreeAllocator, typename Executor>
+    inline auto sector_tree_mt<TreeAllocator,
+                               Executor>::read_handle::node_position() noexcept
+        -> tree_position
+    {
+        return mSector->node_position();
+    }
+
+    template <typename TreeAllocator, typename Executor>
     void sector_tree_mt<TreeAllocator, Executor>::read_handle::lock()
     {
         mSector->lock_shared();
@@ -398,6 +410,14 @@ namespace vefs::detail
         noexcept
     {
         return mSector.operator bool();
+    }
+
+    template <typename TreeAllocator, typename Executor>
+    inline auto sector_tree_mt<TreeAllocator,
+                               Executor>::write_handle::node_position() noexcept
+        -> tree_position
+    {
+        return mSector->node_position();
     }
 
     template <typename TreeAllocator, typename Executor>
@@ -1150,10 +1170,11 @@ namespace vefs::detail
             return outcome::success();
         }
 
-        using write_handle = typename decltype(tree)::write_handle;
+        using write_handle =
+            typename sector_tree_mt<TreeAllocator, Executor>::write_handle;
 
-        tree_position it{detail::lut::sector_position_of(writePos)};
-        auto offset = writeFilePos % detail::sector_device::sector_payload_size;
+        tree_position it{lut::sector_position_of(writePos)};
+        auto offset = writePos % sector_device::sector_payload_size;
 
         while (data)
         {
@@ -1162,9 +1183,10 @@ namespace vefs::detail
 
             write_handle writableSector{std::move(sector)};
 
-            auto chunked = std::min(chunk.size(), buffer.size());
-            copy(std::exchange(data, data.subspan(chunked)),
-                 as_span(writableSector));
+            auto buffer =
+                as_span(writableSector).subspan(std::exchange(offset, 0));
+            auto chunked = std::min(data.size(), buffer.size());
+            copy(std::exchange(data, data.subspan(chunked)), buffer);
         }
 
         return success();

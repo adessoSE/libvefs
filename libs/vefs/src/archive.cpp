@@ -18,13 +18,12 @@
 #include <vefs/utils/bitset_overlay.hpp>
 #include <vefs/utils/misc.hpp>
 
-#include "archive_file.hpp"
-#include "archive_file_lookup.hpp"
-#include "detail/archive_free_block_list_file.hpp"
-#include "detail/archive_index_file.hpp"
 #include "detail/proto-helper.hpp"
 #include "detail/sector_device.hpp"
 #include "detail/tree_walker.hpp"
+
+#include "detail/archive_sector_allocator.hpp"
+#include "vfilesystem.hpp"
 
 using namespace std::string_view_literals;
 
@@ -32,17 +31,6 @@ using namespace vefs::detail;
 
 namespace vefs
 {
-    archive::file *deref(const archive::file_handle &handle) noexcept
-    {
-        assert(handle);
-        return handle.mData->mWorkingSet.load(std::memory_order_acquire);
-    }
-
-    archive::archive()
-        : mWorkTracker{&thread_pool::shared()}
-    {
-    }
-
     archive::archive(std::unique_ptr<detail::sector_device> primitives)
         : mArchive{std::move(primitives)}
         , mWorkTracker{&thread_pool::shared()}
@@ -50,54 +38,73 @@ namespace vefs
     }
 
     auto archive::open(llfio::mapped_file_handle mfh,
-                       crypto::crypto_provider *cryptoProvider, ro_blob<32> userPRK,
-                       bool createNew) -> result<std::unique_ptr<archive>>
+                       crypto::crypto_provider *cryptoProvider,
+                       ro_blob<32> userPRK, bool createNew)
+        -> result<std::unique_ptr<archive>>
     {
         BOOST_OUTCOME_TRY(primitives,
-                          sector_device::open(std::move(mfh), cryptoProvider, userPRK, createNew));
+                          sector_device::open(std::move(mfh), cryptoProvider,
+                                              userPRK, createNew));
 
         std::unique_ptr<archive> arc{new archive(std::move(primitives))};
+        if (auto alloc = new (std::nothrow)
+                detail::archive_sector_allocator(*arc->mArchive))
+        {
+            arc->mSectorAllocator.reset(alloc);
+        }
+        else
+        {
+            return errc::not_enough_memory;
+        }
 
         if (createNew)
         {
-            if (auto fblrx = free_block_list_file::create_new(*arc))
+            VEFS_TRY_INJECT(arc->mSectorAllocator->initialize_new(),
+                            ed::archive_file{"[free-block-list]"});
+
+            if (auto crx = vfilesystem::create_new(
+                    *arc->mArchive, *arc->mSectorAllocator, arc->mWorkTracker,
+                    arc->mArchive->archive_header().filesystem_index))
             {
-                arc->mFreeBlockIndexFile = std::move(fblrx).assume_value();
+                arc->mFilesystem = std::move(crx).assume_value();
             }
             else
             {
-                fblrx.assume_error() << ed::archive_file{"[free-block-list]"};
-                return std::move(fblrx).as_failure();
-            }
-            if (auto aixrx = index_file::create_new(*arc))
-            {
-                arc->mArchiveIndexFile = std::move(aixrx).assume_value();
-            }
-            else
-            {
-                aixrx.assume_error() << ed::archive_file{"[archive-index]"};
-                return std::move(aixrx).as_failure();
+                crx.assume_error() << ed::archive_file{"[archive-index]"};
+                return std::move(crx).as_failure();
             }
         }
         else
         {
-            if (auto fblrx = free_block_list_file::open(*arc))
+            if (auto crx = vfilesystem::open_existing(
+                    *arc->mArchive, *arc->mSectorAllocator, arc->mWorkTracker,
+                    arc->mArchive->archive_header().filesystem_index))
             {
-                arc->mFreeBlockIndexFile = std::move(fblrx).assume_value();
+                arc->mFilesystem = std::move(crx).assume_value();
             }
             else
             {
-                fblrx.assume_error() << ed::archive_file{"[free-block-list]"};
-                return std::move(fblrx).as_failure();
+                crx.assume_error() << ed::archive_file{"[archive-index]"};
+                return std::move(crx).as_failure();
             }
-            if (auto aixrx = index_file::open(*arc))
+
+            auto &freeSectorHeader =
+                arc->mArchive->archive_header().free_sector_index;
+            if (freeSectorHeader.tree_info.root.sector == sector_id::master)
             {
-                arc->mArchiveIndexFile = std::move(aixrx).assume_value();
+                // #TODO recover archive contents    
+                VEFS_TRY_INJECT(arc->mSectorAllocator->initialize_new(),
+                                ed::archive_file{"[free-block-list]"});
             }
             else
             {
-                aixrx.assume_error() << ed::archive_file{"[archive-index]"};
-                return std::move(aixrx).as_failure();
+                VEFS_TRY_INJECT(arc->mSectorAllocator->initialize_from(
+                                    freeSectorHeader.tree_info,
+                                    freeSectorHeader.crypto_ctx),
+                                ed::archive_file{"[free-block-list]"});
+
+                freeSectorHeader.tree_info = {};
+                VEFS_TRY(arc->mArchive->update_header());
             }
         }
         return std::move(arc);
@@ -105,54 +112,52 @@ namespace vefs
 
     archive::~archive()
     {
-        (void)sync();
+        auto &header = mArchive->archive_header().free_sector_index;
+        if (auto rx = mSectorAllocator->serialize_to(header.crypto_ctx))
+        {
+            header.tree_info = rx.assume_value();
+            (void)mArchive->update_header();
+        }
 
-        mArchiveIndexFile->dispose();
-        mArchiveIndexFile = nullptr;
-        mFreeBlockIndexFile->dispose();
-        mFreeBlockIndexFile = nullptr;
         mWorkTracker.wait();
     }
 
-    auto archive::sync() -> result<void>
+    auto archive::commit() -> result<void>
     {
-        BOOST_OUTCOME_TRY(changes, mArchiveIndexFile->sync(true));
-        if (!changes)
+        if (auto fscommit = mFilesystem->commit())
         {
-            return outcome::success();
+            mArchive->archive_header().filesystem_index.tree_info =
+                fscommit.assume_value();
         }
-
-        VEFS_TRY_INJECT(mFreeBlockIndexFile->sync(), ed::archive_file{"[free-block-list]"});
-        VEFS_TRY_INJECT(mArchive->update_header(), ed::archive_file{"[archive-index]"});
-        return outcome::success();
+        else
+        {
+            fscommit.assume_error() << ed::archive_file{"[archive-index]"};
+            return fscommit.assume_error();
+        }
+        VEFS_TRY_INJECT(mArchive->update_header(),
+                        ed::archive_file{"[archive-header]"});
+        return success();
     }
 
-    void archive::sync_async(std::function<void(op_outcome<void>)> cb)
+    auto archive::open(const std::string_view filePath,
+                       const file_open_mode_bitset mode) -> result<vfile_handle>
     {
-        ops_pool().execute([this, cb = std::move(cb)]() {
-            auto einfo = collect_disappointment([&]() { return sync(); });
-            cb(std::move(einfo));
-        });
+        return mFilesystem->open(filePath, mode);
     }
 
-    auto archive::open(const std::string_view filePath, const file_open_mode_bitset mode)
-        -> result<archive::file_handle>
+    auto archive::query(const std::string_view filePath)
+        -> result<file_query_result>
     {
-        return mArchiveIndexFile->open(filePath, mode);
-    }
-
-    auto archive::query(const std::string_view filePath) -> result<file_query_result>
-    {
-        return mArchiveIndexFile->query(filePath);
+        return mFilesystem->query(filePath);
     }
 
     auto archive::erase(std::string_view filePath) -> result<void>
     {
-        return mArchiveIndexFile->erase(filePath);
+        return mFilesystem->erase(filePath);
     }
 
-    auto archive::read(const file_handle& handle, rw_dynblob buffer, std::uint64_t readFilePos)
-        -> result<void>
+    auto archive::read(const vfile_handle &handle, rw_dynblob buffer,
+                       std::uint64_t readFilePos) -> result<void>
     {
         if (!buffer)
         {
@@ -162,23 +167,20 @@ namespace vefs
         {
             return errc::invalid_argument;
         }
-        auto f = deref(handle);
-        if (&f->owner_ref() != this)
-        {
-            return errc::invalid_argument;
-        }
-        auto readrx = f->read(buffer, readFilePos);
+        auto readrx = handle->read(buffer, readFilePos);
         if (readrx.has_error())
         {
             readrx.assume_error() << ed::archive_file_read_area{ed::file_span{
-                                         readFilePos, readFilePos + buffer.size()}}
-                                  << ed::archive_file{handle.value()->name()};
+                readFilePos, readFilePos + buffer.size()}}
+            /*<<
+               ed::archive_file{handle.value()->name()}*/
+            ;
         }
         return readrx;
     }
 
-    auto archive::write(const file_handle& handle, ro_dynblob data, std::uint64_t writeFilePos)
-        -> result<void>
+    auto archive::write(const vfile_handle &handle, ro_dynblob data,
+                        std::uint64_t writeFilePos) -> result<void>
     {
         if (!data)
         {
@@ -188,74 +190,58 @@ namespace vefs
         {
             return errc::invalid_argument;
         }
-        auto f = file_lookup::deref(handle);
-        if (&f->owner_ref() != this)
-        {
-            return errc::invalid_argument;
-        }
 
-        auto writerx = f->write(data, writeFilePos);
+        auto writerx = handle->write(data, writeFilePos);
         if (writerx.has_error())
         {
             writerx.assume_error() << ed::archive_file_write_area{ed::file_span{
-                                          writeFilePos, writeFilePos + data.size()}}
-                                   << ed::archive_file{handle.value()->name()};
+                writeFilePos, writeFilePos + data.size()}}
+            /*<<
+               ed::archive_file{handle.value()->name()}*/
+            ;
         }
         return writerx;
     }
 
-    auto archive::resize(const file_handle& handle, std::uint64_t size) -> result<void>
+    auto archive::truncate(const vfile_handle &handle, std::uint64_t maxExtent)
+        -> result<void>
     {
         if (!handle)
         {
             return errc::invalid_argument;
         }
-        auto f = file_lookup::deref(handle);
-        if (&f->owner_ref() != this)
-        {
-            return errc::invalid_argument;
-        }
 
-        auto resizerx = f->resize(size);
-        if (resizerx.has_error())
-        {
-            resizerx.assume_error() << ed::archive_file{handle.value()->name()};
-        }
+        auto resizerx = handle->truncate(maxExtent);
+        // if (resizerx.has_error())
+        //{
+        //    resizerx.assume_error() <<
+        //    ed::archive_file{handle.value()->name()};
+        //}
         return resizerx;
     }
 
-    auto archive::size_of(const file_handle& handle) -> result<std::uint64_t>
+    auto archive::maximum_extent_of(const vfile_handle &handle)
+        -> result<std::uint64_t>
     {
         if (!handle)
         {
             return errc::invalid_argument;
         }
-        auto f = file_lookup::deref(handle);
-        if (&f->owner_ref() != this)
-        {
-            return errc::invalid_argument;
-        }
-
-        return f->size();
+        return handle->maximum_extent();
     }
 
-    auto archive::sync(const file_handle& handle) -> result<void>
+    auto archive::commit(const vfile_handle &handle) -> result<void>
     {
         if (!handle)
         {
             return errc::invalid_argument;
         }
-        auto f = file_lookup::deref(handle);
-        if (&f->owner_ref() != this)
-        {
-            return errc::invalid_argument;
-        }
 
-        auto syncrx = f->sync();
-        if (syncrx.has_error())
-        {
-            syncrx.assume_error() << ed::archive_file{handle.value()->name()};
-        }
+        auto syncrx = handle->commit();
+        // if (syncrx.has_error())
+        //{
+        //    syncrx.assume_error() << ed::archive_file{handle.value()->name()};
+        //}
         return syncrx;
     }
 } // namespace vefs

@@ -4,8 +4,8 @@
 
 #include <array>
 
-#include <vefs/span.hpp>
 #include <vefs/platform/secure_memzero.hpp>
+#include <vefs/span.hpp>
 
 namespace vefs::utils
 {
@@ -33,9 +33,13 @@ namespace vefs::utils
         using typename base_type::size_type;
         using typename base_type::value_type;
 
-        secure_array() = default;
-        secure_array(const secure_array &) = default;
-        secure_array(secure_array &&other)
+        secure_array() noexcept = default;
+        explicit secure_array(span<const T, arr_size> other) noexcept
+        {
+            copy(other, as_span(*this));
+        }
+        secure_array(const secure_array &) noexcept = default;
+        secure_array(secure_array &&other) noexcept
             : base_type(other)
         {
             secure_memzero(as_writable_bytes(span_type{other}));
@@ -45,8 +49,8 @@ namespace vefs::utils
             secure_memzero(as_writable_bytes(span_type{*this}));
         }
 
-        secure_array &operator=(const secure_array &) = default;
-        secure_array &operator=(secure_array &&other)
+        secure_array &operator=(const secure_array &) noexcept = default;
+        secure_array &operator=(secure_array &&other) noexcept
         {
             static_cast<base_type &>(*this) = static_cast<base_type &>(other);
             secure_memzero(as_writable_bytes(span_type{other}));

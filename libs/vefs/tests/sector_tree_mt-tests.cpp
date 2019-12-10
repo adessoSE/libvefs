@@ -4,7 +4,6 @@
 #include <vefs/platform/thread_pool.hpp>
 
 #include "../src/detail/archive_sector_allocator.hpp"
-#include "../src/detail/basic_archive_file_meta.hpp" // #TODO to be removed
 
 #include "test-utils.hpp"
 
@@ -89,7 +88,7 @@ struct sector_tree_mt_pre_create_fixture
                                      default_user_prk, true)
                      .value())
         , workExecutor(&thread_pool::shared()) // #TODO create test thread pool
-        , fileCryptoContext()
+        , fileCryptoContext(file_crypto_ctx::zero_init)
         , rootSectorInfo()
     {
     }

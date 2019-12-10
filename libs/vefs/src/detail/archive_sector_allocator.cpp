@@ -74,7 +74,6 @@ namespace vefs::detail
         , mFreeBlockFileRootSector()
         , mSectorsLeaked(false)
     {
-
     }
 
     auto archive_sector_allocator::alloc_one() noexcept -> result<sector_id>
@@ -167,12 +166,15 @@ namespace vefs::detail
 
     auto archive_sector_allocator::initialize_new() noexcept -> result<void>
     {
-        if (mSectorDevice.size() != 1)
-        {
-            return errc::bad;
-        }
-        VEFS_TRY(mSectorDevice.resize(2));
-        mFreeBlockFileRootSector = sector_id{1};
+        //if (mSectorDevice.size() != 1)
+        //{
+        //    return errc::bad;
+        //}
+        //VEFS_TRY(mSectorDevice.resize(2));
+        //mFreeBlockFileRootSector = sector_id{1};
+
+        VEFS_TRY(newRoot, alloc_one());
+        mFreeBlockFileRootSector = newRoot;
 
         return success();
     }
@@ -345,16 +347,22 @@ namespace vefs::detail
             offset += 1;
         }
 
-        while (!idContainer.empty())
+        for (;;)
         {
-            VEFS_TRY(
-                freeSectorTree->move_forward(file_tree::access_mode::force));
+            VEFS_TRY(rootInfo, freeSectorTree->commit());
+            if (idContainer.empty())
+            {
+                rootInfo.maximum_extent =
+                    (freeSectorTree->position().position() + 1) *
+                    sector_device::sector_payload_size;
+                return rootInfo;
+            }
+            else
+            {
+                VEFS_TRY(freeSectorTree->move_forward(
+                    file_tree::access_mode::force));
+            }
         }
-
-        VEFS_TRY(rootInfo, freeSectorTree->commit());
-        rootInfo.maximum_extent = (freeSectorTree->position().position() + 1) *
-                                  sector_device::sector_payload_size;
-        return rootInfo;
     }
 
     auto archive_sector_allocator::trim() noexcept -> result<void>

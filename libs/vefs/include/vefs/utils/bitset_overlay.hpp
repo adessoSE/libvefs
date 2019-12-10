@@ -1,13 +1,13 @@
 #pragma once
 
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
-#include <cassert>
 #include <cstring>
 
 #include <array>
-#include <tuple>
 #include <limits>
+#include <tuple>
 #include <type_traits>
 
 #include <vefs/span.hpp>
@@ -17,20 +17,20 @@ namespace vefs::utils
     namespace bitset_ops
     {
         template <typename Unit>
-        constexpr std::tuple<std::size_t, Unit> offset_and_mask_of(std::size_t bitpos)
+        constexpr std::tuple<std::size_t, Unit>
+        offset_and_mask_of(std::size_t bitpos)
         {
             static_assert(std::is_unsigned_v<Unit>);
 
-            return {
-                bitpos / std::numeric_limits<Unit>::digits,
-                static_cast<Unit>(1) << (bitpos % std::numeric_limits<Unit>::digits)
-            };
+            return {bitpos / std::numeric_limits<Unit>::digits,
+                    static_cast<Unit>(1)
+                        << (bitpos % std::numeric_limits<Unit>::digits)};
         }
 
         template <typename Unit>
         inline void set(Unit *begin, std::size_t bitpos)
         {
-            auto[offset, mask] = offset_and_mask_of<Unit>(bitpos);
+            auto [offset, mask] = offset_and_mask_of<Unit>(bitpos);
 
             begin[offset] |= mask;
         }
@@ -38,7 +38,7 @@ namespace vefs::utils
         template <typename Unit>
         inline void set(Unit *begin, std::size_t bitpos, bool value)
         {
-            auto[offset, mask] = offset_and_mask_of<Unit>(bitpos);
+            auto [offset, mask] = offset_and_mask_of<Unit>(bitpos);
 
             auto bits = -static_cast<std::make_signed_t<Unit>>(value);
             begin[offset] ^= (static_cast<Unit>(bits) ^ begin[offset]) & mask;
@@ -47,7 +47,7 @@ namespace vefs::utils
         template <typename Unit>
         inline void unset(Unit *begin, std::size_t bitpos)
         {
-            auto[offset, mask] = offset_and_mask_of<Unit>(bitpos);
+            auto [offset, mask] = offset_and_mask_of<Unit>(bitpos);
 
             begin[offset] &= ~mask;
         }
@@ -55,7 +55,7 @@ namespace vefs::utils
         template <typename Unit>
         inline void flip(Unit *begin, std::size_t bitpos)
         {
-            auto[offset, mask] = offset_and_mask_of<Unit>(bitpos);
+            auto [offset, mask] = offset_and_mask_of<Unit>(bitpos);
 
             begin[offset] ^= mask;
         }
@@ -63,7 +63,7 @@ namespace vefs::utils
         template <typename Unit>
         inline bool get(const Unit *begin, std::size_t bitpos)
         {
-            auto[offset, mask] = offset_and_mask_of<Unit>(bitpos);
+            auto [offset, mask] = offset_and_mask_of<Unit>(bitpos);
 
             return begin[offset] & mask;
         }
@@ -82,12 +82,11 @@ namespace vefs::utils
             {
                 constexpr std::array<std::uint8_t, 8> lut = {
                     0b0000'0000, 0b0000'0001, 0b0000'0011, 0b0000'0111,
-                    0b0000'1111, 0b0001'1111, 0b0011'1111, 0b0111'1111
-                };
+                    0b0000'1111, 0b0001'1111, 0b0011'1111, 0b0111'1111};
                 *pend |= lut[remaining];
             }
         }
-    }
+    } // namespace bitset_ops
 
     class const_bitset_overlay;
 
@@ -96,10 +95,10 @@ namespace vefs::utils
         friend class const_bitset_overlay;
 
     public:
-        using unit_type = std::size_t;
+        using unit_type = unsigned char;
 
         bitset_overlay(rw_dynblob data)
-            : mBegin(reinterpret_cast<unit_type *>(data.data())) // #UB-Alignment
+            : mBegin(reinterpret_cast<unit_type *>(data.data()))
         {
             assert(data.size() >= sizeof(unit_type));
             assert(data.size() % sizeof(unit_type) == 0);
@@ -180,7 +179,7 @@ namespace vefs::utils
 
         reference operator[](std::size_t bitpos)
         {
-            return reference{ *this, bitpos };
+            return reference{*this, bitpos};
         }
         bool operator[](std::size_t bitpos) const
         {
@@ -194,16 +193,16 @@ namespace vefs::utils
     class const_bitset_overlay
     {
     public:
-        using unit_type = std::size_t;
+        using unit_type = unsigned char;
 
         const_bitset_overlay(ro_dynblob data)
-            : mBegin(reinterpret_cast<const unit_type *>(data.data())) // #UB-Alignment
+            : mBegin(reinterpret_cast<const unit_type *>(data.data()))
         {
             assert(data.size() >= sizeof(unit_type));
             assert(data.size() % sizeof(unit_type) == 0);
         }
         const_bitset_overlay(bitset_overlay other)
-            : mBegin{ other.mBegin }
+            : mBegin{other.mBegin}
         {
         }
 
@@ -217,7 +216,12 @@ namespace vefs::utils
             return get(bitpos);
         }
 
+        auto data() const noexcept -> const unit_type *
+        {
+            return mBegin;
+        }
+
     private:
         const unit_type *mBegin;
     };
-}
+} // namespace vefs::utils

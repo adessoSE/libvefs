@@ -1,7 +1,5 @@
 #include "../src/detail/sector_tree_seq.hpp"
 
-#include "../src/detail/basic_archive_file_meta.hpp" // #TODO to be removed
-
 #include "boost-unit-test.hpp"
 #include "test-utils.hpp"
 
@@ -90,7 +88,7 @@ struct sector_tree_seq_pre_create_fixture
                                      crypto::debug_crypto_provider(),
                                      default_user_prk, true)
                      .value())
-        , fileCryptoContext()
+        , fileCryptoContext(file_crypto_ctx::zero_init)
         , rootSectorInfo()
     {
     }

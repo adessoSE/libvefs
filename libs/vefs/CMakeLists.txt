@@ -13,22 +13,10 @@ DEF_SOURCE_GROUP(vefs "core"
         # it must therefore be a c++ TU
 
         src/archive.cpp
-        src/archive_file.hpp
-        src/archive_file.cpp
-        src/archive_file_lookup.hpp
-        src/archive_file_lookup.cpp
         src/vfile.cpp
         src/vfile.hpp
-
-        src/archive_vfilesystem.cpp
-        src/archive_vfilesystem.hpp
-
-        src/detail/archive_free_block_list_file.hpp
-        src/detail/archive_free_block_list_file.cpp
-        src/detail/archive_index_file.hpp
-        src/detail/archive_index_file.cpp
-        src/detail/archive_internal_file.hpp
-        src/detail/archive_internal_file.cpp
+        src/vfilesystem.cpp
+        src/vfilesystem.hpp
 )
 
 DEF_SOURCE_GROUP(vefs "detail"
@@ -39,11 +27,11 @@ DEF_SOURCE_GROUP(vefs "detail"
         src/detail/cache_page.hpp
 
         src/detail/archive_file_id.hpp
-        src/detail/basic_archive_file_meta.hpp
         src/detail/block_manager.hpp
         src/detail/file_crypto_ctx.cpp
         src/detail/file_crypto_ctx.hpp
         src/detail/reference_sector_layout.hpp
+        src/detail/root_sector_info.cpp
         src/detail/root_sector_info.hpp
         src/detail/sector_device.cpp
         src/detail/sector_device.hpp
@@ -56,6 +44,8 @@ DEF_SOURCE_GROUP(vefs "detail"
 
         src/detail/archive_sector_allocator.cpp
         src/detail/archive_sector_allocator.hpp
+        src/detail/archive_tree_allocator.cpp
+        src/detail/archive_tree_allocator.hpp
         src/detail/cow_tree_allocator_mt.cpp
         src/detail/cow_tree_allocator_mt.hpp
         src/detail/preallocated_tree_allocator.cpp
@@ -246,6 +236,8 @@ add_executable(vefs-tests
     tests/sector_tree_mt-tests.cpp
     tests/sector_tree_seq-tests.cpp
     tests/archive-tests.cpp
+
+    #tests/vfilesystem-tests.cpp
 
     tests/span-tests.cpp
     tests/crypto_provider-tests.cpp

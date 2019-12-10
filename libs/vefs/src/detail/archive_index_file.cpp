@@ -19,10 +19,12 @@ namespace vefs
         , mDirtFlag{}
     {
     }
+
     auto archive::index_file::open(archive &owner) -> result<std::shared_ptr<archive::index_file>>
     {
         return internal_file::open<index_file>(owner);
     }
+
     auto archive::index_file::create_new(archive &owner)
         -> result<std::shared_ptr<archive::index_file>>
     {
