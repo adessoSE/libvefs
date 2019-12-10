@@ -17,6 +17,11 @@ DEF_SOURCE_GROUP(vefs "core"
         src/archive_file.cpp
         src/archive_file_lookup.hpp
         src/archive_file_lookup.cpp
+        src/vfile.cpp
+        src/vfile.hpp
+
+        src/archive_vfilesystem.cpp
+        src/archive_vfilesystem.hpp
 
         src/detail/archive_free_block_list_file.hpp
         src/detail/archive_free_block_list_file.cpp

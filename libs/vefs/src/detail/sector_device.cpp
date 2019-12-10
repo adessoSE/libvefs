@@ -17,7 +17,7 @@
 #include "basic_archive_file_meta.hpp"
 #include "proto-helper.hpp"
 
-using namespace vefs::utils;
+using namespace vefs::utils; // to be refactored
 
 namespace vefs::detail
 {
@@ -30,31 +30,31 @@ namespace vefs::detail
         template <std::size_t N>
         inline auto byte_literal(const char (&arr)[N]) noexcept
         {
-            span literalMem{arr};
+            span<const char, N> literalMem{arr};
             return as_bytes(literalMem.template first<N - 1>());
         }
 
         const auto archive_static_header_kdf_prk =
-            byte_literal(u8"vefs/prk/StaticArchiveHeaderPRK");
+            byte_literal("vefs/prk/StaticArchiveHeaderPRK");
         const auto archive_static_header_kdf_salt =
-            byte_literal(u8"vefs/salt/StaticArchiveHeaderWriteCounter");
+            byte_literal("vefs/salt/StaticArchiveHeaderWriteCounter");
         const auto archive_header_kdf_prk =
-            byte_literal(u8"vefs/prk/ArchiveHeaderPRK");
+            byte_literal("vefs/prk/ArchiveHeaderPRK");
         const auto archive_header_kdf_salt =
-            byte_literal(u8"vefs/salt/ArchiveSecretCounter");
+            byte_literal("vefs/salt/ArchiveSecretCounter");
 
         const auto archive_secret_counter_kdf =
-            byte_literal(u8"vefs/seed/ArchiveSecretCounter");
+            byte_literal("vefs/seed/ArchiveSecretCounter");
         const auto archive_journal_counter_kdf =
-            byte_literal(u8"vefs/seed/JournalCounter");
+            byte_literal("vefs/seed/JournalCounter");
 
-        const auto sector_kdf_salt = byte_literal(u8"vefs/salt/Sector-Salt");
-        const auto sector_kdf_erase = byte_literal(u8"vefs/erase/Sector");
-        const auto sector_kdf_prk = byte_literal(u8"vefs/prk/SectorPRK");
+        const auto sector_kdf_salt = byte_literal("vefs/salt/Sector-Salt");
+        const auto sector_kdf_erase = byte_literal("vefs/erase/Sector");
+        const auto sector_kdf_prk = byte_literal("vefs/prk/SectorPRK");
 
-        const auto file_kdf_secret = byte_literal(u8"vefs/seed/FileSecret");
+        const auto file_kdf_secret = byte_literal("vefs/seed/FileSecret");
         const auto file_kdf_counter =
-            byte_literal(u8"vefs/seed/FileSecretCounter");
+            byte_literal("vefs/seed/FileSecretCounter");
 
 #pragma pack(push, 1)
 

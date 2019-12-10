@@ -6,11 +6,10 @@
 #include <string_view>
 
 #include <vefs/archive_fwd.hpp>
-#include <vefs/span.hpp>
-#include <vefs/platform/thread_pool.hpp>
 #include <vefs/disappointment.hpp>
+#include <vefs/platform/thread_pool.hpp>
+#include <vefs/span.hpp>
 #include <vefs/utils/enum_bitset.hpp>
-
 #include <vefs/utils/ref_ptr.hpp>
 
 #include <vefs/llfio.hpp>
@@ -37,6 +36,9 @@ namespace vefs
         std::size_t size;
     };
 
+    class vfile;
+    using vfile_handle = std::shared_ptr<vfile>;
+
     class archive
     {
         class file_walker;
@@ -57,6 +59,8 @@ namespace vefs
 
         class file_lookup;
         using file_lookup_ptr = utils::ref_ptr<file_lookup>;
+
+        class vfilesystem;
 
     public:
         class file_handle final
@@ -98,8 +102,10 @@ namespace vefs
         auto sync() -> result<void>;
         void sync_async(std::function<void(op_outcome<void>)> cb);
 
-        auto open(const std::string_view filePath, const file_open_mode_bitset mode) -> result<file_handle>;
-        auto query(const std::string_view filePath) -> result<file_query_result>;
+        auto open(const std::string_view filePath,
+                  const file_open_mode_bitset mode) -> result<file_handle>;
+        auto query(const std::string_view filePath)
+            -> result<file_query_result>;
         auto erase(std::string_view filePath) -> result<void>;
         auto read(const file_handle& handle, rw_dynblob buffer, std::uint64_t readFilePos) -> result<void>;
         auto write(const file_handle& handle, ro_dynblob data, std::uint64_t writeFilePos) -> result<void>;
@@ -107,14 +113,22 @@ namespace vefs
         auto size_of(const file_handle& handle) -> result<std::uint64_t>;
         auto sync(const file_handle& handle) -> result<void>;
 
-        void erase_async(std::string filePath, std::function<void(op_outcome<void>)> cb);
-        void read_async(file_handle handle, rw_dynblob buffer, std::uint64_t readFilePos,
-                        std::function<void(op_outcome<void>)> cb);
-        void write_async(file_handle handle, ro_dynblob data, std::uint64_t writeFilePos,
+        void erase_async(std::string filePath,
                          std::function<void(op_outcome<void>)> cb);
-        void resize_async(file_handle handle, std::uint64_t size, std::function<void(op_outcome<void>)> cb);
-        void size_of_async(file_handle handle, std::function<void(op_outcome<std::uint64_t>)> cb);
-        void sync_async(file_handle handle, std::function<void(op_outcome<void>)> cb);
+        void read_async(file_handle handle, rw_dynblob buffer,
+                        std::uint64_t readFilePos,
+                        std::function<void(op_outcome<void>)> cb);
+        void write_async(file_handle handle, ro_dynblob data,
+                         std::uint64_t writeFilePos,
+                         std::function<void(op_outcome<void>)> cb);
+        void resize_async(file_handle handle, std::uint64_t size,
+                          std::function<void(op_outcome<void>)> cb);
+        void size_of_async(file_handle handle,
+                           std::function<void(op_outcome<std::uint64_t>)> cb);
+        void sync_async(file_handle handle,
+                        std::function<void(op_outcome<void>)> cb);
+
+        auto open2() -> result<utils::ref_ptr<file2>>;
 
     private:
         archive();
@@ -128,6 +142,7 @@ namespace vefs
 
         detail::pooled_work_tracker mWorkTracker;
     };
+
 } // namespace vefs
 
 namespace vefs
@@ -180,7 +195,8 @@ namespace vefs
 
         return *this;
     }
-    inline archive::file_handle &archive::file_handle::operator=(const file_handle &other) noexcept
+    inline archive::file_handle &archive::file_handle::
+    operator=(const file_handle &other) noexcept
     {
         if (mData)
         {
@@ -194,7 +210,8 @@ namespace vefs
 
         return *this;
     }
-    inline archive::file_handle &archive::file_handle::operator=(file_handle &&other) noexcept
+    inline archive::file_handle &archive::file_handle::
+    operator=(file_handle &&other) noexcept
     {
         if (mData)
         {
@@ -216,11 +233,13 @@ namespace vefs
         return mData;
     }
 
-    inline bool operator==(const archive::file_handle &lhs, const archive::file_handle &rhs)
+    inline bool operator==(const archive::file_handle &lhs,
+                           const archive::file_handle &rhs)
     {
         return lhs.mData == rhs.mData;
     }
-    inline bool operator!=(const archive::file_handle &lhs, const archive::file_handle &rhs)
+    inline bool operator!=(const archive::file_handle &lhs,
+                           const archive::file_handle &rhs)
     {
         return !(lhs == rhs);
     }

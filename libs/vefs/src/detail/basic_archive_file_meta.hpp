@@ -24,7 +24,7 @@ namespace vefs::detail
 
         auto secret_view() const -> ro_blob<32>
         {
-            return {secret};
+            return as_span(secret);
         }
 
         auto start_block_mac_blob() -> rw_blob<16>

@@ -10,7 +10,6 @@
 #include "test-utils.hpp"
 
 using namespace std::string_view_literals;
-using namespace vefs::blob_literals;
 constexpr std::array<std::byte, 32> default_user_prk{};
 static_assert(default_user_prk.size() == 32);
 
