@@ -113,23 +113,6 @@ namespace vefs
         auto size_of(const file_handle& handle) -> result<std::uint64_t>;
         auto sync(const file_handle& handle) -> result<void>;
 
-        void erase_async(std::string filePath,
-                         std::function<void(op_outcome<void>)> cb);
-        void read_async(file_handle handle, rw_dynblob buffer,
-                        std::uint64_t readFilePos,
-                        std::function<void(op_outcome<void>)> cb);
-        void write_async(file_handle handle, ro_dynblob data,
-                         std::uint64_t writeFilePos,
-                         std::function<void(op_outcome<void>)> cb);
-        void resize_async(file_handle handle, std::uint64_t size,
-                          std::function<void(op_outcome<void>)> cb);
-        void size_of_async(file_handle handle,
-                           std::function<void(op_outcome<std::uint64_t>)> cb);
-        void sync_async(file_handle handle,
-                        std::function<void(op_outcome<void>)> cb);
-
-        auto open2() -> result<utils::ref_ptr<file2>>;
-
     private:
         archive();
         archive(std::unique_ptr<detail::sector_device> primitives);
