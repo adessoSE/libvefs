@@ -91,8 +91,10 @@ namespace vefs::detail
         using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
         inline tree_path() noexcept;
+        // computes the path to position from tree_position{0, 6}
+        inline tree_path(tree_position position) noexcept;
+        // computes the path to position from tree_position{0, treeDepth}
         inline tree_path(int treeDepth, tree_position position) noexcept;
-        inline tree_path(int treeDepth, std::uint64_t pos, int layer = 0) noexcept;
 
         inline tree_position layer_position(int layer) const noexcept;
         inline std::uint64_t position(int layer) const noexcept;
@@ -114,6 +116,8 @@ namespace vefs::detail
         inline tree_path previous() const;
 
     private:
+        inline tree_path(int treeDepth, std::uint64_t pos,
+                         int layer = 0) noexcept;
         inline tree_path(int treeDepth, int targetLayer) noexcept;
 
         /**
@@ -132,7 +136,7 @@ namespace vefs::detail
     class tree_path::iterator
         : public boost::iterator_facade<tree_path::iterator,
             tree_position,
-            boost::bidirectional_traversal_tag,
+            std::bidirectional_iterator_tag,
             tree_position
         >
     {
@@ -277,6 +281,11 @@ namespace vefs::detail
     {
     }
 
+    inline tree_path::tree_path(tree_position position) noexcept
+        : tree_path(lut::max_tree_depth + 1, position)
+    {
+    }
+
     BOOST_FORCEINLINE auto tree_path::calc_waypoint_params(int layer, std::uint64_t pos) -> waypoint
     {
         const auto absolute = pos / lut::ref_width[layer];
@@ -333,7 +342,7 @@ namespace vefs::detail
         : tree_path(treeDepth, layer)
     {
         assert(treeDepth >= 0);
-        assert(treeDepth <= 5);
+        assert(treeDepth <= lut::max_tree_depth + 1);
         assert(layer >= 0);
         assert(layer <= treeDepth);
 

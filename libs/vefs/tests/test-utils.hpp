@@ -76,7 +76,6 @@ namespace fmt
     };
 } // namespace fmt
 
-
 namespace vefs::detail
 {
     template <typename T>

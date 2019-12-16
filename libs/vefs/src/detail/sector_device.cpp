@@ -14,10 +14,9 @@
 
 #include "../crypto/kdf.hpp"
 #include "../platform/sysrandom.hpp"
-#include "basic_archive_file_meta.hpp"
 #include "proto-helper.hpp"
 
-using namespace vefs::utils;
+using namespace vefs::utils; // to be refactored
 
 namespace vefs::detail
 {
@@ -30,31 +29,31 @@ namespace vefs::detail
         template <std::size_t N>
         inline auto byte_literal(const char (&arr)[N]) noexcept
         {
-            span literalMem{arr};
+            span<const char, N> literalMem{arr};
             return as_bytes(literalMem.template first<N - 1>());
         }
 
         const auto archive_static_header_kdf_prk =
-            byte_literal(u8"vefs/prk/StaticArchiveHeaderPRK");
+            byte_literal("vefs/prk/StaticArchiveHeaderPRK");
         const auto archive_static_header_kdf_salt =
-            byte_literal(u8"vefs/salt/StaticArchiveHeaderWriteCounter");
+            byte_literal("vefs/salt/StaticArchiveHeaderWriteCounter");
         const auto archive_header_kdf_prk =
-            byte_literal(u8"vefs/prk/ArchiveHeaderPRK");
+            byte_literal("vefs/prk/ArchiveHeaderPRK");
         const auto archive_header_kdf_salt =
-            byte_literal(u8"vefs/salt/ArchiveSecretCounter");
+            byte_literal("vefs/salt/ArchiveSecretCounter");
 
         const auto archive_secret_counter_kdf =
-            byte_literal(u8"vefs/seed/ArchiveSecretCounter");
+            byte_literal("vefs/seed/ArchiveSecretCounter");
         const auto archive_journal_counter_kdf =
-            byte_literal(u8"vefs/seed/JournalCounter");
+            byte_literal("vefs/seed/JournalCounter");
 
-        const auto sector_kdf_salt = byte_literal(u8"vefs/salt/Sector-Salt");
-        const auto sector_kdf_erase = byte_literal(u8"vefs/erase/Sector");
-        const auto sector_kdf_prk = byte_literal(u8"vefs/prk/SectorPRK");
+        const auto sector_kdf_salt = byte_literal("vefs/salt/Sector-Salt");
+        const auto sector_kdf_erase = byte_literal("vefs/erase/Sector");
+        const auto sector_kdf_prk = byte_literal("vefs/prk/SectorPRK");
 
-        const auto file_kdf_secret = byte_literal(u8"vefs/seed/FileSecret");
+        const auto file_kdf_secret = byte_literal("vefs/seed/FileSecret");
         const auto file_kdf_counter =
-            byte_literal(u8"vefs/seed/FileSecretCounter");
+            byte_literal("vefs/seed/FileSecretCounter");
 
 #pragma pack(push, 1)
 
@@ -82,54 +81,76 @@ namespace vefs::detail
 #pragma pack(pop)
     } // namespace
 
-    result<void>
-    vefs::detail::sector_device::initialize_file(basic_archive_file_meta &file)
+    void pack(archive_header_content &header, adesso::vefs::ArchiveHeader &hd)
     {
-        auto ctrValue = mArchiveSecretCounter.fetch_increment().value();
-        BOOST_OUTCOME_TRY(crypto::kdf(as_span(file.secret),
-                                      master_secret_view(), file_kdf_secret,
-                                      ctrValue, session_salt_view()));
+        adesso::vefs::FileDescriptor fd;
 
-        {
-            crypto::counter::state fileWriteCtrState;
-            ctrValue = mArchiveSecretCounter.fetch_increment().value();
-            BOOST_OUTCOME_TRY(
-                crypto::kdf(as_writable_bytes(as_span(fileWriteCtrState)),
-                            master_secret_view(), file_kdf_counter, ctrValue));
-            file.write_counter.store(crypto::counter{fileWriteCtrState});
-        }
+        header.filesystem_index.crypto_ctx.pack_to(*hd.mutable_archiveindex());
+        header.filesystem_index.tree_info.pack_to(*hd.mutable_archiveindex());
 
-        file.start_block_idx = sector_id{};
-        file.start_block_mac = {};
-        file.size = 0;
-        file.tree_depth = -1;
-
-        return outcome::success();
+        header.free_sector_index.crypto_ctx.pack_to(
+            *hd.mutable_freeblockindex());
+        header.free_sector_index.tree_info.pack_to(
+            *hd.mutable_freeblockindex());
+    }
+    void unpack(archive_header_content &header, adesso::vefs::ArchiveHeader &hd)
+    {
+        header.filesystem_index.crypto_ctx.unpack(*hd.mutable_archiveindex());
+        header.filesystem_index.tree_info =
+            root_sector_info::unpack_from(*hd.mutable_archiveindex());
+        header.free_sector_index.crypto_ctx.unpack(
+            *hd.mutable_freeblockindex());
+        header.free_sector_index.tree_info =
+            root_sector_info::unpack_from(*hd.mutable_freeblockindex());
     }
 
-    auto sector_device::create_file() noexcept
-        -> result<basic_archive_file_meta>
+    // result<void>
+    // vefs::detail::sector_device::initialize_file(basic_archive_file_meta
+    // &file)
+    //{
+    //    auto ctrValue = mArchiveSecretCounter.fetch_increment().value();
+    //    VEFS_TRY(crypto::kdf(as_span(file.secret),
+    //                                  master_secret_view(), file_kdf_secret,
+    //                                  ctrValue, session_salt_view()));
+
+    //    {
+    //        crypto::counter::state fileWriteCtrState;
+    //        ctrValue = mArchiveSecretCounter.fetch_increment().value();
+    //        VEFS_TRY(
+    //            crypto::kdf(as_writable_bytes(as_span(fileWriteCtrState)),
+    //                        master_secret_view(), file_kdf_counter,
+    //                        ctrValue));
+    //        file.write_counter.store(crypto::counter{fileWriteCtrState});
+    //    }
+
+    //    file.start_block_idx = sector_id{};
+    //    file.start_block_mac = {};
+    //    file.size = 0;
+    //    file.tree_depth = -1;
+
+    //    return outcome::success();
+    //}
+
+    auto sector_device::create_file_secrets() noexcept
+        -> result<std::unique_ptr<file_crypto_ctx>>
     {
-        thread_local utils::xoroshiro128plus fileid_prng = []() {
-            std::array<std::uint64_t, 2> randomState{};
-            auto rx = random_bytes(as_writable_bytes(span(randomState)));
-            if (!rx)
-            {
-                throw error_exception{rx.assume_error()};
-            }
+        utils::secure_byte_array<32> fileSecret{};
+        auto ctrValue = mArchiveSecretCounter.fetch_increment().value();
+        VEFS_TRY(crypto::kdf(as_span(fileSecret), master_secret_view(),
+                             file_kdf_secret, ctrValue, session_salt_view()));
 
-            return xoroshiro128plus{randomState[0], randomState[1]};
-        }();
-        thread_local boost::uuids::basic_random_generator generate_fileid{
-            fileid_prng};
+        crypto::counter::state fileWriteCtrState;
+        ctrValue = mArchiveSecretCounter.fetch_increment().value();
+        VEFS_TRY(crypto::kdf(as_writable_bytes(as_span(fileWriteCtrState)),
+                             master_secret_view(), file_kdf_counter, ctrValue));
 
-        basic_archive_file_meta file;
-
-        file.id = file_id{generate_fileid()};
-
-        BOOST_OUTCOME_TRY(initialize_file(file));
-
-        return std::move(file);
+        std::unique_ptr<file_crypto_ctx> ctx{new (std::nothrow) file_crypto_ctx(
+            fileSecret, crypto::counter{fileWriteCtrState})};
+        if (!ctx)
+        {
+            return errc::not_enough_memory;
+        }
+        return std::move(ctx);
     }
 
     sector_device::sector_device(llfio::mapped_file_handle mfh,
@@ -137,6 +158,8 @@ namespace vefs::detail
                                  const size_t numSectors)
         : mCryptoProvider(cryptoProvider)
         , mArchiveFile(std::move(mfh))
+        , mHeaderContent{{file_crypto_ctx::zero_init, {}},
+                         {file_crypto_ctx::zero_init, {}}}
         , mSessionSalt(cryptoProvider->generate_session_salt())
         , mNumSectors(numSectors)
     {
@@ -159,26 +182,31 @@ namespace vefs::detail
             return errc::not_enough_memory;
         }
 
+        VEFS_TRY(archive->mArchiveFile.update_map());
         if (createNew)
         {
-            BOOST_OUTCOME_TRY(archive->resize(1));
+            VEFS_TRY(archive->resize(1));
 
-            BOOST_OUTCOME_TRY(cryptoProvider->random_bytes(
+            VEFS_TRY(cryptoProvider->random_bytes(
                 as_span(archive->mArchiveMasterSecret)));
-            BOOST_OUTCOME_TRY(cryptoProvider->random_bytes(
+            VEFS_TRY(cryptoProvider->random_bytes(
                 as_span(archive->mStaticHeaderWriteCounter)));
 
-            BOOST_OUTCOME_TRY(archive->write_static_archive_header(userPRK));
+            VEFS_TRY(archive->write_static_archive_header(userPRK));
 
-            archive->mFreeBlockIdx =
-                std::make_unique<basic_archive_file_meta>();
-            archive->mFreeBlockIdx->id = file_id::free_block_index;
-            BOOST_OUTCOME_TRY(
-                archive->initialize_file(*archive->mFreeBlockIdx));
+            VEFS_TRY(filesystemSecrets, archive->create_file_secrets());
+            std::destroy_at(
+                &archive->mHeaderContent.filesystem_index.crypto_ctx);
+            new (&archive->mHeaderContent.filesystem_index.crypto_ctx)
+                file_crypto_ctx(span(filesystemSecrets->secret).first<32>(),
+                                filesystemSecrets->write_counter.load());
 
-            archive->mArchiveIdx = std::make_unique<basic_archive_file_meta>();
-            archive->mArchiveIdx->id = file_id::archive_index;
-            BOOST_OUTCOME_TRY(archive->initialize_file(*archive->mArchiveIdx));
+            VEFS_TRY(allocSecrets, archive->create_file_secrets());
+            std::destroy_at(
+                &archive->mHeaderContent.free_sector_index.crypto_ctx);
+            new (&archive->mHeaderContent.free_sector_index.crypto_ctx)
+                file_crypto_ctx(span(allocSecrets->secret).first<32>(),
+                                allocSecrets->write_counter.load());
         }
         else if (archive->size() < 1)
         {
@@ -187,6 +215,7 @@ namespace vefs::detail
         }
         else
         {
+
             VEFS_TRY_INJECT(archive->parse_static_archive_header(userPRK),
                             ed::archive_file{"[archive-static-header]"}
                                 << ed::sector_idx{sector_id::master});
@@ -268,8 +297,8 @@ namespace vefs::detail
                   res_buf_staticHeader[0].end(), staticHeader.begin());
 
         secure_byte_array<44> keyNonce;
-        BOOST_OUTCOME_TRY(crypto::kdf(as_span(keyNonce), userPRK,
-                                      archivePrefix.static_header_salt));
+        VEFS_TRY(crypto::kdf(as_span(keyNonce), userPRK,
+                             archivePrefix.static_header_salt));
 
         if (auto rx = mCryptoProvider->box_open(
                 staticHeader, as_span(keyNonce), staticHeader,
@@ -310,9 +339,6 @@ namespace vefs::detail
         copy(as_bytes(span(staticHeaderMsg.staticarchiveheaderwritecounter())),
              as_span(mStaticHeaderWriteCounter));
 
-        mArchiveHeaderOffset = sizeof(StaticArchiveHeaderPrefix) +
-                               archivePrefix.static_header_length;
-
         return outcome::success();
     }
 
@@ -341,13 +367,13 @@ namespace vefs::detail
             reinterpret_cast<ArchiveHeaderPrefix *>(headerAndPaddingMem.data());
 
         secure_byte_array<44> headerKeyNonce;
-        BOOST_OUTCOME_TRY(crypto::kdf(
-            as_span(headerKeyNonce), master_secret_view(),
-            archive_header_kdf_prk, archiveHeaderPrefix->header_salt));
+        VEFS_TRY(crypto::kdf(as_span(headerKeyNonce), master_secret_view(),
+                             archive_header_kdf_prk,
+                             archiveHeaderPrefix->header_salt));
 
         auto encryptedHeaderPart = headerAndPadding.subspan(
             ArchiveHeaderPrefix::unencrypted_prefix_size);
-        BOOST_OUTCOME_TRY(mCryptoProvider->box_open(
+        VEFS_TRY(mCryptoProvider->box_open(
             encryptedHeaderPart, as_span(headerKeyNonce), encryptedHeaderPart,
             span(archiveHeaderPrefix->header_mac)));
 
@@ -367,11 +393,11 @@ namespace vefs::detail
             !out.has_freeblockindex())
         {
             erase_secrets(out);
-            return error{archive_errc::incompatible_proto};
+            return archive_errc::incompatible_proto;
         }
 
         // #TODO further validation
-        return outcome::success();
+        return success();
     }
 
     result<void> sector_device::parse_archive_header()
@@ -379,8 +405,7 @@ namespace vefs::detail
         using adesso::vefs::ArchiveHeader;
 
         const auto apply = [this](ArchiveHeader &header) {
-            mArchiveIdx = unpack(*header.mutable_archiveindex());
-            mFreeBlockIdx = unpack(*header.mutable_freeblockindex());
+            unpack(mHeaderContent, header);
 
             mArchiveSecretCounter = crypto::counter(
                 as_bytes(span(header.archivesecretcounter())).first<16>());
@@ -411,10 +436,9 @@ namespace vefs::detail
         // determine which header to apply
         if (firstParseResult && secondParseResult)
         {
-            BOOST_OUTCOME_TRY(
-                cmp, mCryptoProvider->ct_compare(
-                         as_bytes(span(first.archivesecretcounter())),
-                         as_bytes(span(second.archivesecretcounter()))));
+            VEFS_TRY(cmp, mCryptoProvider->ct_compare(
+                              as_bytes(span(first.archivesecretcounter())),
+                              as_bytes(span(second.archivesecretcounter()))));
             if (0 == cmp)
             {
                 // both headers are at the same counter value which is an
@@ -474,10 +498,10 @@ namespace vefs::detail
             reinterpret_cast<char *>(mStaticHeaderWriteCounter.data()),
             mStaticHeaderWriteCounter.size()});
 
-        BOOST_OUTCOME_TRY(crypto::kdf(span(headerPrefix.static_header_salt),
-                                      as_span(mStaticHeaderWriteCounter),
-                                      archive_static_header_kdf_salt,
-                                      session_salt_view()));
+        VEFS_TRY(crypto::kdf(span(headerPrefix.static_header_salt),
+                             as_span(mStaticHeaderWriteCounter),
+                             archive_static_header_kdf_salt,
+                             session_salt_view()));
 
         header.set_mastersecret(
             std::string{reinterpret_cast<char *>(mArchiveMasterSecret.data()),
@@ -495,10 +519,10 @@ namespace vefs::detail
         }
 
         secure_byte_array<44> key;
-        BOOST_OUTCOME_TRY(crypto::kdf(as_span(key), userPRK,
-                                      headerPrefix.static_header_salt));
+        VEFS_TRY(crypto::kdf(as_span(key), userPRK,
+                             headerPrefix.static_header_salt));
 
-        BOOST_OUTCOME_TRY(mCryptoProvider->box_seal(
+        VEFS_TRY(mCryptoProvider->box_seal(
             msg, span{headerPrefix.static_header_mac}, as_span(key), msg));
 
         VEFS_TRY(mArchiveFile.write(
@@ -514,67 +538,66 @@ namespace vefs::detail
 
         VEFS_TRY(mArchiveFile.write(sizeof(headerPrefix),
                                     {{msg.data(), msg.size()}}));
-
-        mArchiveHeaderOffset =
-            sizeof(headerPrefix) + headerPrefix.static_header_length;
+        //VEFS_TRY(mArchiveFile.zero(sizeof(headerPrefix) + msg.size(),
+        //                           mArchiveHeaderOffset - sizeof(headerPrefix) -
+        //                               msg.size()));
 
         return outcome::success();
     }
 
-    result<void> sector_device::read_sector(rw_blob<sector_payload_size> buffer,
-                                            const basic_archive_file_meta &file,
-                                            sector_id sectorIdx,
-                                            ro_dynblob contentMAC)
+    auto sector_device::read_sector(rw_blob<sector_payload_size> contentDest,
+                                    const file_crypto_ctx &fileCtx,
+                                    sector_id sectorIdx,
+                                    ro_blob<16> contentMAC) noexcept
+        -> result<void>
     {
-        const auto sectorOffset = to_offset(sectorIdx);
+        using io_buffer = llfio::io_handle::buffer_type;
 
-        if (buffer.size() != sector_device::sector_payload_size)
+        constexpr auto sectorIdxLimit =
+            std::numeric_limits<std::uint64_t>::max() / sector_size;
+        if (sectorIdx == sector_id::master)
+        {
+            return errc::invalid_argument;
+        }
+        if (static_cast<std::uint64_t>(sectorIdx) >= sectorIdxLimit)
+        {
+            return errc::invalid_argument;
+        }
+        if (contentDest.size() != sector_device::sector_payload_size)
         {
             return errc::invalid_argument;
         }
 
-        secure_byte_array<32> sectorSaltMem;
-        span sectorSalt = as_span(sectorSaltMem);
+        const auto sectorOffset = to_offset(sectorIdx);
 
-        // create io request
-        llfio::io_handle::buffer_type buffer_sectorSalt = {nullptr,
-                                                           sectorSalt.size()};
-        llfio::io_handle::io_request<llfio::io_handle::buffers_type>
-            req_sectorSalt(buffer_sectorSalt, sectorOffset);
         // read request
-        VEFS_TRY(res_buf_sectorSalt, mArchiveFile.read(req_sectorSalt));
-        // copy buffer into data structure
-        std::copy(res_buf_sectorSalt[0].begin(), res_buf_sectorSalt[0].end(),
-                  sectorSalt.data());
-
-        // create io request
-        llfio::io_handle::buffer_type buffer_payload = {nullptr, buffer.size()};
-        llfio::io_handle::io_request<llfio::io_handle::buffers_type>
-            req_payload(buffer_payload, sectorOffset + sectorSalt.size());
-        // read request
-        VEFS_TRY(res_buf_payload, mArchiveFile.read(req_payload));
-        // copy buffer into data structure
-        std::copy(res_buf_payload[0].begin(), res_buf_payload[0].end(),
-                  buffer.data());
-
-        secure_byte_array<44> sectorKeyNonce;
-        BOOST_OUTCOME_TRY(crypto::kdf(as_span(sectorKeyNonce),
-                                      file.secret_view(), sector_kdf_prk,
-                                      sectorSalt));
-
-        if (auto decrx = mCryptoProvider->box_open(
-                buffer, as_span(sectorKeyNonce), buffer, contentMAC);
-            decrx.has_failure())
+        io_buffer ioBuffer{nullptr, sector_size};
+        if (auto readrx = mArchiveFile.read({ioBuffer, sectorOffset}))
         {
-            return std::move(decrx).assume_error() << ed::sector_idx{sectorIdx};
+            auto buffers = readrx.assume_value();
+            assert(buffers.size() == 1);
+            assert(buffers[0].size() == ioBuffer.size());
+            assert(buffers[0].data() != nullptr);
+            ioBuffer = buffers[0];
         }
+        else
+        {
+            result<void> adaptedrx{std::move(readrx).assume_error()};
+            adaptedrx.assume_error() << ed::sector_idx{sectorIdx};
+            return adaptedrx;
+        }
+
+        VEFS_TRY_INJECT(fileCtx.unseal_sector(contentDest, *mCryptoProvider,
+                                              ioBuffer, contentMAC),
+                        ed::sector_idx{sectorIdx});
+
         return outcome::success();
     }
 
-    result<void> detail::sector_device::write_sector(
-        rw_blob<sector_payload_size> ciphertextBuffer, rw_dynblob mac,
-        basic_archive_file_meta &file, sector_id sectorIdx,
-        ro_blob<sector_payload_size> data)
+    auto sector_device::write_sector(rw_blob<16> mac, file_crypto_ctx &fileCtx,
+                                     sector_id sectorIdx,
+                                     ro_blob<sector_payload_size> data) noexcept
+        -> result<void>
     {
         constexpr auto sectorIdxLimit =
             std::numeric_limits<std::uint64_t>::max() / sector_size;
@@ -586,63 +609,38 @@ namespace vefs::detail
         {
             return errc::invalid_argument;
         }
-        if (data.size() != sector_device::sector_payload_size)
-        {
-            return errc::invalid_argument;
-        }
-        if (ciphertextBuffer.size() != sector_device::sector_payload_size)
-        {
-            return errc::invalid_argument;
-        }
 
-        std::array<std::byte, 32> salt{};
-        auto nonce = file.write_counter.fetch_increment();
-        BOOST_OUTCOME_TRY(crypto::kdf(span(salt), nonce.view(), sector_kdf_salt,
-                                      mSessionSalt));
-
-        secure_byte_array<44> sectorKeyNonce;
-        BOOST_OUTCOME_TRY(crypto::kdf(
-            as_span(sectorKeyNonce), file.secret_view(), sector_kdf_prk, salt));
-
-        VEFS_TRY_INJECT(mCryptoProvider->box_seal(ciphertextBuffer, mac,
-                                                  as_span(sectorKeyNonce),
-                                                  data),
+        std::array<std::byte, sector_size> ioBuffer;
+        VEFS_TRY_INJECT(fileCtx.seal_sector(ioBuffer, mac, *mCryptoProvider,
+                                            session_salt_view(), data),
                         ed::sector_idx{sectorIdx});
 
         const auto sectorOffset = to_offset(sectorIdx);
 
-        VEFS_TRY_INJECT(
-            mArchiveFile.write(sectorOffset, {{salt.data(), salt.size()}}),
-            ed::sector_idx{sectorIdx});
-
-        VEFS_TRY_INJECT(mArchiveFile.write(sectorOffset + salt.size(),
-                                           {{ciphertextBuffer.data(),
-                                             ciphertextBuffer.size()}}),
+        VEFS_TRY_INJECT(mArchiveFile.write(
+                            sectorOffset, {{ioBuffer.data(), ioBuffer.size()}}),
                         ed::sector_idx{sectorIdx});
 
-        return outcome::success();
+        return success();
     }
 
-    result<void>
-    vefs::detail::sector_device::erase_sector(basic_archive_file_meta &file,
-                                              sector_id sectorIdx)
+    auto sector_device::erase_sector(sector_id sectorIdx) noexcept
+        -> result<void>
     {
         if (sectorIdx == sector_id::master)
         {
             return errc::invalid_argument;
         }
-        std::array<std::byte, 32> saltBuffer{};
-        span salt{saltBuffer};
-
-        auto nonce = file.write_counter.fetch_increment();
-        BOOST_OUTCOME_TRY(
-            crypto::kdf(salt, nonce.view(), sector_kdf_erase, mSessionSalt));
+        std::array<std::byte, 32> salt;
+        auto nonce = mEraseCounter.fetch_add(1, std::memory_order_relaxed);
+        VEFS_TRY(crypto::kdf(salt, mSessionSalt, ro_blob_cast(nonce),
+                             sector_kdf_erase));
 
         const auto offset = to_offset(sectorIdx);
-
-        VEFS_TRY(mArchiveFile.write(offset, {{salt.data(), salt.size()}}));
-
-        return outcome::success();
+        VEFS_TRY_INJECT(
+            mArchiveFile.write(offset, {{salt.data(), salt.size()}}),
+            ed::sector_idx{sectorIdx});
+        return success();
     }
 
     result<void> vefs::detail::sector_device::update_header()
@@ -654,8 +652,7 @@ namespace vefs::detail
         {
             erase_secrets(headerMsg);
         };
-        headerMsg.set_allocated_archiveindex(pack(*mArchiveIdx));
-        headerMsg.set_allocated_freeblockindex(pack(*mFreeBlockIdx));
+        pack(mHeaderContent, headerMsg);
 
         auto secretCtr = mArchiveSecretCounter.fetch_increment().value();
         auto journalCtr = mJournalCounter.load().value();
@@ -686,14 +683,13 @@ namespace vefs::detail
             return archive_errc::protobuf_serialization_failed;
         }
 
-        BOOST_OUTCOME_TRY(crypto::kdf(span{prefix->header_salt},
-                                      as_bytes(as_span(secretCtr)),
-                                      archive_header_kdf_salt, mSessionSalt));
+        VEFS_TRY(crypto::kdf(span{prefix->header_salt},
+                             as_bytes(as_span(secretCtr)),
+                             archive_header_kdf_salt, mSessionSalt));
 
         secure_byte_array<44> headerKeyNonce;
-        BOOST_OUTCOME_TRY(
-            crypto::kdf(as_span(headerKeyNonce), master_secret_view(),
-                        archive_header_kdf_prk, prefix->header_salt));
+        VEFS_TRY(crypto::kdf(as_span(headerKeyNonce), master_secret_view(),
+                             archive_header_kdf_prk, prefix->header_salt));
 
         auto encryptedHeader = span{headerMem}.subspan(
             ArchiveHeaderPrefix::unencrypted_prefix_size);
@@ -712,7 +708,7 @@ namespace vefs::detail
     result<void>
     vefs::detail::sector_device::update_static_header(ro_blob<32> newUserPRK)
     {
-        BOOST_OUTCOME_TRY(write_static_archive_header(newUserPRK));
+        VEFS_TRY(write_static_archive_header(newUserPRK));
 
         // we only need to update one of the two headers as the format is robust
         // enough to deal with the probably corrupt other header

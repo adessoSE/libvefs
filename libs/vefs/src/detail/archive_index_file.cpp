@@ -19,17 +19,19 @@ namespace vefs
         , mDirtFlag{}
     {
     }
+
     auto archive::index_file::open(archive &owner) -> result<std::shared_ptr<archive::index_file>>
     {
         return internal_file::open<index_file>(owner);
     }
+
     auto archive::index_file::create_new(archive &owner)
         -> result<std::shared_ptr<archive::index_file>>
     {
-		VEFS_TRY(self, internal_file::create_new<index_file>(owner));
+        VEFS_TRY(self, internal_file::create_new<index_file>(owner));
 
-		VEFS_TRY(self->resize(detail::sector_device::sector_payload_size));
-		VEFS_TRY(self->mFreeBlocks.dealloc_contiguous(0, blocks_per_sector));
+        VEFS_TRY(self->resize(detail::sector_device::sector_payload_size));
+        VEFS_TRY(self->mFreeBlocks.dealloc_contiguous(0, blocks_per_sector));
 
         return std::move(self);
     }
@@ -229,11 +231,11 @@ namespace vefs
                     {
                         // grow one sector
                         auto oldFileSize = this->size();
-						VEFS_TRY(
-							resize(oldFileSize + detail::sector_device::sector_payload_size));
-						VEFS_TRY(mFreeBlocks.dealloc_contiguous(
-							detail::lut::sector_position_of(oldFileSize) / blocks_per_sector,
-							blocks_per_sector));
+                        VEFS_TRY(
+                            resize(oldFileSize + detail::sector_device::sector_payload_size));
+                        VEFS_TRY(mFreeBlocks.dealloc_contiguous(
+                            detail::lut::sector_position_of(oldFileSize) / blocks_per_sector,
+                            blocks_per_sector));
 
                         newPos = mFreeBlocks.alloc_contiguous(neededBlocks);
                     }

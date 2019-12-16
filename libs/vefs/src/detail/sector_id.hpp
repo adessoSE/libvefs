@@ -20,7 +20,7 @@ namespace vefs::detail
         master = 0,
     };
 
-    inline bool operator<(sector_id lhs, sector_id rhs)
+    inline bool operator<(sector_id lhs, sector_id rhs) // #CPP20 <=> attacks
     {
         return static_cast<std::uint64_t>(lhs) <
                static_cast<std::uint64_t>(rhs);

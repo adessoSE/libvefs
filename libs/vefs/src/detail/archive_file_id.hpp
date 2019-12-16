@@ -4,6 +4,7 @@
 
 #include <fmt/format.h>
 
+#include <vefs/disappointment/error_detail.hpp>
 #include <vefs/span.hpp>
 #include <vefs/utils/hash/default_weak.hpp>
 #include <vefs/utils/uuid.hpp>
