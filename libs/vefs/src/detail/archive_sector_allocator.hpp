@@ -2,8 +2,8 @@
 
 #include <mutex>
 
-#include <vefs/span.hpp>
 #include <vefs/disappointment.hpp>
+#include <vefs/span.hpp>
 
 #include "block_manager.hpp"
 #include "sector_device.hpp"
@@ -24,7 +24,7 @@ namespace vefs::detail
 
         auto alloc_one() noexcept -> result<sector_id>;
         // #TBI multi sector allocation
-        //auto alloc_multiple(span<sector_id> ids) noexcept
+        // auto alloc_multiple(span<sector_id> ids) noexcept
         //    -> result<void>;
 
         auto dealloc_one(sector_id which) noexcept -> result<void>;
@@ -45,6 +45,10 @@ namespace vefs::detail
         void on_leak_detected() noexcept
         {
             mSectorsLeaked = true;
+        }
+        bool sector_leak_detected() noexcept
+        {
+            return mSectorsLeaked;
         }
 
     private:

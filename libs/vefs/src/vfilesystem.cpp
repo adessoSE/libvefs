@@ -6,6 +6,7 @@
 
 #include <vefs/utils/binary_codec.hpp>
 #include <vefs/utils/bit.hpp>
+#include <vefs/utils/bitset_overlay.hpp>
 #include <vefs/utils/random.hpp>
 
 #include "detail/archive_sector_allocator.hpp"
@@ -866,5 +867,48 @@ namespace vefs
         VEFS_TRY(rootInfo, mIndexTree->commit());
         mWriteFlag.unmark();
         return rootInfo;
+    }
+
+    auto vfilesystem::recover_unused_sectors() -> result<void>
+    {
+        // #TODO #refactor performance
+        using inspection_tree =
+            detail::sector_tree_seq<detail::archive_tree_allocator>;
+        auto numSectors = mDevice.size();
+
+        std::vector<std::size_t> allocMap(utils::div_ceil(
+            numSectors, std::numeric_limits<std::size_t>::digits));
+
+        utils::bitset_overlay allocBits{as_writable_bytes(span(allocMap))};
+
+        // precondition the central directory index is currently commited
+        {
+            VEFS_TRY(indexTree, inspection_tree::open_existing(
+                                    mDevice, mInfo.crypto_ctx, mInfo.tree_info,
+                                    mSectorAllocator));
+
+            VEFS_TRY(indexTree->extract_alloc_map(allocBits));
+        }
+
+        auto lockedIndex = mFiles.lock_table();
+
+        for (auto &[id, e] : lockedIndex)
+        {
+            VEFS_TRY(tree, inspection_tree::open_existing(
+                               mDevice, *e.crypto_ctx, e.tree_info,
+                               mSectorAllocator));
+
+            VEFS_TRY(tree->extract_alloc_map(allocBits));
+        }
+
+        for (std::size_t i = 1; i < numSectors; ++i)
+        {
+            if (!allocBits[i])
+            {
+                VEFS_TRY(mSectorAllocator.dealloc_one(detail::sector_id{i}));
+            }
+        }
+
+        return success();
     }
 } // namespace vefs

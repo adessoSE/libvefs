@@ -79,6 +79,8 @@ namespace vefs
 
         auto commit() -> result<detail::root_sector_info>;
 
+        auto recover_unused_sectors() -> result<void>;
+
     private:
         auto open_existing_impl() -> result<void>;
         auto create_new_impl() -> result<void>;
