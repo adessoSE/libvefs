@@ -84,6 +84,7 @@ namespace vefs
             }
             else
             {
+                arc->mSectorAllocator.reset();
                 crx.assume_error() << ed::archive_file{"[archive-index]"};
                 return std::move(crx).as_failure();
             }
@@ -113,7 +114,7 @@ namespace vefs
 
     archive::~archive()
     {
-        if (!mSectorAllocator->sector_leak_detected())
+        if (mSectorAllocator && !mSectorAllocator->sector_leak_detected())
         {
             auto &header = mArchive->archive_header().free_sector_index;
             if (auto rx = mSectorAllocator->serialize_to(header.crypto_ctx))
