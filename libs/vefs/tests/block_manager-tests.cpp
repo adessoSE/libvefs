@@ -86,7 +86,7 @@ BOOST_AUTO_TEST_CASE(write_zero_to_bitset_does_not_change_anything)
     auto resultBitset = vefs::utils::make_byte_array(0xFF, 0xFF, 0xFF, 0xFF,
                                                      0xFF, 0xFF, 0xFF, 0xFF);
 
-    BOOST_TEST(serializedDataStorage == resultBitset);
+   BOOST_CHECK_EQUAL_COLLECTIONS(serializedDataStorage.begin(), serializedDataStorage.end(), resultBitset.begin(), resultBitset.end());
 }
 
 BOOST_AUTO_TEST_CASE(write_to_bitset_zeros_all_empty_blocks_indizes)
@@ -102,10 +102,9 @@ BOOST_AUTO_TEST_CASE(write_to_bitset_zeros_all_empty_blocks_indizes)
 
     (void)test_subject.write_to_bitset(allocMap, 0, 50);
 
-    auto resultBitset = vefs::utils::make_byte_array(0x00, 0x00, 0xF0, 0xFF,
-                                                     0xFF, 0xFF, 0xFF, 0xFF);
+    auto resultBitset = vefs::utils::make_byte_array(0x00, 0x00, 0xF0, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF);
 
-    BOOST_TEST(serializedDataStorage == resultBitset);
+    BOOST_CHECK_EQUAL_COLLECTIONS(serializedDataStorage.begin(), serializedDataStorage.end(), resultBitset.begin(), resultBitset.end());
 }
 
 BOOST_AUTO_TEST_CASE(write_to_bitset_zeros_all_empty_blocks_indizes2)
@@ -124,7 +123,7 @@ BOOST_AUTO_TEST_CASE(write_to_bitset_zeros_all_empty_blocks_indizes2)
     auto resultBitset = vefs::utils::make_byte_array(0x00, 0xF8, 0xFF, 0xFF,
                                                      0xFF, 0xFF, 0xFF, 0xFF);
 
-    BOOST_TEST(serializedDataStorage == resultBitset);
+    BOOST_CHECK_EQUAL_COLLECTIONS(serializedDataStorage.begin(), serializedDataStorage.end(), resultBitset.begin(), resultBitset.end());
 }
 
 BOOST_AUTO_TEST_CASE(write_to_bitset_sets_all_bits_for_used_blocks)
@@ -139,10 +138,10 @@ BOOST_AUTO_TEST_CASE(write_to_bitset_sets_all_bits_for_used_blocks)
 
     (void)test_subject.write_to_bitset(allocMap, 0, 50);
 
-    auto result_bitset = vefs::utils::make_byte_array(0x00, 0x00, 0xF0, 0x1F,
-                                                      0x00, 0xFF, 0x03, 0x00);
+    auto resultBitset =
+        vefs::utils::make_byte_array(0x00, 0x00, 0xF0, 0x1F, 0x00, 0xFF, 0x03, 0x00);
 
-    BOOST_TEST(serializedDataStorage == result_bitset);
+    BOOST_CHECK_EQUAL_COLLECTIONS(serializedDataStorage.begin(), serializedDataStorage.end(), resultBitset.begin(), resultBitset.end());
 }
 
 BOOST_AUTO_TEST_CASE(parse_to_bitset_configures_deallocates_zero_bits)
