@@ -6,6 +6,7 @@
 
 #include <vefs/utils/binary_codec.hpp>
 #include <vefs/utils/bit.hpp>
+#include <vefs/utils/bitset_overlay.hpp>
 #include <vefs/utils/random.hpp>
 
 #include "detail/archive_sector_allocator.hpp"
@@ -39,8 +40,8 @@ namespace vefs
         static constexpr inline auto sector_payload_size =
             detail::sector_device::sector_payload_size;
 
-        static constexpr auto block_size = 64u;
-        static constexpr auto alloc_map_size = 64u;
+        static constexpr std::uint64_t block_size = 64u;
+        static constexpr std::uint64_t alloc_map_size = 64u;
         static constexpr auto blocks_per_sector =
             (sector_payload_size - alloc_map_size) / block_size;
 
@@ -220,12 +221,18 @@ namespace vefs
                                 std::uint64_t size)
                 : google::protobuf::io::ZeroCopyOutputStream()
                 , mOwner(owner)
+                , mLastError()
                 , mCurrentSector()
                 , mCurrentBuffer()
                 , mPosition(start)
                 , mRemaining(size)
                 , mByteCount(0)
             {
+            }
+
+            auto last_error() -> const error &
+            {
+                return mLastError;
             }
 
         private:
@@ -236,6 +243,9 @@ namespace vefs
 
                 if (mRemaining == 0)
                 {
+                    mLastError = errc::resource_exhausted;
+                    mLastError << ed::archive_file_write_area{
+                        {mPosition - mByteCount, mPosition}};
                     return false;
                 }
 
@@ -252,6 +262,9 @@ namespace vefs
                     }
                     else
                     {
+                        mLastError = errc::resource_exhausted;
+                        mLastError << ed::archive_file_write_area{
+                            {mPosition - mByteCount, mPosition + mRemaining}};
                         return false;
                     }
                     mOwner.write_block_header(mCurrentSector);
@@ -283,6 +296,7 @@ namespace vefs
             }
 
             index_tree_layout &mOwner;
+            error mLastError;
             tree_type::write_handle mCurrentSector;
             rw_dynblob mCurrentBuffer;
             std::uint64_t mPosition;
@@ -291,9 +305,11 @@ namespace vefs
         };
 
     public:
-        index_tree_layout(tree_type &indexTree, block_manager &indexBlocks)
+        index_tree_layout(tree_type &indexTree, block_manager &indexBlocks,
+                          detail::tree_position lastAllocated)
             : mIndexTree(indexTree)
             , mIndexBlocks(indexBlocks)
+            , mLastAllocated(lastAllocated)
         {
         }
 
@@ -363,6 +379,7 @@ namespace vefs
                         std::move(*descriptor.mutable_filepath()), id);
                 }
 
+                mLastAllocated = currentPosition;
                 currentPosition.position(currentPosition.position() + 1);
                 if (auto accessrx = mIndexTree.access(currentPosition))
                 {
@@ -418,11 +435,15 @@ namespace vefs
         {
             pack(entry, descriptor);
 
-            const auto size = descriptor.ByteSizeLong();
+            const std::size_t size = descriptor.ByteSizeLong();
             assert(size <= std::numeric_limits<std::uint16_t>::max());
 
-            const auto neededBlocks = static_cast<int>(
-                utils::div_ceil(size + sizeof(std::uint16_t), block_size));
+            constexpr auto prefixSize = sizeof(std::uint16_t);
+            const auto fullSize = size + prefixSize;
+
+            const auto neededBlocks =
+                static_cast<int>(utils::div_ceil(fullSize, block_size));
+            const auto reservedSpace = (neededBlocks * block_size) - prefixSize;
 
             VEFS_TRY(reallocate(entry, neededBlocks));
 
@@ -433,13 +454,17 @@ namespace vefs
                 VEFS_TRY(write(mIndexTree, ro_blob_cast(prefix), start));
             }
 
-            protobuf_out_buffer vBuffer(*this, start + sizeof(std::uint16_t),
-                                        entry.num_reserved_blocks * block_size -
-                                            sizeof(std::uint16_t));
+            protobuf_out_buffer vBuffer(*this, start + prefixSize,
+                                        reservedSpace);
 
             if (!descriptor.SerializeToZeroCopyStream(&vBuffer))
             {
-                return archive_errc::corrupt_index_entry;
+                error e{archive_errc::vfilesystem_entry_serialization_failed};
+                if (vBuffer.last_error())
+                {
+                    e << ed::wrapped_error{vBuffer.last_error()};
+                }
+                return std::move(e);
             }
             entry.needs_index_update = false;
             return success();
@@ -461,6 +486,11 @@ namespace vefs
             }
 
             return success();
+        }
+
+        auto last_allocated() const noexcept -> detail::tree_position
+        {
+            return mLastAllocated;
         }
 
     private:
@@ -487,21 +517,17 @@ namespace vefs
                             position, position + reserved - 1, diff))
                     {
                         position = extendrx.assume_value();
-                        reserved = neededBlocks;
                     }
                     else
                     {
                         VEFS_TRY(decommission_blocks(position, reserved));
                         position = -1;
-                        reserved = 0;
                     }
                 }
                 else
                 {
                     VEFS_TRY(
                         decommission_blocks(position + neededBlocks, -diff));
-                    position = -1;
-                    reserved = 0;
                 }
             }
             if (position < 0)
@@ -509,10 +535,10 @@ namespace vefs
                 auto allocrx = mIndexBlocks.alloc_contiguous(neededBlocks);
                 while (!allocrx)
                 {
-                    auto firstNewAllocatedBlock =
-                        mLastAllocated.position() * blocks_per_sector;
                     mLastAllocated =
                         detail::tree_position(mLastAllocated.position() + 1);
+                    auto firstNewAllocatedBlock =
+                        mLastAllocated.position() * blocks_per_sector;
 
                     VEFS_TRY(mIndexTree.access_or_create(mLastAllocated));
 
@@ -522,10 +548,9 @@ namespace vefs
                     allocrx = mIndexBlocks.alloc_contiguous(neededBlocks);
                 }
                 position = allocrx.assume_value();
-                reserved = neededBlocks;
             }
             entry.index_file_position = position;
-            entry.num_reserved_blocks = reserved;
+            entry.num_reserved_blocks = neededBlocks;
             return success();
         }
 
@@ -601,8 +626,27 @@ namespace vefs
             return std::move(openTreeRx).as_failure();
         }
 
-        index_tree_layout layout{*mIndexTree, mIndexBlocks};
+        // #TODO remove backward compat
+        if (/*mInfo.tree_info.maximum_extent == 0 ||*/
+            mInfo.tree_info.maximum_extent %
+                detail::sector_device::sector_payload_size !=
+            0)
+        {
+            return archive_errc::vfilesystem_invalid_size;
+        }
+
+        detail::tree_position lastAllocated(detail::lut::sector_position_of(
+            mInfo.tree_info.maximum_extent - 1));
+        index_tree_layout layout{*mIndexTree, mIndexBlocks, lastAllocated};
         VEFS_TRY(layout.parse(*this));
+
+        // #TODO remove backward compat
+        if (mInfo.tree_info.maximum_extent == 0)
+        {
+            mInfo.tree_info.maximum_extent =
+                layout.last_allocated().position() *
+                detail::sector_device::sector_payload_size;
+        }
 
         return success();
     }
@@ -638,6 +682,8 @@ namespace vefs
             return std::move(createTreeRx).as_failure();
         }
 
+        mInfo.tree_info.maximum_extent =
+            detail::sector_device::sector_payload_size;
         VEFS_TRY(mIndexBlocks.dealloc_contiguous(
             0, index_tree_layout::blocks_per_sector));
         mWriteFlag.mark();
@@ -762,7 +808,11 @@ namespace vefs
 
             if (victim.index_file_position >= 0)
             {
-                index_tree_layout layout(*mIndexTree, mIndexBlocks);
+                detail::tree_position lastAllocated{
+                    detail::lut::sector_position_of(
+                        mInfo.tree_info.maximum_extent - 1)};
+                index_tree_layout layout(*mIndexTree, mIndexBlocks,
+                                         lastAllocated);
                 VEFS_TRY(layout.decommission_blocks(
                     victim.index_file_position, victim.num_reserved_blocks));
             }
@@ -829,7 +879,9 @@ namespace vefs
         auto lockedIndex = mIndex.lock_table();
 
         adesso::vefs::FileDescriptor descriptor;
-        index_tree_layout layout(*mIndexTree, mIndexBlocks);
+        detail::tree_position lastAllocated{detail::lut::sector_position_of(
+            mInfo.tree_info.maximum_extent - 1)};
+        index_tree_layout layout(*mIndexTree, mIndexBlocks, lastAllocated);
 
         for (const auto &[path, fid] : lockedIndex)
         {
@@ -864,7 +916,52 @@ namespace vefs
         }
 
         VEFS_TRY(rootInfo, mIndexTree->commit());
+        rootInfo.maximum_extent = (layout.last_allocated().position() + 1) *
+                                  detail::sector_device::sector_payload_size;
         mWriteFlag.unmark();
         return rootInfo;
+    }
+
+    auto vfilesystem::recover_unused_sectors() -> result<void>
+    {
+        // #TODO #refactor performance
+        using inspection_tree =
+            detail::sector_tree_seq<detail::archive_tree_allocator>;
+        auto numSectors = mDevice.size();
+
+        std::vector<std::size_t> allocMap(utils::div_ceil(
+            numSectors, std::numeric_limits<std::size_t>::digits));
+
+        utils::bitset_overlay allocBits{as_writable_bytes(span(allocMap))};
+
+        // precondition the central directory index is currently commited
+        {
+            VEFS_TRY(indexTree, inspection_tree::open_existing(
+                                    mDevice, mInfo.crypto_ctx, mInfo.tree_info,
+                                    mSectorAllocator));
+
+            VEFS_TRY(indexTree->extract_alloc_map(allocBits));
+        }
+
+        auto lockedIndex = mFiles.lock_table();
+
+        for (auto &[id, e] : lockedIndex)
+        {
+            VEFS_TRY(tree, inspection_tree::open_existing(
+                               mDevice, *e.crypto_ctx, e.tree_info,
+                               mSectorAllocator));
+
+            VEFS_TRY(tree->extract_alloc_map(allocBits));
+        }
+
+        for (std::size_t i = 1; i < numSectors; ++i)
+        {
+            if (!allocBits[i])
+            {
+                VEFS_TRY(mSectorAllocator.dealloc_one(detail::sector_id{i}));
+            }
+        }
+
+        return success();
     }
 } // namespace vefs

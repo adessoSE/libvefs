@@ -237,7 +237,7 @@ add_executable(vefs-tests
     tests/sector_tree_seq-tests.cpp
     tests/archive-tests.cpp
 
-    #tests/vfilesystem-tests.cpp
+    tests/vfilesystem-tests.cpp
 
     tests/span-tests.cpp
     tests/crypto_provider-tests.cpp
