@@ -49,10 +49,7 @@ BOOST_AUTO_TEST_CASE(recover_sectors_simple)
     TEST_RESULT_REQUIRE(vfilerx.assume_value()->commit());
     vfilerx.assume_value() = nullptr;
 
-    auto commitrx = vfs->commit();
-    TEST_RESULT_REQUIRE(commitrx);
-    device->archive_header().filesystem_index.tree_info =
-        commitrx.assume_value();
+    TEST_RESULT_REQUIRE(vfs->commit());
 
     vfs.reset();
     std::destroy_at(&sectorAllocator);
