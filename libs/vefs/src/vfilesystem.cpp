@@ -815,6 +815,12 @@ namespace vefs
                                          lastAllocated);
                 VEFS_TRY(layout.decommission_blocks(
                     victim.index_file_position, victim.num_reserved_blocks));
+
+                // the file becomes unusable afterwards,
+                // therefore we update the index first which prevents
+                // us from trying to reparse the file on crash and reopen
+                // #TODO properly implement error rollback
+                VEFS_TRY(commit());
             }
 
             // #TODO enqueue on an executor
@@ -869,11 +875,11 @@ namespace vefs
         return success();
     }
 
-    auto vfilesystem::commit() -> result<detail::root_sector_info>
+    auto vfilesystem::commit() -> result<void>
     {
         if (!mWriteFlag.is_dirty())
         {
-            return mInfo.tree_info; // #FIXME #HACK
+            return success();
         }
 
         auto lockedIndex = mIndex.lock_table();
@@ -901,6 +907,8 @@ namespace vefs
                     if (auto syncrx = layout.sync_to_tree(e, descriptor);
                         !syncrx)
                     {
+                        syncrx.assume_error()
+                            << ed::archive_file{"[archive-index]"};
                         throw error_exception(std::move(syncrx).assume_error());
                     }
                 });
@@ -915,11 +923,16 @@ namespace vefs
             }
         }
 
-        VEFS_TRY(rootInfo, mIndexTree->commit());
+        VEFS_TRY(rootInfo, mIndexTree->commit()); // #FIXME
         rootInfo.maximum_extent = (layout.last_allocated().position() + 1) *
                                   detail::sector_device::sector_payload_size;
+
+        mDevice.archive_header().filesystem_index.tree_info = rootInfo;
+        VEFS_TRY_INJECT(mDevice.update_header(),
+                        ed::archive_file{"[archive-header]"});
+
         mWriteFlag.unmark();
-        return rootInfo;
+        return success();
     }
 
     auto vfilesystem::recover_unused_sectors() -> result<void>

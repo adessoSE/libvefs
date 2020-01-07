@@ -1,7 +1,7 @@
 libvefs
 Copyright
 - 2017-2018 adesso AG
-- 2018 Henrik S. Gaßmann
+- 2018-2019 Henrik S. Gaßmann
 
 This project uses and distributes the source of Cameron Desrochers' concurrentqueue
 under the terms of the Boost Software License (http://www.boost.org/LICENSE_1_0.txt).
