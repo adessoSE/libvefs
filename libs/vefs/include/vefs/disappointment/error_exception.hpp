@@ -16,7 +16,7 @@ namespace vefs
 
         const char *what() const noexcept override;
 
-        auto error() noexcept -> vefs::error;
+        auto error() const noexcept -> vefs::error;
 
     private:
         mutable vefs::error mErr;
@@ -29,7 +29,7 @@ namespace vefs
     {
     }
 
-    inline auto error_exception::error() noexcept -> vefs::error
+    inline auto error_exception::error() const noexcept -> vefs::error
     {
         return mErr;
     }

@@ -5,7 +5,7 @@
 
 #include <google/protobuf/stubs/common.h>
 
-#include <vefs/crypto/provider.hpp>
+#include "../src/crypto/provider.hpp"
 
 using namespace boost::unit_test;
 

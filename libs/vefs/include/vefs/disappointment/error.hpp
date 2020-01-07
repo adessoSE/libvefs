@@ -89,7 +89,7 @@ namespace vefs
         fmt::string_view wrappedFormat{ detailFormat };
         for (const auto &detail : mDetails)
         {
-            fmt::format_to<fmt::string_view>(out, wrappedFormat);
+            fmt::format_to(out, wrappedFormat);
             detail.second->stringify(out);
         }
     }
@@ -389,12 +389,9 @@ namespace fmt
     template<>
     class formatter<vefs::error>
     {
-        using buffer = internal::buffer;
-
     public:
         template <typename ParseContext>
         constexpr auto parse(ParseContext &ctx)
-            -> const char *
         {
             constexpr auto errfmt = "invalid error_info formatter";
 
@@ -412,7 +409,7 @@ namespace fmt
                 const auto val = *xit;
                 switch (state)
                 {
-                case 0:
+                case 0: // start-state
                     switch (val)
                     {
                     case ':': // this should actually lead to a unique state but I'm lazy
@@ -441,7 +438,7 @@ namespace fmt
                     }
                     break;
 
-                case 1:
+                case 1: // "!" was parsed
                     if (val != 'v')
                     {
                         ctx.on_error(errfmt);
@@ -450,7 +447,7 @@ namespace fmt
                     error_format = vefs::error_message_format::simple;
                     break;
 
-                case 2:
+                case 2: // "v" was parsed
                     if (val != '}')
                     {
                         ctx.on_error(errfmt);
@@ -466,7 +463,6 @@ namespace fmt
 
         template <typename FormatContext>
         auto format(const vefs::error &info, FormatContext &ctx)
-            -> decltype(ctx.out())
         {
             auto str = info.diagnostic_information(error_format);
             return std::copy(str.cbegin(), str.cend(), ctx.out());

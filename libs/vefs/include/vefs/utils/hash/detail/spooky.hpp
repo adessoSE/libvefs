@@ -3,7 +3,7 @@
 #include <cstddef>
 #include <cstdint>
 
-#include <vefs/blob.hpp>
+#include <vefs/span.hpp>
 #include <vefs/utils/hash/algorithm_tag.hpp>
 #include <vefs/utils/hash/detail/SpookyV2_impl.hpp>
 

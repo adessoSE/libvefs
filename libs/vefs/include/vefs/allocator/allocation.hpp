@@ -4,7 +4,7 @@
 
 #include <stdexcept>
 
-#include <vefs/blob.hpp>
+#include <vefs/span.hpp>
 #include <vefs/disappointment.hpp>
 
 namespace vefs::detail
@@ -61,33 +61,5 @@ namespace vefs::detail
     }
 
     using allocation_result = result<memory_allocation>;
-
-    template <typename T>
-    constexpr auto make_allocator() noexcept -> result<T>
-    {
-        if constexpr (noexcept(T()))
-        {
-            return outcome::success(T());
-        }
-        else
-        {
-            try
-            {
-                return outcome::success(T());
-            }
-            catch (const std::bad_alloc &)
-            {
-                return errc::not_enough_memory;
-            }
-            catch (const error_exception &exc)
-            {
-                return exc.error();
-            }
-            catch (...)
-            {
-                return error{errc::bad};
-            }
-        }
-    }
 
 } // namespace vefs::detail

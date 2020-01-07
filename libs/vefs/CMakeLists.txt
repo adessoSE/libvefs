@@ -1,86 +1,63 @@
 
-if (CMAKE_SYSTEM_NAME STREQUAL "Linux")
-    set(OS_FILESYSTEM_SRC src/os_filesystem_linux.cpp)
-elseif(CMAKE_SYSTEM_NAME STREQUAL "Windows")
-    set(OS_FILESYSTEM_SRC src/os_filesystem_win.cpp)
-endif()
-
 add_library(vefs)
 
-DEF_SOURCE_GROUP(vefs "utils"
-    SOURCES
-        # the precompiled.cpp _must_ be the first source file
-        # due to cotire limitations
-        src/precompiled.cpp
-        src/precompiled.hpp
-
-    HEADERS
-        vefs.natvis
-        include/vefs/utils/secure_ops.hpp
-        include/vefs/utils/secure_array.hpp
-        include/vefs/utils/secure_allocator.hpp
-
-        include/vefs/utils/misc.hpp
-        include/vefs/utils/ref_ptr.hpp
-        include/vefs/utils/dirt_flag.hpp
-        include/vefs/utils/platform.hpp
-        include/vefs/utils/windows-proper.h
-
-        include/vefs/utils/uuid.hpp
-        include/vefs/utils/random.hpp
-
-        include/vefs/utils/enum_bitset.hpp
-        include/vefs/utils/bit_scan.hpp
-        include/vefs/utils/bitset_overlay.hpp
-
-        include/vefs/utils/hash/algorithm_tag.hpp
-        include/vefs/utils/hash/default_weak.hpp
-        include/vefs/utils/hash/detail/std_adaptor.hpp
-
-        include/vefs/utils/unordered_map_mt.hpp
-
-    SOURCES
-        src/platform.cpp
-
-        src/secure_ops.cpp
-
-        src/block_manager.hpp
-
-        src/utf.hpp
-        src/utf.cpp
-
-        src/proto-helper.hpp
-)
-
-DEF_SOURCE_GROUP(vefs "lib"
+DEF_SOURCE_GROUP(vefs "core"
     HEADERS
         include/vefs/archive.hpp
         include/vefs/archive_fwd.hpp
-        include/vefs/exceptions.hpp
-        include/vefs/blob.hpp
-        include/vefs/filesystem.hpp
+        include/vefs/llfio.hpp
+        include/vefs/span.hpp
 
     SOURCES
-        src/archive.cpp
-        src/archive_file.hpp
-        src/archive_file.cpp
-        src/archive_file_lookup.hpp
-        src/archive_file_lookup.cpp
-        src/archive_free_block_list_file.hpp
-        src/archive_free_block_list_file.cpp
-        src/archive_index_file.hpp
-        src/archive_index_file.cpp
-        src/archive_internal_file.hpp
-        src/archive_internal_file.cpp
+        # the first added source file determines target language
+        # it must therefore be a c++ TU
 
-        src/filesystem.cpp
-        src/os_filesystem.hpp
-        src/os_filesystem.cpp
-        ${OS_FILESYSTEM_SRC}
+        src/archive.cpp
+        src/vfile.cpp
+        src/vfile.hpp
+        src/vfilesystem.cpp
+        src/vfilesystem.hpp
 )
 
-DEF_SOURCE_GROUP(vefs "lib/disappointment"
+DEF_SOURCE_GROUP(vefs "detail"
+    SOURCES
+        src/detail/cache_car.hpp
+        src/detail/cache_clock.hpp
+        src/detail/cache_handle.hpp
+        src/detail/cache_page.hpp
+
+        src/detail/archive_file_id.hpp
+        src/detail/block_manager.hpp
+        src/detail/file_crypto_ctx.cpp
+        src/detail/file_crypto_ctx.hpp
+        src/detail/reference_sector_layout.hpp
+        src/detail/root_sector_info.cpp
+        src/detail/root_sector_info.hpp
+        src/detail/sector_device.cpp
+        src/detail/sector_device.hpp
+        src/detail/sector_id.hpp
+        src/detail/sector_tree_mt.hpp
+        src/detail/sector_tree_seq.hpp
+        src/detail/tree_lut.hpp
+        src/detail/tree_walker.cpp
+        src/detail/tree_walker.hpp
+
+        src/detail/archive_sector_allocator.cpp
+        src/detail/archive_sector_allocator.hpp
+        src/detail/archive_tree_allocator.cpp
+        src/detail/archive_tree_allocator.hpp
+        src/detail/cow_tree_allocator_mt.cpp
+        src/detail/cow_tree_allocator_mt.hpp
+        src/detail/preallocated_tree_allocator.cpp
+        src/detail/preallocated_tree_allocator.hpp
+
+        src/detail/proto-helper.hpp
+)
+
+DEF_SOURCE_GROUP(vefs "disappointment"
     HEADERS
+        include/vefs/exceptions.hpp
+
         include/vefs/disappointment.hpp
         include/vefs/disappointment/errc.hpp
         include/vefs/disappointment/error.hpp
@@ -89,36 +66,14 @@ DEF_SOURCE_GROUP(vefs "lib/disappointment"
         include/vefs/disappointment/error_exception.hpp
         include/vefs/disappointment/fwd.hpp
         include/vefs/disappointment/generic_errc.hpp
+        include/vefs/disappointment/llfio_adapter.hpp
         include/vefs/disappointment/std_adapter.hpp
 
     SOURCES
         src/disappointment.cpp
 )
 
-DEF_SOURCE_GROUP(vefs "lib/detail"
-    HEADERS
-        include/vefs/detail/cache.hpp
-        include/vefs/detail/thread_pool.hpp
-        include/vefs/detail/thread_pool_win32.hpp
-        include/vefs/detail/thread_pool_gen.hpp
-
-        include/vefs/detail/archive_file_id.hpp
-        include/vefs/detail/basic_archive_file_meta.hpp
-        include/vefs/detail/journal.hpp
-        include/vefs/detail/raw_archive.hpp
-        include/vefs/detail/sector_id.hpp
-        include/vefs/detail/tree_lut.hpp
-        include/vefs/detail/tree_walker.hpp
-
-    SOURCES
-        src/thread_pool.cpp
-        src/thread_pool_gen.cpp
-        src/thread_pool_win32.cpp
-        src/raw_archive.cpp
-        src/tree_walker.cpp
-)
-
-DEF_SOURCE_GROUP(vefs "lib/allocator"
+DEF_SOURCE_GROUP(vefs "allocator"
     HEADERS
         include/vefs/allocator/alignment.hpp
         include/vefs/allocator/allocation.hpp
@@ -134,42 +89,92 @@ DEF_SOURCE_GROUP(vefs "lib/allocator"
 
 DEF_SOURCE_GROUP(vefs "crypto"
     SOURCES
-        src/sysrandom.cpp
-        src/sysrandom.hpp
+        src/crypto/ct_compare.hpp
 
-        src/ct_compare.hpp
+        src/crypto/blake2.cpp
+        src/crypto/blake2.hpp
+        src/crypto/boringssl_aead.hpp
 
-        src/blake2.cpp
-        src/blake2.hpp
-        src/boringssl_aead.hpp
+        src/crypto/provider.hpp
 
-        src/crypto_provider_debug.cpp
+        src/crypto/crypto_provider_debug.cpp #TODO move this into a seperate library
+        src/crypto/crypto_provider_debug.hpp
 
-        src/kdf.cpp
+        src/crypto/kdf.cpp
+        src/crypto/kdf.hpp
 
-        src/counter.cpp
-
-    HEADERS
-        include/vefs/crypto/provider.hpp
-
-        include/vefs/crypto/kdf.hpp
-
-        include/vefs/crypto/counter.hpp
+        src/crypto/counter.cpp
+        src/crypto/counter.hpp
 )
 if (boringssl_FOUND)
     DEF_SOURCE_GROUP(vefs "crypto"
         SOURCES
-            src/crypto_provider_boringssl.cpp
+            src/crypto/crypto_provider_boringssl.cpp
+            src/crypto/crypto_provider_boringssl.hpp
     )
 endif()
 
-DEF_SOURCE_GROUP(vefs "ext/SpookyV2"
+DEF_SOURCE_GROUP(vefs "platform"
+    HEADERS
+        include/vefs/platform/platform.hpp
+        include/vefs/platform/secure_memzero.hpp
+        include/vefs/platform/thread_pool.hpp
+
+    SOURCES
+        src/platform/platform.cpp
+        src/platform/windows-proper.h
+
+        
+        src/platform/thread_pool.cpp
+        src/platform/thread_pool_gen.hpp
+        src/platform/thread_pool_gen.cpp
+
+        src/platform/secure_memzero.cpp
+        src/platform/sysrandom.cpp
+        src/platform/sysrandom.hpp
+)
+if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    DEF_SOURCE_GROUP(vefs "platform"
+        SOURCES
+            src/platform/thread_pool_win32.cpp
+            src/platform/thread_pool_win32.hpp
+    )
+endif()
+
+DEF_SOURCE_GROUP(vefs "utils"
+    HEADERS
+        include/vefs/utils/secure_array.hpp
+        include/vefs/utils/secure_allocator.hpp
+
+        include/vefs/utils/misc.hpp
+        include/vefs/utils/ref_ptr.hpp
+        include/vefs/utils/dirt_flag.hpp
+        include/vefs/utils/object_storage.hpp
+
+        include/vefs/utils/uuid.hpp
+        include/vefs/utils/random.hpp
+
+        include/vefs/utils/binary_codec.hpp
+        include/vefs/utils/bit_scan.hpp
+        include/vefs/utils/bitset_overlay.hpp
+        include/vefs/utils/enum_bitset.hpp
+
+        include/vefs/utils/hash/algorithm_tag.hpp
+        include/vefs/utils/hash/default_weak.hpp
+        include/vefs/utils/hash/detail/std_adaptor.hpp
+
+        include/vefs/utils/unordered_map_mt.hpp
+
+        vefs.natvis
+)
+
+DEF_SOURCE_GROUP(vefs "external/SpookyV2"
     HEADERS
         include/vefs/utils/hash/detail/spooky.hpp
         include/vefs/utils/hash/detail/SpookyV2_impl.hpp
 
     SOURCES
-        src/SpookyV2.cpp
+        src/detail/SpookyV2.cpp
 )
 
 target_sources(vefs PRIVATE fileformat.proto)
@@ -194,6 +199,9 @@ target_link_libraries(vefs
         libb2
         protobuf::libprotobuf
         fmt::fmt
+        llfio
+        ntkernel-error-category
+        quickcpplib
 
         concurrentqueue
         cuckoohash
@@ -206,21 +214,11 @@ if (boringssl_FOUND)
     target_link_libraries(vefs PUBLIC boringssl::crypto)
 endif()
 
-if (MSVC)
+if (MSVC_COMPATIBLE)
     set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/fileformat.pb.cc" PROPERTIES
         COMPILE_FLAGS "/wd4100 /wd4125 /wd4127 /wd4146 /wd4244"
     )
 endif()
-
-
-##########################################################################
-# cotire config
-set_target_properties(vefs PROPERTIES
-    COTIRE_ADD_UNITY_BUILD FALSE
-    COTIRE_CXX_PREFIX_HEADER_INIT "src/precompiled.hpp"
-)
-
-cotire(vefs)
 
 ##########################################################################
 # test target
@@ -232,17 +230,22 @@ add_executable(vefs-tests
     tests/disappointment-tests.cpp
     tests/allocator-tests.cpp
     tests/cache-tests.cpp
+    tests/cache_clock-tests.cpp
 
-    tests/osfilesystem-tests.cpp
-    tests/memfs.cpp
-    tests/memfs-tests.cpp
-    tests/memfs.hpp
-
-    tests/raw_archive-tests.cpp
+    tests/sector_device-tests.cpp
+    tests/sector_tree_mt-tests.cpp
+    tests/sector_tree_seq-tests.cpp
     tests/archive-tests.cpp
 
-    tests/blob-tests.cpp
+    tests/vfilesystem-tests.cpp
+
+    tests/span-tests.cpp
     tests/crypto_provider-tests.cpp
+
+    tests/block_manager-tests.cpp
+
+    tests/tree_lut-tests.cpp
+    tests/tree_walker-tests.cpp
 )
 target_link_libraries(vefs-tests
     PUBLIC

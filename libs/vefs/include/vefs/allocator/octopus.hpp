@@ -3,6 +3,7 @@
 #include <cstddef>
 
 #include <algorithm>
+#include <tuple>
 #include <type_traits>
 #include <utility>
 
@@ -18,24 +19,30 @@ namespace vefs::detail
 #endif
 
     template <typename Primary, typename... Fallbacks>
-    class octopus_allocator
-        : private Primary
-        , private Fallbacks...
+    class octopus_allocator : private std::tuple<Primary, Fallbacks...>
     {
-        template <typename Current, typename... Remaining>
-        constexpr auto allocate(const std::size_t size) noexcept -> allocation_result;
+        using base_type = std::tuple<Primary, Fallbacks...>;
+        static constexpr auto num_bases = std::tuple_size_v<base_type>;
+
+        inline auto alloc_tuple() noexcept -> base_type &
+        {
+            return static_cast<base_type &>(*this);
+        }
+
+        template <std::size_t idx>
+        inline auto allocate(const std::size_t size) noexcept -> allocation_result;
 
         // relocates an existing allocation from Owner to a different Allocator
-        template <typename Owner, typename Current, typename... Remaining>
-        constexpr auto relocate(const memory_allocation memblock, const std::size_t size) noexcept
+        template <std::size_t ownerIdx, std::size_t idx>
+        inline auto relocate(const memory_allocation memblock, const std::size_t size) noexcept
             -> allocation_result;
 
-        template <typename Current, typename... Remaining>
-        constexpr auto reallocate(const memory_allocation memblock, const std::size_t size) noexcept
+        template <std::size_t idx>
+        inline auto reallocate(const memory_allocation memblock, const std::size_t size) noexcept
             -> allocation_result;
 
-        template <typename Current, typename... Remaining>
-        constexpr void deallocate(memory_allocation memblock) noexcept;
+        template <std::size_t idx>
+        inline void deallocate(memory_allocation memblock) noexcept;
 
         // #MSVC_workaround fold expressions don't work within a noexcept() context
         static constexpr bool is_nothrow_default_constructible_v =
@@ -58,12 +65,12 @@ namespace vefs::detail
             std::in_place_t, Init1 &&init1,
             Inits &&... inits) noexcept(is_nothrow_constructible_v<Init1, Inits...>);
 
-        constexpr auto allocate(const std::size_t size) noexcept -> allocation_result;
-        constexpr auto reallocate(const memory_allocation memblock, const std::size_t size) noexcept
+        inline auto allocate(const std::size_t size) noexcept -> allocation_result;
+        inline auto reallocate(const memory_allocation memblock, const std::size_t size) noexcept
             -> allocation_result;
-        constexpr void deallocate(memory_allocation memblock) noexcept;
+        inline void deallocate(memory_allocation memblock) noexcept;
 
-        constexpr auto owns(const memory_allocation memblock) noexcept -> bool;
+        inline auto owns(const memory_allocation memblock) noexcept -> bool;
     };
 
     template <typename Primary, typename... Fallbacks>
@@ -71,48 +78,50 @@ namespace vefs::detail
     constexpr octopus_allocator<Primary, Fallbacks...>::octopus_allocator(
         std::in_place_t, Init1 &&init1,
         Inits &&... inits) noexcept(is_nothrow_constructible_v<Init1, Inits...>)
-        : Primary(std::forward<Init1>(init1))
-        , Fallbacks(std::forward<Inits>(inits))...
+        : base_type(std::forward<Init1>(init1), std::forward<Inits>(inits)...)
     {
     }
 
     template <typename Primary, typename... Fallbacks>
-    template <typename Current, typename... Remaining>
-    constexpr auto
-    octopus_allocator<Primary, Fallbacks...>::allocate(const std::size_t size) noexcept
+    template <std::size_t idx>
+    inline auto octopus_allocator<Primary, Fallbacks...>::allocate(const std::size_t size) noexcept
         -> allocation_result
     {
-        if constexpr (sizeof...(Remaining) > 0)
+        auto &current = std::get<idx>(alloc_tuple());
+        if constexpr (idx < num_bases - 1)
         {
-            if (auto memblock = Current::allocate(size); memblock.has_value())
+            if (auto memblock = current.allocate(size); memblock.has_value())
             {
                 return std::move(memblock);
             }
-            return octopus_allocator::allocate<Remaining...>(size);
+            return octopus_allocator::allocate<idx + 1>(size);
         }
         else
         {
-            return Current::allocate(size);
+            return current.allocate(size);
         }
     }
 
     template <typename Primary, typename... Fallbacks>
-    template <typename Owner, typename Current, typename... Remaining>
-    constexpr auto octopus_allocator<Primary, Fallbacks...>::relocate(
-        const memory_allocation memblock, const std::size_t size) noexcept -> allocation_result
+    template <std::size_t ownerIdx, std::size_t idx>
+    inline auto octopus_allocator<Primary, Fallbacks...>::relocate(const memory_allocation memblock,
+                                                                   const std::size_t size) noexcept
+        -> allocation_result
     {
-        if (auto reloc = Current::allocate(size))
+        auto &current = std::get<idx>(alloc_tuple());
+        if (auto reloc = current.allocate(size))
         {
             auto moveSize = std::min(memblock.size(), size);
             std::memmove(reloc.value().raw(), memblock.raw(), moveSize);
 
-            Owner::deallocate(memblock);
+            auto owner = std::get<ownerIdx>(alloc_tuple());
+            owner.deallocate(memblock);
             return reloc;
         }
 
-        if constexpr (sizeof...(Remaining) > 0)
+        if constexpr (idx < num_bases - 1)
         {
-            return octopus_allocator::relocate<Owner, Remaining...>(memblock, size);
+            return octopus_allocator::relocate<ownerIdx, idx + 1>(memblock, size);
         }
         else
         {
@@ -121,78 +130,80 @@ namespace vefs::detail
     }
 
     template <typename Primary, typename... Fallbacks>
-    template <typename Current, typename... Remaining>
-    constexpr auto octopus_allocator<Primary, Fallbacks...>::reallocate(
+    template <std::size_t idx>
+    inline auto octopus_allocator<Primary, Fallbacks...>::reallocate(
         const memory_allocation memblock, const std::size_t size) noexcept -> allocation_result
     {
-        if constexpr (sizeof...(Remaining) > 0)
+        auto &current = std::get<idx>(alloc_tuple());
+        if constexpr (idx < num_bases - 1)
         {
-            if (Current::owns(memblock))
+            if (current.owns(memblock))
             {
-                if (auto reallocated = Current::reallocate(memblock, size))
+                if (auto reallocated = current.reallocate(memblock, size))
                 {
                     return reallocated;
                 }
-                return octopus_allocator::relocate<Current, Remaining...>(memblock, size);
+                return octopus_allocator::relocate<idx, idx + 1>(memblock, size);
             }
-            return octopus_allocator::reallocate<Remaining...>(memblock, size);
+            return octopus_allocator::reallocate<idx + 1>(memblock, size);
         }
         else
         {
-            return Current::reallocate(memblock, size);
+            return current.reallocate(memblock, size);
         }
     }
 
     template <typename Primary, typename... Fallbacks>
-    template <typename Current, typename... Remaining>
-    constexpr void
+    template <std::size_t idx>
+    inline void
     octopus_allocator<Primary, Fallbacks...>::deallocate(memory_allocation memblock) noexcept
     {
-        if constexpr (sizeof...(Remaining) > 0)
+        auto &current = std::get<idx>(alloc_tuple());
+        if constexpr (idx < num_bases - 1)
         {
-            if (Current::owns(memblock))
+            if (current.owns(memblock))
             {
-                Current::deallocate(memblock);
+                current.deallocate(memblock);
             }
             else
             {
-                octopus_allocator::deallocate<Remaining...>(memblock);
+                octopus_allocator::deallocate<idx + 1>(memblock);
             }
         }
         else
         {
-            Current::deallocate(memblock);
+            current.deallocate(memblock);
         }
     }
 
     template <typename Primary, typename... Fallbacks>
-    constexpr auto
-    octopus_allocator<Primary, Fallbacks...>::allocate(const std::size_t size) noexcept
+    inline auto octopus_allocator<Primary, Fallbacks...>::allocate(const std::size_t size) noexcept
         -> allocation_result
     {
-        return octopus_allocator::allocate<Primary, Fallbacks...>(size);
+        return octopus_allocator::allocate<0>(size);
     }
 
     template <typename Primary, typename... Fallbacks>
-    constexpr auto octopus_allocator<Primary, Fallbacks...>::reallocate(
+    inline auto octopus_allocator<Primary, Fallbacks...>::reallocate(
         const memory_allocation memblock, const std::size_t size) noexcept -> allocation_result
     {
-        return octopus_allocator::reallocate<Primary, Fallbacks...>(memblock, size);
+        return octopus_allocator::reallocate<0>(memblock, size);
     }
 
     template <typename Primary, typename... Fallbacks>
-    constexpr void
+    inline void
     octopus_allocator<Primary, Fallbacks...>::deallocate(memory_allocation memblock) noexcept
     {
-        octopus_allocator::deallocate<Primary, Fallbacks...>(memblock);
+        octopus_allocator::deallocate<0>(memblock);
     }
 
     template <typename Primary, typename... Fallbacks>
-    constexpr auto
+    inline auto
     octopus_allocator<Primary, Fallbacks...>::owns(const memory_allocation memblock) noexcept
         -> bool
     {
-        return (Primary::owns(memblock) || ... || Fallbacks::owns(memblock));
+        return std::apply([memblock](auto &... allocs) { return (... || allocs.owns(memblock)); },
+                          alloc_tuple());
     }
 
 #if defined BOOST_COMP_MSVC_AVAILABLE

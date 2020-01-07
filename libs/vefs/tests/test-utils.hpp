@@ -1,12 +1,15 @@
 #pragma once
 
 #include <ostream>
+#include <string_view>
 
 #include <fmt/format.h>
+#include <fmt/ostream.h>
 
 #include <vefs/disappointment.hpp>
 #include <vefs/utils/random.hpp>
-#include <vefs/detail/cache.hpp>
+
+#include "../src/detail/cache_car.hpp"
 
 struct test_rng : vefs::utils::xoroshiro128plus
 {
@@ -22,7 +25,7 @@ struct test_rng : vefs::utils::xoroshiro128plus
 
 namespace vefs
 {
-    inline std::ostream & operator<<(std::ostream &s, const error_domain &domain)
+    inline std::ostream &operator<<(std::ostream &s, const error_domain &domain)
     {
         using namespace fmt::literals;
         s << "[error_domain|{}]"_format(domain.name());
@@ -35,16 +38,17 @@ namespace vefs
     {
         if (!rx)
         {
-            boost::test_tools::predicate_result prx{ false };
+            boost::test_tools::predicate_result prx{false};
             prx.message() << rx.assume_error();
-            return std::move(prx);
+            return prx;
         }
         return true;
     }
-}
+} // namespace vefs
 
-#define TEST_RESULT(...) BOOST_TEST( (::vefs::check_result((__VA_ARGS__))) )
-#define TEST_RESULT_REQUIRE(...) BOOST_TEST_REQUIRE( (::vefs::check_result((__VA_ARGS__))) )
+#define TEST_RESULT(...) BOOST_TEST((::vefs::check_result((__VA_ARGS__))))
+#define TEST_RESULT_REQUIRE(...)                                               \
+    BOOST_TEST_REQUIRE((::vefs::check_result((__VA_ARGS__))))
 
 namespace fmt
 {
@@ -62,22 +66,33 @@ namespace fmt
         {
             if (h)
             {
-                return format_to(ctx.begin(), "{}", *h);
+                return format_to(ctx.out(), "{}", *h);
             }
             else
             {
-                return format_to(ctx.begin(), "[nullptr cache_handle]");
+                return format_to(ctx.out(), "[nullptr cache_handle]");
             }
         }
     };
-}
+} // namespace fmt
 
 namespace vefs::detail
 {
     template <typename T>
-    inline auto operator<<(std::ostream &s, const cache_handle<T> &h)
+    inline auto boost_test_print_type(std::ostream &s, const cache_handle<T> &h)
         -> std::ostream &
     {
-        return s << fmt::format(FMT_STRING("{}"), h);
+        fmt::print(s, FMT_STRING("{}"), h);
+        return s;
     }
-}
+} // namespace vefs::detail
+
+namespace std
+{
+    inline auto boost_test_print_type(std::ostream &s, std::byte b)
+        -> std::ostream &
+    {
+        fmt::print(s, FMT_STRING("{:x}"), static_cast<std::uint8_t>(b));
+        return s;
+    }
+} // namespace std

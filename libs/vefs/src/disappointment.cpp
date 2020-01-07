@@ -1,56 +1,52 @@
-#include "precompiled.hpp"
 #include <vefs/disappointment.hpp>
+#include <vefs/disappointment/llfio_adapter.hpp>
 
+#include <future>
 #include <ios>
 #include <mutex>
-#include <future>
 #include <unordered_map>
 
-#include <boost/predef.h>
 #include <boost/config.hpp>
+#include <boost/predef.h>
 
 #include <vefs/exceptions.hpp>
 
 namespace vefs
 {
     BOOST_NOINLINE error_info::error_info() noexcept
-        : mDetails{ }
+        : mDetails{}
     {
     }
     BOOST_NOINLINE error_info::~error_info()
     {
     }
 
-    auto error::success_domain::name() const noexcept
-        -> std::string_view
+    auto error::success_domain::name() const noexcept -> std::string_view
     {
         using namespace std::string_view_literals;
         return "success-domain"sv;
     }
-    auto error::success_domain::message(const error &, const error_code code) const noexcept
+    auto error::success_domain::message(const error &,
+                                        const error_code code) const noexcept
         -> std::string_view
     {
         using namespace std::string_view_literals;
-        return code == 0
-            ? "success"sv
-            : "invalid-success-code"sv;
+        return code == 0 ? "success"sv : "invalid-success-code"sv;
     }
     const error::success_domain error::success_domain::sInstance;
-    auto error::success_domain::instance() noexcept
-        -> const error_domain &
+    auto error::success_domain::instance() noexcept -> const error_domain &
     {
         return sInstance;
     }
 
-    auto error::diagnostic_information(error_message_format format) const noexcept
-        -> std::string
+    auto error::diagnostic_information(error_message_format format) const
+        noexcept -> std::string
     {
         using namespace std::string_view_literals;
 
         decltype(auto) hDomain = domain();
         auto domain = hDomain.name();
         auto errorDesc = hDomain.message(*this, code());
-
 
         if (format != error_message_format::simple && has_info())
         {
@@ -67,34 +63,35 @@ namespace vefs
         }
     }
 
-    const char * error_exception::what() const noexcept
+    const char *error_exception::what() const noexcept
     {
         if (mErrDesc.size() == 0)
         {
             try
             {
-                mErrDesc = mErr.diagnostic_information(error_message_format::with_diagnostics);
+                mErrDesc = mErr.diagnostic_information(
+                    error_message_format::with_diagnostics);
             }
             catch (const std::bad_alloc &)
             {
-                return "<error_exception|failed to allocate the diagnostic information string>";
+                return "<error_exception|failed to allocate the diagnostic "
+                       "information string>";
             }
             catch (...)
             {
-                return "<error_exception|failed to retrieve the diagnostic information from the error code>";
+                return "<error_exception|failed to retrieve the diagnostic "
+                       "information from the error code>";
             }
         }
         return mErrDesc.c_str();
     }
-}
+} // namespace vefs
 
 namespace vefs
 {
-    class generic_domain_type final
-        : public error_domain
+    class generic_domain_type final : public error_domain
     {
-        auto name() const noexcept
-            -> std::string_view override;
+        auto name() const noexcept -> std::string_view override;
         auto message(const error &, const error_code code) const noexcept
             -> std::string_view override;
 
@@ -102,20 +99,20 @@ namespace vefs
         constexpr generic_domain_type() noexcept = default;
     };
 
-    auto generic_domain_type::name() const noexcept
-        -> std::string_view
+    auto generic_domain_type::name() const noexcept -> std::string_view
     {
         using namespace std::string_view_literals;
 
         return "generic-domain"sv;
     }
 
-    auto generic_domain_type::message(const error &, const error_code value) const noexcept
+    auto generic_domain_type::message(const error &,
+                                      const error_code value) const noexcept
         -> std::string_view
     {
         using namespace std::string_view_literals;
 
-        const errc code{ value };
+        const errc code{value};
 
         switch (code)
         {
@@ -155,6 +152,9 @@ namespace vefs
         case errc::no_more_data:
             return "all available data has been consumed"sv;
 
+        case errc::resource_exhausted:
+            return "the request could not be served, because the resource was exhausted"sv;
+
         default:
             return "unknown generic error code"sv;
         }
@@ -165,17 +165,14 @@ namespace vefs
         constexpr generic_domain_type generic_domain_v{};
     }
 
-    auto generic_domain() noexcept
-        -> const error_domain &
+    auto generic_domain() noexcept -> const error_domain &
     {
         return generic_domain_v;
     }
 
-    class archive_domain_type final
-        : public error_domain
+    class archive_domain_type final : public error_domain
     {
-        auto name() const noexcept
-            -> std::string_view override;
+        auto name() const noexcept -> std::string_view override;
         auto message(const error &, const error_code code) const noexcept
             -> std::string_view override;
 
@@ -183,20 +180,20 @@ namespace vefs
         constexpr archive_domain_type() noexcept = default;
     };
 
-    auto archive_domain_type::name() const noexcept
-        -> std::string_view
+    auto archive_domain_type::name() const noexcept -> std::string_view
     {
         using namespace std::string_view_literals;
 
         return "vefs-archive-domain"sv;
     }
 
-    auto archive_domain_type::message(const error &, const error_code value) const noexcept
+    auto archive_domain_type::message(const error &,
+                                      const error_code value) const noexcept
         -> std::string_view
     {
         using namespace std::string_view_literals;
 
-        const archive_errc code{ value };
+        const archive_errc code{value};
 
         switch (code)
         {
@@ -245,6 +242,12 @@ namespace vefs
         case archive_errc::wrong_user_prk:
             return "the given archive key is not valid for this archive or the archive head has been corrupted"sv;
 
+        case archive_errc::vfilesystem_entry_serialization_failed:
+            return "failed to serialize a vfilesystem entry"sv;
+
+        case archive_errc::vfilesystem_invalid_size:
+            return "the vfilesystem storage extent is not a multiple of the sector_payload_size"sv;
+
         default:
             return "unknown vefs archive error code"sv;
         }
@@ -255,50 +258,49 @@ namespace vefs
         constexpr archive_domain_type archive_domain_v{};
     }
 
-    auto archive_domain() noexcept
-        -> const error_domain &
+    auto archive_domain() noexcept -> const error_domain &
     {
         return archive_domain_v;
     }
-}
+} // namespace vefs
 
 namespace vefs::ed
 {
     enum class message_cache_tag;
     using message_cache = error_detail<message_cache_tag, std::string>;
-}
+} // namespace vefs::ed
 
 namespace vefs::adl::disappointment
 {
     namespace
     {
-        class std_adapter_domain final
-            : public error_domain
+        class std_adapter_domain final : public error_domain
         {
         public:
-            constexpr std_adapter_domain(const std::error_category *impl) noexcept;
+            constexpr std_adapter_domain(
+                const std::error_category *impl) noexcept;
 
         private:
-            auto name() const noexcept
-                ->std::string_view override;
+            auto name() const noexcept -> std::string_view override;
             auto message(const error &, const error_code code) const noexcept
-                ->std::string_view override;
+                -> std::string_view override;
 
-            const std::error_category * const mImpl;
+            const std::error_category *const mImpl;
         };
 
-        constexpr std_adapter_domain::std_adapter_domain(const std::error_category *impl) noexcept
-            : mImpl{ impl }
+        constexpr std_adapter_domain::std_adapter_domain(
+            const std::error_category *impl) noexcept
+            : mImpl{impl}
         {
         }
 
-        auto std_adapter_domain::name() const noexcept
-            -> std::string_view
+        auto std_adapter_domain::name() const noexcept -> std::string_view
         {
             return mImpl->name();
         }
 
-        auto std_adapter_domain::message(const error &e, const error_code code) const noexcept
+        auto std_adapter_domain::message(const error &e,
+                                         const error_code code) const noexcept
             -> std::string_view
         {
             using namespace std::string_view_literals;
@@ -312,7 +314,8 @@ namespace vefs::adl::disappointment
                 std::string msg;
                 try
                 {
-                    msg = mImpl->message(static_cast<int>(code));;
+                    msg = mImpl->message(static_cast<int>(code));
+                    ;
                 }
                 catch (const std::bad_alloc &)
                 {
@@ -323,7 +326,7 @@ namespace vefs::adl::disappointment
                     return "<std_adapter_domain failed to retrieve the message for an unknown reason>"sv;
                 }
 
-                if (e.info()->try_add_detail(ed::message_cache{ std::move(msg) }))
+                if (e.info()->try_add_detail(ed::message_cache{std::move(msg)}))
                 {
                     return "<std_adapter_domain failed to allocate the message cache detail>"sv;
                 }
@@ -333,15 +336,16 @@ namespace vefs::adl::disappointment
             return *msgcache;
         }
 
-
-        const std_adapter_domain generic_cat_adapter{ &std::generic_category() };
-        const std_adapter_domain system_cat_adapter{ &std::system_category() };
-        const std_adapter_domain iostream_cat_adapter{ &std::iostream_category() };
-        const std_adapter_domain future_cat_adapter{ &std::future_category() };
+        const std_adapter_domain generic_cat_adapter{&std::generic_category()};
+        const std_adapter_domain system_cat_adapter{&std::system_category()};
+        const std_adapter_domain iostream_cat_adapter{
+            &std::iostream_category()};
+        const std_adapter_domain future_cat_adapter{&std::future_category()};
 
         std::mutex nonstandard_category_domain_map_sync{};
-        std::unordered_map<const std::error_category *, std::unique_ptr<std_adapter_domain>>
-            nonstandard_category_domain_map{ 8 };
+        std::unordered_map<const std::error_category *,
+                           std::unique_ptr<std_adapter_domain>>
+            nonstandard_category_domain_map{8};
 
         auto adapt_domain(const std::error_category &cat) noexcept
             -> const error_domain &
@@ -363,60 +367,60 @@ namespace vefs::adl::disappointment
                 return iostream_cat_adapter;
             }
 
-            std::lock_guard lock{ nonstandard_category_domain_map_sync };
+            std::lock_guard lock{nonstandard_category_domain_map_sync};
             if (auto it = nonstandard_category_domain_map.find(&cat);
                 it != nonstandard_category_domain_map.end())
             {
                 return *it->second;
             }
 
-            return *nonstandard_category_domain_map.emplace(
-                &cat, std::make_unique<std_adapter_domain>(&cat)
-            ).first->second;
+            return *nonstandard_category_domain_map
+                        .emplace(&cat,
+                                 std::make_unique<std_adapter_domain>(&cat))
+                        .first->second;
         }
-    }
+    } // namespace
 
     auto make_error(std::error_code ec, adl::disappointment::type) noexcept
         -> error
     {
         static_assert(sizeof(int) <= sizeof(error_code));
-        return {
-            static_cast<error_code>(ec.value()),
-            adapt_domain(ec.category())
-        };
+        return {static_cast<error_code>(ec.value()),
+                adapt_domain(ec.category())};
     }
 
-    auto make_error(std::errc ec, adl::disappointment::type) noexcept
-        -> error
+    auto make_error(std::errc ec, adl::disappointment::type) noexcept -> error
     {
-        return {
-            static_cast<error_code>(ec),
-            generic_cat_adapter
-        };
+        return {static_cast<error_code>(ec), generic_cat_adapter};
     }
-}
+
+    auto make_error(const llfio::error_info &info,
+                    adl::disappointment::type) noexcept -> error
+    {
+        return make_error_code(info);
+    }
+} // namespace vefs::adl::disappointment
 
 #if defined BOOST_OS_WINDOWS_AVAILABLE
-#include <vefs/utils/windows-proper.h>
+#include "platform/windows-proper.h"
 #elif defined BOOST_OS_LINUX_AVAILABLE || defined BOOST_OS_MACOS_AVAILABLE
 #include <cerrno>
 #endif
 
 namespace vefs
 {
-    auto collect_system_error()
-        -> std::error_code
+    auto collect_system_error() -> std::error_code
     {
 #if defined BOOST_OS_WINDOWS_AVAILABLE
-        return std::error_code{ static_cast<int>(GetLastError()), std::system_category() };
+        return std::error_code{static_cast<int>(GetLastError()),
+                               std::system_category()};
 #elif defined BOOST_OS_LINUX_AVAILABLE || defined BOOST_OS_MACOS_AVAILABLE
-        return std::error_code{ errno, std::system_category() };
+        return std::error_code{errno, std::system_category()};
 #endif
     }
 
-    auto make_system_errinfo_code()
-        -> errinfo_code
+    auto make_system_errinfo_code() -> errinfo_code
     {
-        return errinfo_code{ collect_system_error() };
+        return errinfo_code{collect_system_error()};
     }
-}
+} // namespace vefs

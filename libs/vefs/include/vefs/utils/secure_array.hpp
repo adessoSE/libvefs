@@ -4,8 +4,8 @@
 
 #include <array>
 
-#include <vefs/blob.hpp>
-#include <vefs/utils/secure_ops.hpp>
+#include <vefs/platform/secure_memzero.hpp>
+#include <vefs/span.hpp>
 
 namespace vefs::utils
 {
@@ -19,23 +19,27 @@ namespace vefs::utils
         static constexpr std::size_t static_size = arr_size;
 
         using span_type = span<T, static_size>;
-        friend class span_type;
+        friend span_type;
 
-        using base_type::const_iterator;
-        using base_type::const_pointer;
-        using base_type::const_reference;
-        using base_type::const_reverse_iterator;
-        using base_type::difference_type;
-        using base_type::iterator;
-        using base_type::pointer;
-        using base_type::reference;
-        using base_type::reverse_iterator;
-        using base_type::size_type;
-        using base_type::value_type;
+        using typename base_type::const_iterator;
+        using typename base_type::const_pointer;
+        using typename base_type::const_reference;
+        using typename base_type::const_reverse_iterator;
+        using typename base_type::difference_type;
+        using typename base_type::iterator;
+        using typename base_type::pointer;
+        using typename base_type::reference;
+        using typename base_type::reverse_iterator;
+        using typename base_type::size_type;
+        using typename base_type::value_type;
 
-        secure_array() = default;
-        secure_array(const secure_array &) = default;
-        secure_array(secure_array &&other)
+        secure_array() noexcept = default;
+        explicit secure_array(span<const T, arr_size> other) noexcept
+        {
+            copy(other, as_span(*this));
+        }
+        secure_array(const secure_array &) noexcept = default;
+        secure_array(secure_array &&other) noexcept
             : base_type(other)
         {
             secure_memzero(as_writable_bytes(span_type{other}));
@@ -45,8 +49,8 @@ namespace vefs::utils
             secure_memzero(as_writable_bytes(span_type{*this}));
         }
 
-        secure_array &operator=(const secure_array &) = default;
-        secure_array &operator=(secure_array &&other)
+        secure_array &operator=(const secure_array &) noexcept = default;
+        secure_array &operator=(secure_array &&other) noexcept
         {
             static_cast<base_type &>(*this) = static_cast<base_type &>(other);
             secure_memzero(as_writable_bytes(span_type{other}));
