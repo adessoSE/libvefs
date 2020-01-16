@@ -139,9 +139,9 @@ namespace vefs::detail
     inline auto vefs::detail::sector_device::resize(std::uint64_t numSectors)
         -> result<void>
     {
-        VEFS_TRY(bytes_truncated,
+        VEFS_TRY(bytesTruncated,
                  mArchiveFile.truncate(numSectors * sector_size));
-        if (bytes_truncated != (numSectors * sector_size))
+        if (bytesTruncated != (numSectors * sector_size))
         {
             return outcome::failure(errc::bad);
         }

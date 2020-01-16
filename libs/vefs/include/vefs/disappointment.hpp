@@ -392,4 +392,4 @@ namespace vefs
 #define VEFS_TRY(...) BOOST_OUTCOME_TRY(__VA_ARGS__)
 
 #define VEFS_TRY_INJECT(stmt, injected)                                        \
-    BOOST_OUTCOME_TRY(vefs::inject((stmt), [&](auto &e) { e << injected; }))
+    VEFS_TRY(vefs::inject((stmt), [&](auto &e) { e << injected; }))

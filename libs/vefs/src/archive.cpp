@@ -42,7 +42,7 @@ namespace vefs
                        ro_blob<32> userPRK, bool createNew)
         -> result<std::unique_ptr<archive>>
     {
-        BOOST_OUTCOME_TRY(primitives,
+        VEFS_TRY(primitives,
                           sector_device::open(std::move(mfh), cryptoProvider,
                                               userPRK, createNew));
 
@@ -123,7 +123,7 @@ namespace vefs
                 (void)mArchive->update_header();
             }
         }
-        
+
         mWorkTracker.wait();
     }
 

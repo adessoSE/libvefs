@@ -68,7 +68,7 @@ namespace vefs::crypto::detail
 
         if (key)
         {
-            BOOST_OUTCOME_TRY(mac_feed_key(*this, key));
+            VEFS_TRY(mac_feed_key(*this, key));
         }
 
         return outcome::success();
@@ -162,7 +162,7 @@ namespace vefs::crypto::detail
 
         if (key)
         {
-            BOOST_OUTCOME_TRY(mac_feed_key(*this, key));
+            VEFS_TRY(mac_feed_key(*this, key));
         }
 
         return outcome::success();
