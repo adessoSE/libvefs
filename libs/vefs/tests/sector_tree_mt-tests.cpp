@@ -83,7 +83,7 @@ struct sector_tree_mt_pre_create_fixture
 
     sector_tree_mt_pre_create_fixture()
         : testFile(vefs::llfio::mapped_temp_inode().value())
-        , device(sector_device::open(testFile.clone(0).value(),
+        , device(sector_device::open(testFile.reopen(0).value(),
                                      crypto::debug_crypto_provider(),
                                      default_user_prk, true)
                      .value())

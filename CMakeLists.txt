@@ -46,6 +46,8 @@ include(src-helper)
 ##########################################################################
 # library includes
 
+find_package(outcome CONFIG REQUIRED)
+
 find_package(llfio CONFIG REQUIRED)
 
 find_package(ntkernel-error-category CONFIG REQUIRED)

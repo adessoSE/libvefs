@@ -201,6 +201,7 @@ target_link_libraries(vefs
         fmt::fmt
         llfio
         ntkernel-error-category
+        outcome
         quickcpplib
 
         concurrentqueue

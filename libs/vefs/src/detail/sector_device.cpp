@@ -24,7 +24,7 @@ namespace vefs::detail
     {
         constexpr std::array<std::byte, 4> archive_magic_number =
             utils::make_byte_array(0x76, 0x65, 0x66, 0x73);
-        constexpr span archive_magic_number_view{archive_magic_number};
+        constexpr span archive_magic_number_view = {archive_magic_number};
 
         template <std::size_t N>
         inline auto byte_literal(const char (&arr)[N]) noexcept
