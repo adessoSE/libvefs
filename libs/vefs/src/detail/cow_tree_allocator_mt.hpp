@@ -35,7 +35,7 @@ namespace vefs::detail
             friend class cow_tree_allocator_mt<SourceAllocator>;
 
         public:
-            sector_allocator(cow_tree_allocator_mt &owner, sector_id current)
+            sector_allocator(cow_tree_allocator_mt &, sector_id current)
                 : current_allocation(current)
                 , allocation_commit(-1)
             {
