@@ -202,15 +202,20 @@ namespace vefs
         {
             return success();
         }
+        return mFileTree->commit(
+            [this](detail::root_sector_info commitedRootInfo) noexcept {
+                return sync_commit_info(commitedRootInfo);
+            });
+    }
 
-        VEFS_TRY(commitedRootInfo, mFileTree->commit());
+    auto
+    vfile::sync_commit_info(detail::root_sector_info commitedRootInfo) noexcept
+        -> result<void>
+    {
         commitedRootInfo.maximum_extent =
             mMaximumExtent.load(std::memory_order_acquire);
 
-        VEFS_TRY(mOwner->on_vfile_commit(mId, commitedRootInfo));
-        // #TODO fix allocator commit
-
-        return success();
+        return mOwner->on_vfile_commit(mId, commitedRootInfo);
     }
 
 } // namespace vefs

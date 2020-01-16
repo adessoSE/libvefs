@@ -85,6 +85,9 @@ namespace vefs
         auto open_existing_impl() -> result<void>;
         auto create_new_impl() -> result<void>;
 
+        auto sync_commit_info(detail::root_sector_info rootInfo,
+                              std::uint64_t maxExtent) noexcept -> result<void>;
+
         detail::sector_device &mDevice;
         detail::master_file_info &mInfo;
         detail::archive_sector_allocator &mSectorAllocator;

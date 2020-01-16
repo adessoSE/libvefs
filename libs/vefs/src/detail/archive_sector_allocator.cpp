@@ -166,13 +166,6 @@ namespace vefs::detail
 
     auto archive_sector_allocator::initialize_new() noexcept -> result<void>
     {
-        //if (mSectorDevice.size() != 1)
-        //{
-        //    return errc::bad;
-        //}
-        //VEFS_TRY(mSectorDevice.resize(2));
-        //mFreeBlockFileRootSector = sector_id{1};
-
         VEFS_TRY(newRoot, alloc_one());
         mFreeBlockFileRootSector = newRoot;
 
@@ -349,7 +342,13 @@ namespace vefs::detail
 
         for (;;)
         {
-            VEFS_TRY(rootInfo, freeSectorTree->commit());
+            root_sector_info rootInfo;
+
+            VEFS_TRY(freeSectorTree->commit([&](root_sector_info ri) noexcept
+                                                ->result<void> {
+                                                    rootInfo = ri;
+                                                    return success();
+                                                }));
             if (idContainer.empty())
             {
                 rootInfo.maximum_extent =
