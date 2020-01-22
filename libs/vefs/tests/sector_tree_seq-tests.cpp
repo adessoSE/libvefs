@@ -6,14 +6,14 @@
 using namespace vefs;
 using namespace vefs::detail;
 
-class test_allocator
+class allocator_stub
 {
 public:
     struct sector_allocator
     {
-        friend class test_allocator;
+        friend class allocator_stub;
 
-        explicit sector_allocator(test_allocator &owner, sector_id current)
+        explicit sector_allocator(allocator_stub &owner, sector_id current)
             : mCurrent(current)
         {
         }
@@ -27,7 +27,7 @@ public:
     };
     static constexpr auto leak_on_failure = leak_on_failure_t{};
 
-    test_allocator(sector_device &device)
+    allocator_stub(sector_device &device)
         : alloc_sync()
         , alloc_counter(0)
         , device(device)
@@ -68,11 +68,11 @@ public:
     sector_device &device;
 };
 
-template class vefs::detail::sector_tree_seq<test_allocator>;
+template class vefs::detail::sector_tree_seq<allocator_stub>;
 
 struct sector_tree_seq_pre_create_fixture
 {
-    using tree_type = sector_tree_seq<test_allocator>;
+    using tree_type = sector_tree_seq<allocator_stub>;
 
     static constexpr std::array<std::byte, 32> default_user_prk{};
 
