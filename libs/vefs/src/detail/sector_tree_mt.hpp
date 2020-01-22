@@ -93,7 +93,7 @@ namespace vefs::detail
         public:
             read_handle() noexcept = default;
             read_handle(sector_handle node) noexcept;
-            read_handle(const write_handle &writeHandle) noexcept;
+            read_handle(write_handle const &writeHandle) noexcept;
             read_handle(write_handle &&writeHandle) noexcept;
 
             explicit operator bool() const noexcept;
@@ -107,7 +107,7 @@ namespace vefs::detail
 
             inline auto node_position() noexcept -> tree_position;
 
-            inline friend auto as_span(const read_handle &node) noexcept
+            inline friend auto as_span(read_handle const &node) noexcept
                 -> ro_blob<sector_device::sector_payload_size>
             {
                 return as_span(*node.mSector);
@@ -124,7 +124,7 @@ namespace vefs::detail
         public:
             write_handle() noexcept = default;
             write_handle(sector_handle node) noexcept;
-            explicit write_handle(const read_handle &readHandle) noexcept;
+            explicit write_handle(read_handle const &readHandle) noexcept;
             explicit write_handle(read_handle &&readHandle) noexcept;
 
             ~write_handle();
@@ -140,7 +140,7 @@ namespace vefs::detail
 
             inline auto node_position() noexcept -> tree_position;
 
-            inline friend auto as_span(const write_handle &node) noexcept
+            inline friend auto as_span(write_handle const &node) noexcept
                 -> rw_blob<sector_device::sector_payload_size>
             {
                 return as_span(*node.mSector);
@@ -217,7 +217,7 @@ namespace vefs::detail
                                     tree_position childPosition,
                                     int childParentOffset) noexcept
             -> result<sector_handle>;
-        auto try_erase_child(const sector_handle &parent, tree_position child,
+        auto try_erase_child(sector_handle const &parent, tree_position child,
                              int childParentOffset) noexcept -> result<bool>;
         auto erase_child(sector_handle parent, tree_position child,
                          int childParentOffset) noexcept -> result<void>;
@@ -258,7 +258,7 @@ namespace vefs::detail
 
     template <typename TreeAllocator, typename Executor>
     inline auto sector_tree_mt<TreeAllocator, Executor>::sector::parent() const
-        noexcept -> const handle_type &
+        noexcept -> handle_type const &
     {
         return mParent;
     }
