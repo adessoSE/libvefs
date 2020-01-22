@@ -21,6 +21,8 @@ namespace vefs
         no_such_file,
         protobuf_serialization_failed,
         wrong_user_prk,
+        vfilesystem_entry_serialization_failed,
+        vfilesystem_invalid_size,
     };
     const error_domain & archive_domain() noexcept;
 

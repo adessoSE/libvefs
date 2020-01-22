@@ -84,6 +84,7 @@ namespace vefs
             }
             else
             {
+                arc->mSectorAllocator.reset();
                 crx.assume_error() << ed::archive_file{"[archive-index]"};
                 return std::move(crx).as_failure();
             }
@@ -92,7 +93,8 @@ namespace vefs
                 arc->mArchive->archive_header().free_sector_index;
             if (freeSectorHeader.tree_info.root.sector == sector_id::master)
             {
-                // #TODO recover archive contents    
+                VEFS_TRY(arc->mFilesystem->recover_unused_sectors());
+
                 VEFS_TRY_INJECT(arc->mSectorAllocator->initialize_new(),
                                 ed::archive_file{"[free-block-list]"});
             }
@@ -112,13 +114,16 @@ namespace vefs
 
     archive::~archive()
     {
-        auto &header = mArchive->archive_header().free_sector_index;
-        if (auto rx = mSectorAllocator->serialize_to(header.crypto_ctx))
+        if (mSectorAllocator && !mSectorAllocator->sector_leak_detected())
         {
-            header.tree_info = rx.assume_value();
-            (void)mArchive->update_header();
+            auto &header = mArchive->archive_header().free_sector_index;
+            if (auto rx = mSectorAllocator->serialize_to(header.crypto_ctx))
+            {
+                header.tree_info = rx.assume_value();
+                (void)mArchive->update_header();
+            }
         }
-
+        
         mWorkTracker.wait();
     }
 

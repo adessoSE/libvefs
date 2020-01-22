@@ -6,6 +6,7 @@
 
 #include <boost/container/static_vector.hpp>
 
+#include <vefs/utils/bitset_overlay.hpp>
 #include <vefs/utils/misc.hpp>
 #include <vefs/utils/object_storage.hpp>
 
@@ -120,6 +121,8 @@ namespace vefs::detail
             return mRootInfo.tree_depth == mLoaded;
         }
 
+        auto extract_alloc_map(utils::bitset_overlay allocs) -> result<void>;
+
     private:
         auto move_to(const tree_path loadPath, const access_mode mode) noexcept
             -> result<void>;
@@ -142,6 +145,8 @@ namespace vefs::detail
             -> result<void>;
 
         auto collect_intermediate_nodes() noexcept -> result<void>;
+
+        auto collect_next_layer(utils::bitset_overlay bitset) -> result<void>;
 
         auto sync_to_device(const int layer) noexcept -> result<void>;
 
@@ -264,6 +269,59 @@ namespace vefs::detail
         VEFS_TRY(sectorTree->create_new());
 
         return std::move(sectorTree);
+    }
+
+    template <typename TreeAllocator>
+    inline auto sector_tree_seq<TreeAllocator>::extract_alloc_map(
+        utils::bitset_overlay allocs)
+        -> result<void>
+    {
+        allocs.set(static_cast<std::uint64_t>(mRootInfo.root.sector));
+        if (mRootInfo.tree_depth == 0)
+        {
+            return success();
+        }
+
+        while (mLoaded > 0)
+        {
+            mNodeInfos[last_loaded_index()].destroy();
+            mLoaded -= 1;
+        }
+
+        return collect_next_layer(allocs);
+    }
+
+    template <typename TreeAllocator>
+    inline auto sector_tree_seq<TreeAllocator>::collect_next_layer(
+        utils::bitset_overlay allocs)
+        -> result<void>
+    {
+        auto layer = last_loaded_index();
+        reference_sector_layout layout{node_data_span(layer)};
+
+        for (int i = 0; i < layout.references_per_sector; ++i)
+        {
+            auto ref = layout.read(i);
+            if (ref.sector == sector_id::master)
+            {
+                continue;
+            }
+
+            allocs.set(static_cast<std::uint64_t>(ref.sector));
+
+            if (layer == 1)
+            {
+                continue;
+            }
+            VEFS_TRY(load_next(i));
+
+            VEFS_TRY(collect_next_layer(allocs));
+
+            mNodeInfos[layer - 1].destroy();
+            mLoaded -= 1;
+        }
+
+        return success();
     }
 
     template <typename TreeAllocator>

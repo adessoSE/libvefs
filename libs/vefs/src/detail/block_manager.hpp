@@ -568,35 +568,35 @@ namespace vefs::utils
         const auto succIt = mFreeBlocks.upper_bound(first);
         const auto blocksEnd = mFreeBlocks.end();
 
+        bool inserted = false;
         if (succIt != blocksEnd)
         {
-            bool inserted = false;
             if (succIt->is_successor_of(last))
             {
                 succIt->prepend(num);
                 inserted = true;
             }
-            if (succIt != blocksBegin)
+        }
+        if (succIt != blocksBegin)
+        {
+            if (auto precIt = std::prev(succIt);
+                precIt->is_predecessor_of(first))
             {
-                if (auto precIt = std::prev(succIt);
-                    precIt->is_predecessor_of(first))
+                if (inserted)
                 {
-                    if (inserted)
-                    {
-                        succIt->prepend(precIt->size());
-                        dispose(precIt);
-                    }
-                    else
-                    {
-                        precIt->append(1);
-                        inserted = true;
-                    }
+                    succIt->prepend(precIt->size());
+                    dispose(precIt);
+                }
+                else
+                {
+                    precIt->append(1);
+                    inserted = true;
                 }
             }
-            if (inserted)
-            {
-                return success();
-            }
+        }
+        if (inserted)
+        {
+            return success();
         }
         try
         {
