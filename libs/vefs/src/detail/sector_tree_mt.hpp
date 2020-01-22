@@ -736,8 +736,9 @@ namespace vefs::detail
                 as_span(*mRootSector).subspan(serialized_reference_size);
 
             // if no sector is referenced we shrink our tree
-            if (std::all_of(rootData.begin(), rootData.end(),
-                            [](std::byte v) { return v == std::byte{}; }))
+            bool noSectorReferenced = std::all_of(rootData.begin(), rootData.end(),
+                                                  [](std::byte v) { return v == std::byte{}; });
+            if (noSectorReferenced)
             {
                 VEFS_TRY(decrease_tree_depth(mRootInfo.tree_depth - 1));
                 VEFS_TRY(sync_to_device(mRootSector));
