@@ -96,17 +96,17 @@ struct sector_tree_mt_pre_create_fixture
 
 struct sector_tree_mt_fixture : sector_tree_mt_pre_create_fixture
 {
-    std::unique_ptr<tree_type> testTree;
+    std::unique_ptr<tree_type> existingTree;
 
     sector_tree_mt_fixture()
         : sector_tree_mt_pre_create_fixture()
-        , testTree()
+        , existingTree()
     {
-        testTree = tree_type::create_new(*device, fileCryptoContext,
-                                         workExecutor, *device)
+        existingTree = tree_type::create_new(*device, fileCryptoContext,
+                                             workExecutor, *device)
                        .value();
 
-        rootSectorInfo = testTree->commit().value();
+        rootSectorInfo = existingTree->commit().value();
     }
 
     auto open_test_tree() -> result<std::unique_ptr<tree_type>>
@@ -156,16 +156,16 @@ BOOST_FIXTURE_TEST_CASE(new_sector_tree_has_node_with_zero_bytes, sector_tree_mt
                            [](std::byte v) { return v == std::byte{}; }));
 }
 
-BOOST_AUTO_TEST_CASE(open_existing)
+BOOST_AUTO_TEST_CASE(open_existing_tree_creates_existing_tree)
     {
-    testTree.reset();
+        existingTree.reset();
 
         auto openrx = tree_type::open_existing(
                 *device, fileCryptoContext, workExecutor, rootSectorInfo, *device);
         TEST_RESULT_REQUIRE(openrx);
-        testTree = std::move(openrx).assume_value();
+        std::unique_ptr<tree_type> createdTree = std::move(openrx).assume_value();
 
-        auto rootAccessRx = testTree->access(tree_position{0, 0});
+        auto rootAccessRx = createdTree->access(tree_position{0, 0});
         TEST_RESULT_REQUIRE(rootAccessRx);
         auto rootSpan = as_span(rootAccessRx.assume_value());
         bool expected = std::all_of(rootSpan.begin(), rootSpan.end(),
@@ -174,14 +174,14 @@ BOOST_AUTO_TEST_CASE(open_existing)
     }
 
 
-BOOST_AUTO_TEST_CASE(expand_to_two_sectors)
+BOOST_AUTO_TEST_CASE(creation_of_a_new_node_changes_mac)
 {
-    auto createRx = testTree->access_or_create(tree_position(1));
+    auto createRx = existingTree->access_or_create(tree_position(1));
     TEST_RESULT_REQUIRE(createRx);
     as_span(write_handle(createRx.assume_value()))[0] = std::byte{0b1010'1010};
     createRx.assume_value() = read_handle();
 
-    auto commitRx = testTree->commit();
+    auto commitRx = existingTree->commit();
     TEST_RESULT_REQUIRE(commitRx);
     auto &&newRootInfo = std::move(commitRx).assume_value();
 
@@ -190,39 +190,51 @@ BOOST_AUTO_TEST_CASE(expand_to_two_sectors)
         0xed, 0x2d, 0x0d, 0xb5);
 
     BOOST_TEST(newRootInfo.root.mac == expectedRootMac);
+}
+
+BOOST_AUTO_TEST_CASE(creation_of_a_new_node_expands_to_two_sectors)
+{
+    auto createRx = existingTree->access_or_create(tree_position(1));
+    TEST_RESULT_REQUIRE(createRx);
+
+    auto commitRx = existingTree->commit();
+    TEST_RESULT_REQUIRE(commitRx);
+    auto &&newRootInfo = std::move(commitRx).assume_value();
+
     BOOST_TEST(newRootInfo.root.sector == sector_id{3});
     BOOST_TEST(newRootInfo.tree_depth == 1);
 }
 
-BOOST_AUTO_TEST_CASE(shrink_on_commit_if_possible)
+BOOST_AUTO_TEST_CASE(erase_leaf_lets_tree_shrink)
 {
-    TEST_RESULT_REQUIRE(testTree->access_or_create(tree_position(1)));
-
-    auto commitRx = testTree->commit();
+    TEST_RESULT_REQUIRE(existingTree->access_or_create(tree_position(1)));
+    auto commitRx = existingTree->commit();
     TEST_RESULT_REQUIRE(commitRx);
-    rootSectorInfo = std::move(commitRx).assume_value();
 
-
-    BOOST_TEST_REQUIRE(rootSectorInfo.tree_depth == 1);
-
-    testTree.reset();
-    auto reopenrx = open_test_tree();
-    TEST_RESULT_REQUIRE(reopenrx);
-    testTree = std::move(reopenrx).assume_value();
-
-    TEST_RESULT_REQUIRE(testTree->erase_leaf(1));
-
-    commitRx = testTree->commit();
+    TEST_RESULT_REQUIRE(existingTree->erase_leaf(1));
+    commitRx = existingTree->commit();
     TEST_RESULT_REQUIRE(commitRx);
+
     auto &&newRootInfo = std::move(commitRx).assume_value();
+    BOOST_TEST(newRootInfo.root.sector == sector_id{1});
+    BOOST_TEST(newRootInfo.tree_depth == 0);
+}
 
+BOOST_AUTO_TEST_CASE(erase_leaf_changes_mac)
+{
+    TEST_RESULT_REQUIRE(existingTree->access_or_create(tree_position(1)));
+    auto commitRx = existingTree->commit();
+    TEST_RESULT_REQUIRE(commitRx);
+
+    TEST_RESULT_REQUIRE(existingTree->erase_leaf(1));
+    commitRx = existingTree->commit();
+    TEST_RESULT_REQUIRE(commitRx);
+
+    auto &&newRootInfo = std::move(commitRx).assume_value();
     auto expectedRootMac = vefs::utils::make_byte_array(
             0xe2, 0x1b, 0x52, 0x74, 0xe1, 0xd5, 0x8b, 0x69, 0x87, 0x36, 0x88, 0x3f,
             0x34, 0x4e, 0x5e, 0x2b);
-
     BOOST_TEST(newRootInfo.root.mac == expectedRootMac);
-    BOOST_TEST(newRootInfo.root.sector == sector_id{1});
-    BOOST_TEST(newRootInfo.tree_depth == 0);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

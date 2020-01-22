@@ -398,10 +398,11 @@ namespace vefs::detail
         : mSector(writeHandle.mSector)
     {
     }
+
     template <typename TreeAllocator, typename Executor>
     inline sector_tree_mt<TreeAllocator, Executor>::write_handle::write_handle(
-        read_handle &&writeHandle) noexcept
-        : mSector(std::exchange(writeHandle.mSector, nullptr))
+        read_handle &&readHandle) noexcept
+        : mSector(std::exchange(readHandle.mSector, nullptr))
     {
     }
 
@@ -624,30 +625,12 @@ namespace vefs::detail
             return read_handle(std::move(mountPoint));
         }
 
-        int missingLayers = mountPoint->node_position().layer() - node.layer();
-        // static_vector<sector_id, lut::max_tree_depth> allocatedSectors;
-        // utils::scope_guard allocationRollbackGuard = [&]() {
-        //    for (auto it = allocatedSectors.begin(),
-        //              end = allocatedSectors.end();
-        //         it != end; ++it)
-        //    {
-        //        (void)mTreeAllocator.dealloc_one(*it);
-        //    }
-        //};
-
-        //// we allocate the required disc space before making any changes,
-        //// because it is the only thing that can still fail
-        // allocatedSectors.resize(missingLayers);
-        // VEFS_TRY(mTreeAllocator.alloc_multiple(allocatedSectors));
-
         for (auto it = tree_path::iterator(
                       sectorPath, mountPoint->node_position().layer() - 1),
                   end = sectorPath.end();
              it != end; ++it)
         {
             const auto nodePos = *it;
-            // const auto sectorId = allocatedSectors.back();
-            // allocatedSectors.pop_back();
 
             if (auto rx = access_or_create_child(std::move(mountPoint), nodePos,
                                                  it.array_offset()))
