@@ -10,6 +10,37 @@
 using namespace vefs;
 using namespace vefs::detail;
 
+class mock_mutex {
+public:
+    void lock() {
+        mLockCounter++;
+    }
+
+    void unlock() {
+        mUnlockCounter++;
+    }
+
+    int lock_counter() {
+        return mLockCounter;
+    }
+
+    int unlock_counter() {
+        return mUnlockCounter;
+    }
+
+    void reset(){
+        mLockCounter = 0;
+        mUnlockCounter = 0;
+    }
+
+private:
+    static int mLockCounter;
+    static int mUnlockCounter ;
+};
+
+int mock_mutex::mLockCounter = 0;
+int mock_mutex::mUnlockCounter = 0;
+
 class allocator_stub
 {
 public:
@@ -80,6 +111,7 @@ struct sector_tree_mt_dependencies
     pooled_work_tracker workExecutor;
     file_crypto_ctx fileCryptoContext;
     root_sector_info rootSectorInfo;
+    mock_mutex mutexMock;
 
     sector_tree_mt_dependencies()
         : testFile(vefs::llfio::mapped_temp_inode().value())
@@ -91,6 +123,7 @@ struct sector_tree_mt_dependencies
         , fileCryptoContext(file_crypto_ctx::zero_init)
         , rootSectorInfo()
     {
+            mutexMock.reset();
     }
 };
 
@@ -173,24 +206,24 @@ BOOST_AUTO_TEST_CASE(access_non_existing_node_returns_sector_reference_out_of_ra
 }
 
 BOOST_AUTO_TEST_CASE(open_existing_tree_creates_existing_tree)
-    {
-        //given
-        existingTree.reset();
+{
+    //given
+    existingTree.reset();
 
-        //when
-        auto openrx = tree_type::open_existing(
-                *device, fileCryptoContext, workExecutor, rootSectorInfo, *device);
-        TEST_RESULT_REQUIRE(openrx);
-        auto createdTree = std::move(openrx).assume_value();
+    //when
+    auto openrx = tree_type::open_existing(
+            *device, fileCryptoContext, workExecutor, rootSectorInfo, *device);
+    TEST_RESULT_REQUIRE(openrx);
+    auto createdTree = std::move(openrx).assume_value();
 
-        //then
-        auto rootAccessRx = createdTree->access(tree_position{0, 0});
-        TEST_RESULT_REQUIRE(rootAccessRx);
-        auto rootSpan = as_span(rootAccessRx.assume_value());
+    //then
+    auto rootAccessRx = createdTree->access(tree_position{0, 0});
+    TEST_RESULT_REQUIRE(rootAccessRx);
+    auto rootSpan = as_span(rootAccessRx.assume_value());
 
-        BOOST_TEST(std::all_of(rootSpan.begin(), rootSpan.end(),
-                               [](std::byte v) { return v == std::byte{}; }));
-    }
+    BOOST_TEST(std::all_of(rootSpan.begin(), rootSpan.end(),
+                           [](std::byte v) { return v == std::byte{}; }));
+}
 
 BOOST_AUTO_TEST_CASE(creation_of_a_new_node_changes_mac)
 {
@@ -210,6 +243,43 @@ BOOST_AUTO_TEST_CASE(creation_of_a_new_node_changes_mac)
         0xc2, 0xaa, 0x29, 0x03, 0x00, 0x60, 0xb8, 0x4e, 0x3f, 0xc3, 0x57, 0x2e,
         0xed, 0x2d, 0x0d, 0xb5);
     BOOST_TEST(newRootInfo.root.mac == expectedRootMac);
+}
+
+BOOST_FIXTURE_TEST_CASE(creation_of_a_new_node_locks, sector_tree_mt_dependencies)
+{
+    //given
+    auto testSubject =  sector_tree_mt<allocator_stub, thread_pool, mock_mutex>::create_new(*device, fileCryptoContext,
+                                         workExecutor, *device)
+                        .value();
+    //when
+    auto createRx = testSubject->access_or_create(tree_position(1));
+    TEST_RESULT_REQUIRE(createRx);
+
+    //then
+    auto lockCount = mutexMock.lock_counter();
+    auto unlockCounter = mutexMock.unlock_counter();
+    BOOST_TEST(lockCount == 1);
+    BOOST_TEST(unlockCounter == lockCount);
+}
+
+
+BOOST_FIXTURE_TEST_CASE(commit_locks,
+                        sector_tree_mt_dependencies)
+{
+    // given
+    auto testSubject =
+        sector_tree_mt<allocator_stub, thread_pool, mock_mutex>::create_new(
+            *device, fileCryptoContext, workExecutor, *device)
+            .value();
+    // when
+    auto commitRx = testSubject->commit();
+    TEST_RESULT_REQUIRE(commitRx);
+
+    // then
+    auto lockCount = mutexMock.lock_counter();
+    auto unlockCounter = mutexMock.unlock_counter();
+    BOOST_TEST(lockCount == 1);
+    BOOST_TEST(unlockCounter == lockCount);
 }
 
 BOOST_AUTO_TEST_CASE(created_node_can_be_read)

@@ -19,7 +19,7 @@
 
 namespace vefs::detail
 {
-    template <typename TreeAllocator, typename Executor>
+    template <typename TreeAllocator, typename Executor, typename MutexType = std::mutex>
     class sector_tree_mt
     {
     public:
@@ -226,7 +226,7 @@ namespace vefs::detail
         file_crypto_ctx &mCryptoCtx;
         executor_type &mExecutor;
 
-        std::mutex mTreeDepthSync;
+        MutexType mTreeDepthSync;
         root_sector_info mRootInfo;
 
         tree_allocator_type mTreeAllocator;
@@ -236,8 +236,8 @@ namespace vefs::detail
 
 #pragma region sector implementation
 
-    template <typename TreeAllocator, typename Executor>
-    inline sector_tree_mt<TreeAllocator, Executor>::sector::sector(
+    template <typename TreeAllocator, typename Executor, typename MutexType>
+    inline sector_tree_mt<TreeAllocator, Executor, MutexType>::sector::sector(
         sector_tree_mt &tree, handle_type parent, tree_position nodePosition,
         sector_id current) noexcept
         : mNodePosition(nodePosition)
@@ -248,56 +248,56 @@ namespace vefs::detail
     {
     }
 
-    template <typename TreeAllocator, typename Executor>
+    template <typename TreeAllocator, typename Executor, typename MutexType>
     inline auto
-    sector_tree_mt<TreeAllocator, Executor>::sector::node_position() const
+    sector_tree_mt<TreeAllocator, Executor, MutexType>::sector::node_position() const
         noexcept -> tree_position
     {
         return mNodePosition;
     }
 
-    template <typename TreeAllocator, typename Executor>
-    inline auto sector_tree_mt<TreeAllocator, Executor>::sector::parent() const
+    template <typename TreeAllocator, typename Executor, typename MutexType>
+    inline auto sector_tree_mt<TreeAllocator, Executor, MutexType>::sector::parent() const
         noexcept -> handle_type const &
     {
         return mParent;
     }
-    template <typename TreeAllocator, typename Executor>
-    inline void sector_tree_mt<TreeAllocator, Executor>::sector::parent(
+    template <typename TreeAllocator, typename Executor, typename MutexType>
+    inline void sector_tree_mt<TreeAllocator, Executor, MutexType>::sector::parent(
         handle_type newParent) noexcept
     {
         mParent = std::move(newParent);
     }
 
-    template <typename TreeAllocator, typename Executor>
-    inline void sector_tree_mt<TreeAllocator, Executor>::sector::lock()
+    template <typename TreeAllocator, typename Executor, typename MutexType>
+    inline void sector_tree_mt<TreeAllocator, Executor, MutexType>::sector::lock()
     {
         mSectorSync.lock();
     }
-    template <typename TreeAllocator, typename Executor>
-    inline auto sector_tree_mt<TreeAllocator, Executor>::sector::try_lock()
+    template <typename TreeAllocator, typename Executor, typename MutexType>
+    inline auto sector_tree_mt<TreeAllocator, Executor, MutexType>::sector::try_lock()
         -> bool
     {
         return mSectorSync.try_lock();
     }
-    template <typename TreeAllocator, typename Executor>
-    inline void sector_tree_mt<TreeAllocator, Executor>::sector::unlock()
+    template <typename TreeAllocator, typename Executor, typename MutexType>
+    inline void sector_tree_mt<TreeAllocator, Executor, MutexType>::sector::unlock()
     {
         mSectorSync.unlock();
     }
-    template <typename TreeAllocator, typename Executor>
-    inline void sector_tree_mt<TreeAllocator, Executor>::sector::lock_shared()
+    template <typename TreeAllocator, typename Executor, typename MutexType>
+    inline void sector_tree_mt<TreeAllocator, Executor, MutexType>::sector::lock_shared()
     {
         mSectorSync.lock_shared();
     }
-    template <typename TreeAllocator, typename Executor>
+    template <typename TreeAllocator, typename Executor, typename MutexType>
     inline auto
-    sector_tree_mt<TreeAllocator, Executor>::sector::try_lock_shared() -> bool
+    sector_tree_mt<TreeAllocator, Executor, MutexType>::sector::try_lock_shared() -> bool
     {
         return mSectorSync.try_lock_shared();
     }
-    template <typename TreeAllocator, typename Executor>
-    inline void sector_tree_mt<TreeAllocator, Executor>::sector::unlock_shared()
+    template <typename TreeAllocator, typename Executor, typename MutexType>
+    inline void sector_tree_mt<TreeAllocator, Executor, MutexType>::sector::unlock_shared()
     {
         mSectorSync.unlock_shared();
     }
@@ -306,20 +306,20 @@ namespace vefs::detail
 
 #pragma region read_handle implementation
 
-    template <typename TreeAllocator, typename Executor>
-    inline sector_tree_mt<TreeAllocator, Executor>::read_handle::read_handle(
+    template <typename TreeAllocator, typename Executor, typename MutexType>
+    inline sector_tree_mt<TreeAllocator, Executor, MutexType>::read_handle::read_handle(
         sector_handle node) noexcept
         : mSector(std::move(node))
     {
     }
-    template <typename TreeAllocator, typename Executor>
-    inline sector_tree_mt<TreeAllocator, Executor>::read_handle::read_handle(
+    template <typename TreeAllocator, typename Executor, typename MutexType>
+    inline sector_tree_mt<TreeAllocator, Executor, MutexType>::read_handle::read_handle(
         const write_handle &writeHandle) noexcept
         : mSector(writeHandle.mSector)
     {
     }
-    template <typename TreeAllocator, typename Executor>
-    inline sector_tree_mt<TreeAllocator, Executor>::read_handle::read_handle(
+    template <typename TreeAllocator, typename Executor, typename MutexType>
+    inline sector_tree_mt<TreeAllocator, Executor, MutexType>::read_handle::read_handle(
         write_handle &&writeHandle) noexcept
         : mSector(std::exchange(writeHandle.mSector, nullptr))
     {
@@ -329,55 +329,55 @@ namespace vefs::detail
         }
     }
 
-    template <typename TreeAllocator, typename Executor>
-    sector_tree_mt<TreeAllocator, Executor>::read_handle::operator bool() const
+    template <typename TreeAllocator, typename Executor, typename MutexType>
+    sector_tree_mt<TreeAllocator, Executor, MutexType>::read_handle::operator bool() const
         noexcept
     {
         return mSector.operator bool();
     }
 
-    template <typename TreeAllocator, typename Executor>
+    template <typename TreeAllocator, typename Executor, typename MutexType>
     inline auto sector_tree_mt<TreeAllocator,
-                               Executor>::read_handle::node_position() noexcept
+                               Executor, MutexType>::read_handle::node_position() noexcept
         -> tree_position
     {
         return mSector->node_position();
     }
 
-    template <typename TreeAllocator, typename Executor>
-    void sector_tree_mt<TreeAllocator, Executor>::read_handle::lock()
+    template <typename TreeAllocator, typename Executor, typename MutexType>
+    void sector_tree_mt<TreeAllocator, Executor, MutexType>::read_handle::lock()
     {
         mSector->lock_shared();
     }
 
-    template <typename TreeAllocator, typename Executor>
-    auto sector_tree_mt<TreeAllocator, Executor>::read_handle::try_lock()
+    template <typename TreeAllocator, typename Executor, typename MutexType>
+    auto sector_tree_mt<TreeAllocator, Executor, MutexType>::read_handle::try_lock()
         -> bool
     {
         return mSector->try_lock_shared();
     }
 
-    template <typename TreeAllocator, typename Executor>
-    void sector_tree_mt<TreeAllocator, Executor>::read_handle::unlock()
+    template <typename TreeAllocator, typename Executor, typename MutexType>
+    void sector_tree_mt<TreeAllocator, Executor, MutexType>::read_handle::unlock()
     {
         mSector->unlock_shared();
     }
 
-    template <typename TreeAllocator, typename Executor>
-    void sector_tree_mt<TreeAllocator, Executor>::read_handle::lock_shared()
+    template <typename TreeAllocator, typename Executor, typename MutexType>
+    void sector_tree_mt<TreeAllocator, Executor, MutexType>::read_handle::lock_shared()
     {
         mSector->lock_shared();
     }
 
-    template <typename TreeAllocator, typename Executor>
-    auto sector_tree_mt<TreeAllocator, Executor>::read_handle::try_lock_shared()
+    template <typename TreeAllocator, typename Executor, typename MutexType>
+    auto sector_tree_mt<TreeAllocator, Executor, MutexType>::read_handle::try_lock_shared()
         -> bool
     {
         return mSector->try_lock_shared();
     }
 
-    template <typename TreeAllocator, typename Executor>
-    void sector_tree_mt<TreeAllocator, Executor>::read_handle::unlock_shared()
+    template <typename TreeAllocator, typename Executor, typename MutexType>
+    void sector_tree_mt<TreeAllocator, Executor, MutexType>::read_handle::unlock_shared()
     {
         mSector->unlock_shared();
     }
@@ -386,83 +386,83 @@ namespace vefs::detail
 
 #pragma region write_handle implementation
 
-    template <typename TreeAllocator, typename Executor>
-    inline sector_tree_mt<TreeAllocator, Executor>::write_handle::write_handle(
+    template <typename TreeAllocator, typename Executor, typename MutexType>
+    inline sector_tree_mt<TreeAllocator, Executor, MutexType>::write_handle::write_handle(
         sector_handle node) noexcept
         : mSector(std::move(node))
     {
     }
-    template <typename TreeAllocator, typename Executor>
-    inline sector_tree_mt<TreeAllocator, Executor>::write_handle::write_handle(
+    template <typename TreeAllocator, typename Executor, typename MutexType>
+    inline sector_tree_mt<TreeAllocator, Executor, MutexType>::write_handle::write_handle(
         const read_handle &writeHandle) noexcept
         : mSector(writeHandle.mSector)
     {
     }
 
-    template <typename TreeAllocator, typename Executor>
-    inline sector_tree_mt<TreeAllocator, Executor>::write_handle::write_handle(
+    template <typename TreeAllocator, typename Executor, typename MutexType>
+    inline sector_tree_mt<TreeAllocator, Executor, MutexType>::write_handle::write_handle(
         read_handle &&readHandle) noexcept
         : mSector(std::exchange(readHandle.mSector, nullptr))
     {
     }
 
-    template <typename TreeAllocator, typename Executor>
-    sector_tree_mt<TreeAllocator, Executor>::write_handle::operator bool() const
+    template <typename TreeAllocator, typename Executor, typename MutexType>
+    sector_tree_mt<TreeAllocator, Executor, MutexType>::write_handle::operator bool() const
         noexcept
     {
         return mSector.operator bool();
     }
 
-    template <typename TreeAllocator, typename Executor>
+    template <typename TreeAllocator, typename Executor, typename MutexType>
     inline auto sector_tree_mt<TreeAllocator,
-                               Executor>::write_handle::node_position() noexcept
+                               Executor, MutexType>::write_handle::node_position() noexcept
         -> tree_position
     {
         return mSector->node_position();
     }
 
-    template <typename TreeAllocator, typename Executor>
-    void sector_tree_mt<TreeAllocator, Executor>::write_handle::lock()
+    template <typename TreeAllocator, typename Executor, typename MutexType>
+    void sector_tree_mt<TreeAllocator, Executor, MutexType>::write_handle::lock()
     {
         mSector->lock();
     }
 
-    template <typename TreeAllocator, typename Executor>
-    auto sector_tree_mt<TreeAllocator, Executor>::write_handle::try_lock()
+    template <typename TreeAllocator, typename Executor, typename MutexType>
+    auto sector_tree_mt<TreeAllocator, Executor, MutexType>::write_handle::try_lock()
         -> bool
     {
         return mSector->try_lock();
     }
 
-    template <typename TreeAllocator, typename Executor>
-    void sector_tree_mt<TreeAllocator, Executor>::write_handle::unlock()
+    template <typename TreeAllocator, typename Executor, typename MutexType>
+    void sector_tree_mt<TreeAllocator, Executor, MutexType>::write_handle::unlock()
     {
         mSector->unlock();
     }
 
-    template <typename TreeAllocator, typename Executor>
-    void sector_tree_mt<TreeAllocator, Executor>::write_handle::lock_shared()
+    template <typename TreeAllocator, typename Executor, typename MutexType>
+    void sector_tree_mt<TreeAllocator, Executor, MutexType>::write_handle::lock_shared()
     {
         mSector->lock_shared();
     }
 
-    template <typename TreeAllocator, typename Executor>
+    template <typename TreeAllocator, typename Executor, typename MutexType>
     auto
-    sector_tree_mt<TreeAllocator, Executor>::write_handle::try_lock_shared()
+    sector_tree_mt<TreeAllocator, Executor, MutexType>::write_handle::try_lock_shared()
         -> bool
     {
         return mSector->try_lock_shared();
     }
 
-    template <typename TreeAllocator, typename Executor>
-    void sector_tree_mt<TreeAllocator, Executor>::write_handle::unlock_shared()
+    template <typename TreeAllocator, typename Executor, typename MutexType>
+    void sector_tree_mt<TreeAllocator, Executor, MutexType>::write_handle::unlock_shared()
     {
         mSector->unlock_shared();
     }
 
-    template <typename TreeAllocator, typename Executor>
+    template <typename TreeAllocator, typename Executor, typename MutexType>
     inline sector_tree_mt<TreeAllocator,
-                          Executor>::write_handle::~write_handle()
+                          Executor, MutexType>::write_handle::~write_handle()
     {
         if (mSector)
         {
@@ -474,9 +474,9 @@ namespace vefs::detail
 
 #pragma region sector_tree_mt implementation
 
-    template <typename TreeAllocator, typename Executor>
+    template <typename TreeAllocator, typename Executor, typename MutexType>
     template <typename... AllocatorCtorArgs>
-    inline sector_tree_mt<TreeAllocator, Executor>::sector_tree_mt(
+    inline sector_tree_mt<TreeAllocator, Executor, MutexType>::sector_tree_mt(
         sector_device &device, file_crypto_ctx &cryptoCtx,
         executor_type &executor, root_sector_info rootInfo,
         AllocatorCtorArgs &&... allocatorCtorArgs)
@@ -491,8 +491,8 @@ namespace vefs::detail
     {
     }
 
-    template <typename TreeAllocator, typename Executor>
-    inline auto sector_tree_mt<TreeAllocator, Executor>::init_existing()
+    template <typename TreeAllocator, typename Executor, typename MutexType>
+    inline auto sector_tree_mt<TreeAllocator, Executor, MutexType>::init_existing()
         -> result<void>
     {
         tree_position rootPosition(0, mRootInfo.tree_depth);
@@ -523,20 +523,11 @@ namespace vefs::detail
         return success();
     }
 
-    template <typename TreeAllocator, typename Executor>
-    inline auto sector_tree_mt<TreeAllocator, Executor>::create_new()
+    template <typename TreeAllocator, typename Executor, typename MutexType>
+    inline auto sector_tree_mt<TreeAllocator, Executor, MutexType>::create_new()
         -> result<void>
     {
         tree_position rootPosition{0, 0};
-        // allocation only happens on cache eviction / commit
-        // if (auto rootAllocation = mTreeAllocator.alloc_one())
-        //{
-        //    mRootInfo.root.sector = rootAllocation.assume_value();
-        //}
-        // else
-        //{
-        //    return std::move(rootAllocation).as_failure();
-        //}
 
         auto loadrx = mSectorCache.access(
             rootPosition,
@@ -551,9 +542,9 @@ namespace vefs::detail
         return success();
     }
 
-    template <typename TreeAllocator, typename Executor>
+    template <typename TreeAllocator, typename Executor, typename MutexType>
     template <typename... AllocatorCtorArgs>
-    inline auto sector_tree_mt<TreeAllocator, Executor>::open_existing(
+    inline auto sector_tree_mt<TreeAllocator, Executor, MutexType>::open_existing(
         sector_device &device, file_crypto_ctx &cryptoCtx,
         executor_type &executor, root_sector_info rootInfo,
         AllocatorCtorArgs &&... args) -> result<std::unique_ptr<sector_tree_mt>>
@@ -570,9 +561,9 @@ namespace vefs::detail
         return success(std::move(tree));
     }
 
-    template <typename TreeAllocator, typename Executor>
+    template <typename TreeAllocator, typename Executor, typename MutexType>
     template <typename... AllocatorCtorArgs>
-    inline auto sector_tree_mt<TreeAllocator, Executor>::create_new(
+    inline auto sector_tree_mt<TreeAllocator, Executor, MutexType>::create_new(
         sector_device &device, file_crypto_ctx &cryptoCtx,
         executor_type &executor, AllocatorCtorArgs &&... args)
         -> result<std::unique_ptr<sector_tree_mt>>
@@ -589,9 +580,9 @@ namespace vefs::detail
         return success(std::move(tree));
     }
 
-    template <typename TreeAllocator, typename Executor>
+    template <typename TreeAllocator, typename Executor, typename MutexType>
     inline auto
-    sector_tree_mt<TreeAllocator, Executor>::access(tree_position nodePosition)
+    sector_tree_mt<TreeAllocator, Executor, MutexType>::access(tree_position nodePosition)
         -> result<read_handle>
     {
         const tree_path accessPath(nodePosition);
@@ -599,8 +590,8 @@ namespace vefs::detail
         return read_handle(std::move(node));
     }
 
-    template <typename TreeAllocator, typename Executor>
-    inline auto sector_tree_mt<TreeAllocator, Executor>::access_or_create(
+    template <typename TreeAllocator, typename Executor, typename MutexType>
+    inline auto sector_tree_mt<TreeAllocator, Executor, MutexType>::access_or_create(
         tree_position node) -> result<read_handle>
     {
         using boost::container::static_vector;
@@ -646,9 +637,9 @@ namespace vefs::detail
         return read_handle(std::move(mountPoint));
     }
 
-    template <typename TreeAllocator, typename Executor>
+    template <typename TreeAllocator, typename Executor, typename MutexType>
     inline auto
-    sector_tree_mt<TreeAllocator, Executor>::erase_leaf(std::uint64_t leafId)
+    sector_tree_mt<TreeAllocator, Executor, MutexType>::erase_leaf(std::uint64_t leafId)
         -> result<void>
     {
         if (leafId == 0)
@@ -679,8 +670,8 @@ namespace vefs::detail
         return erase_child(std::move(leafParent), leafPos, leafPath.offset(0));
     }
 
-    template <typename TreeAllocator, typename Executor>
-    inline auto sector_tree_mt<TreeAllocator, Executor>::commit()
+    template <typename TreeAllocator, typename Executor, typename MutexType>
+    inline auto sector_tree_mt<TreeAllocator, Executor, MutexType>::commit()
         -> result<root_sector_info>
     {
         std::lock_guard depthLock{mTreeDepthSync};
@@ -733,9 +724,9 @@ namespace vefs::detail
         return mRootInfo;
     }
 
-    template <typename TreeAllocator, typename Executor>
+    template <typename TreeAllocator, typename Executor, typename MutexType>
     template <bool ReturnParentIfNotAllocated>
-    inline auto sector_tree_mt<TreeAllocator, Executor>::access(
+    inline auto sector_tree_mt<TreeAllocator, Executor, MutexType>::access(
         tree_path::const_iterator pathBegin, tree_path::const_iterator pathEnd)
         -> result<sector_handle>
     {
@@ -799,8 +790,8 @@ namespace vefs::detail
         return std::move(base);
     }
 
-    template <typename TreeAllocator, typename Executor>
-    inline void sector_tree_mt<TreeAllocator, Executor>::notify_dirty(
+    template <typename TreeAllocator, typename Executor, typename MutexType>
+    inline void sector_tree_mt<TreeAllocator, Executor, MutexType>::notify_dirty(
         sector_handle h) noexcept
     {
         mExecutor.execute([this, h = std::move(h)]() mutable {
@@ -852,8 +843,8 @@ namespace vefs::detail
         });
     }
 
-    template <typename TreeAllocator, typename Executor>
-    inline auto sector_tree_mt<TreeAllocator, Executor>::sync_to_device(
+    template <typename TreeAllocator, typename Executor, typename MutexType>
+    inline auto sector_tree_mt<TreeAllocator, Executor, MutexType>::sync_to_device(
         sector_handle h) noexcept -> result<void>
     {
         if (!h.is_dirty())
@@ -893,8 +884,8 @@ namespace vefs::detail
         return success();
     }
 
-    template <typename TreeAllocator, typename Executor>
-    inline auto sector_tree_mt<TreeAllocator, Executor>::adjust_tree_depth(
+    template <typename TreeAllocator, typename Executor, typename MutexType>
+    inline auto sector_tree_mt<TreeAllocator, Executor, MutexType>::adjust_tree_depth(
         int targetDepth) noexcept -> result<void>
     {
         // usefulness of this method still needs to be determined
@@ -911,8 +902,8 @@ namespace vefs::detail
         return success();
     }
 
-    template <typename TreeAllocator, typename Executor>
-    inline auto sector_tree_mt<TreeAllocator, Executor>::increase_tree_depth(
+    template <typename TreeAllocator, typename Executor, typename MutexType>
+    inline auto sector_tree_mt<TreeAllocator, Executor, MutexType>::increase_tree_depth(
         const int targetDepth) noexcept -> result<void>
     {
         using boost::container::static_vector;
@@ -971,8 +962,8 @@ namespace vefs::detail
         return success();
     }
 
-    template <typename TreeAllocator, typename Executor>
-    inline auto sector_tree_mt<TreeAllocator, Executor>::decrease_tree_depth(
+    template <typename TreeAllocator, typename Executor, typename MutexType>
+    inline auto sector_tree_mt<TreeAllocator, Executor, MutexType>::decrease_tree_depth(
         int targetDepth) noexcept -> result<void>
     {
         using boost::container::static_vector;
@@ -1019,8 +1010,8 @@ namespace vefs::detail
         return success();
     }
 
-    template <typename TreeAllocator, typename Executor>
-    inline auto sector_tree_mt<TreeAllocator, Executor>::access_or_read_child(
+    template <typename TreeAllocator, typename Executor, typename MutexType>
+    inline auto sector_tree_mt<TreeAllocator, Executor, MutexType>::access_or_read_child(
         sector_handle parent, tree_position childPosition,
         int childParentOffset) noexcept -> result<sector_handle>
     {
@@ -1049,8 +1040,8 @@ namespace vefs::detail
             });
     }
 
-    template <typename TreeAllocator, typename Executor>
-    inline auto sector_tree_mt<TreeAllocator, Executor>::access_or_create_child(
+    template <typename TreeAllocator, typename Executor, typename MutexType>
+    inline auto sector_tree_mt<TreeAllocator, Executor, MutexType>::access_or_create_child(
         sector_handle parent, tree_position childPosition,
         int childParentOffset) noexcept -> result<sector_handle>
     {
@@ -1080,8 +1071,8 @@ namespace vefs::detail
             });
     }
 
-    template <typename TreeAllocator, typename Executor>
-    inline auto sector_tree_mt<TreeAllocator, Executor>::try_erase_child(
+    template <typename TreeAllocator, typename Executor, typename MutexType>
+    inline auto sector_tree_mt<TreeAllocator, Executor, MutexType>::try_erase_child(
         const sector_handle &parent, tree_position child,
         int childParentOffset) noexcept -> result<bool>
     {
@@ -1102,8 +1093,8 @@ namespace vefs::detail
         return false;
     }
 
-    template <typename TreeAllocator, typename Executor>
-    inline auto sector_tree_mt<TreeAllocator, Executor>::erase_child(
+    template <typename TreeAllocator, typename Executor, typename MutexType>
+    inline auto sector_tree_mt<TreeAllocator, Executor, MutexType>::erase_child(
         sector_handle parent, tree_position child,
         int childParentOffset) noexcept -> result<void>
     {
@@ -1125,8 +1116,8 @@ namespace vefs::detail
 
 #pragma endregion
 
-    template <typename TreeAllocator, typename Executor>
-    inline auto read(sector_tree_mt<TreeAllocator, Executor> &tree,
+    template <typename TreeAllocator, typename Executor, typename MutexType>
+    inline auto read(sector_tree_mt<TreeAllocator, Executor, MutexType> &tree,
                      rw_dynblob buffer, std::uint64_t readPos) -> result<void>
     {
         auto offset = readPos % detail::sector_device::sector_payload_size;
@@ -1145,8 +1136,8 @@ namespace vefs::detail
         return success();
     }
 
-    template <typename TreeAllocator, typename Executor>
-    inline auto write(sector_tree_mt<TreeAllocator, Executor> &tree,
+    template <typename TreeAllocator, typename Executor, typename MutexType>
+    inline auto write(sector_tree_mt<TreeAllocator, Executor, MutexType> &tree,
                       ro_dynblob data, std::uint64_t writePos) -> result<void>
     {
         if (!data)
@@ -1155,7 +1146,7 @@ namespace vefs::detail
         }
 
         using write_handle =
-            typename sector_tree_mt<TreeAllocator, Executor>::write_handle;
+            typename sector_tree_mt<TreeAllocator, Executor, MutexType>::write_handle;
 
         tree_position it{lut::sector_position_of(writePos)};
         auto offset = writePos % sector_device::sector_payload_size;
