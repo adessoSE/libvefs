@@ -923,9 +923,20 @@ namespace vefs
             }
         }
 
-        VEFS_TRY(rootInfo, mIndexTree->commit()); // #FIXME
-        rootInfo.maximum_extent = (layout.last_allocated().position() + 1) *
-                                  detail::sector_device::sector_payload_size;
+        auto maxExtent = (layout.last_allocated().position() + 1) *
+                         detail::sector_device::sector_payload_size;
+        return mIndexTree->commit([
+            this, maxExtent
+        ](detail::root_sector_info rootInfo) noexcept->result<void> {
+            return sync_commit_info(rootInfo, maxExtent);
+        });
+    }
+
+    auto vfilesystem::sync_commit_info(detail::root_sector_info rootInfo,
+                                       std::uint64_t maxExtent) noexcept
+        -> result<void>
+    {
+        rootInfo.maximum_extent = maxExtent;
 
         mDevice.archive_header().filesystem_index.tree_info = rootInfo;
         VEFS_TRY_INJECT(mDevice.update_header(),

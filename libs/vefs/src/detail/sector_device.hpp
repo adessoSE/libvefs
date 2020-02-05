@@ -187,7 +187,7 @@ namespace vefs::detail
 #endif
 
     constexpr auto
-    vefs::detail::sector_device::header_size(header_id which) noexcept
+    vefs::detail::sector_device::header_size(header_id) noexcept
         -> std::size_t
     {
         constexpr auto xsize = (sector_size - mArchiveHeaderOffset) / 2;

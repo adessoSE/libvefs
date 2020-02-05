@@ -301,7 +301,7 @@ BOOST_AUTO_TEST_CASE(second_chance_entry_gets_not_envicted_on_full_cache)
 
     for (std::size_t i = 0; i < max_entries; ++i)
     {
-        (void)cx->access(i, i, 0, nullptr);
+        (void)cx->access(i, (int)i, 0, nullptr);
     }
     (void)cx->try_access(0); //second chance
 

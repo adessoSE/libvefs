@@ -195,7 +195,8 @@ namespace vefs::detail
         /**
          * Forces all cached information to be written to disc.
          */
-        auto commit() -> result<root_sector_info>;
+        template <typename CommitFn>
+        auto commit(CommitFn &&commitFn) -> result<void>;
 
     private:
         template <bool ReturnParentIfNotAllocated>
@@ -499,7 +500,7 @@ namespace vefs::detail
 
         auto loadrx = mSectorCache.access(
             rootPosition,
-            [this, rootPosition](void *mem) noexcept -> result<sector_type *> {
+            [ this, rootPosition ](void *mem) noexcept->result<sector_type *> {
                 auto ptr = new (mem) sector_type(*this, nullptr, rootPosition,
                                                  mRootInfo.root.sector);
 
@@ -530,9 +531,8 @@ namespace vefs::detail
         tree_position rootPosition{0, 0};
 
         auto loadrx = mSectorCache.access(
-            rootPosition,
-            [this,
-             rootPosition](void *mem) noexcept -> result<sector_type *, void> {
+            rootPosition, [ this, rootPosition ](
+                              void *mem) noexcept->result<sector_type *, void> {
                 return new (mem)
                     sector_type(*this, nullptr, rootPosition, sector_id{});
             });
@@ -671,8 +671,10 @@ namespace vefs::detail
     }
 
     template <typename TreeAllocator, typename Executor, typename MutexType>
-    inline auto sector_tree_mt<TreeAllocator, Executor, MutexType>::commit()
-        -> result<root_sector_info>
+    template <typename CommitFn>
+    inline auto
+    sector_tree_mt<TreeAllocator, Executor, MutexType>::commit(CommitFn &&commitFn)
+        -> result<void>
     {
         std::lock_guard depthLock{mTreeDepthSync};
 
@@ -680,7 +682,7 @@ namespace vefs::detail
         for (int i = 0; anyDirty && i <= mRootInfo.tree_depth; ++i)
         {
             auto rx = mSectorCache.for_dirty(
-                [this, i](sector_handle node) noexcept -> result<void> {
+                [ this, i ](sector_handle node) noexcept->result<void> {
                     if (node->node_position().layer() != i)
                     {
                         return success();
@@ -719,9 +721,19 @@ namespace vefs::detail
             }
         }
 
+        using invoke_result_type = std::invoke_result_t<CommitFn, root_sector_info>;
+        if constexpr (std::is_void_v<invoke_result_type>)
+        {
+            std::invoke(std::forward<CommitFn>(commitFn), (mRootInfo));
+        }
+        else
+        {
+            VEFS_TRY(std::invoke(std::forward<CommitFn>(commitFn), (mRootInfo)));
+        }
+
         VEFS_TRY(mTreeAllocator.on_commit());
 
-        return mRootInfo;
+        return success();
     }
 
     template <typename TreeAllocator, typename Executor, typename MutexType>
@@ -936,8 +948,8 @@ namespace vefs::detail
             std::unique_lock oldRootLock{*mRootSector};
             auto createrx = mSectorCache.access(
                 nextRootPos,
-                [this, nextRootPos](
-                    void *mem) noexcept -> result<sector_type *, void> {
+                [ this, nextRootPos ](
+                    void *mem) noexcept->result<sector_type *, void> {
                     auto xsec = new (mem)
                         sector_type(*this, nullptr, nextRootPos, sector_id{});
                     // zero out the sector content
@@ -1016,7 +1028,7 @@ namespace vefs::detail
         int childParentOffset) noexcept -> result<sector_handle>
     {
         return mSectorCache.access(
-            childPosition, [&](void *mem) noexcept -> result<sector_type *> {
+            childPosition, [&](void *mem) noexcept->result<sector_type *> {
                 const auto ref = reference_sector_layout{as_span(*parent)}.read(
                     childParentOffset);
 
@@ -1046,7 +1058,7 @@ namespace vefs::detail
         int childParentOffset) noexcept -> result<sector_handle>
     {
         return mSectorCache.access(
-            childPosition, [&](void *mem) noexcept -> result<sector_type *> {
+            childPosition, [&](void *mem) noexcept->result<sector_type *> {
                 auto ref = reference_sector_layout{as_span(*parent)}.read(
                     childParentOffset);
 
