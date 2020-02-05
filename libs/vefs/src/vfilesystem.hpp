@@ -77,7 +77,7 @@ namespace vefs
                              detail::root_sector_info updatedRootInfo)
             -> result<void>;
 
-        auto commit() -> result<detail::root_sector_info>;
+        auto commit() -> result<void>;
 
         auto recover_unused_sectors() -> result<void>;
 

@@ -43,14 +43,14 @@ BOOST_AUTO_TEST_CASE(archive_create_reopen)
     auto archiveFileHandle = vefs::llfio::mapped_temp_inode().value();
 
     {
-        auto cloned = archiveFileHandle.clone(0).value();
+        auto cloned = archiveFileHandle.reopen(0).value();
         auto openrx =
             archive::open(std::move(cloned), cprov, default_user_prk, true);
         TEST_RESULT_REQUIRE(openrx);
         TEST_RESULT_REQUIRE(openrx.assume_value()->commit());
     }
     {
-        auto cloned = archiveFileHandle.clone(0).value();
+        auto cloned = archiveFileHandle.reopen(0).value();
         auto openrx =
             archive::open(std::move(cloned), cprov, default_user_prk, false);
         TEST_RESULT(openrx);
@@ -65,7 +65,7 @@ BOOST_AUTO_TEST_CASE(archive_create_file)
     auto cprov = crypto::debug_crypto_provider();
 
     {
-        auto cloned = archiveFileHandle.clone(0).value();
+        auto cloned = archiveFileHandle.reopen(0).value();
         auto openrx =
             archive::open(std::move(cloned), cprov, default_user_prk, true);
         TEST_RESULT_REQUIRE(openrx);
@@ -78,7 +78,7 @@ BOOST_AUTO_TEST_CASE(archive_create_file)
         TEST_RESULT_REQUIRE(ac->commit());
     }
     {
-        auto cloned = archiveFileHandle.clone(0).value();
+        auto cloned = archiveFileHandle.reopen(0).value();
         auto openrx =
             archive::open(std::move(cloned), cprov, default_user_prk, false);
         TEST_RESULT_REQUIRE(openrx);
@@ -105,7 +105,7 @@ BOOST_AUTO_TEST_CASE(archive_readwrite)
     dataGenerator.fill(file);
 
     {
-        auto cloned = archiveFileHandle.clone(0).value();
+        auto cloned = archiveFileHandle.reopen(0).value();
         auto openrx =
             archive::open(std::move(cloned), cprov, default_user_prk, true);
         TEST_RESULT_REQUIRE(openrx);
@@ -121,7 +121,7 @@ BOOST_AUTO_TEST_CASE(archive_readwrite)
         TEST_RESULT_REQUIRE(ac->commit());
     }
     {
-        auto cloned = archiveFileHandle.clone(0).value();
+        auto cloned = archiveFileHandle.reopen(0).value();
         auto openrx =
             archive::open(std::move(cloned), cprov, default_user_prk, false);
         TEST_RESULT_REQUIRE(openrx);
@@ -154,7 +154,7 @@ BOOST_AUTO_TEST_CASE(archive_file_shrink)
     dataGenerator.fill(file);
 
     {
-        auto cloned = archiveFileHandle.clone(0).value();
+        auto cloned = archiveFileHandle.reopen(0).value();
         auto openrx =
             archive::open(std::move(cloned), cprov, default_user_prk, true);
         TEST_RESULT_REQUIRE(openrx);
@@ -170,7 +170,7 @@ BOOST_AUTO_TEST_CASE(archive_file_shrink)
         TEST_RESULT_REQUIRE(ac->commit());
     }
     {
-        auto cloned = archiveFileHandle.clone(0).value();
+        auto cloned = archiveFileHandle.reopen(0).value();
         auto openrx =
             archive::open(std::move(cloned), cprov, default_user_prk, false);
         TEST_RESULT_REQUIRE(openrx);
@@ -186,7 +186,7 @@ BOOST_AUTO_TEST_CASE(archive_file_shrink)
         TEST_RESULT_REQUIRE(ac->commit());
     }
     {
-        auto cloned = archiveFileHandle.clone(0).value();
+        auto cloned = archiveFileHandle.reopen(0).value();
         auto openrx =
             archive::open(std::move(cloned), cprov, default_user_prk, false);
         TEST_RESULT_REQUIRE(openrx);
@@ -219,7 +219,7 @@ BOOST_AUTO_TEST_CASE(archive_file_erase)
     dataGenerator.fill(file);
 
     {
-        auto cloned = archiveFileHandle.clone(0).value();
+        auto cloned = archiveFileHandle.reopen(0).value();
         auto openrx =
             archive::open(std::move(cloned), cprov, default_user_prk, true);
         TEST_RESULT_REQUIRE(openrx);
@@ -236,7 +236,7 @@ BOOST_AUTO_TEST_CASE(archive_file_erase)
         TEST_RESULT_REQUIRE(ac->commit());
     }
     {
-        auto cloned = archiveFileHandle.clone(0).value();
+        auto cloned = archiveFileHandle.reopen(0).value();
         auto openrx =
             archive::open(std::move(cloned), cprov, default_user_prk, false);
         TEST_RESULT_REQUIRE(openrx);
@@ -247,7 +247,7 @@ BOOST_AUTO_TEST_CASE(archive_file_erase)
         TEST_RESULT_REQUIRE(ac->commit());
     }
     {
-        auto cloned = archiveFileHandle.clone(0).value();
+        auto cloned = archiveFileHandle.reopen(0).value();
         auto openrx =
             archive::open(std::move(cloned), cprov, default_user_prk, false);
         TEST_RESULT_REQUIRE(openrx);
@@ -276,7 +276,7 @@ BOOST_AUTO_TEST_CASE(archive_empty_userprk)
     dataGenerator.fill(file);
 
     {
-        auto cloned = archiveFileHandle.clone(0).value();
+        auto cloned = archiveFileHandle.reopen(0).value();
         auto openrx =
             archive::open(std::move(cloned), cprov, default_user_prk, true);
         TEST_RESULT_REQUIRE(openrx);
@@ -296,7 +296,7 @@ BOOST_AUTO_TEST_CASE(archive_empty_userprk)
         TEST_RESULT_REQUIRE(ac->commit());
     }
     {
-        auto cloned = archiveFileHandle.clone(0).value();
+        auto cloned = archiveFileHandle.reopen(0).value();
         auto openrx =
             archive::open(std::move(cloned), cprov, default_user_prk, false);
         TEST_RESULT_REQUIRE(openrx);
@@ -332,7 +332,7 @@ BOOST_AUTO_TEST_CASE(archive_query)
     dataGenerator.fill(file);
 
     {
-        auto cloned = archiveFileHandle.clone(0).value();
+        auto cloned = archiveFileHandle.reopen(0).value();
         auto openrx =
             archive::open(std::move(cloned), cprov, default_user_prk, true);
         TEST_RESULT_REQUIRE(openrx);
@@ -353,7 +353,7 @@ BOOST_AUTO_TEST_CASE(archive_query)
     }
     BOOST_TEST_PASSPOINT();
     {
-        auto cloned = archiveFileHandle.clone(0).value();
+        auto cloned = archiveFileHandle.reopen(0).value();
         auto openrx =
             archive::open(std::move(cloned), cprov, default_user_prk, false);
         TEST_RESULT_REQUIRE(openrx);
@@ -383,7 +383,7 @@ BOOST_AUTO_TEST_CASE(sqlite_bridge_regression_1)
     utils::xoroshiro128plus dataGenerator{0};
 
     {
-        auto cloned = archiveFileHandle.clone(0).value();
+        auto cloned = archiveFileHandle.reopen(0).value();
         auto openrx =
             archive::open(std::move(cloned), cprov, default_user_prk, true);
         TEST_RESULT_REQUIRE(openrx);

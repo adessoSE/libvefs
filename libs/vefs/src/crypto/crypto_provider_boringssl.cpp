@@ -10,12 +10,12 @@
 #include "ct_compare.hpp"
 
 namespace vefs::crypto::detail
-{              
+{
     result<void> boringssl_aes_256_gcm_provider::box_seal(rw_dynblob ciphertext, rw_dynblob mac,
                                                           ro_dynblob keyMaterial,
                                                           ro_dynblob plaintext) const noexcept
     {
-        BOOST_OUTCOME_TRYA(aead, boringssl_aead::create(keyMaterial.subspan(0, 32)));
+        VEFS_TRY(aead, boringssl_aead::create(keyMaterial.subspan(0, 32)));
 
         return aead.seal(ciphertext, mac, keyMaterial.subspan(32, 12), plaintext);
     }
@@ -25,7 +25,7 @@ namespace vefs::crypto::detail
                                                           ro_dynblob ciphertext,
                                                           ro_dynblob mac) const noexcept
     {
-        BOOST_OUTCOME_TRYA(aead, boringssl_aead::create(keyMaterial.subspan(0, 32)));
+        VEFS_TRY(aead, boringssl_aead::create(keyMaterial.subspan(0, 32)));
 
         return aead.open(plaintext, keyMaterial.subspan(32, 12), ciphertext, mac);
     }

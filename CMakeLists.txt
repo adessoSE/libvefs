@@ -11,7 +11,7 @@
 #
 ########################################################################
 cmake_minimum_required(VERSION 3.15)
-project(vefs VERSION 0.0.0 LANGUAGES CXX)
+project(vefs VERSION 0.2.0 LANGUAGES CXX)
 
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
     message(FATAL_ERROR "in-source builds are not supported!")
@@ -45,6 +45,8 @@ include(src-helper)
 
 ##########################################################################
 # library includes
+
+find_package(outcome CONFIG REQUIRED)
 
 find_package(llfio CONFIG REQUIRED)
 

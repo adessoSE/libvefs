@@ -42,7 +42,7 @@ namespace vefs
                        ro_blob<32> userPRK, bool createNew)
         -> result<std::unique_ptr<archive>>
     {
-        BOOST_OUTCOME_TRY(primitives,
+        VEFS_TRY(primitives,
                           sector_device::open(std::move(mfh), cryptoProvider,
                                               userPRK, createNew));
 
@@ -123,25 +123,13 @@ namespace vefs
                 (void)mArchive->update_header();
             }
         }
-        
+
         mWorkTracker.wait();
     }
 
     auto archive::commit() -> result<void>
     {
-        if (auto fscommit = mFilesystem->commit())
-        {
-            mArchive->archive_header().filesystem_index.tree_info =
-                fscommit.assume_value();
-        }
-        else
-        {
-            fscommit.assume_error() << ed::archive_file{"[archive-index]"};
-            return fscommit.assume_error();
-        }
-        VEFS_TRY_INJECT(mArchive->update_header(),
-                        ed::archive_file{"[archive-header]"});
-        return success();
+        return mFilesystem->commit();
     }
 
     auto archive::open(const std::string_view filePath,

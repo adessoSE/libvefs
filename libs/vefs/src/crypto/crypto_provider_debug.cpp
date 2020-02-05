@@ -26,10 +26,10 @@ namespace vefs::crypto::detail
 
         const auto hashLen = std::min(mac.size(), blake2b::digest_bytes);
         blake2b blakeCtx{};
-        BOOST_OUTCOME_TRY(blakeCtx.init(hashLen, keyMaterial, vefs_blake2b_personalization_view));
+        VEFS_TRY(blakeCtx.init(hashLen, keyMaterial, vefs_blake2b_personalization_view));
 
-        BOOST_OUTCOME_TRY(blakeCtx.update(ciphertext));
-        BOOST_OUTCOME_TRY(blakeCtx.final(mac.subspan(0, hashLen)));
+        VEFS_TRY(blakeCtx.update(ciphertext));
+        VEFS_TRY(blakeCtx.final(mac.subspan(0, hashLen)));
 
         if (mac.size() > blake2b::digest_bytes)
         {
@@ -47,16 +47,16 @@ namespace vefs::crypto::detail
 
         const auto hashLen = std::min(mac.size(), blake2b::digest_bytes);
         blake2b blakeCtx{};
-        BOOST_OUTCOME_TRY(blakeCtx.init(hashLen, keyMaterial, vefs_blake2b_personalization_view));
+        VEFS_TRY(blakeCtx.init(hashLen, keyMaterial, vefs_blake2b_personalization_view));
 
-        BOOST_OUTCOME_TRY(blakeCtx.update(ciphertext));
+        VEFS_TRY(blakeCtx.update(ciphertext));
 
         std::vector<std::byte> cpMacMem{mac.size(), std::byte{}};
         span cpMac{cpMacMem};
 
-        BOOST_OUTCOME_TRY(blakeCtx.final(cpMac.subspan(0, hashLen)));
+        VEFS_TRY(blakeCtx.final(cpMac.subspan(0, hashLen)));
 
-        BOOST_OUTCOME_TRYA(cmp, ct_compare(cpMac, mac));
+        VEFS_TRY(cmp, ct_compare(cpMac, mac));
         if (cmp != 0)
         {
             utils::secure_memzero(plaintext);

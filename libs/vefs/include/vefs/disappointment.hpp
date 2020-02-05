@@ -15,7 +15,7 @@
 #pragma warning(disable : 6285)
 #endif
 
-#include <boost/outcome.hpp>
+#include <outcome.hpp>
 
 #if defined BOOST_COMP_MSVC_AVAILABLE
 #pragma warning(pop)
@@ -59,8 +59,8 @@ namespace fmt
 
 namespace vefs
 {
-    namespace outcome = boost::outcome_v2;
-    namespace oc = boost::outcome_v2;
+    namespace outcome = OUTCOME_V2_NAMESPACE;
+    namespace oc = OUTCOME_V2_NAMESPACE;
 
     namespace detail
     {
@@ -389,7 +389,7 @@ namespace vefs
     auto collect_system_error() -> std::error_code;
 } // namespace vefs
 
-#define VEFS_TRY(...) BOOST_OUTCOME_TRY(__VA_ARGS__)
+#define VEFS_TRY(...) OUTCOME_TRY(__VA_ARGS__)
 
 #define VEFS_TRY_INJECT(stmt, injected)                                        \
-    BOOST_OUTCOME_TRY(vefs::inject((stmt), [&](auto &e) { e << injected; }))
+    VEFS_TRY(vefs::inject((stmt), [&](auto &e) { e << injected; }))
