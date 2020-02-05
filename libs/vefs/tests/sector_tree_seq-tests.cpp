@@ -29,7 +29,7 @@ public:
 
     allocator_stub(sector_device &device)
         : alloc_sync()
-        , alloc_counter(0)
+        , alloc_counter(1)
         , device(device)
     {
     }
