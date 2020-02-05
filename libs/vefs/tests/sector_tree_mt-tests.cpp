@@ -242,11 +242,12 @@ BOOST_FIXTURE_TEST_CASE(creation_of_a_new_node_locks, sector_tree_mt_dependencie
     // when
     auto createRx = testSubject->access_or_create(tree_position(1));
     TEST_RESULT_REQUIRE(createRx);
+    TEST_RESULT_REQUIRE(testSubject->commit());
 
     // then
     auto lockCount = mock_mutex::lock_counter();
     auto unlockCounter = mock_mutex::unlock_counter();
-    BOOST_TEST(lockCount == 1);
+    BOOST_TEST(lockCount == 2);
     BOOST_TEST(unlockCounter == lockCount);
 }
 
