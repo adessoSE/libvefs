@@ -20,15 +20,15 @@ namespace {
             mUnlockCounter++;
         }
 
-        int lock_counter() {
+        static int lock_counter() {
             return mLockCounter;
         }
 
-        int unlock_counter() {
+        static int unlock_counter() {
             return mUnlockCounter;
         }
 
-        void reset() {
+        static void reset() {
             mLockCounter = 0;
             mUnlockCounter = 0;
         }
@@ -100,7 +100,6 @@ struct sector_tree_mt_dependencies
     pooled_work_tracker workExecutor;
     file_crypto_ctx fileCryptoContext;
     root_sector_info rootSectorInfo;
-    mock_mutex mutexMock;
 
     sector_tree_mt_dependencies()
         : testFile(vefs::llfio::mapped_temp_inode().value())
@@ -112,7 +111,7 @@ struct sector_tree_mt_dependencies
         , fileCryptoContext(file_crypto_ctx::zero_init)
         , rootSectorInfo()
     {
-            mutexMock.reset();
+            mock_mutex::reset();
     }
 };
 
@@ -245,8 +244,8 @@ BOOST_FIXTURE_TEST_CASE(creation_of_a_new_node_locks, sector_tree_mt_dependencie
     TEST_RESULT_REQUIRE(createRx);
 
     // then
-    auto lockCount = mutexMock.lock_counter();
-    auto unlockCounter = mutexMock.unlock_counter();
+    auto lockCount = mock_mutex::lock_counter();
+    auto unlockCounter = mock_mutex::unlock_counter();
     BOOST_TEST(lockCount == 1);
     BOOST_TEST(unlockCounter == lockCount);
 }
@@ -265,8 +264,8 @@ BOOST_FIXTURE_TEST_CASE(commit_locks,
     TEST_RESULT_REQUIRE(commitRx);
 
     // then
-    auto lockCount = mutexMock.lock_counter();
-    auto unlockCounter = mutexMock.unlock_counter();
+    auto lockCount = mock_mutex::lock_counter();
+    auto unlockCounter = mock_mutex::unlock_counter();
     BOOST_TEST(lockCount == 1);
     BOOST_TEST(unlockCounter == lockCount);
 }
