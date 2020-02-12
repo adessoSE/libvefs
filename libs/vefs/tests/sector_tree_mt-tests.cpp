@@ -18,11 +18,13 @@ namespace
     public:
         void lock()
         {
+            BOOST_TEST(mLockCounter == mUnlockCounter);
             mLockCounter++;
         }
 
         void unlock()
         {
+            BOOST_TEST(mLockCounter - 1 == mUnlockCounter);
             mUnlockCounter++;
         }
 
