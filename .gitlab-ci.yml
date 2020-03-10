@@ -1,0 +1,41 @@
+.before-script-windows: &before-script-windows
+  before_script:
+    - call SET CI_COMMIT_DESCRIPTION=
+    - call SET CI_COMMIT_MESSAGE=
+    - call SET CI_COMMIT_TITLE=
+    - call SET CI_BUILD_BEFORE_SHA=
+    - call SET CI_COMMIT_BEFORE_SHA=
+    - call SET CI_REPOSITORY_URL=
+    - call SET CI_PROJECT_URL=
+    - call SET CI_PIPELINE_URL=
+    - call SET CI_JOB_URL=
+    - call SET CI_RUNNER_TAGS=
+    - call SET nl=
+    - call SET DOCKER_AUTH_CONFIG=
+
+stages:
+- build
+
+build-master:
+  stage: build
+  tags:
+    - windows-torsten
+  only:
+    refs:
+      - develop
+    changes:
+      - "*.*"
+      - libs/**/*y
+      - apps/**/*
+  except:
+    variables:
+      - $NIGHTLY
+      - $RELEASE
+      - $CONFLUENCE_VERSION_NAME
+  allow_failure: false
+  <<: *before-script-windows
+  script:
+    - git clone https://mdk-bs-dev02.test-server.ag/native/vefs-packages.git
+    - git clone ssh://git@mdk-bs-dev02.test-server.ag:2224/native/vefs-packages.git
+  after_script:
+    - call powershell.exe -ExecutionPolicy Bypass -File C:\PipelineScript\cleanupAfterPipeline.ps1
