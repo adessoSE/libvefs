@@ -1,2 +1,2 @@
 variables:
-  VEFS_PACKAGES_VERSION: "0.1.0.feature/add_pipeline"
+  VEFS_PACKAGES_VERSION: "0.1.0.master"
