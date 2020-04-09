@@ -1,9 +1,10 @@
 include:
-  - local: 'dependencies.yml'
+  - local: 'properties.yml'
 
 stages:
 - build
 - test
+- release
 
 build_debug:
   stage: build
@@ -42,3 +43,62 @@ test_debug:
     - call build\bin\Debug\vefs-tests
   dependencies:
     - build_debug
+
+build_release:
+  stage: build
+  tags:
+    - windows-torsten
+  only:
+    refs:
+      - master
+      - /^feature/
+      - develop
+      - merge_requests
+  allow_failure: false
+  script:
+    - powershell $ProgressPreference = 'SilentlyContinue'; iwr -H @{'X-JFrog-Art-Api'=$env:ARTIFACTORY_TOKEN} -method GET -uri https://mdk-bs-dev03.test-server.ag/artifactory/mdk-artifact-dev-local/de/mdk/bs/vefs/$env:VEFS_PACKAGES_VERSION/vefs_packages.zip -Outfile vefs-packages.zip
+    - powershell 7z.exe x vefs-packages.zip
+    - call mkdir build
+    - call cd build
+    - call cmake -G "Visual Studio 16 2019"  -A x64 -DVCPKG_TARGET_TRIPLET:STRING="x64-windows-ltcg-static" -DCMAKE_MSVC_RUNTIME_LIBRARY:STRING="MultiThreaded" -DCMAKE_EXE_LINKER_FLAGS:STRING="/debug /INCREMENTAL" -DCMAKE_TOOLCHAIN_FILE="../vefs_packages/scripts/buildsystems/vcpkg.cmake" -DCMAKE_INSTALL_PREFIX=. -DCMAKE_BUILD_TYPE="Release" ".."
+    - call cmake --build . --config Release
+  artifacts:
+    paths:
+      - build/
+
+test_release:
+  stage: test
+  tags:
+    - windows-torsten
+  only:
+    refs:
+      - master
+      - /^feature/
+      - develop
+      - merge_requests
+  allow_failure: false
+  script:
+    - call build\bin\Release\vefs-tests
+  dependencies:
+    - build_release
+
+install_release:
+  stage: release
+  tags:
+    - windows-torsten
+  only:
+    refs:
+      - master
+      - develop
+  allow_failure: false
+  script:
+    - powershell $ProgressPreference = 'SilentlyContinue'; iwr -H @{'X-JFrog-Art-Api'=$env:ARTIFACTORY_TOKEN} -method GET -uri https://mdk-bs-dev03.test-server.ag/artifactory/mdk-artifact-dev-local/de/mdk/bs/vefs/$env:VEFS_PACKAGES_VERSION/vefs_packages.zip -Outfile vefs-packages.zip
+    - powershell 7z.exe x vefs-packages.zip
+    - cd build
+    - call cmake --install .
+    - powershell Compress-Archive -Path "include", "lib", "cmake" -DestinationPath vefs-lib.zip
+    - powershell powershell $ProgressPreference = 'SilentlyContinue'; iwr -H @{'X-JFrog-Art-Api'=$env:ARTIFACTORY_TOKEN} -method PUT -uri https://mdk-bs-dev03.test-server.ag/artifactory/mdk-artifact-dev-local/de/mdk/bs/vefs/vefs-lib/vefs_lib_$env:VEFS_VERSION.$env:CI_COMMIT_REF_NAME.zip -Infile vefs-lib.zip
+
+  dependencies:
+    - test_release
+    - build_release
