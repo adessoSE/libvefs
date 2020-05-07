@@ -39,6 +39,10 @@ namespace vefs::crypto
             : key_material_size{keyMaterialSize}
         {
         }
+        constexpr crypto_provider()
+            : key_material_size{5}
+        {
+        }
         virtual ~crypto_provider() = default;
     };
     static_assert(!std::is_default_constructible_v<crypto_provider>);

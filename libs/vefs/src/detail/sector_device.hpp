@@ -66,7 +66,9 @@ namespace vefs::detail
         auto read_sector(rw_blob<sector_payload_size> contentDest,
                          const file_crypto_ctx &fileCtx, sector_id sectorIdx,
                          ro_blob<16> contentMAC) noexcept -> result<void>;
-        auto write_sector(rw_blob<16> mac, file_crypto_ctx &fileCtx,
+
+        template <typename file_crypto_ctx_T = file_crypto_ctx>
+        auto write_sector(rw_blob<16> mac, file_crypto_ctx_T &fileCtx,
                           sector_id sectorIdx,
                           ro_blob<sector_payload_size> data) noexcept
             -> result<void>;

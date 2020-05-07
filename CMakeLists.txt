@@ -58,6 +58,8 @@ find_package(libb2 REQUIRED CONFIG)
 
 find_package(boringssl REQUIRED CONFIG)
 
+find_package(GTest CONFIG REQUIRED)
+
 # botan provider is currently not implemented
 #find_package(botan 2.8.0)
 

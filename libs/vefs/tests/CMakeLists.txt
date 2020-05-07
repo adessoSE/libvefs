@@ -25,5 +25,7 @@ target_link_libraries(vefs-tests
     PUBLIC
         vefs
         Boost::unit_test_framework
+        GTest::gtest GTest::gtest_main GTest::gmock GTest::gmock_main
+        
 )
 add_test(NAME vefs-tests COMMAND vefs-tests)

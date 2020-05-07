@@ -4,11 +4,9 @@
 #include <optional>
 #include <random>
 
-#include <boost/uuid/random_generator.hpp>
-
 #include <vefs/span.hpp>
 #include <vefs/utils/misc.hpp>
-#include <vefs/utils/random.hpp>
+
 #include <vefs/utils/secure_allocator.hpp>
 #include <vefs/utils/secure_array.hpp>
 
@@ -103,33 +101,6 @@ namespace vefs::detail
         header.free_sector_index.tree_info =
             root_sector_info::unpack_from(*hd.mutable_freeblockindex());
     }
-
-    // result<void>
-    // vefs::detail::sector_device::initialize_file(basic_archive_file_meta
-    // &file)
-    //{
-    //    auto ctrValue = mArchiveSecretCounter.fetch_increment().value();
-    //    VEFS_TRY(crypto::kdf(as_span(file.secret),
-    //                                  master_secret_view(), file_kdf_secret,
-    //                                  ctrValue, session_salt_view()));
-
-    //    {
-    //        crypto::counter::state fileWriteCtrState;
-    //        ctrValue = mArchiveSecretCounter.fetch_increment().value();
-    //        VEFS_TRY(
-    //            crypto::kdf(as_writable_bytes(as_span(fileWriteCtrState)),
-    //                        master_secret_view(), file_kdf_counter,
-    //                        ctrValue));
-    //        file.write_counter.store(crypto::counter{fileWriteCtrState});
-    //    }
-
-    //    file.start_block_idx = sector_id{};
-    //    file.start_block_mac = {};
-    //    file.size = 0;
-    //    file.tree_depth = -1;
-
-    //    return outcome::success();
-    //}
 
     auto sector_device::create_file_secrets() noexcept
         -> result<std::unique_ptr<file_crypto_ctx>>
@@ -538,9 +509,6 @@ namespace vefs::detail
 
         VEFS_TRY(mArchiveFile.write(sizeof(headerPrefix),
                                     {{msg.data(), msg.size()}}));
-        //VEFS_TRY(mArchiveFile.zero(sizeof(headerPrefix) + msg.size(),
-        //                           mArchiveHeaderOffset - sizeof(headerPrefix) -
-        //                               msg.size()));
 
         return outcome::success();
     }
@@ -594,7 +562,9 @@ namespace vefs::detail
         return outcome::success();
     }
 
-    auto sector_device::write_sector(rw_blob<16> mac, file_crypto_ctx &fileCtx,
+    template <typename file_crypto_ctx_T>
+    auto sector_device::write_sector(rw_blob<16> mac,
+                                     file_crypto_ctx_T &fileCtx,
                                      sector_id sectorIdx,
                                      ro_blob<sector_payload_size> data) noexcept
         -> result<void>
@@ -714,4 +684,13 @@ namespace vefs::detail
         // enough to deal with the probably corrupt other header
         return update_header();
     }
+    template result<void>
+    sector_device::write_sector(rw_blob<16> mac, file_crypto_ctx &fileCtx,
+                                sector_id sectorIdx,
+                                ro_blob<sector_payload_size> data);
+    template result<void>
+    sector_device::write_sector<file_crypto_ctx_interface>(
+        rw_blob<16> mac, file_crypto_ctx_interface &fileCtx,
+        sector_id sectorIdx, ro_blob<sector_payload_size> data);
+
 } // namespace vefs::detail
