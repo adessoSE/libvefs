@@ -128,7 +128,7 @@ struct sector_tree_mt_dependencies
     sector_tree_mt_dependencies()
         : testFile(vefs::llfio::mapped_temp_inode().value())
         , device(sector_device::open(testFile.reopen(0).value(),
-                                     crypto::debug_crypto_provider(),
+                                     vefs::test::only_mac_crypto_provider(),
                                      default_user_prk, true)
                      .value())
         , workExecutor(&thread_pool::shared()) // #TODO create test thread pool

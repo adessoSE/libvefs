@@ -51,7 +51,6 @@ BOOST_TEST_GLOBAL_FIXTURE(ProtobufShutdownFixture);
 // defining header is already included in the precompiled header...
 bool init_unit_test()
 {
-    vefs::crypto::detail::enable_debug_provider();
     auto &suite{boost::unit_test::framework::master_test_suite()};
     ::testing::InitGoogleMock(&suite.argc, suite.argv);
 

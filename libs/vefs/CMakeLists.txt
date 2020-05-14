@@ -97,9 +97,6 @@ DEF_SOURCE_GROUP(vefs "crypto"
 
         src/crypto/provider.hpp
 
-        src/crypto/crypto_provider_debug.cpp #TODO move this into a seperate library
-        src/crypto/crypto_provider_debug.hpp
-
         src/crypto/kdf.cpp
         src/crypto/kdf.hpp
 
@@ -227,6 +224,8 @@ add_executable(vefs-tests
     tests/vefs-tests.cpp
     tests/boost-unit-test.hpp
     tests/test-utils.hpp
+    tests/libb2_none_blake2b_crypto_provider.cpp
+    tests/libb2_none_blake2b_crypto_provider.hpp
     tests/disappointment-tests.cpp
     tests/allocator-tests.cpp
     tests/cache-tests.cpp

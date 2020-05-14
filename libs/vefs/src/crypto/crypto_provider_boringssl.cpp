@@ -11,26 +11,28 @@
 
 namespace vefs::crypto::detail
 {
-    result<void> boringssl_aes_256_gcm_provider::box_seal(rw_dynblob ciphertext, rw_dynblob mac,
-                                                          ro_dynblob keyMaterial,
-                                                          ro_dynblob plaintext) const noexcept
+    result<void> boringssl_aes_256_gcm_provider::box_seal(
+        rw_dynblob ciphertext, rw_dynblob mac, ro_dynblob keyMaterial,
+        ro_dynblob plaintext) const noexcept
     {
         VEFS_TRY(aead, boringssl_aead::create(keyMaterial.subspan(0, 32)));
 
-        return aead.seal(ciphertext, mac, keyMaterial.subspan(32, 12), plaintext);
+        return aead.seal(ciphertext, mac, keyMaterial.subspan(32, 12),
+                         plaintext);
     }
 
-    result<void> boringssl_aes_256_gcm_provider::box_open(rw_dynblob plaintext,
-                                                          ro_dynblob keyMaterial,
-                                                          ro_dynblob ciphertext,
-                                                          ro_dynblob mac) const noexcept
+    result<void> boringssl_aes_256_gcm_provider::box_open(
+        rw_dynblob plaintext, ro_dynblob keyMaterial, ro_dynblob ciphertext,
+        ro_dynblob mac) const noexcept
     {
         VEFS_TRY(aead, boringssl_aead::create(keyMaterial.subspan(0, 32)));
 
-        return aead.open(plaintext, keyMaterial.subspan(32, 12), ciphertext, mac);
+        return aead.open(plaintext, keyMaterial.subspan(32, 12), ciphertext,
+                         mac);
     }
 
-    vefs::utils::secure_byte_array<16> boringssl_aes_256_gcm_provider::generate_session_salt() const
+    vefs::utils::secure_byte_array<16>
+    boringssl_aes_256_gcm_provider::generate_session_salt() const
     {
         using vefs::detail::random_bytes;
         utils::secure_byte_array<16> salt;
@@ -41,12 +43,14 @@ namespace vefs::crypto::detail
         return salt;
     }
 
-    result<void> boringssl_aes_256_gcm_provider::random_bytes(rw_dynblob out) const noexcept
+    result<void>
+    boringssl_aes_256_gcm_provider::random_bytes(rw_dynblob out) const noexcept
     {
         return vefs::detail::random_bytes(out);
     }
 
-    result<int> boringssl_aes_256_gcm_provider::ct_compare(ro_dynblob l, ro_dynblob r) const
+    result<int> boringssl_aes_256_gcm_provider::ct_compare(ro_dynblob l,
+                                                           ro_dynblob r) const
         noexcept
     {
         return ::vefs::crypto::detail::ct_compare(l, r);

@@ -1,9 +1,6 @@
 #include <vefs/archive.hpp>
 #include <vefs/utils/random.hpp>
 
-#include "boost-unit-test.hpp"
-
-#include "../src/crypto/provider.hpp"
 #include "../src/detail/archive_file_id.hpp"
 #include "../src/detail/sector_device.hpp"
 
@@ -26,7 +23,7 @@ BOOST_AUTO_TEST_CASE(archive_create)
 {
     using namespace vefs;
 
-    auto cprov = crypto::debug_crypto_provider();
+    auto cprov = test::only_mac_crypto_provider();
     auto archiveFileHandle = vefs::llfio::mapped_temp_inode().value();
 
     auto openrx = archive::open(std::move(archiveFileHandle), cprov,
@@ -39,7 +36,7 @@ BOOST_AUTO_TEST_CASE(archive_create_reopen)
 {
     using namespace vefs;
 
-    auto cprov = crypto::debug_crypto_provider();
+    auto cprov = vefs::test::only_mac_crypto_provider();
     auto archiveFileHandle = vefs::llfio::mapped_temp_inode().value();
 
     {
@@ -62,7 +59,7 @@ BOOST_AUTO_TEST_CASE(archive_create_file)
     using namespace vefs;
 
     auto archiveFileHandle = vefs::llfio::mapped_temp_inode().value();
-    auto cprov = crypto::debug_crypto_provider();
+    auto cprov = vefs::test::only_mac_crypto_provider();
 
     {
         auto cloned = archiveFileHandle.reopen(0).value();
@@ -73,8 +70,7 @@ BOOST_AUTO_TEST_CASE(archive_create_file)
         auto fopenrx = ac->open(default_file_path, file_open_mode::readwrite |
                                                        file_open_mode::create);
         TEST_RESULT_REQUIRE(fopenrx);
-        TEST_RESULT_REQUIRE(
-            ac->commit(fopenrx.assume_value()));
+        TEST_RESULT_REQUIRE(ac->commit(fopenrx.assume_value()));
         TEST_RESULT_REQUIRE(ac->commit());
     }
     {
