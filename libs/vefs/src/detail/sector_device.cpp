@@ -129,6 +129,7 @@ namespace vefs::detail
                                  const size_t numSectors)
         : mCryptoProvider(cryptoProvider)
         , mArchiveFile(std::move(mfh))
+        , mArchiveFileLock(mArchiveFile, llfio::lock_kind::unlocked)
         , mHeaderContent{{file_crypto_ctx::zero_init, {}},
                          {file_crypto_ctx::zero_init, {}}}
         , mSessionSalt(cryptoProvider->generate_session_salt())
@@ -151,6 +152,10 @@ namespace vefs::detail
         if (!archive)
         {
             return errc::not_enough_memory;
+        }
+        if (!archive->mArchiveFileLock.try_lock())
+        {
+            return errc::still_in_use;
         }
 
         VEFS_TRY(archive->mArchiveFile.update_map());

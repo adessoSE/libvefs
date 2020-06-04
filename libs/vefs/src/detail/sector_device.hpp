@@ -112,6 +112,7 @@ namespace vefs::detail
 
         crypto::crypto_provider *const mCryptoProvider;
         llfio::mapped_file_handle mArchiveFile;
+        llfio::unique_file_lock mArchiveFileLock;
 
         archive_header_content mHeaderContent;
 

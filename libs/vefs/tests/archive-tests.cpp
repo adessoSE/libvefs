@@ -54,6 +54,25 @@ BOOST_AUTO_TEST_CASE(archive_create_reopen)
     }
 }
 
+BOOST_AUTO_TEST_CASE(archive_no_parallel_open)
+{
+    using namespace vefs;
+
+    auto cprov = vefs::test::only_mac_crypto_provider();
+    auto archiveFileHandle = vefs::llfio::mapped_temp_inode().value();
+
+    auto cloned = archiveFileHandle.reopen(0).value();
+    auto openrx =
+        archive::open(std::move(cloned), cprov, default_user_prk, true);
+    TEST_RESULT_REQUIRE(openrx);
+    TEST_RESULT_REQUIRE(openrx.assume_value()->commit());
+
+    cloned = archiveFileHandle.reopen(0).value();
+    auto reopenrx =
+        archive::open(std::move(cloned), cprov, default_user_prk, false);
+    BOOST_TEST(reopenrx.error() == errc::still_in_use);
+}
+
 BOOST_AUTO_TEST_CASE(archive_create_file)
 {
     using namespace vefs;
