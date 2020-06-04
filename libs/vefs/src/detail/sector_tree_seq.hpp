@@ -109,7 +109,8 @@ namespace vefs::detail
         auto erase_leaf(std::uint64_t leafId) noexcept -> result<void>;
         auto erase_self() noexcept -> result<void>;
 
-        auto commit() noexcept -> result<root_sector_info>;
+        template <typename Fn>
+        auto commit(Fn &&commitFn) noexcept -> result<void>;
 
         auto bytes() const noexcept
             -> ro_blob<sector_device::sector_payload_size>;
@@ -273,8 +274,7 @@ namespace vefs::detail
 
     template <typename TreeAllocator>
     inline auto sector_tree_seq<TreeAllocator>::extract_alloc_map(
-        utils::bitset_overlay allocs)
-        -> result<void>
+        utils::bitset_overlay allocs) -> result<void>
     {
         allocs.set(static_cast<std::uint64_t>(mRootInfo.root.sector));
         if (mRootInfo.tree_depth == 0)
@@ -293,8 +293,7 @@ namespace vefs::detail
 
     template <typename TreeAllocator>
     inline auto sector_tree_seq<TreeAllocator>::collect_next_layer(
-        utils::bitset_overlay allocs)
-        -> result<void>
+        utils::bitset_overlay allocs) -> result<void>
     {
         auto layer = last_loaded_index();
         reference_sector_layout layout{node_data_span(layer)};
@@ -337,14 +336,29 @@ namespace vefs::detail
     }
 
     template <typename TreeAllocator>
-    inline auto sector_tree_seq<TreeAllocator>::commit() noexcept
-        -> result<root_sector_info>
+    template <typename Fn>
+    inline auto sector_tree_seq<TreeAllocator>::commit(Fn &&commitFn) noexcept
+        -> result<void>
     {
         for (int i = 0; i <= mRootInfo.tree_depth; ++i)
         {
             VEFS_TRY(sync_to_device(i));
         }
-        return mRootInfo;
+
+        using invoke_result_type = std::invoke_result_t<Fn, root_sector_info>;
+        if constexpr (std::is_void_v<invoke_result_type>)
+        {
+            std::invoke(std::forward<Fn>(commitFn), (mRootInfo));
+        }
+        else
+        {
+            VEFS_TRY(
+                std::invoke(std::forward<Fn>(commitFn), (mRootInfo)));
+        }
+
+        VEFS_TRY(mTreeAllocator.on_commit());
+
+        return success();
     }
 
     template <typename TreeAllocator>

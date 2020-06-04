@@ -2,23 +2,21 @@
 
 #include <type_traits>
 
-#include <vefs/span.hpp>
 #include <vefs/disappointment.hpp>
+#include <vefs/span.hpp>
 #include <vefs/utils/secure_array.hpp>
 
 namespace vefs::crypto
 {
-    namespace detail
-    {
-        void enable_debug_provider();
-    }
-
     class crypto_provider
     {
     public:
-        virtual result<void> box_seal(rw_dynblob ciphertext, rw_dynblob mac, ro_dynblob keyMaterial,
+        virtual result<void> box_seal(rw_dynblob ciphertext, rw_dynblob mac,
+                                      ro_dynblob keyMaterial,
                                       ro_dynblob plaintext) const noexcept = 0;
-        virtual result<void> box_open(rw_dynblob plaintext, ro_dynblob keyMaterial, ro_dynblob ciphertext,
+        virtual result<void> box_open(rw_dynblob plaintext,
+                                      ro_dynblob keyMaterial,
+                                      ro_dynblob ciphertext,
                                       ro_dynblob mac) const noexcept = 0;
 
         /**
@@ -30,13 +28,18 @@ namespace vefs::crypto
         /**
          * carries out a constant-time compare
          */
-        virtual result<int> ct_compare(ro_dynblob l, ro_dynblob r) const noexcept = 0;
+        virtual result<int> ct_compare(ro_dynblob l, ro_dynblob r) const
+            noexcept = 0;
 
         const std::size_t key_material_size;
 
     protected:
         constexpr crypto_provider(std::size_t keyMaterialSize)
             : key_material_size{keyMaterialSize}
+        {
+        }
+        constexpr crypto_provider()
+            : key_material_size{5}
         {
         }
         virtual ~crypto_provider() = default;
@@ -49,5 +52,4 @@ namespace vefs::crypto
     static_assert(!std::is_destructible_v<crypto_provider>);
 
     crypto_provider *boringssl_aes_256_gcm_crypto_provider();
-    crypto_provider *debug_crypto_provider();
 } // namespace vefs::crypto

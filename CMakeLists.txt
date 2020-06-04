@@ -46,6 +46,8 @@ include(src-helper)
 ##########################################################################
 # library includes
 
+find_package(outcome CONFIG REQUIRED)
+
 find_package(llfio CONFIG REQUIRED)
 
 find_package(ntkernel-error-category CONFIG REQUIRED)
@@ -55,6 +57,8 @@ find_package(quickcpplib CONFIG REQUIRED)
 find_package(libb2 REQUIRED CONFIG)
 
 find_package(boringssl REQUIRED CONFIG)
+
+find_package(GTest CONFIG REQUIRED)
 
 # botan provider is currently not implemented
 #find_package(botan 2.8.0)

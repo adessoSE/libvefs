@@ -63,9 +63,13 @@ namespace vefs
                            detail::file_crypto_ctx &cryptoCtx,
                            detail::archive_sector_allocator &allocator,
                            detail::root_sector_info treeRoot) -> result<void>;
-        auto create_new(detail::sector_device &device, 
+        auto create_new(detail::sector_device &device,
                         detail::archive_sector_allocator &allocator,
                         detail::file_crypto_ctx &cryptoCtx) -> result<void>;
+
+        auto
+        sync_commit_info(detail::root_sector_info commitedRootInfo) noexcept
+            -> result<void>;
 
         vfilesystem *mOwner;
         detail::file_id mId;

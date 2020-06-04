@@ -1,6 +1,5 @@
 #include "../src/vfilesystem.hpp"
 
-#include "boost-unit-test.hpp"
 #include "test-utils.hpp"
 
 #include "../src/detail/sector_device.hpp"
@@ -20,8 +19,8 @@ struct vfilesystem_pre_create_fixture
 
     vfilesystem_pre_create_fixture()
         : testFile(vefs::llfio::mapped_temp_inode().value())
-        , device(sector_device::open(testFile.clone(0).value(),
-                                     crypto::debug_crypto_provider(),
+        , device(sector_device::open(testFile.reopen(0).value(),
+                                     test::only_mac_crypto_provider(),
                                      default_user_prk, true)
                      .value())
         , workExecutor(&thread_pool::shared())

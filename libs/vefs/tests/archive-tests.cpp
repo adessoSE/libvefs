@@ -1,9 +1,6 @@
 #include <vefs/archive.hpp>
 #include <vefs/utils/random.hpp>
 
-#include "boost-unit-test.hpp"
-
-#include "../src/crypto/provider.hpp"
 #include "../src/detail/archive_file_id.hpp"
 #include "../src/detail/sector_device.hpp"
 
@@ -26,7 +23,7 @@ BOOST_AUTO_TEST_CASE(archive_create)
 {
     using namespace vefs;
 
-    auto cprov = crypto::debug_crypto_provider();
+    auto cprov = test::only_mac_crypto_provider();
     auto archiveFileHandle = vefs::llfio::mapped_temp_inode().value();
 
     auto openrx = archive::open(std::move(archiveFileHandle), cprov,
@@ -39,22 +36,41 @@ BOOST_AUTO_TEST_CASE(archive_create_reopen)
 {
     using namespace vefs;
 
-    auto cprov = crypto::debug_crypto_provider();
+    auto cprov = vefs::test::only_mac_crypto_provider();
     auto archiveFileHandle = vefs::llfio::mapped_temp_inode().value();
 
     {
-        auto cloned = archiveFileHandle.clone(0).value();
+        auto cloned = archiveFileHandle.reopen(0).value();
         auto openrx =
             archive::open(std::move(cloned), cprov, default_user_prk, true);
         TEST_RESULT_REQUIRE(openrx);
         TEST_RESULT_REQUIRE(openrx.assume_value()->commit());
     }
     {
-        auto cloned = archiveFileHandle.clone(0).value();
+        auto cloned = archiveFileHandle.reopen(0).value();
         auto openrx =
             archive::open(std::move(cloned), cprov, default_user_prk, false);
         TEST_RESULT(openrx);
     }
+}
+
+BOOST_AUTO_TEST_CASE(archive_no_parallel_open)
+{
+    using namespace vefs;
+
+    auto cprov = vefs::test::only_mac_crypto_provider();
+    auto archiveFileHandle = vefs::llfio::mapped_temp_inode().value();
+
+    auto cloned = archiveFileHandle.reopen(0).value();
+    auto openrx =
+        archive::open(std::move(cloned), cprov, default_user_prk, true);
+    TEST_RESULT_REQUIRE(openrx);
+    TEST_RESULT_REQUIRE(openrx.assume_value()->commit());
+
+    cloned = archiveFileHandle.reopen(0).value();
+    auto reopenrx =
+        archive::open(std::move(cloned), cprov, default_user_prk, false);
+    BOOST_TEST(reopenrx.error() == errc::still_in_use);
 }
 
 BOOST_AUTO_TEST_CASE(archive_create_file)
@@ -62,10 +78,10 @@ BOOST_AUTO_TEST_CASE(archive_create_file)
     using namespace vefs;
 
     auto archiveFileHandle = vefs::llfio::mapped_temp_inode().value();
-    auto cprov = crypto::debug_crypto_provider();
+    auto cprov = vefs::test::only_mac_crypto_provider();
 
     {
-        auto cloned = archiveFileHandle.clone(0).value();
+        auto cloned = archiveFileHandle.reopen(0).value();
         auto openrx =
             archive::open(std::move(cloned), cprov, default_user_prk, true);
         TEST_RESULT_REQUIRE(openrx);
@@ -73,12 +89,11 @@ BOOST_AUTO_TEST_CASE(archive_create_file)
         auto fopenrx = ac->open(default_file_path, file_open_mode::readwrite |
                                                        file_open_mode::create);
         TEST_RESULT_REQUIRE(fopenrx);
-        TEST_RESULT_REQUIRE(
-            ac->commit(fopenrx.assume_value()));
+        TEST_RESULT_REQUIRE(ac->commit(fopenrx.assume_value()));
         TEST_RESULT_REQUIRE(ac->commit());
     }
     {
-        auto cloned = archiveFileHandle.clone(0).value();
+        auto cloned = archiveFileHandle.reopen(0).value();
         auto openrx =
             archive::open(std::move(cloned), cprov, default_user_prk, false);
         TEST_RESULT_REQUIRE(openrx);
@@ -105,7 +120,7 @@ BOOST_AUTO_TEST_CASE(archive_readwrite)
     dataGenerator.fill(file);
 
     {
-        auto cloned = archiveFileHandle.clone(0).value();
+        auto cloned = archiveFileHandle.reopen(0).value();
         auto openrx =
             archive::open(std::move(cloned), cprov, default_user_prk, true);
         TEST_RESULT_REQUIRE(openrx);
@@ -121,7 +136,7 @@ BOOST_AUTO_TEST_CASE(archive_readwrite)
         TEST_RESULT_REQUIRE(ac->commit());
     }
     {
-        auto cloned = archiveFileHandle.clone(0).value();
+        auto cloned = archiveFileHandle.reopen(0).value();
         auto openrx =
             archive::open(std::move(cloned), cprov, default_user_prk, false);
         TEST_RESULT_REQUIRE(openrx);
@@ -154,7 +169,7 @@ BOOST_AUTO_TEST_CASE(archive_file_shrink)
     dataGenerator.fill(file);
 
     {
-        auto cloned = archiveFileHandle.clone(0).value();
+        auto cloned = archiveFileHandle.reopen(0).value();
         auto openrx =
             archive::open(std::move(cloned), cprov, default_user_prk, true);
         TEST_RESULT_REQUIRE(openrx);
@@ -170,7 +185,7 @@ BOOST_AUTO_TEST_CASE(archive_file_shrink)
         TEST_RESULT_REQUIRE(ac->commit());
     }
     {
-        auto cloned = archiveFileHandle.clone(0).value();
+        auto cloned = archiveFileHandle.reopen(0).value();
         auto openrx =
             archive::open(std::move(cloned), cprov, default_user_prk, false);
         TEST_RESULT_REQUIRE(openrx);
@@ -186,7 +201,7 @@ BOOST_AUTO_TEST_CASE(archive_file_shrink)
         TEST_RESULT_REQUIRE(ac->commit());
     }
     {
-        auto cloned = archiveFileHandle.clone(0).value();
+        auto cloned = archiveFileHandle.reopen(0).value();
         auto openrx =
             archive::open(std::move(cloned), cprov, default_user_prk, false);
         TEST_RESULT_REQUIRE(openrx);
@@ -219,7 +234,7 @@ BOOST_AUTO_TEST_CASE(archive_file_erase)
     dataGenerator.fill(file);
 
     {
-        auto cloned = archiveFileHandle.clone(0).value();
+        auto cloned = archiveFileHandle.reopen(0).value();
         auto openrx =
             archive::open(std::move(cloned), cprov, default_user_prk, true);
         TEST_RESULT_REQUIRE(openrx);
@@ -236,7 +251,7 @@ BOOST_AUTO_TEST_CASE(archive_file_erase)
         TEST_RESULT_REQUIRE(ac->commit());
     }
     {
-        auto cloned = archiveFileHandle.clone(0).value();
+        auto cloned = archiveFileHandle.reopen(0).value();
         auto openrx =
             archive::open(std::move(cloned), cprov, default_user_prk, false);
         TEST_RESULT_REQUIRE(openrx);
@@ -247,7 +262,7 @@ BOOST_AUTO_TEST_CASE(archive_file_erase)
         TEST_RESULT_REQUIRE(ac->commit());
     }
     {
-        auto cloned = archiveFileHandle.clone(0).value();
+        auto cloned = archiveFileHandle.reopen(0).value();
         auto openrx =
             archive::open(std::move(cloned), cprov, default_user_prk, false);
         TEST_RESULT_REQUIRE(openrx);
@@ -276,7 +291,7 @@ BOOST_AUTO_TEST_CASE(archive_empty_userprk)
     dataGenerator.fill(file);
 
     {
-        auto cloned = archiveFileHandle.clone(0).value();
+        auto cloned = archiveFileHandle.reopen(0).value();
         auto openrx =
             archive::open(std::move(cloned), cprov, default_user_prk, true);
         TEST_RESULT_REQUIRE(openrx);
@@ -296,7 +311,7 @@ BOOST_AUTO_TEST_CASE(archive_empty_userprk)
         TEST_RESULT_REQUIRE(ac->commit());
     }
     {
-        auto cloned = archiveFileHandle.clone(0).value();
+        auto cloned = archiveFileHandle.reopen(0).value();
         auto openrx =
             archive::open(std::move(cloned), cprov, default_user_prk, false);
         TEST_RESULT_REQUIRE(openrx);
@@ -332,7 +347,7 @@ BOOST_AUTO_TEST_CASE(archive_query)
     dataGenerator.fill(file);
 
     {
-        auto cloned = archiveFileHandle.clone(0).value();
+        auto cloned = archiveFileHandle.reopen(0).value();
         auto openrx =
             archive::open(std::move(cloned), cprov, default_user_prk, true);
         TEST_RESULT_REQUIRE(openrx);
@@ -353,7 +368,7 @@ BOOST_AUTO_TEST_CASE(archive_query)
     }
     BOOST_TEST_PASSPOINT();
     {
-        auto cloned = archiveFileHandle.clone(0).value();
+        auto cloned = archiveFileHandle.reopen(0).value();
         auto openrx =
             archive::open(std::move(cloned), cprov, default_user_prk, false);
         TEST_RESULT_REQUIRE(openrx);
@@ -383,7 +398,7 @@ BOOST_AUTO_TEST_CASE(sqlite_bridge_regression_1)
     utils::xoroshiro128plus dataGenerator{0};
 
     {
-        auto cloned = archiveFileHandle.clone(0).value();
+        auto cloned = archiveFileHandle.reopen(0).value();
         auto openrx =
             archive::open(std::move(cloned), cprov, default_user_prk, true);
         TEST_RESULT_REQUIRE(openrx);

@@ -97,9 +97,6 @@ DEF_SOURCE_GROUP(vefs "crypto"
 
         src/crypto/provider.hpp
 
-        src/crypto/crypto_provider_debug.cpp #TODO move this into a seperate library
-        src/crypto/crypto_provider_debug.hpp
-
         src/crypto/kdf.cpp
         src/crypto/kdf.hpp
 
@@ -201,6 +198,7 @@ target_link_libraries(vefs
         fmt::fmt
         llfio
         ntkernel-error-category
+        outcome
         quickcpplib
 
         concurrentqueue
@@ -226,24 +224,20 @@ add_executable(vefs-tests
     tests/vefs-tests.cpp
     tests/boost-unit-test.hpp
     tests/test-utils.hpp
-
+    tests/libb2_none_blake2b_crypto_provider.cpp
+    tests/libb2_none_blake2b_crypto_provider.hpp
     tests/disappointment-tests.cpp
     tests/allocator-tests.cpp
     tests/cache-tests.cpp
     tests/cache_clock-tests.cpp
-
     tests/sector_device-tests.cpp
     tests/sector_tree_mt-tests.cpp
     tests/sector_tree_seq-tests.cpp
     tests/archive-tests.cpp
-
     tests/vfilesystem-tests.cpp
-
     tests/span-tests.cpp
     tests/crypto_provider-tests.cpp
-
     tests/block_manager-tests.cpp
-
     tests/tree_lut-tests.cpp
     tests/tree_walker-tests.cpp
 )
@@ -251,6 +245,7 @@ target_link_libraries(vefs-tests
     PUBLIC
         vefs
         Boost::unit_test_framework
+        GTest::gmock
 )
 add_test(NAME vefs-tests COMMAND vefs-tests)
 

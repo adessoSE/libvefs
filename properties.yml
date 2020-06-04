@@ -1,0 +1,3 @@
+variables:
+  VEFS_PACKAGES_VERSION: "0.1.0.master"
+  VEFS_VERSION: "0.2.0"

@@ -6,14 +6,15 @@
 using namespace vefs;
 using namespace vefs::detail;
 
-class test_allocator
+class allocator_stub
 {
 public:
     struct sector_allocator
     {
-        friend class test_allocator;
+        friend class allocator_stub;
 
-        explicit sector_allocator(test_allocator &owner, sector_id current)
+        explicit sector_allocator([[maybe_unused]] allocator_stub &owner,
+                                  sector_id current)
             : mCurrent(current)
         {
         }
@@ -27,9 +28,9 @@ public:
     };
     static constexpr auto leak_on_failure = leak_on_failure_t{};
 
-    test_allocator(sector_device &device)
+    allocator_stub(sector_device &device)
         : alloc_sync()
-        , alloc_counter(0)
+        , alloc_counter(1)
         , device(device)
     {
     }
@@ -46,11 +47,13 @@ public:
         return allocated;
     }
 
-    auto dealloc_one(const sector_id which) noexcept -> result<void>
+    auto dealloc_one([[maybe_unused]] sector_id const which) noexcept
+        -> result<void>
     {
         return success();
     }
-    void dealloc_one(const sector_id which, leak_on_failure_t) noexcept
+    void dealloc_one([[maybe_unused]] sector_id const which,
+                     leak_on_failure_t) noexcept
     {
     }
 
@@ -68,11 +71,11 @@ public:
     sector_device &device;
 };
 
-template class vefs::detail::sector_tree_seq<test_allocator>;
+template class vefs::detail::sector_tree_seq<allocator_stub>;
 
 struct sector_tree_seq_pre_create_fixture
 {
-    using tree_type = sector_tree_seq<test_allocator>;
+    using tree_type = sector_tree_seq<allocator_stub>;
 
     static constexpr std::array<std::byte, 32> default_user_prk{};
 
@@ -84,8 +87,8 @@ struct sector_tree_seq_pre_create_fixture
 
     sector_tree_seq_pre_create_fixture()
         : testFile(vefs::llfio::mapped_temp_inode().value())
-        , device(sector_device::open(testFile.clone(0).value(),
-                                     crypto::debug_crypto_provider(),
+        , device(sector_device::open(testFile.reopen(0).value(),
+                                     vefs::test::only_mac_crypto_provider(),
                                      default_user_prk, true)
                      .value())
         , fileCryptoContext(file_crypto_ctx::zero_init)
@@ -105,7 +108,8 @@ struct sector_tree_seq_fixture : sector_tree_seq_pre_create_fixture
         testTree =
             tree_type::create_new(*device, fileCryptoContext, *device).value();
 
-        rootSectorInfo = testTree->commit().value();
+        testTree->commit([this](root_sector_info ri) { rootSectorInfo = ri; })
+            .value();
     }
 
     auto open_test_tree() -> result<std::unique_ptr<tree_type>>
@@ -123,9 +127,9 @@ BOOST_FIXTURE_TEST_CASE(create_new, sector_tree_seq_pre_create_fixture)
     TEST_RESULT_REQUIRE(createrx);
     auto tree = std::move(createrx).assume_value();
 
-    auto commitRx = tree->commit();
-    TEST_RESULT_REQUIRE(commitRx);
-    auto &&newRootInfo = std::move(commitRx).assume_value();
+    root_sector_info newRootInfo;
+    TEST_RESULT_REQUIRE(tree->commit(
+        [&newRootInfo](root_sector_info cri) { newRootInfo = cri; }));
 
     auto expectedRootMac = vefs::utils::make_byte_array(
         0xe2, 0x1b, 0x52, 0x74, 0xe1, 0xd5, 0x8b, 0x69, 0x87, 0x36, 0x88, 0x3f,
@@ -161,9 +165,9 @@ BOOST_AUTO_TEST_CASE(expand_to_two_sectors)
     TEST_RESULT_REQUIRE(testTree->move_forward(tree_type::access_mode::create));
     testTree->writeable_bytes()[0] = std::byte{0b1010'1010};
 
-    auto commitRx = testTree->commit();
-    TEST_RESULT_REQUIRE(commitRx);
-    auto &&newRootInfo = std::move(commitRx).assume_value();
+    root_sector_info newRootInfo;
+    TEST_RESULT_REQUIRE(testTree->commit(
+        [&newRootInfo](root_sector_info cri) { newRootInfo = cri; }));
 
     auto expectedRootMac = vefs::utils::make_byte_array(
         0xc2, 0xaa, 0x29, 0x03, 0x00, 0x60, 0xb8, 0x4e, 0x3f, 0xc3, 0x57, 0x2e,
@@ -179,9 +183,8 @@ BOOST_AUTO_TEST_CASE(shrink_on_commit_if_possible)
     TEST_RESULT_REQUIRE(
         testTree->move_to(2019, tree_type::access_mode::create));
 
-    auto commitRx = testTree->commit();
-    TEST_RESULT_REQUIRE(commitRx);
-    rootSectorInfo = std::move(commitRx).assume_value();
+    TEST_RESULT_REQUIRE(testTree->commit(
+        [this](root_sector_info cri) { rootSectorInfo = cri; }));
 
     auto expectedRootMac = vefs::utils::make_byte_array(
         0xe2, 0x1b, 0x52, 0x74, 0xe1, 0xd5, 0x8b, 0x69, 0x87, 0x36, 0x88, 0x3f,
@@ -198,9 +201,9 @@ BOOST_AUTO_TEST_CASE(shrink_on_commit_if_possible)
 
     TEST_RESULT_REQUIRE(testTree->erase_leaf(2019));
 
-    commitRx = testTree->commit();
-    TEST_RESULT_REQUIRE(commitRx);
-    auto &&newRootInfo = std::move(commitRx).assume_value();
+    root_sector_info newRootInfo;
+    TEST_RESULT_REQUIRE(testTree->commit(
+        [&newRootInfo](root_sector_info cri) { newRootInfo = cri; }));
 
     // BOOST_TEST(newRootInfo.root.mac == expectedRootMac);
     BOOST_TEST(newRootInfo.root.sector == sector_id{1});

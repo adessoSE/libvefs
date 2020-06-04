@@ -130,7 +130,7 @@ namespace vefs::detail
     inline auto pool_allocator_mt<ELEM_SIZE, NUM_ELEMS, BlockAllocator, ALIGNMENT>::allocate(
         const std::size_t size) noexcept -> allocation_result
     {
-        BOOST_OUTCOME_TRY(alloc, intr_allocate(size));
+        VEFS_TRY(alloc, intr_allocate(size));
         return std::get<memory_allocation>(alloc);
     }
 

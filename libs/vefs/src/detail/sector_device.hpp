@@ -66,7 +66,9 @@ namespace vefs::detail
         auto read_sector(rw_blob<sector_payload_size> contentDest,
                          const file_crypto_ctx &fileCtx, sector_id sectorIdx,
                          ro_blob<16> contentMAC) noexcept -> result<void>;
-        auto write_sector(rw_blob<16> mac, file_crypto_ctx &fileCtx,
+
+        template <typename file_crypto_ctx_T = file_crypto_ctx>
+        auto write_sector(rw_blob<16> mac, file_crypto_ctx_T &fileCtx,
                           sector_id sectorIdx,
                           ro_blob<sector_payload_size> data) noexcept
             -> result<void>;
@@ -110,6 +112,7 @@ namespace vefs::detail
 
         crypto::crypto_provider *const mCryptoProvider;
         llfio::mapped_file_handle mArchiveFile;
+        llfio::unique_file_lock mArchiveFileLock;
 
         archive_header_content mHeaderContent;
 
@@ -139,9 +142,9 @@ namespace vefs::detail
     inline auto vefs::detail::sector_device::resize(std::uint64_t numSectors)
         -> result<void>
     {
-        VEFS_TRY(bytes_truncated,
+        VEFS_TRY(bytesTruncated,
                  mArchiveFile.truncate(numSectors * sector_size));
-        if (bytes_truncated != (numSectors * sector_size))
+        if (bytesTruncated != (numSectors * sector_size))
         {
             return outcome::failure(errc::bad);
         }
@@ -187,7 +190,7 @@ namespace vefs::detail
 #endif
 
     constexpr auto
-    vefs::detail::sector_device::header_size(header_id which) noexcept
+    vefs::detail::sector_device::header_size(header_id) noexcept
         -> std::size_t
     {
         constexpr auto xsize = (sector_size - mArchiveHeaderOffset) / 2;

@@ -574,6 +574,11 @@ namespace vefs
     {
         return !(l < r);
     }
+    template <class T, std::size_t X, class U, std::size_t Y>
+    inline constexpr auto operator==(span<T, X> l, span<U, Y> r) -> bool
+    {
+        return (l>=r)&&(l<=r);
+    }
 
     template <class T, std::size_t X, class U, std::size_t Y>
     inline constexpr auto mismatch(span<T, X> left, span<U, Y> right)
