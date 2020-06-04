@@ -82,7 +82,7 @@ test_release:
   dependencies:
     - build_release
 
-install_release:
+.publish_release:
   stage: release
   tags:
     - windows-cpp
@@ -97,8 +97,19 @@ install_release:
     - cd build
     - call cmake --install .
     - powershell Compress-Archive -Path "include", "lib", "cmake" -DestinationPath vefs-lib.zip
-    - powershell powershell $ProgressPreference = 'SilentlyContinue'; iwr -H @{'X-JFrog-Art-Api'=$env:ARTIFACTORY_TOKEN} -method PUT -uri https://mdk-bs-dev03.test-server.ag/artifactory/mdk-artifact-dev-local/de/mdk/bs/vefs/vefs-lib/vefs_lib_$env:VEFS_VERSION.$env:CI_COMMIT_REF_NAME.zip -Infile vefs-lib.zip
+    - powershell $ProgressPreference = 'SilentlyContinue'; iwr -H @{'X-JFrog-Art-Api'=$env:ARTIFACTORY_TOKEN} -method PUT -uri https://mdk-bs-dev03.test-server.ag/artifactory/mdk-artifact-dev-local/de/mdk/bs/vefs/vefs-lib/vefs_lib_$env:VEFS_VERSION$env:VERSION_SUFFIX.zip -Infile vefs-lib.zip
 
   dependencies:
     - test_release
     - build_release
+
+release_production:
+  when: manual
+  variables:
+    VERSION_SUFFIX: ''
+  <<: *publish_release
+
+release-dev:
+  variables:
+    VERSION_SUFFIX: -$CI_COMMIT_REF_NAME
+  <<: *publish_release
