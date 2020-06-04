@@ -82,7 +82,7 @@ test_release:
   dependencies:
     - build_release
 
-.publish_release:
+.publish_release: &publish_release
   stage: release
   tags:
     - windows-cpp
