@@ -203,19 +203,19 @@ namespace vefs
             return success();
         }
         return mFileTree->commit(
-            [this](detail::root_sector_info commitedRootInfo) noexcept {
-                return sync_commit_info(commitedRootInfo);
+            [this](detail::root_sector_info committedRootInfo) noexcept {
+                return sync_commit_info(committedRootInfo);
             });
     }
 
     auto
-    vfile::sync_commit_info(detail::root_sector_info commitedRootInfo) noexcept
+    vfile::sync_commit_info(detail::root_sector_info committedRootInfo) noexcept
         -> result<void>
     {
-        commitedRootInfo.maximum_extent =
+        committedRootInfo.maximum_extent =
             mMaximumExtent.load(std::memory_order_acquire);
 
-        return mOwner->on_vfile_commit(mId, commitedRootInfo);
+        return mOwner->on_vfile_commit(mId, committedRootInfo);
     }
 
 } // namespace vefs
