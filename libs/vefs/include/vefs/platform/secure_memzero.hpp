@@ -1,6 +1,6 @@
 #pragma once
 
-#include <cstddef>
+#include <memory>
 #include <type_traits>
 
 #include <vefs/span.hpp>
