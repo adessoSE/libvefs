@@ -102,13 +102,17 @@ test_release:
     - build_release
 
 release_production:
-  when: manual
+  only:
+    - tags
+  except:
+    - develop
+    - /^feature/
   variables:
     VERSION_SUFFIX: ''
   <<: *publish_release
 
 release-dev:
   variables:
-    VERSION_SUFFIX: -$CI_COMMIT_REF_NAME
+    VERSION_SUFFIX: -$CI_COMMIT_REF_NAME-SNAPSHOT
   allow_failure: false
   <<: *publish_release
