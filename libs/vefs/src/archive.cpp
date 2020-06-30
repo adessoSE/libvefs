@@ -165,8 +165,6 @@ namespace vefs
         {
             readrx.assume_error() << ed::archive_file_read_area{ed::file_span{
                 readFilePos, readFilePos + buffer.size()}}
-            /*<<
-               ed::archive_file{handle.value()->name()}*/
             ;
         }
         return readrx;
@@ -189,8 +187,6 @@ namespace vefs
         {
             writerx.assume_error() << ed::archive_file_write_area{ed::file_span{
                 writeFilePos, writeFilePos + data.size()}}
-            /*<<
-               ed::archive_file{handle.value()->name()}*/
             ;
         }
         return writerx;
@@ -205,11 +201,7 @@ namespace vefs
         }
 
         auto resizerx = handle->truncate(maxExtent);
-        // if (resizerx.has_error())
-        //{
-        //    resizerx.assume_error() <<
-        //    ed::archive_file{handle.value()->name()};
-        //}
+
         return resizerx;
     }
 
@@ -223,6 +215,7 @@ namespace vefs
         return handle->maximum_extent();
     }
 
+    //#Todo Why do we need this method?
     auto archive::commit(const vfile_handle &handle) -> result<void>
     {
         if (!handle)
@@ -231,10 +224,7 @@ namespace vefs
         }
 
         auto syncrx = handle->commit();
-        // if (syncrx.has_error())
-        //{
-        //    syncrx.assume_error() << ed::archive_file{handle.value()->name()};
-        //}
+
         return syncrx;
     }
 } // namespace vefs

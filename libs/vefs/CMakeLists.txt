@@ -224,6 +224,7 @@ add_executable(vefs-tests
     tests/vefs-tests.cpp
     tests/boost-unit-test.hpp
     tests/test-utils.hpp
+    tests/test-utils.cpp
     tests/libb2_none_blake2b_crypto_provider.cpp
     tests/libb2_none_blake2b_crypto_provider.hpp
     tests/disappointment-tests.cpp
@@ -240,7 +241,9 @@ add_executable(vefs-tests
     tests/block_manager-tests.cpp
     tests/tree_lut-tests.cpp
     tests/tree_walker-tests.cpp
-)
+    tests/archive_file_id_tests.cpp
+    tests/archive-integration-tests.cpp
+ )
 target_link_libraries(vefs-tests
     PUBLIC
         vefs

@@ -581,27 +581,6 @@ namespace vefs
     }
 
     template <class T, std::size_t X, class U, std::size_t Y>
-    inline constexpr auto mismatch(span<T, X> left, span<U, Y> right)
-    {
-        return std::mismatch(left.cbegin(), left.cend(), right.cbegin(), right.cend());
-    }
-
-    template <class T, std::size_t X, class U, std::size_t Y>
-    inline constexpr auto mismatch_distance(span<T, X> left, span<U, Y> right) -> std::size_t
-    {
-        if (left && right)
-        {
-            auto [l, r] = mismatch(left, right);
-            (void)r;
-            return std::distance(left.cbegin(), l);
-        }
-        else
-        {
-            return 0;
-        }
-    }
-
-    template <class T, std::size_t X, class U, std::size_t Y>
     inline auto copy(span<T, X> source, span<U, Y> dest)
     {
         assert(dest.data() < source.data() || source.data() + source.size() <= dest.data());

@@ -1,61 +1,10 @@
 #include "../src/detail/sector_device.hpp"
 #include "boost-unit-test.hpp"
-
+#include "mocks.hpp"
 #include "test-utils.hpp"
 
-#include "../src/crypto/provider.hpp"
-#include "gmock/gmock.h"
 #include <vefs/span.hpp>
 #include <vefs/utils/secure_array.hpp>
-
-namespace adesso::vefs
-{
-    std::ostream &operator<<(std::ostream &os,
-                             const adesso::vefs::FileDescriptor &ref)
-    {
-        os << "Forward declared ref: \n";
-        return os;
-    }
-} // namespace adesso::vefs
-
-class crypto_provider_mock : public vefs::crypto::crypto_provider
-{
-public:
-    MOCK_METHOD(vefs::result<void>, box_seal,
-                (vefs::rw_dynblob ciphertext, vefs::rw_dynblob mac,
-                 vefs::ro_dynblob keyMaterial, vefs::ro_dynblob plaintext),
-                (const, noexcept));
-    MOCK_METHOD(vefs::result<void>, box_open,
-                (vefs::rw_dynblob plaintext, vefs::ro_dynblob keyMaterial,
-                 vefs::ro_dynblob ciphertext, vefs::ro_dynblob mac),
-                (const, noexcept));
-    MOCK_METHOD(vefs::result<void>, random_bytes, (vefs::rw_dynblob out),
-                (const, noexcept));
-    MOCK_METHOD(vefs::utils::secure_byte_array<16>, generate_session_salt, (),
-                (const));
-    MOCK_METHOD(vefs::result<int>, ct_compare,
-                (vefs::ro_dynblob l, vefs::ro_dynblob r), (const, noexcept));
-};
-
-class file_crypto_ctx_mock : public vefs::detail::file_crypto_ctx_interface
-{
-public:
-    MOCK_METHOD(void, pack_to, (adesso::vefs::FileDescriptor & descriptor),
-                (override));
-    MOCK_METHOD(void, unpack, (adesso::vefs::FileDescriptor & descriptor),
-                (override));
-    MOCK_METHOD(vefs::result<void>, seal_sector,
-                (vefs::rw_blob<1 << 15> ciphertext, vefs::rw_blob<16> mac,
-                 vefs::crypto::crypto_provider &provider,
-                 vefs::ro_blob<16> sessionSalt,
-                 vefs::ro_blob<(1 << 15) - (1 << 5)> data),
-                (noexcept, override));
-    MOCK_METHOD(vefs::result<void>, unseal_sector,
-                (vefs::rw_blob<(1 << 15) - (1 << 5)> data,
-                 vefs::crypto::crypto_provider &provider,
-                 vefs::ro_blob<1 << 15> ciphertext, vefs::ro_blob<16> mac),
-                (const, noexcept, override));
-};
 
 struct sector_device_test_fixture
 {
