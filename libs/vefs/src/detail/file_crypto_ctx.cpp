@@ -67,7 +67,7 @@ namespace vefs::detail
                                  ciphertext.subspan<32>(), mac);
     }
 
-    void file_crypto_ctx::pack_to(adesso::vefs ::FileDescriptor &fd)
+    void file_crypto_ctx::pack_to(adesso::vefs::FileDescriptor &fd)
     {
         fd.set_filesecret(secret.data(), secret.size());
         auto ctr = write_counter.load();
