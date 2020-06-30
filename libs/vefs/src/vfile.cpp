@@ -202,10 +202,20 @@ namespace vefs
         {
             return success();
         }
-        return mFileTree->commit(
+
+        mWriteFlag.unmark();
+
+        auto commitRx = mFileTree->commit(
             [this](detail::root_sector_info committedRootInfo) noexcept {
                 return sync_commit_info(committedRootInfo);
             });
+        if (!commitRx)
+        {
+            mWriteFlag.mark();
+            return std::move(commitRx).as_failure();
+        }
+
+        return success();
     }
 
     auto
