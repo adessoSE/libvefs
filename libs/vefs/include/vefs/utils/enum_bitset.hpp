@@ -23,6 +23,10 @@ template <typename E>
 constexpr bool enum_bitsets_allowed
     = std::is_enum_v<E> && decltype(allow_enum_bitset(std::declval<E>()))::value;
 
+/**
+ * Wrapper for enums to enable bitoperations
+ * @tparam E enum that is wrapped
+ */
 template <typename E>
 class enum_bitset
 {

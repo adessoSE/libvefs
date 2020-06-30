@@ -100,7 +100,7 @@ BOOST_AUTO_TEST_CASE(open_existing_sector_device_throws_error_for_empty_file)
 {
     auto emptyFile = vefs::llfio::mapped_temp_inode().value();
     auto deviceRx = vefs::detail::sector_device::open(
-        emptyFile.reopen(0).value(), &crypto_provider_mock(),
+        emptyFile.reopen(0).value(), &cryptoProviderMock,
         default_user_prk, false);
 
     BOOST_TEST(deviceRx.has_error());
@@ -111,7 +111,6 @@ BOOST_AUTO_TEST_CASE(open_existing_sector_device_throws_error_for_empty_file)
 BOOST_AUTO_TEST_CASE(write_sector_seals_sector)
 {
     // given
-  
     file_crypto_ctx_mock fileCryptoCtx;
 
     auto testFile = vefs::llfio::mapped_temp_inode().value();

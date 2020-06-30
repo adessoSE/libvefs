@@ -958,7 +958,7 @@ namespace vefs
 
         utils::bitset_overlay allocBits{as_writable_bytes(span(allocMap))};
 
-        // precondition the central directory index is currently commited
+        // precondition the central directory index is currently committed
         {
             VEFS_TRY(indexTree, inspection_tree::open_existing(
                                     mDevice, mInfo.crypto_ctx, mInfo.tree_info,
