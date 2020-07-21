@@ -3,6 +3,9 @@
 #include <tuple>
 #include <string>
 #include <type_traits>
+#ifdef __GNUC__
+#include <cxxabi.h>
+#endif
 
 #include <fmt/format.h>
 
@@ -88,10 +91,16 @@ namespace vefs
     template<typename Tag, typename T>
     inline void error_detail<Tag, T>::stringify(format_buffer &out) const noexcept
     {
+        using namespace std::string_view_literals;
         auto start = out.size();
         try
         {
-            std::string_view type{ typeid(Tag).name() };
+            #ifdef __GNUC__
+            int status = 0;
+            std::string type("enum "sv);
+            type += std::string_view(abi::__cxa_demangle(typeid(Tag).name(),0,0,&status));
+            #endif
+
             if (type.size() > 0)
             {
                 fmt::format_to(out, "[{}] = ", type);

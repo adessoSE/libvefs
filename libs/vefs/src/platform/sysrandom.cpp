@@ -100,7 +100,7 @@ vefs::result<void> vefs::detail::random_bytes(rw_dynblob buffer) noexcept
 
 #else
 
-result<void> vefs::detail::random_bytes(rw_dynblob buffer) noexcept
+vefs::result<void> vefs::detail::random_bytes(rw_dynblob buffer) noexcept
 {
     using namespace vefs;
     using namespace std::string_view_literals;
@@ -110,20 +110,19 @@ result<void> vefs::detail::random_bytes(rw_dynblob buffer) noexcept
         return error{errc::invalid_argument} << ed::error_code_api_origin{"random_bytes"sv};
     }
 
-    using ptr = std::add_pointer_t<std::void_t<tag>>;
     while (buffer)
     {
         constexpr size_t max_portion = static_cast<size_t>(33554431);
         const auto portion = std::min(max_portion, buffer.size());
 
-        ssize_t tmp = getrandom(static_cast<ptr>(buffer.data()), portion, 0);
+        ssize_t tmp = getrandom(static_cast<void*>(buffer.data()), portion, 0);
         if (tmp == -1)
         {
-            return error{collect_system_error()} << ed::error_code_origin_tag{"getrandom"};
+            return error{collect_system_error()} << ed::error_code_api_origin{"getrandom"sv};
         }
         if (tmp == 0)
         {
-            return errc::bad << ed::error_code_origin_tag{"getrandom"};
+            return error{errc::bad} << ed::error_code_api_origin{"getrandom"sv};
         }
         buffer = buffer.subspan(static_cast<size_t>(tmp));
     }

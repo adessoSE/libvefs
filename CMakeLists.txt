@@ -50,7 +50,9 @@ find_package(outcome CONFIG REQUIRED)
 
 find_package(llfio CONFIG REQUIRED)
 
+if (WIN32)
 find_package(ntkernel-error-category CONFIG REQUIRED)
+endif()
 
 find_package(quickcpplib CONFIG REQUIRED)
 
