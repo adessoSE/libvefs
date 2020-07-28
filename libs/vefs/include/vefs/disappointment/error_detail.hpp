@@ -91,18 +91,16 @@ namespace vefs
     template<typename Tag, typename T>
     inline void error_detail<Tag, T>::stringify(format_buffer &out) const noexcept
     {
+        using namespace std::string_view_literals;
         auto start = out.size();
         try
-        {    
+        {
             #ifdef __GNUC__
-            using namespace std::string_view_literals;
             int status = 0;
             std::string type("enum "sv);
-            type += std::string_view(
-                abi::__cxa_demangle(typeid(Tag).name(), 0, 0, &status));
-            #else
-            std::string_view type{typeid(Tag).name()};
+            type += std::string_view(abi::__cxa_demangle(typeid(Tag).name(),0,0,&status));
             #endif
+
             if (type.size() > 0)
             {
                 fmt::format_to(out, "[{}] = ", type);
