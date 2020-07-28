@@ -93,9 +93,9 @@ namespace vefs
     {
         auto start = out.size();
         try
-        {
-            
+        {    
             #ifdef __GNUC__
+            using namespace std::string_view_literals;
             int status = 0;
             std::string type("enum "sv);
             type += std::string_view(
