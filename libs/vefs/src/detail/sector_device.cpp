@@ -264,7 +264,7 @@ namespace vefs::detail
         llfio::io_handle::buffer_type buffer_staticHeader = {
             nullptr, staticHeader.size()};
         llfio::io_handle::io_request<llfio::io_handle::buffers_type>
-            req_staticHeader(buffer_staticHeader,
+            req_staticHeader({&buffer_staticHeader, 1},
                              sizeof(StaticArchiveHeaderPrefix));
         // read request
         VEFS_TRY(res_buf_staticHeader, mArchiveFile.read(req_staticHeader));
@@ -331,7 +331,7 @@ namespace vefs::detail
         llfio::io_handle::buffer_type buffer_headerAndPadding = {
             nullptr, headerAndPadding.size()};
         llfio::io_handle::io_request<llfio::io_handle::buffers_type>
-            req_headerAndPadding(buffer_headerAndPadding, position);
+            req_headerAndPadding({&buffer_headerAndPadding, 1}, position);
         // read request
         VEFS_TRY(res_buf_headerAndPadding,
                  mArchiveFile.read(req_headerAndPadding));
@@ -545,7 +545,7 @@ namespace vefs::detail
 
         // read request
         io_buffer ioBuffer{nullptr, sector_size};
-        if (auto readrx = mArchiveFile.read({ioBuffer, sectorOffset}))
+        if (auto readrx = mArchiveFile.read({{&ioBuffer, 1}, sectorOffset}))
         {
             auto buffers = readrx.assume_value();
             assert(buffers.size() == 1);

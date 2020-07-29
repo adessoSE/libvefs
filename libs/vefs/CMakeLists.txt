@@ -196,10 +196,8 @@ target_link_libraries(vefs
         libb2
         protobuf::libprotobuf
         fmt::fmt
-        llfio
-        ntkernel-error-category
-        outcome
-        quickcpplib
+        llfio::llfio
+        outcome::outcome
 
         concurrentqueue
         cuckoohash
