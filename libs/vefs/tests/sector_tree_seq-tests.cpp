@@ -187,10 +187,10 @@ BOOST_AUTO_TEST_CASE(shrink_on_commit_if_possible)
         [this](root_sector_info cri) { rootSectorInfo = cri; }));
 
     auto expectedRootMac = vefs::utils::make_byte_array(
-        0xe2, 0x1b, 0x52, 0x74, 0xe1, 0xd5, 0x8b, 0x69, 0x87, 0x36, 0x88, 0x3f,
-        0x34, 0x4e, 0x5e, 0x2b);
+        0xaa, 0x48, 0x57, 0x3f, 0xcf, 0x9c, 0xc5,0x42, 0xd8,  0x5a, 0xb9, 0xb,
+        0xc9, 0x8, 0x16, 0x68);
 
-    // BOOST_TEST(rootSectorInfo.root.mac == expectedRootMac);
+    BOOST_TEST(rootSectorInfo.root.mac == expectedRootMac);
     BOOST_TEST(rootSectorInfo.root.sector == sector_id{5});
     BOOST_TEST_REQUIRE(rootSectorInfo.tree_depth == 2);
 
@@ -205,7 +205,6 @@ BOOST_AUTO_TEST_CASE(shrink_on_commit_if_possible)
     TEST_RESULT_REQUIRE(testTree->commit(
         [&newRootInfo](root_sector_info cri) { newRootInfo = cri; }));
 
-    // BOOST_TEST(newRootInfo.root.mac == expectedRootMac);
     BOOST_TEST(newRootInfo.root.sector == sector_id{1});
     BOOST_TEST(newRootInfo.tree_depth == 0);
 }
