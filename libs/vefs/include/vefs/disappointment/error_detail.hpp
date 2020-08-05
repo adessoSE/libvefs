@@ -10,6 +10,7 @@
 #include <fmt/format.h>
 
 #include <vefs/disappointment/fwd.hpp>
+#include <vefs/platform/platform.hpp>
 
 namespace vefs
 {
@@ -95,22 +96,8 @@ namespace vefs
         auto start = out.size();
         try
         {
-#ifdef __GNUC__
-            int status = 0;
-            std::string type("enum "sv);
-            type += std::string_view(abi::__cxa_demangle(typeid(Tag).name(),0,0,&status));
-#else
-            std::string_view type{typeid(Tag).name()}; 
-#endif
-
-            if (type.size() > 0)
-            {
-                fmt::format_to(out, "[{}] = ", type);
-            }
-            else
-            {
-                fmt::format_to(out, "unknown type: ");
-            }
+            fmt::format_to(out, FMT_STRING("[{}] = "),
+                           detail::type_info_fmt{typeid(Tag)});
         }
         catch (...)
         {
