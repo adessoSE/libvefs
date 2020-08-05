@@ -190,17 +190,14 @@ target_include_directories(vefs
 )
 target_link_libraries(vefs
     PUBLIC
-        advapi32
+        $<$<PLATFORM_ID:Windows>:advapi32>
         Boost::boost
         Boost::system
         libb2
         protobuf::libprotobuf
         fmt::fmt
-        llfio
-        ntkernel-error-category
-        outcome
-        quickcpplib
-
+        llfio::llfio
+        outcome::outcome
         concurrentqueue
         cuckoohash
 )

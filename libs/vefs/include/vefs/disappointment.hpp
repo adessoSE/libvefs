@@ -389,7 +389,7 @@ namespace vefs
     auto collect_system_error() -> std::error_code;
 } // namespace vefs
 
-#define VEFS_TRY(...) OUTCOME_TRY(__VA_ARGS__)
+#define VEFS_TRY(...) OUTCOME21_TRY(__VA_ARGS__)
 
 #define VEFS_TRY_INJECT(stmt, injected)                                        \
     VEFS_TRY(vefs::inject((stmt), [&](auto &e) { e << injected; }))

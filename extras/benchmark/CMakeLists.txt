@@ -18,6 +18,6 @@ target_link_libraries(vefs-bench
     PUBLIC
         benchmark::benchmark
         vefs
-        shlwapi
+        $<$<PLATFORM_ID:Windows>:shlwapi>
 )
 

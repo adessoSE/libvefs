@@ -128,10 +128,9 @@ namespace vefs::detail
         inline bool try_add_reference() noexcept;
         inline auto make_handle() noexcept -> cache_handle<T>;
 
-        alignas(std::hardware_destructive_interference_size) std::atomic<state_type> mEntryState{
+        std::atomic<state_type> mEntryState{
             tombstone_bit};
-        alignas(std::hardware_destructive_interference_size)
-            std::aligned_storage_t<sizeof(T), alignof(T)> mValueHolder;
+        std::aligned_storage_t<sizeof(T), alignof(T)> mValueHolder;
     };
 
     template <typename T>
