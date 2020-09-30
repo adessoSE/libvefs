@@ -8,9 +8,9 @@ namespace vefs::detail
     namespace
     {
         template <std::size_t N>
-        constexpr auto byte_literal(const char (&arr)[N]) noexcept
+        constexpr auto byte_literal(const char8_t (&arr)[N]) noexcept
         {
-            return span<const char, N>(arr).template first<N - 1>();
+            return span<const char8_t, N>(arr).template first<N - 1>();
         }
 
         constexpr auto sector_kdf_salt =

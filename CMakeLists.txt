@@ -85,7 +85,7 @@ add_subdirectory(external)
 
 # we require c++14 and some c++17 features
 set(CMAKE_C_STANDARD 11)
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # adjust compiler warning levels
