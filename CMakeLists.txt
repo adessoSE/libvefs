@@ -62,6 +62,8 @@ find_package(GTest CONFIG REQUIRED)
 # protobuf + protoc
 find_package(protobuf CONFIG REQUIRED)
 
+find_package(deeppack CONFIG REQUIRED)
+
 find_package(Boost 1.70 REQUIRED COMPONENTS
     system
     program_options

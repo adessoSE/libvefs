@@ -52,6 +52,7 @@ DEF_SOURCE_GROUP(vefs "detail"
         src/detail/preallocated_tree_allocator.hpp
 
         src/detail/proto-helper.hpp
+        src/detail/streams.hpp
 )
 
 DEF_SOURCE_GROUP(vefs "disappointment"
@@ -193,6 +194,7 @@ target_link_libraries(vefs
         $<$<PLATFORM_ID:Windows>:advapi32>
         Boost::boost
         Boost::system
+        Deeplex::deeppack
         libb2
         protobuf::libprotobuf
         fmt::fmt
@@ -240,6 +242,8 @@ add_executable(vefs-tests
     tests/tree_walker-tests.cpp
     tests/archive_file_id_tests.cpp
     tests/archive-integration-tests.cpp
+
+    tests/streams-tests.cpp
  )
 target_link_libraries(vefs-tests
     PUBLIC
