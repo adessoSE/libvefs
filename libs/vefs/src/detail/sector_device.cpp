@@ -159,6 +159,16 @@ namespace vefs::detail
         }
 
         VEFS_TRY(archive->mArchiveFile.update_map());
+
+        try
+        {
+            archive->mMasterSector.resize(sector_size);
+        }
+        catch (std::bad_alloc const &)
+        {
+            return errc::not_enough_memory;
+        }
+
         if (createNew)
         {
             VEFS_TRY(archive->resize(1));

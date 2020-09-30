@@ -114,6 +114,9 @@ namespace vefs::detail
         llfio::mapped_file_handle mArchiveFile;
         llfio::unique_file_lock mArchiveFileLock;
 
+        std::vector<std::byte, llfio::utils::page_allocator<std::byte>>
+            mMasterSector;
+
         archive_header_content mHeaderContent;
 
         utils::secure_byte_array<64> mArchiveMasterSecret;
