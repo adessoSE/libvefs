@@ -67,15 +67,15 @@ namespace fmt
         template <typename FormatContext>
         auto format(vefs::detail::type_info_fmt const &type, FormatContext &ctx)
         {
-            const char *demangledName;
 #ifdef __GNUC__
+            char *demangledName;
             {
                 int status = 0;
                 demangledName =
-                    abi::__cxa_demangle(type.value.name(), 0, 0, &status)
+                    abi::__cxa_demangle(type.value.name(), 0, 0, &status);
             }
 #else
-            demangledName = type.value.name();
+            auto demangledName = type.value.name();
 #endif
 
             auto out = ctx.out();

@@ -112,7 +112,10 @@ if (GCC_COMPATIBLE)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wno-long-long -Wpedantic")
 endif()
 if (GXX_COMPATIBLE)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-long-long -Wpedantic -Wno-c++98-compat -Wno-reserved-id-macro")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-long-long -Wpedantic -Wno-unknown-pragmas -Wno-deprecated-declarations")
+endif()
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    add_compile_options(-Wno-c++98-compat -Wno-reserved-id-macro)
 endif()
 
 # additional compiler tweaks
