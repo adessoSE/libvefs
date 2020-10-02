@@ -4,6 +4,8 @@
 #include <memory>
 #include <type_traits>
 
+#include <dplx/dp/byte_buffer.hpp>
+
 #include <vefs/llfio.hpp>
 
 #include <vefs/disappointment.hpp>
@@ -114,7 +116,7 @@ namespace vefs::detail
         llfio::mapped_file_handle mArchiveFile;
         llfio::unique_file_lock mArchiveFileLock;
 
-        std::vector<std::byte, llfio::utils::page_allocator<std::byte>>
+        dplx::dp::byte_buffer<llfio::utils::page_allocator<std::byte>>
             mMasterSector;
 
         archive_header_content mHeaderContent;
@@ -192,8 +194,7 @@ namespace vefs::detail
 #pragma warning(disable : 4146)
 #endif
 
-    constexpr auto
-    vefs::detail::sector_device::header_size(header_id) noexcept
+    constexpr auto vefs::detail::sector_device::header_size(header_id) noexcept
         -> std::size_t
     {
         constexpr auto xsize = (sector_size - mArchiveHeaderOffset) / 2;

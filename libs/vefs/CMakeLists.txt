@@ -92,6 +92,9 @@ DEF_SOURCE_GROUP(vefs "crypto"
     SOURCES
         src/crypto/ct_compare.hpp
 
+        src/crypto/cbor_box.hpp
+        src/crypto/cbor_box.cpp
+
         src/crypto/blake2.cpp
         src/crypto/blake2.hpp
         src/crypto/boringssl_aead.hpp
