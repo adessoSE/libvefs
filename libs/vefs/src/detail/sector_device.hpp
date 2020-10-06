@@ -39,6 +39,12 @@ namespace vefs::detail
         master_file_info free_sector_index;
     };
 
+    struct master_header
+    {
+        utils::secure_byte_array<64> master_secret;
+        crypto::atomic_counter master_counter;
+    };
+
     class sector_device
     {
         enum class header_id
@@ -121,8 +127,7 @@ namespace vefs::detail
 
         archive_header_content mHeaderContent;
 
-        utils::secure_byte_array<64> mArchiveMasterSecret;
-        utils::secure_byte_array<16> mStaticHeaderWriteCounter;
+        master_header mStaticHeader;
         utils::secure_byte_array<16> mSessionSalt;
         crypto::atomic_counter mArchiveSecretCounter;
         crypto::atomic_counter mJournalCounter;
@@ -170,7 +175,7 @@ namespace vefs::detail
 
     inline ro_blob<64> sector_device::master_secret_view() const
     {
-        return as_span(mArchiveMasterSecret);
+        return as_span(mStaticHeader.master_secret);
     }
 
     inline ro_blob<16> sector_device::session_salt_view() const
