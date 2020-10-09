@@ -42,6 +42,8 @@ DEF_SOURCE_GROUP(vefs "detail"
         src/detail/tree_walker.cpp
         src/detail/tree_walker.hpp
 
+        src/detail/cbor_utils.hpp
+
         src/detail/archive_sector_allocator.cpp
         src/detail/archive_sector_allocator.hpp
         src/detail/archive_tree_allocator.cpp
