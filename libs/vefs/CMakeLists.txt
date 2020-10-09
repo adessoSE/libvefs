@@ -108,6 +108,7 @@ DEF_SOURCE_GROUP(vefs "crypto"
 
         src/crypto/counter.cpp
         src/crypto/counter.hpp
+        src/crypto/counter.codec.hpp
 )
 if (boringssl_FOUND)
     DEF_SOURCE_GROUP(vefs "crypto"
