@@ -169,6 +169,9 @@ DEF_SOURCE_GROUP(vefs "utils"
         include/vefs/utils/unordered_map_mt.hpp
 
         vefs.natvis
+
+    SOURCES
+        src/detail/secure_array.codec.hpp
 )
 
 DEF_SOURCE_GROUP(vefs "external/SpookyV2"
