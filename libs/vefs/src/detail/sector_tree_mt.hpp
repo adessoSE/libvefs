@@ -153,7 +153,7 @@ namespace vefs::detail
     private:
         using sector_type = sector;
         using sector_cache =
-            cache_car<tree_position, sector_type, 1 << 11>; // 64 cached pages
+            cache_car<tree_position, sector_type, 1 << 10>; // 64 cached pages
 
         template <typename... AllocatorCtorArgs>
         sector_tree_mt(sector_device &device, file_crypto_ctx &cryptoCtx,

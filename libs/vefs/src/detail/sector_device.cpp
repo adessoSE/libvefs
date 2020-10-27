@@ -501,6 +501,7 @@ namespace vefs::detail
         VEFS_TRY(mCryptoProvider->box_seal(
             msg, span{headerPrefix.static_header_mac}, as_span(key), msg));
 
+        std::shared_lock guard{mSizeSync};
         VEFS_TRY(mArchiveFile.write(
             0,
             {{headerPrefix.magic_number.data(),
@@ -540,6 +541,8 @@ namespace vefs::detail
         {
             return errc::invalid_argument;
         }
+
+        std::shared_lock guard{mSizeSync};
 
         const auto sectorOffset = to_offset(sectorIdx);
 
@@ -592,6 +595,7 @@ namespace vefs::detail
 
         const auto sectorOffset = to_offset(sectorIdx);
 
+        std::shared_lock guard{mSizeSync};
         VEFS_TRY_INJECT(mArchiveFile.write(
                             sectorOffset, {{ioBuffer.data(), ioBuffer.size()}}),
                         ed::sector_idx{sectorIdx});
@@ -612,6 +616,7 @@ namespace vefs::detail
                              sector_kdf_erase));
 
         const auto offset = to_offset(sectorIdx);
+        std::shared_lock guard{mSizeSync};
         VEFS_TRY_INJECT(
             mArchiveFile.write(offset, {{salt.data(), salt.size()}}),
             ed::sector_idx{sectorIdx});
@@ -673,6 +678,7 @@ namespace vefs::detail
                                       as_span(headerKeyNonce), encryptedHeader),
             ed::archive_file{"[archive-header]"});
 
+        std::shared_lock guard{mSizeSync};
         VEFS_TRY_INJECT(mArchiveFile.write(headerOffset, {{headerMem.data(),
                                                            headerMem.size()}}),
                         ed::archive_file{"[archive-header]"});
