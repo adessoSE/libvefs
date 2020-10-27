@@ -925,11 +925,9 @@ namespace vefs
 
         auto maxExtent = (layout.last_allocated().position() + 1) *
                          detail::sector_device::sector_payload_size;
-        return mIndexTree->commit([
-            this, maxExtent
-        ](detail::root_sector_info rootInfo) noexcept->result<void> {
-            return sync_commit_info(rootInfo, maxExtent);
-        });
+        return mIndexTree->commit(
+            [this, maxExtent](detail::root_sector_info rootInfo) noexcept
+            -> result<void> { return sync_commit_info(rootInfo, maxExtent); });
     }
 
     auto vfilesystem::sync_commit_info(detail::root_sector_info rootInfo,
@@ -983,6 +981,41 @@ namespace vefs
             if (!allocBits[i])
             {
                 VEFS_TRY(mSectorAllocator.dealloc_one(detail::sector_id{i}));
+            }
+        }
+
+        return success();
+    }
+
+    auto vfilesystem::validate() -> result<void>
+    {
+        using inspection_tree =
+            detail::sector_tree_seq<detail::archive_tree_allocator>;
+        auto numSectors = mDevice.size();
+
+        auto lockedIndex = mFiles.lock_table();
+
+        for (auto &[id, e] : lockedIndex)
+        {
+            std::unique_ptr<inspection_tree> tree;
+
+            if (auto openrx = inspection_tree::open_existing(
+                    mDevice, *e.crypto_ctx, e.tree_info, mSectorAllocator))
+            {
+                tree = std::move(openrx).assume_value();
+            }
+            else
+            {
+                return std::move(openrx).assume_error()
+                       << ed::archive_file_id{id};
+            }
+
+            std::uint64_t const numSectors =
+                utils::div_ceil(e.tree_info.maximum_extent,
+                                detail::sector_device::sector_payload_size);
+            for (std::uint64_t i = 1; i < numSectors; ++i)
+            {
+                VEFS_TRY_INJECT(tree->move_forward(), ed::archive_file_id{id});
             }
         }
 

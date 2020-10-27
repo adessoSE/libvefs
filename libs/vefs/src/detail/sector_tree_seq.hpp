@@ -352,8 +352,7 @@ namespace vefs::detail
         }
         else
         {
-            VEFS_TRY(
-                std::invoke(std::forward<Fn>(commitFn), (mRootInfo)));
+            VEFS_TRY(std::invoke(std::forward<Fn>(commitFn), (mRootInfo)));
         }
 
         VEFS_TRY(mTreeAllocator.on_commit());
@@ -561,7 +560,8 @@ namespace vefs::detail
 
         for (; updateIt != end; ++updateIt)
         {
-            VEFS_TRY(load_next(updateIt.array_offset()));
+            VEFS_TRY_INJECT(load_next(updateIt.array_offset()),
+                            ed::sector_tree_position(*updateIt));
         }
         return success();
     }
