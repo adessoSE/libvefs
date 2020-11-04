@@ -153,7 +153,7 @@ namespace vefs::detail
     private:
         using sector_type = sector;
         using sector_cache =
-            cache_car<tree_position, sector_type, 1 << 11>; // 64 cached pages
+            cache_car<tree_position, sector_type, 1 << 10>; // 64 cached pages
 
         template <typename... AllocatorCtorArgs>
         sector_tree_mt(sector_device &device, file_crypto_ctx &cryptoCtx,
@@ -233,6 +233,7 @@ namespace vefs::detail
         tree_allocator_type mTreeAllocator;
         sector_cache mSectorCache;
         sector_handle mRootSector; // needs to be destructed before mSectorCache
+        std::shared_mutex mCommitSync;
     };
 
 #pragma region sector implementation
@@ -533,8 +534,13 @@ namespace vefs::detail
         auto loadrx = mSectorCache.access(
             rootPosition, [ this, rootPosition ](
                               void *mem) noexcept->result<sector_type *, void> {
-                return new (mem)
+                auto xsec = new (mem)
                     sector_type(*this, nullptr, rootPosition, sector_id{});
+
+                auto const content = as_span(*xsec);
+                std::memset(content.data(), 0, content.size());
+
+                return xsec;
             });
         mRootSector = std::move(loadrx).assume_value();
         mRootSector.mark_dirty();
@@ -676,7 +682,7 @@ namespace vefs::detail
     sector_tree_mt<TreeAllocator, Executor, MutexType>::commit(CommitFn &&commitFn)
         -> result<void>
     {
-        std::lock_guard depthLock{mTreeDepthSync};
+        std::scoped_lock depthLock{mCommitSync, mTreeDepthSync};
 
         bool anyDirty = true;
         for (int i = 0; anyDirty && i <= mRootInfo.tree_depth; ++i)
@@ -807,10 +813,11 @@ namespace vefs::detail
         sector_handle h) noexcept
     {
         mExecutor.execute([this, h = std::move(h)]() mutable {
-            if (!h)
+            if (!h || !mCommitSync.try_lock_shared())
             {
                 return;
             }
+            std::shared_lock commitLock(mCommitSync, std::adopt_lock);
 
             std::unique_lock sectorLock{*h};
             if (!h.is_dirty())
@@ -1058,7 +1065,7 @@ namespace vefs::detail
         int childParentOffset) noexcept -> result<sector_handle>
     {
         return mSectorCache.access(
-            childPosition, [&](void *mem) noexcept->result<sector_type *> {
+            childPosition, [&](void *mem) noexcept -> result<sector_type *> {
                 auto ref = reference_sector_layout{as_span(*parent)}.read(
                     childParentOffset);
 
@@ -1078,6 +1085,8 @@ namespace vefs::detail
                 }
                 else
                 {
+                    auto const content = as_span(*xsec);
+                    std::memset(content.data(), 0, content.size());
                 }
                 return xsec;
             });

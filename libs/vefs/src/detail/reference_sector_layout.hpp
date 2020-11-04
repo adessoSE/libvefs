@@ -35,6 +35,7 @@ namespace vefs::detail
             const auto baseOffset = static_cast<std::size_t>(which) * serialized_reference_size;
 
             mCodec.write(reference.sector, baseOffset);
+            mCodec.write<std::uint64_t>(0, baseOffset + 8);
             copy(span(reference.mac), mCodec.as_writeable_bytes().subspan(baseOffset + 16, 16));
         }
 

@@ -24,7 +24,7 @@ namespace vefs::detail
         referenced = 0b0001,
         second_chance = 0b0010,
         dirty = 0b0100,
-
+        was_dead = 0b1000,
     };
     std::true_type allow_enum_bitset(cache_replacement_result);
 
@@ -65,8 +65,7 @@ namespace vefs::detail
         /**
          * constructs a new dead cache page
          */
-        // #Todo why not remove constexpr comment?
-        /*constexpr*/ cache_page() noexcept = default;
+        constexpr cache_page() noexcept;
         ~cache_page() noexcept;
 
         /**
@@ -135,10 +134,16 @@ namespace vefs::detail
     };
 
     template <typename T>
+    inline constexpr cache_page<T>::cache_page() noexcept
+        : mEntryState(tombstone_bit)
+    {
+
+    }
+
+    template <typename T>
     inline cache_page<T>::~cache_page() noexcept
     {
-        //#TODO const?
-        auto state = mEntryState.load(std::memory_order_acquire);
+        auto const state = mEntryState.load(std::memory_order_acquire);
         if (!(state & tombstone_bit) && (state & ref_mask) > 0)
         {
             // #TODO maybe log something about open cache page references on destruction
@@ -180,12 +185,13 @@ namespace vefs::detail
         } while (!mEntryState.compare_exchange_weak(
             current, dirty_tombstone, std::memory_order_acq_rel, std::memory_order_acquire));
 
+        if (current & tombstone_bit)
+        {
+            return cache_replacement_result::was_dead;
+        }
         if constexpr (!std::is_trivially_destructible_v<T>)
         {
-            if (!(current & tombstone_bit))
-            {
-                std::destroy_at(std::launder(reinterpret_cast<T *>(&mValueHolder)));
-            }
+            std::destroy_at(std::launder(reinterpret_cast<T *>(&mValueHolder)));
         }
         return cache_replacement_result::succeeded;
     }

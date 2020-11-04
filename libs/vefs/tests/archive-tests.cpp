@@ -52,6 +52,12 @@ BOOST_AUTO_TEST_CASE(archive_create_reopen)
             archive::open(std::move(cloned), cprov, default_user_prk, false);
         TEST_RESULT(openrx);
     }
+    {
+        auto cloned = archiveFileHandle.reopen(0).value();
+        auto validaterx =
+            archive::validate(std::move(cloned), cprov, default_user_prk);
+        TEST_RESULT(validaterx);
+    }
 }
 
 BOOST_AUTO_TEST_CASE(archive_no_parallel_open)
@@ -101,6 +107,12 @@ BOOST_AUTO_TEST_CASE(archive_create_file)
         auto fopenrx = ac->open(default_file_path, file_open_mode::read);
         TEST_RESULT_REQUIRE(fopenrx);
     }
+    {
+        auto cloned = archiveFileHandle.reopen(0).value();
+        auto validaterx =
+            archive::validate(std::move(cloned), cprov, default_user_prk);
+        TEST_RESULT(validaterx);
+    }
 }
 
 BOOST_AUTO_TEST_CASE(archive_readwrite)
@@ -149,6 +161,12 @@ BOOST_AUTO_TEST_CASE(archive_readwrite)
         TEST_RESULT(ac->read(hFile, span{*readBuffer}, pos));
 
         BOOST_TEST(mismatch_distance(file, span{*readBuffer}) == file.size());
+    }
+    {
+        auto cloned = archiveFileHandle.reopen(0).value();
+        auto validaterx =
+            archive::validate(std::move(cloned), cprov, default_user_prk);
+        TEST_RESULT(validaterx);
     }
 }
 
@@ -215,6 +233,12 @@ BOOST_AUTO_TEST_CASE(archive_file_shrink)
         TEST_RESULT_REQUIRE(ac->commit(hFile));
         TEST_RESULT_REQUIRE(ac->commit());
     }
+    {
+        auto cloned = archiveFileHandle.reopen(0).value();
+        auto validaterx =
+            archive::validate(std::move(cloned), cprov, default_user_prk);
+        TEST_RESULT(validaterx);
+    }
 }
 
 BOOST_AUTO_TEST_CASE(archive_file_erase)
@@ -272,6 +296,12 @@ BOOST_AUTO_TEST_CASE(archive_file_erase)
         BOOST_REQUIRE(qrx.has_error() &&
                       qrx.assume_error() == archive_errc::no_such_file);
     }
+    {
+        auto cloned = archiveFileHandle.reopen(0).value();
+        auto validaterx =
+            archive::validate(std::move(cloned), cprov, default_user_prk);
+        TEST_RESULT(validaterx);
+    }
 }
 
 BOOST_AUTO_TEST_CASE(archive_empty_userprk)
@@ -328,6 +358,12 @@ BOOST_AUTO_TEST_CASE(archive_empty_userprk)
 
         BOOST_TEST(mismatch_distance(file, span{*readBuffer}) == file.size());
     }
+    {
+        auto cloned = archiveFileHandle.reopen(0).value();
+        auto validaterx =
+            archive::validate(std::move(cloned), cprov, default_user_prk);
+        TEST_RESULT(validaterx);
+    }
 }
 
 BOOST_AUTO_TEST_CASE(archive_query)
@@ -381,6 +417,12 @@ BOOST_AUTO_TEST_CASE(archive_query)
         BOOST_TEST_REQUIRE(result.has_value());
 
         BOOST_TEST(result.assume_value().size == file.size() + pos);
+    }
+    {
+        auto cloned = archiveFileHandle.reopen(0).value();
+        auto validaterx =
+            archive::validate(std::move(cloned), cprov, default_user_prk);
+        TEST_RESULT(validaterx);
     }
 }
 
@@ -467,6 +509,99 @@ BOOST_AUTO_TEST_CASE(sqlite_bridge_regression_1)
         f = nullptr;
 
         TEST_RESULT_REQUIRE(ac->erase("blob-test-journal"));
+
+        TEST_RESULT_REQUIRE(ac->commit());
+    }
+    {
+        auto cloned = archiveFileHandle.reopen(0).value();
+        auto validaterx =
+            archive::validate(std::move(cloned), cprov, default_user_prk);
+        TEST_RESULT(validaterx);
+    }
+}
+
+BOOST_AUTO_TEST_CASE(sqlite_bridge_regression_2)
+{
+    using namespace vefs;
+
+    auto archiveFileHandle = vefs::llfio::mapped_temp_inode().value();
+    auto cprov = crypto::boringssl_aes_256_gcm_crypto_provider();
+
+    using file_type = std::array<std::byte, 0x1000>;
+    auto fileDataStorage = std::make_unique<file_type>();
+    span fileData{*fileDataStorage};
+    vefs::fill_blob(fileData, std::byte{0x55});
+
+    utils::xoroshiro128plus dataGenerator{0};
+
+    {
+        auto cloned = archiveFileHandle.reopen(0).value();
+        auto openrx =
+            archive::open(std::move(cloned), cprov, default_user_prk, true);
+        TEST_RESULT_REQUIRE(openrx);
+        auto ac = std::move(openrx).assume_value();
+
+        auto fopenrx =
+            ac->open("db",
+                     file_open_mode::readwrite | file_open_mode::create);
+        TEST_RESULT_REQUIRE(fopenrx);
+        auto f = std::move(fopenrx).assume_value();
+
+        TEST_RESULT_REQUIRE(ac->commit(f));
+
+        TEST_RESULT_REQUIRE(ac->commit());
+
+        TEST_RESULT_REQUIRE(ac->write(f, fileData, 0x00000000));
+
+        for (int i = 0; i < 0xf6; ++i)
+        {
+            BOOST_TEST_CONTEXT(i);
+
+            TEST_RESULT_REQUIRE(
+                ac->write(f, fileData, 0x0000000ull + i * 0x1000u));
+        }
+
+        TEST_RESULT_REQUIRE(ac->commit(f));
+
+        TEST_RESULT_REQUIRE(ac->commit());
+
+        TEST_RESULT_REQUIRE(ac->write(f, fileData, 0x0000b000));
+
+        for (int j = 0; j < 98; ++j)
+        {
+            BOOST_TEST_CONTEXT(j);
+
+            TEST_RESULT_REQUIRE(
+                ac->write(f, fileData, 0x000f5000ull + j * 0x1000u));
+        }
+
+        TEST_RESULT_REQUIRE(ac->commit(f));
+
+        TEST_RESULT_REQUIRE(ac->commit());
+
+        TEST_RESULT_REQUIRE(ac->write(f, fileData, 0x000f4000));
+
+        for (int j = 0; j < 111; ++j)
+        {
+            BOOST_TEST_CONTEXT(j);
+
+            TEST_RESULT_REQUIRE(ac->write(f, fileData, 0x0010d000ull + j * 0x1000u));
+
+        }
+
+        TEST_RESULT_REQUIRE(ac->commit(f));
+
+        TEST_RESULT_REQUIRE(ac->commit());
+
+
+
+        f = nullptr;
+    }
+    {
+        auto cloned = archiveFileHandle.reopen(0).value();
+        auto validaterx =
+            archive::validate(std::move(cloned), cprov, default_user_prk);
+        TEST_RESULT(validaterx);
     }
 }
 

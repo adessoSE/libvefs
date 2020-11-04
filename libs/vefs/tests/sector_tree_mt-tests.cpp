@@ -22,6 +22,16 @@ namespace
             mLockCounter++;
         }
 
+        bool try_lock()
+        {
+            if (mLockCounter == mUnlockCounter)
+            {
+                mLockCounter += 1;
+                return true;
+            }
+            return false;
+        }
+
         void unlock()
         {
             BOOST_TEST(mLockCounter - 1 == mUnlockCounter);

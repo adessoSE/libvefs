@@ -2,6 +2,7 @@
 
 #include <array>
 #include <memory>
+#include <shared_mutex>
 #include <type_traits>
 
 #include <vefs/llfio.hpp>
@@ -123,6 +124,7 @@ namespace vefs::detail
         crypto::atomic_counter mJournalCounter;
         std::atomic<std::uint64_t> mEraseCounter;
 
+        std::shared_mutex mSizeSync;
         std::atomic<uint64_t> mNumSectors;
 
         static inline constexpr size_t mArchiveHeaderOffset = 1 << 13;
@@ -142,6 +144,7 @@ namespace vefs::detail
     inline auto vefs::detail::sector_device::resize(std::uint64_t numSectors)
         -> result<void>
     {
+        std::unique_lock guard{mSizeSync};
         VEFS_TRY(bytesTruncated,
                  mArchiveFile.truncate(numSectors * sector_size));
         if (bytesTruncated != (numSectors * sector_size))
@@ -189,8 +192,7 @@ namespace vefs::detail
 #pragma warning(disable : 4146)
 #endif
 
-    constexpr auto
-    vefs::detail::sector_device::header_size(header_id) noexcept
+    constexpr auto vefs::detail::sector_device::header_size(header_id) noexcept
         -> std::size_t
     {
         constexpr auto xsize = (sector_size - mArchiveHeaderOffset) / 2;

@@ -247,7 +247,8 @@ namespace vefs::detail
             {
             deny_second_chance:
                 enum_bitset<cache_replacement_result> rx = p.try_start_replace();
-                if (rx == cache_replacement_result::succeeded)
+                if (rx == cache_replacement_result::succeeded
+                    || rx == cache_replacement_result::was_dead)
                 {
                     p.cancel_replace();
                 }
@@ -277,7 +278,7 @@ namespace vefs::detail
     {
         std::lock_guard guard{mReplacementSync};
         auto xpages = pages();
-        auto  where = get_cache_index(whom, xpages.data());
+        auto where = get_cache_index(whom, xpages.data());
 
         if (!xpages[where].try_purge(true))
         {
@@ -415,6 +416,10 @@ namespace vefs::detail
                 h = page(stored).try_acquire();
             }
         });
+        if (h)
+        {
+            return h;
+        }
 
         mKeyIndexMap.update_fn(key, [&](page_index &stored) {
             if (stored & invalid_page_index_bit)
@@ -653,7 +658,7 @@ namespace vefs::detail
                 candidate = static_cast<page_index>(std::distance(xpages.begin(), which));
             }
             [[maybe_unused]] const auto rprx = page(candidate).try_start_replace();
-            assert(rprx == cache_replacement_result::succeeded);
+            assert(rprx == cache_replacement_result::was_dead);
         }
 
         if (isNew)
@@ -705,6 +710,10 @@ namespace vefs::detail
                                            std::move(mIndexKeyMap[candidate]));
                     break;
                 }
+                else if (rx == cache_replacement_result::was_dead)
+                {
+                    break;
+                }
                 else
                 {
                     (rx % cache_replacement_result::second_chance
@@ -731,6 +740,10 @@ namespace vefs::detail
                     mKeyIndexMap.erase(mIndexKeyMap[candidate]);
                     mFrequencyHistory.insert(mFrequencyHistory.begin(),
                                              std::move(mIndexKeyMap[candidate]));
+                    break;
+                }
+                else if (rx == cache_replacement_result::was_dead)
+                {
                     break;
                 }
                 else

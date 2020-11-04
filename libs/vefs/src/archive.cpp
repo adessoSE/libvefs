@@ -42,9 +42,8 @@ namespace vefs
                        ro_blob<32> userPRK, bool createNew)
         -> result<std::unique_ptr<archive>>
     {
-        VEFS_TRY(primitives,
-                          sector_device::open(std::move(mfh), cryptoProvider,
-                                              userPRK, createNew));
+        VEFS_TRY(primitives, sector_device::open(std::move(mfh), cryptoProvider,
+                                                 userPRK, createNew));
 
         std::unique_ptr<archive> arc{new archive(std::move(primitives))};
         if (auto alloc = new (std::nothrow)
@@ -110,6 +109,40 @@ namespace vefs
             }
         }
         return std::move(arc);
+    }
+
+    auto archive::validate(llfio::mapped_file_handle mfh,
+                           crypto::crypto_provider *cryptoProvider,
+                           ro_blob<32> userPRK) -> result<void>
+    {
+        VEFS_TRY(primitives, sector_device::open(std::move(mfh), cryptoProvider,
+                                                 userPRK, false));
+
+        std::unique_ptr<archive> arc{new archive(std::move(primitives))};
+        if (auto alloc = new (std::nothrow)
+                detail::archive_sector_allocator(*arc->mArchive))
+        {
+            alloc->on_leak_detected(); // dirty hack to prevent overwriting
+                                       // the archive header on destruction
+            arc->mSectorAllocator.reset(alloc);
+        }
+        else
+        {
+            return errc::not_enough_memory;
+        }
+
+        if (auto crx = vfilesystem::open_existing(
+                *arc->mArchive, *arc->mSectorAllocator, arc->mWorkTracker,
+                arc->mArchive->archive_header().filesystem_index))
+        {
+            arc->mFilesystem = std::move(crx).assume_value();
+            return arc->mFilesystem->validate();
+        }
+        else
+        {
+            return std::move(crx.error())
+                   << ed::archive_file("[archive-index]");
+        }
     }
 
     archive::~archive()
