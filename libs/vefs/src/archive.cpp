@@ -549,6 +549,16 @@ auto archive_handle::commit(const vfile_handle &handle) -> result<void>
     return syncrx;
 }
 
+auto archive_handle::extract(llfio::path_view sourceFilePath, llfio::path_view targetBasePath) -> result<void>
+{
+    return mFilesystem->extract(sourceFilePath, targetBasePath);
+}
+
+auto archive_handle::extractAll(llfio::path_view targetBasePath) -> result<void>
+{
+    return mFilesystem->extractAll(targetBasePath);
+}
+
 auto archive_handle::personalization_area() noexcept
         -> std::span<std::byte, 1 << 12>
 {

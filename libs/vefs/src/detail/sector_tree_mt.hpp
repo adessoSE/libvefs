@@ -9,6 +9,7 @@
 
 #include <boost/container/static_vector.hpp>
 
+#include <vefs/llfio.hpp>
 #include <vefs/platform/platform.hpp>
 
 #include "cache_car.hpp"
@@ -1217,6 +1218,34 @@ inline auto write(sector_tree_mt<TreeAllocator, Executor, MutexType> &tree,
         auto buffer = as_span(writableSector).subspan(std::exchange(offset, 0));
         auto chunked = std::min(data.size(), buffer.size());
         copy(std::exchange(data, data.subspan(chunked)), buffer);
+    }
+
+    return success();
+}
+
+template <typename TreeAllocator, typename Executor, typename MutexType>
+inline auto extract(sector_tree_mt<TreeAllocator, Executor, MutexType> &tree,
+                    llfio::file_handle &fileHandle,
+                    std::uint64_t startPos,
+                    std::uint64_t endPos) -> result<void>
+{
+    auto offset = startPos % detail::sector_device::sector_payload_size;
+    tree_position it{detail::lut::sector_position_of(startPos)};
+
+    while (startPos < endPos)
+    {
+        VEFS_TRY(auto sector, tree.access(std::exchange(
+                                      it, tree_position{it.position() + 1})));
+
+        auto chunk = as_span(sector).subspan(std::exchange(offset, 0));
+        auto chunkSize = std::min(chunk.size(), endPos - startPos);
+
+        llfio::file_handle::const_buffer_type buffers[1]
+                = {{chunk.data(), chunkSize}};
+
+        VEFS_TRY(fileHandle.write({buffers, startPos}));
+
+        startPos += chunkSize;
     }
 
     return success();

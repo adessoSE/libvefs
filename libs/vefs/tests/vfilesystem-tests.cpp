@@ -4,6 +4,7 @@
 
 #include "../src/detail/sector_device.hpp"
 
+
 using namespace vefs;
 using namespace vefs::detail;
 
@@ -302,4 +303,40 @@ BOOST_AUTO_TEST_CASE(erasing_non_existing_file_throws_error)
     BOOST_TEST(result.error() == archive_errc::no_such_file);
 }
 
+BOOST_AUTO_TEST_CASE(extract_vfile_to_file)
+{
+    auto basePath = vefs_tests::current_path.current_path().assume_value();
+    std::string_view testFileName = "testfile";
+
+    auto vfilerx = testSubject->open(
+            testFileName, file_open_mode::readwrite | file_open_mode::create);
+
+    TEST_RESULT_REQUIRE(vfilerx);
+    auto file = vfilerx.assume_value();
+    TEST_RESULT_REQUIRE(file->truncate(0xFFFF));
+    auto writeBlob = utils::make_byte_array(0x41, 0x42, 0x43, 0x44);
+
+    auto write_rx = file->write(writeBlob, 0);
+
+    TEST_RESULT_REQUIRE(file->commit());
+    TEST_RESULT_REQUIRE(testSubject->commit());
+    file = nullptr;
+
+    TEST_RESULT_REQUIRE(testSubject->extract({testFileName}, basePath));
+
+    auto basePathHandle = vefs::llfio::path(basePath).assume_value();
+    auto fileHandle = vefs::llfio::file(basePathHandle, {testFileName},
+                                        vefs::llfio::file_handle::mode::read)
+                              .assume_value();
+
+    std::byte array[4];
+    auto buffer = vefs::llfio::span<std::byte>({array});
+
+    llfio::io_handle::buffer_type outBuffers[]
+            = {llfio::io_handle::buffer_type(buffer)};
+
+    auto result = fileHandle.read({outBuffers, 0}).value();
+
+    BOOST_TEST(result[0] == writeBlob, boost::test_tools::per_element{});
+}
 BOOST_AUTO_TEST_SUITE_END()

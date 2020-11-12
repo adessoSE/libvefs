@@ -261,6 +261,23 @@ public:
      * @return indicates success or failure
     */
     auto commit(const vfile_handle &handle) -> result<void>;
+    /**
+     * Extracts a vfile at the given path as a physical file on the
+     * device in the given path.
+     *
+     * @param sourceFilePath the path to the vfile that should be extracted
+     * @param targetBasePath the path to the output file
+     */
+    auto extract(llfio::path_view sourceFilePath,
+                 llfio::path_view targetBasePath) -> result<void>;
+    /**
+     * Extracts all available vfiles as physical files on the device
+     * in their according paths.
+     *
+     * @param targetBasePath the path to which the content should be extracted
+     * to
+     */
+    auto extractAll(llfio::path_view targetBasePath) -> result<void>;
 
     /**
      * @brief Returns the unencrypted bytes of the personalization area. The

@@ -7,6 +7,7 @@
 #include <type_traits>
 
 #include <vefs/archive.hpp>
+#include <vefs/llfio.hpp>
 #include <vefs/platform/thread_pool.hpp>
 #include <vefs/utils/dirt_flag.hpp>
 #include <vefs/utils/unordered_map_mt.hpp>
@@ -68,7 +69,25 @@ public:
 
     auto open(const std::string_view filePath, const file_open_mode_bitset mode)
             -> result<vfile_handle>;
+    auto open(const detail::file_id id) -> result<vfile_handle>;
     auto erase(std::string_view filePath) -> result<void>;
+    /**
+     * Extracts a vfile at the given path as a physical file on the
+     * device in the given path.
+     *
+     * @param sourceFilePath the path to the vfile that should be extracted
+     * @param targetBasePath the path to the output file
+     */
+    auto extract(llfio::path_view sourceFilePath,
+                 llfio::path_view targetBasePath) -> result<void>;
+    /**
+     * Extracts all available vfiles as physical files on the device
+     * in their according paths.
+     *
+     * @param targetBasePath the path to which the content should be extracted
+     * to
+     */
+    auto extractAll(llfio::path_view targetBasePath) -> result<void>;
 
     auto query(const std::string_view filePath) -> result<file_query_result>;
 
@@ -96,6 +115,10 @@ private:
 
     auto sync_commit_info(detail::root_sector_info rootInfo,
                           std::uint64_t maxExtent) noexcept -> result<void>;
+    template <typename OpenFn>
+    auto extract(llfio::path_view sourceFilePath,
+                 llfio::path_view targetBasePath,
+                 OpenFn &&open) -> result<void>;
 
     detail::sector_device &mDevice;
     detail::archive_sector_allocator &mSectorAllocator;

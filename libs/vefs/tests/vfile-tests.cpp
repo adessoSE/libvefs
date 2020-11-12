@@ -142,4 +142,27 @@ BOOST_AUTO_TEST_CASE(decrease_size_from_9_to_3)
     BOOST_TEST(testSubject->maximum_extent() == 3);
 }
 
+BOOST_AUTO_TEST_CASE(extract_to_file)
+{
+    // given
+    llfio::file_handle fileHandle{llfio::temp_inode().value()};
+    auto writeBlob = utils::make_byte_array(0x41, 0x42, 0x43, 0x44);
+    auto write_rx = testSubject->write(writeBlob, 0);
+    TEST_RESULT_REQUIRE(write_rx);
+
+    // when
+    TEST_RESULT_REQUIRE(testSubject->extract(fileHandle));
+
+    // then
+    // create read request
+    auto resultBuffer = std::make_unique<std::byte[]>(writeBlob.size());
+    llfio::io_handle::buffer_type buffers[1] = {
+        {resultBuffer.get(), writeBlob.size()}};
+    auto result = fileHandle.read({buffers, 0});
+
+    BOOST_TEST(result.bytes_transferred() == 4);
+    BOOST_TEST(result.value()[0] == writeBlob,
+               boost::test_tools::per_element{});
+}
+
 BOOST_AUTO_TEST_SUITE_END()

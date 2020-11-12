@@ -121,6 +121,12 @@ auto vfile::write(ro_dynblob data, std::uint64_t writePos) -> result<void>
     return success();
 }
 
+auto vefs::vfile::extract(llfio::file_handle &fileHandle) -> result<void>
+{
+    return detail::extract(*mFileTree, fileHandle, 0,
+                           mMaximumExtent.load(std::memory_order_acquire));
+}
+
 auto vfile::maximum_extent() -> std::uint64_t
 {
     return mMaximumExtent.load(std::memory_order_acquire);

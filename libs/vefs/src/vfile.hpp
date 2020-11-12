@@ -6,6 +6,8 @@
 #include <vefs/platform/thread_pool.hpp>
 #include <vefs/utils/dirt_flag.hpp>
 
+#include <vefs/llfio.hpp>
+
 #include "detail/archive_file_id.hpp"
 #include "detail/archive_sector_allocator.hpp"
 #include "detail/cow_tree_allocator_mt.hpp"
@@ -52,6 +54,12 @@ public:
 
     auto read(rw_dynblob buffer, std::uint64_t readPos) -> result<void>;
     auto write(ro_dynblob data, std::uint64_t writePos) -> result<void>;
+    /**
+     * Extracts the content of the vfile into the given file handle.
+     *
+     * @param mappedFileHandle the handle to which the content is written to
+     */
+    auto extract(llfio::file_handle &fileHandle) -> result<void>;
 
     auto maximum_extent() -> std::uint64_t;
     auto truncate(std::uint64_t size) -> result<void>;
