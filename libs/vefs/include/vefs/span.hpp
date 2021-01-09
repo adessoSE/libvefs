@@ -8,6 +8,8 @@
 #include <algorithm>
 #include <array>
 #include <iterator>
+#include <ranges>
+#include <span>
 #include <stdexcept>
 #include <string_view>
 #include <type_traits>
@@ -581,19 +583,36 @@ namespace vefs
     }
 
     template <class T, std::size_t X, class U, std::size_t Y>
-    inline auto copy(span<T, X> source, span<U, Y> dest)
+    constexpr auto copy(span<T, X> source, span<U, Y> dest)
     {
-        assert(dest.data() < source.data() || source.data() + source.size() <= dest.data());
         if constexpr (X == dynamic_extent || Y == dynamic_extent)
         {
             const auto n = std::min(source.size(), dest.size());
-            std::copy_n(source.cbegin(), n, dest.begin());
+            std::copy_n(source.begin(), n, dest.begin());
             return dest.subspan(n);
         }
         else
         {
             constexpr auto N = std::min(X, Y);
-            std::copy_n(source.cbegin(), N, dest.begin());
+            std::copy_n(source.begin(), N, dest.begin());
+            return dest.template subspan<N>();
+        }
+    }
+    template <class T, class U = T, std::size_t X = std::dynamic_extent,
+              std::size_t Y = X>
+    requires std::is_assignable_v<U &, T &>
+    constexpr auto copy(std::span<T, X> source, std::span<U, Y> dest)
+    {
+        if constexpr (X == std::dynamic_extent || Y == std::dynamic_extent)
+        {
+            auto const n = std::min(source.size(), dest.size());
+            std::copy_n(source.data(), n, dest.data());
+            return dest.subspan(n);
+        }
+        else
+        {
+            constexpr auto N = std::min(X, Y);
+            std::copy_n(source.data(), N, dest.data());
             return dest.template subspan<N>();
         }
     }
@@ -650,3 +669,14 @@ namespace vefs
         return {reinterpret_cast<const std::byte *>(&obj), sizeof(obj)};
     }
 } // namespace vefs
+
+namespace std::ranges
+{
+
+    template <typename T, std::size_t N>
+    inline constexpr bool enable_borrowed_range<vefs::span<T, N>> = true;
+
+    template <typename T, std::size_t N>
+    inline constexpr bool enable_view<vefs::span<T, N>> = true;
+
+}
