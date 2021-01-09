@@ -66,7 +66,8 @@ namespace vefs::utils
                 0
             };
 
-            static_assert(std::is_pod_v<decltype(info)>);
+            static_assert(std::is_standard_layout_v<decltype(info)>);
+            static_assert(std::is_trivial_v<decltype(info)>);
 
 #pragma warning(push)
 #pragma warning(disable: 6320 6322)
