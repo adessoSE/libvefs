@@ -163,7 +163,11 @@ configure_file(tools/vefs-config.cmake
     COPYONLY
 )
 
-install(EXPORT vefs-targets DESTINATION cmake COMPONENT core)
+install(EXPORT vefs-targets
+    NAMESPACE Vefs::
+    DESTINATION cmake
+    COMPONENT core
+)
 
 include(CMakePackageConfigHelpers)
 write_basic_package_version_file(
