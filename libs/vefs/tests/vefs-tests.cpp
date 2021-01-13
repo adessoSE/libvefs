@@ -4,7 +4,6 @@
 #include <openssl/err.h>
 
 #include <gmock/gmock.h>
-#include <google/protobuf/stubs/common.h>
 
 #include "../src/crypto/provider.hpp"
 

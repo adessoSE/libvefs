@@ -920,7 +920,7 @@ namespace vefs::detail
     {
         using boost::container::static_vector;
 
-        const int depthDifference = targetDepth - mRootInfo.tree_depth;
+        // const int depthDifference = targetDepth - mRootInfo.tree_depth;
 
         // static_vector<sector_id, lut::max_tree_depth + 1> allocatedSectors;
         // utils::scope_guard allocationRollbackGuard = [this,

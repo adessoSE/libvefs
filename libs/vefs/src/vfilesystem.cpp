@@ -260,7 +260,7 @@ namespace vefs
         auto find_next_entry(tree_stream_position begin) noexcept
             -> result<tree_stream_position>
         {
-            if (begin.next_block < blocks_per_sector)
+            if (begin.next_block < static_cast<int>(blocks_per_sector))
             {
                 std::span<std::byte const> const sectorContent =
                     as_span(begin.sector);
@@ -268,7 +268,7 @@ namespace vefs
                     sectorContent.first<alloc_map_size>(), begin.next_block);
             }
 
-            while (begin.next_block >= blocks_per_sector)
+            while (begin.next_block >= static_cast<int>(blocks_per_sector))
             {
                 auto const nextPosition = next(begin.sector.node_position());
 
@@ -406,8 +406,8 @@ namespace vefs
                          archive_errc::sector_reference_out_of_range)
                 {
                     // dealloc last batch based on mLastAllocated
-                    auto const endBlock =
-                        (mLastAllocated.position() + 1) * blocks_per_sector;
+                    auto const endBlock = static_cast<int>(
+                        (mLastAllocated.position() + 1) * blocks_per_sector);
                     if (endBlock < deallocBegin)
                     {
                         return archive_errc::vfilesystem_invalid_size;
@@ -517,7 +517,7 @@ namespace vefs
                 encodedSize + dplx::dp::encoded_size_of(encodedSize);
 
             auto const neededBlocks =
-                static_cast<int>(utils::div_ceil(encodedSize, block_size));
+                static_cast<int>(utils::div_ceil(streamSize, block_size));
 
             VEFS_TRY(reallocate(entry, neededBlocks));
 

@@ -76,7 +76,6 @@ BOOST_AUTO_TEST_CASE(write_sector_seals_sector)
                            .value()
                            .device;
 
-    const std::array<std::byte, 1 << 15> &rhs = std::array<std::byte, 1 << 15>{};
     EXPECT_CALL(
         fileCryptoCtx,
         seal_sector(testing::_, mac,

@@ -59,8 +59,8 @@ struct vfilesystem_test_dependencies
                      .value()
                      .device)
         , filesystemIndex{}
-        , workExecutor(&thread_pool::shared())
         , sectorAllocator(*device, {})
+        , workExecutor(&thread_pool::shared())
     {
         TEST_RESULT_REQUIRE(sectorAllocator.initialize_new());
         cryptoCtx = device->create_file_secrets().value();
@@ -76,7 +76,7 @@ BOOST_AUTO_TEST_CASE(
     recover_sectors_does_not_change_size_if_no_sector_to_recover)
 {
     BOOST_TEST(5 == device->size());
-    testSubject->commit();
+    TEST_RESULT_REQUIRE(testSubject->commit());
     TEST_RESULT_REQUIRE(testSubject->recover_unused_sectors());
 
     BOOST_TEST(5 == device->size());
@@ -95,7 +95,7 @@ BOOST_AUTO_TEST_CASE(recover_sectors_does_shrinks_size)
     file = nullptr;
 
     BOOST_TEST(9 == device->size());
-    testSubject->commit();
+    TEST_RESULT_REQUIRE(testSubject->commit());
     TEST_RESULT_REQUIRE(testSubject->recover_unused_sectors());
     TEST_RESULT_REQUIRE(sectorAllocator.alloc_one());
     TEST_RESULT_REQUIRE(sectorAllocator.alloc_one());
@@ -120,7 +120,7 @@ BOOST_AUTO_TEST_CASE(create_file_allocs_sectors)
     file = nullptr;
 
     BOOST_TEST(9 == device->size());
-    testSubject->commit();
+    TEST_RESULT_REQUIRE(testSubject->commit());
     TEST_RESULT_REQUIRE(sectorAllocator.alloc_one());
     TEST_RESULT_REQUIRE(sectorAllocator.alloc_one());
     BOOST_TEST(9 == device->size());
@@ -142,7 +142,7 @@ BOOST_AUTO_TEST_CASE(load_existing_filesystem_keeps_files)
 
     TEST_RESULT_REQUIRE(file->commit());
     file = nullptr;
-    testSubject->commit();
+    TEST_RESULT_REQUIRE(testSubject->commit());
     filesystemIndex.tree_info = testSubject->committed_root();
     testSubject.reset();
     auto newSectorAllocator = archive_sector_allocator(*device, {});

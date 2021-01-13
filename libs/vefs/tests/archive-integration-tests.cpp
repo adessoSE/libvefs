@@ -37,9 +37,6 @@ BOOST_FIXTURE_TEST_SUITE(archive_integration_test, archive_test_dependencies)
 
 BOOST_AUTO_TEST_CASE(sqlite_bridge_regression)
 {
-
-    auto cprov = crypto::boringssl_aes_256_gcm_crypto_provider();
-
     using file_type = std::array<std::byte, 8192>;
     auto fileDataStorage = std::make_unique<file_type>();
     span fileData{*fileDataStorage};

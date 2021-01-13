@@ -309,7 +309,7 @@ namespace vefs::detail
 
         VEFS_TRY(staticHeaderBox, crypto::cbor_box_decode_head(mstream));
 
-        if (staticHeaderBox.dataLength > static_header_size)
+        if (staticHeaderBox.dataLength > static_cast<int>(static_header_size))
         {
             return archive_errc::oversized_static_header;
         }
@@ -355,7 +355,7 @@ namespace vefs::detail
 
         VEFS_TRY(headerBox, crypto::cbor_box_decode_head(mstream));
 
-        if (headerBox.dataLength > pheader_size)
+        if (headerBox.dataLength > static_cast<int>(pheader_size))
         {
             return archive_errc::oversized_static_header;
         }
@@ -611,8 +611,8 @@ namespace vefs::detail
         {
             utils::secure_memzero(serializationMemory);
         };
-        dplx::dp::byte_buffer_view serializationBuffer(
-            std::span{serializationMemory});
+        dplx::dp::byte_buffer_view serializationBuffer{
+            std::span<std::byte>{serializationMemory}};
 
         VEFS_TRY(dplx::dp::encode(serializationBuffer, assembled));
 
