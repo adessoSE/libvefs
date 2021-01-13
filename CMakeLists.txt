@@ -59,9 +59,6 @@ find_package(GTest CONFIG REQUIRED)
 # botan provider is currently not implemented
 #find_package(botan 2.8.0)
 
-# protobuf + protoc
-find_package(protobuf CONFIG REQUIRED)
-
 find_package(deeppack CONFIG REQUIRED)
 
 find_package(Boost 1.70 REQUIRED COMPONENTS

@@ -15,28 +15,27 @@
 
 #include "../crypto/counter.hpp"
 #include "../crypto/provider.hpp"
+#include "archive_header.hpp"
 #include "file_crypto_ctx.hpp"
+#include "file_descriptor.hpp"
 #include "root_sector_info.hpp"
 #include "sector_id.hpp"
-
-namespace adesso::vefs
-{
-    class ArchiveHeader;
-    class FileDescriptor;
-} // namespace adesso::vefs
 
 namespace vefs::detail
 {
     struct master_file_info
     {
-        file_crypto_ctx crypto_ctx;
+        file_crypto_ctx::state_type crypto_state;
         root_sector_info tree_info;
-    };
 
-    struct archive_header_content
-    {
-        master_file_info filesystem_index;
-        master_file_info free_sector_index;
+        master_file_info() noexcept = default;
+        explicit master_file_info(file_descriptor const &desc)
+            : crypto_state{.secret =
+                               utils::secure_byte_array<32>(span(desc.secret)),
+                           .counter = desc.secretCounter}
+            , tree_info(desc.data)
+        {
+        }
     };
 
     struct master_header
@@ -58,16 +57,26 @@ namespace vefs::detail
         {
         };
 
+        struct open_info
+        {
+            std::unique_ptr<sector_device> device;
+            master_file_info filesystem_index;
+            master_file_info free_sector_index;
+        };
+
         static constexpr size_t sector_size = 1 << 15; // 2^15
         static constexpr size_t sector_payload_size =
             sector_size - (1 << 5); // 2^15-2^5
+
+        static constexpr std::size_t static_header_size = 1 << 13;
+        static constexpr std::size_t pheader_size = (1 << 13) + (1 << 12);
 
         static constexpr auto to_offset(sector_id id) -> std::uint64_t;
 
         static auto open(llfio::mapped_file_handle mfh,
                          crypto::crypto_provider *cryptoProvider,
                          ro_blob<32> userPRK, bool createNew)
-            -> result<std::unique_ptr<sector_device>>;
+            -> result<open_info>;
 
         ~sector_device() = default;
 
@@ -82,14 +91,16 @@ namespace vefs::detail
             -> result<void>;
         auto erase_sector(sector_id sectorIdx) noexcept -> result<void>;
 
-        result<void> update_header();
+        auto update_header(file_crypto_ctx const &filesystemIndexCtx,
+                           root_sector_info filesystemIndexRoot,
+                           file_crypto_ctx const &freeSectorIndex,
+                           root_sector_info freeSectorIndexRoot)
+            -> result<void>;
         result<void> update_static_header(ro_blob<32> newUserPRK);
 
         // numSectors = number of sectors (i.e. including the master sector)
         result<void> resize(std::uint64_t numSectors);
         std::uint64_t size() const;
-
-        auto archive_header() noexcept -> archive_header_content &;
 
         ro_blob<64> master_secret_view() const;
         ro_blob<16> session_salt_view() const;
@@ -100,22 +111,24 @@ namespace vefs::detail
         auto create_file_secrets() noexcept
             -> result<std::unique_ptr<file_crypto_ctx>>;
 
+        auto create_file_secrets2() noexcept
+            -> result<file_crypto_ctx::state_type>;
+
     private:
         sector_device(llfio::mapped_file_handle mfh,
                       crypto::crypto_provider *cryptoProvider,
                       size_t numSectors);
 
-        result<void> parse_static_archive_header(ro_blob<32> userPRK);
-        result<void> parse_archive_header();
-        result<void> parse_archive_header(std::size_t position,
-                                          std::size_t size,
-                                          adesso::vefs::ArchiveHeader &out);
+        auto parse_static_archive_header(ro_blob<32> userPRK) -> result<void>;
+        auto parse_archive_header() -> result<archive_header>;
+        auto parse_archive_header(header_id which) -> result<archive_header>;
 
         result<void> write_static_archive_header(ro_blob<32> userPRK);
 
         static constexpr auto header_size(header_id which) noexcept
             -> std::size_t;
-        auto header_offset(header_id which) const noexcept -> std::size_t;
+        constexpr auto header_offset(header_id which) const noexcept
+            -> std::size_t;
         void switch_header() noexcept;
 
         crypto::crypto_provider *const mCryptoProvider;
@@ -125,8 +138,6 @@ namespace vefs::detail
         dplx::dp::byte_buffer<llfio::utils::page_allocator<std::byte>>
             mMasterSector;
 
-        archive_header_content mHeaderContent;
-
         master_header mStaticHeader;
         utils::secure_byte_array<16> mSessionSalt;
         crypto::atomic_counter mArchiveSecretCounter;
@@ -135,7 +146,6 @@ namespace vefs::detail
 
         std::atomic<uint64_t> mNumSectors;
 
-        static inline constexpr size_t mArchiveHeaderOffset = 1 << 13;
         header_id mHeaderSelector;
     };
     static_assert(!std::is_default_constructible_v<sector_device>);
@@ -156,21 +166,15 @@ namespace vefs::detail
                  mArchiveFile.truncate(numSectors * sector_size));
         if (bytesTruncated != (numSectors * sector_size))
         {
-            return outcome::failure(errc::bad);
+            return errc::bad;
         }
         mNumSectors = numSectors;
 
-        return outcome::success();
+        return success();
     }
     inline std::uint64_t sector_device::size() const
     {
         return mNumSectors.load();
-    }
-
-    inline auto sector_device::archive_header() noexcept
-        -> archive_header_content &
-    {
-        return mHeaderContent;
     }
 
     inline ro_blob<64> sector_device::master_secret_view() const
@@ -199,18 +203,11 @@ namespace vefs::detail
 #pragma warning(disable : 4146)
 #endif
 
-    constexpr auto vefs::detail::sector_device::header_size(header_id) noexcept
+    constexpr auto sector_device::header_offset(header_id which) const noexcept
         -> std::size_t
     {
-        constexpr auto xsize = (sector_size - mArchiveHeaderOffset) / 2;
-        return xsize;
-    }
-
-    inline auto sector_device::header_offset(header_id which) const noexcept
-        -> std::size_t
-    {
-        return mArchiveHeaderOffset + ((-static_cast<std::size_t>(which)) &
-                                       header_size(header_id::first));
+        return static_header_size +
+               ((-static_cast<std::size_t>(which)) & pheader_size);
     }
     inline void sector_device::switch_header() noexcept
     {

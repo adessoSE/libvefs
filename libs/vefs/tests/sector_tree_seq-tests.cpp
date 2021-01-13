@@ -90,7 +90,8 @@ struct sector_tree_seq_pre_create_fixture
         , device(sector_device::open(testFile.reopen(0).value(),
                                      vefs::test::only_mac_crypto_provider(),
                                      default_user_prk, true)
-                     .value())
+                     .value()
+                     .device)
         , fileCryptoContext(file_crypto_ctx::zero_init)
         , rootSectorInfo()
     {

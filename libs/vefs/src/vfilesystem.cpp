@@ -1,8 +1,16 @@
 #include "vfilesystem.hpp"
 
 #include <boost/container/small_vector.hpp>
+#include <boost/endian/conversion.hpp>
 #include <boost/uuid/random_generator.hpp>
-#include <google/protobuf/io/zero_copy_stream.h>
+
+#include <dplx/dp/byte_buffer.hpp>
+#include <dplx/dp/item_emitter.hpp>
+#include <dplx/dp/stream.hpp>
+#include <dplx/dp/streams/chunked_input_stream.hpp>
+#include <dplx/dp/streams/chunked_output_stream.hpp>
+#include <dplx/dp/streams/memory_input_stream.hpp>
+#include <dplx/dp/streams/memory_output_stream.hpp>
 
 #include <vefs/utils/binary_codec.hpp>
 #include <vefs/utils/bit.hpp>
@@ -11,29 +19,13 @@
 
 #include "detail/archive_sector_allocator.hpp"
 #include "detail/archive_tree_allocator.hpp"
-#include "detail/proto-helper.hpp"
+#include "detail/file_descriptor.codec.hpp"
+#include "detail/file_descriptor.hpp"
 #include "detail/sector_tree_seq.hpp"
 #include "platform/sysrandom.hpp"
 
 namespace vefs
 {
-    void pack(vfilesystem_entry &entry, adesso::vefs::FileDescriptor &fd)
-    {
-        entry.crypto_ctx->pack_to(fd);
-        entry.tree_info.pack_to(fd);
-    }
-    void unpack(vfilesystem_entry &entry, adesso::vefs::FileDescriptor &fd)
-    {
-        ro_blob<32> secret{
-            as_bytes(span(fd.filesecret())).template first<32>()};
-        ro_blob<16> counter{
-            as_bytes(span(fd.filesecretcounter())).template first<16>()};
-
-        entry.crypto_ctx = std::make_unique<detail::file_crypto_ctx>(
-            secret, crypto::counter{counter});
-        entry.tree_info = detail::root_sector_info::unpack_from(fd);
-    }
-
     class vfilesystem::index_tree_layout
     {
     public:
@@ -67,241 +59,316 @@ namespace vefs
                    treeOffset * block_size;
         }
 
-        class protobuf_in_buffer final
-            : public google::protobuf::io::ZeroCopyInputStream
+        using map_bucket_type = std::size_t;
+        static constexpr auto map_bucket_size =
+            std::numeric_limits<map_bucket_type>::digits;
+        static constexpr auto map_buckets_per_sector =
+            alloc_map_size / sizeof(map_bucket_type);
+
+        enum block_find_mode
         {
-        public:
-            protobuf_in_buffer(index_tree_layout &owner, std::uint64_t start,
-                               tree_type::read_handle startSector)
-                : google::protobuf::io::ZeroCopyInputStream()
-                , mOwner(owner)
-                , mCurrentSector(std::move(startSector))
-                , mPosition(start)
-                , mRemaining(std::numeric_limits<std::uint64_t>::max())
-                , mByteCount(0)
-            {
-                if (mCurrentSector)
-                {
-                    const auto offset = mPosition % sector_payload_size;
-                    const auto buffer = as_span(mCurrentSector);
-
-                    mRemaining = load_primitive<std::uint16_t>(buffer, offset);
-                    mPosition += sizeof(std::uint16_t);
-                }
-            }
-
-            auto current_sector() -> tree_type::read_handle
-            {
-                return mCurrentSector;
-            }
-
-            auto last_block_index() -> std::uint64_t
-            {
-                const auto lastOffset =
-                    (mPosition + mRemaining - 1) % sector_payload_size;
-
-                return (lastOffset - alloc_map_size) / block_size;
-            }
-
-        private:
-            auto validate_allocation() -> result<void>
-            {
-                utils::const_bitset_overlay allocMap(
-                    as_span(mCurrentSector).first<alloc_map_size>());
-
-                const int ptr =
-                    (mPosition % sector_payload_size - alloc_map_size) /
-                    block_size;
-                const int numBlocks =
-                    std::min(ptr + utils::div_ceil(mRemaining, block_size),
-                             blocks_per_sector);
-
-                // #TODO efficiency
-                for (int i = ptr; i < numBlocks; ++i)
-                {
-                    if (!allocMap[i])
-                    {
-                        return archive_errc::corrupt_index_entry;
-                    }
-                }
-                return success();
-            }
-
-            // Inherited via ZeroCopyInputStream
-            virtual bool Next(const void **data, int *size) override
-            {
-                using detail::lut::sector_position_of;
-
-                if (mRemaining == 0)
-                {
-                    return false;
-                }
-
-                auto offset = mPosition % sector_payload_size;
-                if (auto nextPosition = sector_position_of(mPosition);
-                    !mCurrentSector ||
-                    mCurrentSector.node_position().position() != nextPosition)
-                {
-                    if (auto accessrx = mOwner.mIndexTree.access(
-                            detail::tree_position(nextPosition)))
-                    {
-                        mCurrentSector = std::move(accessrx).assume_value();
-                    }
-                    else
-                    {
-                        return false;
-                    }
-
-                    if (offset == 0)
-                    {
-                        // on wrap around we need to skip the alloc map
-                        mPosition += alloc_map_size;
-                        offset = alloc_map_size;
-                    }
-                    if (mRemaining == std::numeric_limits<std::uint64_t>::max())
-                    {
-                        const auto buffer = as_span(mCurrentSector);
-
-                        mRemaining =
-                            load_primitive<std::uint16_t>(buffer, offset);
-                        mPosition += sizeof(std::uint16_t);
-                        offset += sizeof(std::uint16_t);
-                    }
-                    if (!validate_allocation())
-                    {
-                        return false;
-                    }
-                }
-                const auto bufferLimit =
-                    std::min(mRemaining, sector_payload_size - offset);
-                auto buffer =
-                    as_span(mCurrentSector).subspan(offset, bufferLimit);
-
-                *data = buffer.data();
-                *size = buffer.size();
-
-                mPosition += bufferLimit;
-                mRemaining -= bufferLimit;
-                mByteCount += bufferLimit;
-
-                return true;
-            }
-            virtual void BackUp(int count) override
-            {
-                mPosition -= count;
-                mRemaining += count;
-                mByteCount -= count;
-            }
-            virtual bool Skip(int count) override
-            {
-                auto rcount = std::min<std::uint64_t>(count, mRemaining);
-                mPosition += rcount;
-                mRemaining -= rcount;
-                mByteCount += rcount;
-
-                return mRemaining != 0;
-            }
-            virtual int64_t ByteCount() const override
-            {
-                return mByteCount;
-            }
-
-            index_tree_layout &mOwner;
-            tree_type::read_handle mCurrentSector;
-            std::uint64_t mPosition;
-            std::uint64_t mRemaining;
-            std::int64_t mByteCount;
+            occupied,
+            unoccupied,
         };
 
-        class protobuf_out_buffer final
-            : public google::protobuf::io::ZeroCopyOutputStream
+        template <block_find_mode Mode>
+        [[nodiscard]] static auto
+        find_next(std::span<std::byte const, alloc_map_size> allocMap,
+                  unsigned int begin) noexcept -> unsigned int
         {
-        public:
-            protobuf_out_buffer(index_tree_layout &owner, std::uint64_t start,
-                                std::uint64_t size)
-                : google::protobuf::io::ZeroCopyOutputStream()
-                , mOwner(owner)
-                , mLastError()
-                , mCurrentSector()
-                , mCurrentBuffer()
-                , mPosition(start)
-                , mRemaining(size)
-                , mByteCount(0)
+            using namespace boost::endian;
+
+            auto offset = begin / map_bucket_size;
+            auto start = begin % map_bucket_size;
+            for (; offset < map_buckets_per_sector; ++offset)
+            {
+                map_bucket_type eblock = endian_load<
+                    map_bucket_type, sizeof(map_bucket_type), order::little>(
+                    reinterpret_cast<unsigned char const *>(
+                        allocMap.data() + offset * sizeof(map_bucket_type)));
+
+                if constexpr (Mode == occupied)
+                {
+                    eblock = eblock >> start;
+                }
+                else
+                {
+                    // note the complement operation
+                    //       v
+                    eblock = ~eblock >> start;
+                }
+                if (eblock != 0)
+                {
+                    return offset * map_bucket_size + start +
+                           utils::countr_zero(eblock);
+                }
+                start = 0;
+            }
+            return blocks_per_sector;
+        }
+
+        struct tree_stream_position
+        {
+            tree_type::read_handle sector;
+            int next_block;
+        };
+
+        class tree_input_stream final
+            : public dplx::dp::chunked_input_stream_base<tree_input_stream>
+        {
+            friend class dplx::dp::chunked_input_stream_base<tree_input_stream>;
+            using base_type =
+                dplx::dp::chunked_input_stream_base<tree_input_stream>;
+
+            tree_type *mTree;
+            tree_type::read_handle mCurrentSector;
+
+            struct stream_info
+            {
+                unsigned int prefix_size;
+                std::uint32_t stream_size;
+            };
+
+            explicit tree_input_stream(
+                std::span<std::byte const> const initialReadArea,
+                std::uint64_t streamSize, tree_type *tree,
+                tree_type::read_handle currentSector) noexcept
+                : base_type(initialReadArea, streamSize)
+                , mTree(tree)
+                , mCurrentSector(std::move(currentSector))
             {
             }
 
-            auto last_error() -> const error &
+        public:
+            static auto open(tree_type *tree,
+                             tree_type::read_handle initialSector,
+                             int blockOffset) noexcept
+                -> result<tree_input_stream>
             {
-                return mLastError;
+                std::span<std::byte const> sectorContent =
+                    as_span(initialSector);
+
+                auto const nextUnoccupied = find_next<unoccupied>(
+                    sectorContent.first<alloc_map_size>(), blockOffset);
+
+                auto const numAvailableBlocks = nextUnoccupied - blockOffset;
+                auto const maxChunkSize =
+                    static_cast<std::uint32_t>(numAvailableBlocks * block_size);
+
+                sectorContent = sectorContent.subspan(
+                    alloc_map_size + blockOffset * block_size, maxChunkSize);
+
+                DPLX_TRY(auto streamInfo,
+                         parse_stream_prefix(sectorContent.data()));
+
+                auto const initialChunkSize =
+                    std::min(streamInfo.stream_size,
+                             maxChunkSize - streamInfo.prefix_size);
+                sectorContent = sectorContent.subspan(streamInfo.prefix_size,
+                                                      initialChunkSize);
+
+                return tree_input_stream(sectorContent, streamInfo.stream_size,
+                                         tree, std::move(initialSector));
+            }
+
+            auto next_block() const noexcept -> tree_stream_position
+            {
+                auto const state = current_read_area();
+                auto const sectorContentBegin = as_span(mCurrentSector).data();
+
+                auto const blockOffset = state.remaining_begin() -
+                                         sectorContentBegin - alloc_map_size;
+                auto const nextBlock =
+                    static_cast<int>(utils::div_ceil(blockOffset, block_size));
+
+                return {.sector = mCurrentSector, .next_block = nextBlock};
             }
 
         private:
-            // Inherited via ZeroCopyOutputStream
-            virtual bool Next(void **data, int *size) override
+            static auto parse_stream_prefix(std::byte const *data)
+                -> dplx::dp::result<stream_info>
             {
-                using detail::lut::sector_position_of;
+                using namespace dplx;
 
-                if (mRemaining == 0)
+                auto streamInfo = dp::detail::parse_item_info_speculative(data);
+
+                if (streamInfo.code != dp::detail::decode_errc::nothing)
                 {
-                    mLastError = errc::resource_exhausted;
-                    mLastError << ed::archive_file_write_area{
-                        {mPosition - mByteCount, mPosition}};
-                    return false;
+                    return static_cast<dp::errc>(streamInfo.code);
+                }
+                if (std::byte{streamInfo.type} != dp::type_code::binary)
+                {
+                    return dplx::dp::errc::item_type_mismatch;
+                }
+                if (streamInfo.value >
+                    std::numeric_limits<std::uint32_t>::max())
+                {
+                    return dplx::dp::errc::item_value_out_of_range;
                 }
 
-                const auto offset = mPosition % sector_payload_size;
-                if (auto nextPosition = sector_position_of(mPosition);
-                    !mCurrentSector ||
-                    mCurrentSector.node_position().position() != nextPosition)
+                return stream_info{.prefix_size = static_cast<unsigned int>(
+                                       streamInfo.encoded_length),
+                                   .stream_size = static_cast<std::uint32_t>(
+                                       streamInfo.value)};
+            }
+
+            auto acquire_next_chunk_impl(std::uint64_t remaining) noexcept
+                -> dplx::dp::result<dplx::dp::const_byte_buffer_view>
+            {
+                auto const currentPosition = mCurrentSector.node_position();
+                auto const nextPosition = next(currentPosition);
+
+                if (auto accessRx = mTree->access(nextPosition);
+                    accessRx.has_failure())
+                    DPLX_ATTR_UNLIKELY
+                    {
+                        if (accessRx.assume_error() ==
+                            archive_errc::sector_reference_out_of_range)
+                        {
+                            return dplx::dp::errc::end_of_stream;
+                        }
+
+                        // #TODO implement underlying error forwarding
+                        return dplx::dp::errc::bad;
+                    }
+                else
+                    DPLX_ATTR_LIKELY
+                    {
+                        mCurrentSector = std::move(accessRx).assume_value();
+                    }
+
+                std::span<std::byte const> const memory =
+                    as_span(mCurrentSector);
+
+                auto const firstUnallocated =
+                    find_next<unoccupied>(memory.first<alloc_map_size>(), 0);
+
+                auto const nextChunkSize =
+                    std::min(remaining, blocks_per_sector * block_size);
+                if (firstUnallocated <
+                    utils::div_ceil(nextChunkSize, block_size))
                 {
-                    if (auto accessrx = mOwner.mIndexTree.access(
-                            detail::tree_position(nextPosition)))
+                    return dplx::dp::errc::end_of_stream;
+                }
+
+                return dplx::dp::const_byte_buffer_view(
+                    memory.subspan(alloc_map_size, nextChunkSize));
+            }
+        };
+        static_assert(dplx::dp::input_stream<tree_input_stream>);
+
+        auto find_next_entry(tree_stream_position begin) noexcept
+            -> result<tree_stream_position>
+        {
+            if (begin.next_block < blocks_per_sector)
+            {
+                std::span<std::byte const> const sectorContent =
+                    as_span(begin.sector);
+                begin.next_block = find_next<occupied>(
+                    sectorContent.first<alloc_map_size>(), begin.next_block);
+            }
+
+            while (begin.next_block >= blocks_per_sector)
+            {
+                auto const nextPosition = next(begin.sector.node_position());
+
+                DPLX_TRY(begin.sector, mIndexTree.access(nextPosition));
+
+                std::span<std::byte const> const sectorContent =
+                    as_span(begin.sector);
+                begin.next_block = find_next<occupied>(
+                    sectorContent.first<alloc_map_size>(), 0u);
+            }
+
+            return begin;
+        }
+
+        class tree_writer final
+            : public dplx::dp::chunked_output_stream_base<tree_writer>
+        {
+            friend class dplx::dp::chunked_output_stream_base<tree_writer>;
+            using base_type = dplx::dp::chunked_output_stream_base<tree_writer>;
+
+            index_tree_layout *mOwner;
+            tree_type::write_handle mCurrentSector;
+
+            explicit tree_writer(index_tree_layout &owner,
+                                 tree_type::write_handle &&currentSector,
+                                 std::uint64_t inSectorOffset,
+                                 std::uint64_t size)
+                : base_type(as_span(currentSector).subspan(inSectorOffset),
+                            size - inSectorOffset)
+                , mOwner(&owner)
+                , mCurrentSector(std::move(currentSector))
+            {
+            }
+
+            static auto
+            write_byte_stream_prefix(tree_type::write_handle &handle,
+                                     std::uint64_t offset, std::uint32_t size)
+                -> dplx::dp::result<int>
+            {
+                using emit = dplx::dp::item_emitter<dplx::dp::byte_buffer_view>;
+
+                dplx::dp::byte_buffer_view buffer(
+                    std::span(as_span(handle)).subspan(offset, block_size));
+
+                DPLX_TRY(emit::binary(buffer, size));
+
+                return buffer.consumed_size();
+            }
+
+        public:
+            static auto create(index_tree_layout &owner, int firstBlock,
+                               int encodedSize) -> result<tree_writer>
+            {
+                auto const offset = block_to_file_position(firstBlock);
+                auto const size = static_cast<std::uint64_t>(encodedSize);
+
+                auto firstPosition = detail::lut::sector_position_of(offset);
+                auto inSectorOffset =
+                    offset -
+                    firstPosition * detail::sector_device::sector_payload_size;
+
+                VEFS_TRY(firstSector,
+                         owner.mIndexTree.access(
+                             detail::tree_position(firstPosition)));
+
+                tree_type::write_handle writeHandle(std::move(firstSector));
+                owner.write_block_header(writeHandle);
+                VEFS_TRY(prefixSize,
+                         write_byte_stream_prefix(writeHandle, inSectorOffset,
+                                                  encodedSize));
+
+                return tree_writer(owner, std::move(writeHandle),
+                                   inSectorOffset + prefixSize, size);
+            }
+
+        private:
+            auto acquire_next_chunk_impl() noexcept
+                -> dplx::dp::result<std::span<std::byte>>
+            {
+                auto const nextPosition = next(mCurrentSector.node_position());
+
+                if (auto accessRx = mOwner->mIndexTree.access(nextPosition);
+                    accessRx.has_failure())
+                    DPLX_ATTR_UNLIKELY
+                    {
+                        // #TODO implement underlying error forwarding
+                        return dplx::dp::errc::bad;
+                    }
+                else
+                    DPLX_ATTR_LIKELY
                     {
                         mCurrentSector = tree_type::write_handle(
-                            std::move(accessrx).assume_value());
+                            std::move(accessRx).assume_value());
                     }
-                    else
-                    {
-                        mLastError = errc::resource_exhausted;
-                        mLastError << ed::archive_file_write_area{
-                            {mPosition - mByteCount, mPosition + mRemaining}};
-                        return false;
-                    }
-                    mOwner.write_block_header(mCurrentSector);
-                }
-                const auto bufferLimit =
-                    std::min(mRemaining, sector_payload_size - offset);
-                mCurrentBuffer =
-                    as_span(mCurrentSector).subspan(offset, bufferLimit);
 
-                *data = mCurrentBuffer.data();
-                *size = mCurrentBuffer.size();
+                mOwner->write_block_header(mCurrentSector);
 
-                mPosition += bufferLimit;
-                mRemaining -= bufferLimit;
-                mByteCount += bufferLimit;
-
-                return true;
+                return std::span<std::byte>(
+                    as_span(mCurrentSector).subspan(alloc_map_size));
             }
-            virtual void BackUp(int count) override
-            {
-                fill_blob(mCurrentBuffer.last(count));
-                mPosition -= count;
-                mRemaining += count;
-                mByteCount -= count;
-            }
-            virtual int64_t ByteCount() const override
-            {
-                return mByteCount;
-            }
-
-            index_tree_layout &mOwner;
-            error mLastError;
-            tree_type::write_handle mCurrentSector;
-            rw_dynblob mCurrentBuffer;
-            std::uint64_t mPosition;
-            std::uint64_t mRemaining;
-            std::int64_t mByteCount;
         };
 
     public:
@@ -315,85 +382,91 @@ namespace vefs
 
         auto parse(vfilesystem &owner) -> result<void>
         {
-            // #refactor this simply isn't peak engineering
+            // this simply is peak engineering 😏
 
-            adesso::vefs::FileDescriptor descriptor;
+            detail::file_descriptor descriptor;
             vfilesystem_entry entry;
-            detail::tree_position currentPosition(0);
-            VEFS_TRY(currentSector, mIndexTree.access(currentPosition));
+            tree_stream_position entryPosition{{}, 0};
+            DPLX_TRY(entryPosition.sector,
+                     mIndexTree.access(detail::tree_position(0)));
 
+            // To write optimal code always start with an infinite loop.
+            // -- Alexander Alexandrescu
             for (;;)
             {
-                utils::const_bitset_overlay overlay(
-                    as_span(currentSector).first<alloc_map_size>());
+                auto const deallocBegin = entryPosition.next_block;
 
-                auto indexOffset =
-                    currentPosition.position() * blocks_per_sector;
-
-                for (int i = 0; i < blocks_per_sector; ++i)
+                // find the next used block
+                if (auto findRx = find_next_entry(std::move(entryPosition));
+                    findRx.has_value())
                 {
-                    if (!overlay[i])
-                    {
-                        VEFS_TRY(mIndexBlocks.dealloc_one(indexOffset + i));
-                        continue;
-                    }
-
-                    entry.needs_index_update = false;
-                    entry.index_file_position = indexOffset + i;
-
-                    const auto bufferStart =
-                        currentPosition.position() * sector_payload_size +
-                        alloc_map_size + i * block_size;
-                    protobuf_in_buffer entryBuffer(*this, bufferStart,
-                                                   std::move(currentSector));
-
-                    if (!descriptor.ParseFromZeroCopyStream(&entryBuffer))
-                    {
-                        return archive_errc::corrupt_index_entry;
-                    }
-                    utils::scope_guard eraseGuard = [&]() {
-                        erase_secrets(descriptor);
-                    };
-
-                    // #TODO validate
-                    unpack(entry, descriptor);
-
-                    currentSector = entryBuffer.current_sector();
-                    i = entryBuffer.last_block_index();
-                    if (const auto updatedPosition =
-                            currentSector.node_position();
-                        currentPosition != updatedPosition)
-                    {
-                        indexOffset =
-                            updatedPosition.position() * blocks_per_sector;
-                        currentPosition = updatedPosition;
-                    }
-
-                    entry.num_reserved_blocks =
-                        indexOffset + i + 1 - entry.index_file_position;
-
-                    detail::file_id id{
-                        as_bytes(span(descriptor.fileid())).first<16>()};
-                    owner.mFiles.insert(id, std::move(entry));
-                    owner.mIndex.insert(
-                        std::move(*descriptor.mutable_filepath()), id);
+                    entryPosition = std::move(findRx).assume_value();
                 }
-
-                mLastAllocated = currentPosition;
-                currentPosition.position(currentPosition.position() + 1);
-                if (auto accessrx = mIndexTree.access(currentPosition))
-                {
-                    currentSector = std::move(accessrx).assume_value();
-                }
-                else if (accessrx.assume_error() !=
+                else if (findRx.assume_error() ==
                          archive_errc::sector_reference_out_of_range)
                 {
-                    return std::move(accessrx).as_failure();
+                    // dealloc last batch based on mLastAllocated
+                    auto const endBlock =
+                        (mLastAllocated.position() + 1) * blocks_per_sector;
+                    if (endBlock < deallocBegin)
+                    {
+                        return archive_errc::vfilesystem_invalid_size;
+                    }
+                    if (endBlock > deallocBegin)
+                    {
+                        VEFS_TRY(mIndexBlocks.dealloc_contiguous(
+                            deallocBegin, endBlock - deallocBegin));
+                    }
+                    break;
                 }
                 else
                 {
-                    break;
+                    return std::move(findRx).as_failure();
                 }
+                auto const deallocAmount =
+                    entryPosition.next_block - deallocBegin;
+
+                // dealloc everything in between the last used block and
+                // the next one, which might be none
+                if (deallocAmount > 0)
+                {
+                    VEFS_TRY(mIndexBlocks.dealloc_contiguous(deallocBegin,
+                                                             deallocAmount));
+                }
+
+                entry.index_file_position = entryPosition.next_block;
+                entry.num_reserved_blocks = -entryPosition.next_block;
+
+                {
+                    VEFS_TRY(entryStream,
+                             tree_input_stream::open(
+                                 &mIndexTree, std::move(entryPosition.sector),
+                                 entryPosition.next_block));
+
+                    VEFS_TRY(dplx::dp::decode(entryStream, descriptor));
+
+                    entryPosition = entryStream.next_block();
+                }
+
+                entry.num_reserved_blocks += entryPosition.next_block;
+
+                entry.crypto_ctx.reset(
+                    new (std::nothrow) detail::file_crypto_ctx(
+                        descriptor.secret, descriptor.secretCounter));
+                if (!entry.crypto_ctx)
+                {
+                    return errc::not_enough_memory;
+                }
+                entry.tree_info = descriptor.data;
+
+                detail::file_id const id(descriptor.fileId);
+                owner.mFiles.insert(id, std::move(entry));
+
+                // #TODO #char8_t convert vfilesystem to u8string
+                std::string convertedFilePath(
+                    reinterpret_cast<char const *>(descriptor.filePath.data()),
+                    descriptor.filePath.size());
+                owner.mIndex.insert(std::move(convertedFilePath), id);
             }
 
             return success();
@@ -414,7 +487,7 @@ namespace vefs
             {
                 if (i == blocks_per_sector)
                 {
-                    currentPosition.position(currentPosition.position() + 1);
+                    currentPosition = next(currentPosition);
                     VEFS_TRY(nextSector, mIndexTree.access(currentPosition));
                     sector = std::move(nextSector);
                     allocMap = utils::const_bitset_overlay{
@@ -430,42 +503,30 @@ namespace vefs
         }
 
         auto sync_to_tree(vfilesystem_entry &entry,
-                          adesso::vefs::FileDescriptor &descriptor)
-            -> result<void>
+                          detail::file_descriptor &descriptor) -> result<void>
         {
-            pack(entry, descriptor);
+            auto const cryptoState = entry.crypto_ctx->state();
+            vefs::copy(std::span(cryptoState.secret),
+                       std::span(descriptor.secret));
+            descriptor.secretCounter = cryptoState.counter;
+            descriptor.data = entry.tree_info;
+            descriptor.modificationTime = {};
 
-            const std::size_t size = descriptor.ByteSizeLong();
-            assert(size <= std::numeric_limits<std::uint16_t>::max());
+            auto const encodedSize = dplx::dp::encoded_size_of(descriptor);
+            auto const streamSize =
+                encodedSize + dplx::dp::encoded_size_of(encodedSize);
 
-            constexpr auto prefixSize = sizeof(std::uint16_t);
-            const auto fullSize = size + prefixSize;
-
-            const auto neededBlocks =
-                static_cast<int>(utils::div_ceil(fullSize, block_size));
-            const auto reservedSpace = (neededBlocks * block_size) - prefixSize;
+            auto const neededBlocks =
+                static_cast<int>(utils::div_ceil(encodedSize, block_size));
 
             VEFS_TRY(reallocate(entry, neededBlocks));
 
-            const auto start =
-                block_to_file_position(entry.index_file_position);
-            {
-                const auto prefix = static_cast<std::uint16_t>(size);
-                VEFS_TRY(write(mIndexTree, ro_blob_cast(prefix), start));
-            }
+            VEFS_TRY(outStream,
+                     tree_writer::create(*this, entry.index_file_position,
+                                         encodedSize));
 
-            protobuf_out_buffer vBuffer(*this, start + prefixSize,
-                                        reservedSpace);
+            VEFS_TRY(dplx::dp::encode(outStream, descriptor));
 
-            if (!descriptor.SerializeToZeroCopyStream(&vBuffer))
-            {
-                error e{archive_errc::vfilesystem_entry_serialization_failed};
-                if (vBuffer.last_error())
-                {
-                    e << ed::wrapped_error{vBuffer.last_error()};
-                }
-                return std::move(e);
-            }
             entry.needs_index_update = false;
             return success();
         }
@@ -535,8 +596,7 @@ namespace vefs
                 auto allocrx = mIndexBlocks.alloc_contiguous(neededBlocks);
                 while (!allocrx)
                 {
-                    mLastAllocated =
-                        detail::tree_position(mLastAllocated.position() + 1);
+                    mLastAllocated = next(mLastAllocated);
                     auto firstNewAllocatedBlock =
                         mLastAllocated.position() * blocks_per_sector;
 
@@ -554,6 +614,7 @@ namespace vefs
             return success();
         }
 
+        // this is awfully inefficient... too bad!
         inline void write_block_header(tree_type::write_handle sector)
         {
             assert(sector);
@@ -580,11 +641,12 @@ namespace vefs
     vfilesystem::vfilesystem(detail::sector_device &device,
                              detail::archive_sector_allocator &allocator,
                              detail::thread_pool &executor,
-                             detail::master_file_info &info)
+                             detail::master_file_info const &info)
         : mDevice(device)
-        , mInfo(info)
         , mSectorAllocator(allocator)
         , mDeviceExecutor(executor)
+        , mCryptoCtx(info.crypto_state)
+        , mCommittedRoot(info.tree_info)
         , mIndex()
         , mFiles()
         , mIndexBlocks()
@@ -597,7 +659,7 @@ namespace vefs
     auto vfilesystem::open_existing(detail::sector_device &device,
                                     detail::archive_sector_allocator &allocator,
                                     detail::thread_pool &executor,
-                                    detail::master_file_info &info)
+                                    detail::master_file_info const &info)
         -> result<std::unique_ptr<vfilesystem>>
     {
         std::unique_ptr<vfilesystem> self{
@@ -615,9 +677,9 @@ namespace vefs
 
     auto vfilesystem::open_existing_impl() -> result<void>
     {
-        if (auto openTreeRx = tree_type::open_existing(
-                mDevice, mInfo.crypto_ctx, mDeviceExecutor, mInfo.tree_info,
-                mSectorAllocator))
+        if (auto openTreeRx =
+                tree_type::open_existing(mDevice, mCryptoCtx, mDeviceExecutor,
+                                         mCommittedRoot, mSectorAllocator))
         {
             mIndexTree = std::move(openTreeRx).assume_value();
         }
@@ -626,27 +688,18 @@ namespace vefs
             return std::move(openTreeRx).as_failure();
         }
 
-        // #TODO remove backward compat
-        if (/*mInfo.tree_info.maximum_extent == 0 ||*/
-            mInfo.tree_info.maximum_extent %
-                detail::sector_device::sector_payload_size !=
-            0)
+        if (mCommittedRoot.maximum_extent == 0 ||
+            mCommittedRoot.maximum_extent %
+                    detail::sector_device::sector_payload_size !=
+                0)
         {
             return archive_errc::vfilesystem_invalid_size;
         }
 
-        detail::tree_position lastAllocated(detail::lut::sector_position_of(
-            mInfo.tree_info.maximum_extent - 1));
+        detail::tree_position lastAllocated(
+            detail::lut::sector_position_of(mCommittedRoot.maximum_extent - 1));
         index_tree_layout layout{*mIndexTree, mIndexBlocks, lastAllocated};
         VEFS_TRY(layout.parse(*this));
-
-        // #TODO remove backward compat
-        if (mInfo.tree_info.maximum_extent == 0)
-        {
-            mInfo.tree_info.maximum_extent =
-                layout.last_allocated().position() *
-                detail::sector_device::sector_payload_size;
-        }
 
         return success();
     }
@@ -654,7 +707,7 @@ namespace vefs
     auto vfilesystem::create_new(detail::sector_device &device,
                                  detail::archive_sector_allocator &allocator,
                                  detail::thread_pool &executor,
-                                 detail::master_file_info &info)
+                                 detail::master_file_info const &info)
         -> result<std::unique_ptr<vfilesystem>>
     {
         std::unique_ptr<vfilesystem> self{
@@ -673,7 +726,7 @@ namespace vefs
     auto vfilesystem::create_new_impl() -> result<void>
     {
         if (auto createTreeRx = tree_type::create_new(
-                mDevice, mInfo.crypto_ctx, mDeviceExecutor, mSectorAllocator))
+                mDevice, mCryptoCtx, mDeviceExecutor, mSectorAllocator))
         {
             mIndexTree = std::move(createTreeRx).assume_value();
         }
@@ -682,7 +735,7 @@ namespace vefs
             return std::move(createTreeRx).as_failure();
         }
 
-        mInfo.tree_info.maximum_extent =
+        mCommittedRoot.maximum_extent =
             detail::sector_device::sector_payload_size;
         VEFS_TRY(mIndexBlocks.dealloc_contiguous(
             0, index_tree_layout::blocks_per_sector));
@@ -810,7 +863,7 @@ namespace vefs
             {
                 detail::tree_position lastAllocated{
                     detail::lut::sector_position_of(
-                        mInfo.tree_info.maximum_extent - 1)};
+                        mCommittedRoot.maximum_extent - 1)};
                 index_tree_layout layout(*mIndexTree, mIndexBlocks,
                                          lastAllocated);
                 VEFS_TRY(layout.decommission_blocks(
@@ -884,25 +937,29 @@ namespace vefs
 
         auto lockedIndex = mIndex.lock_table();
 
-        adesso::vefs::FileDescriptor descriptor;
-        detail::tree_position lastAllocated{detail::lut::sector_position_of(
-            mInfo.tree_info.maximum_extent - 1)};
+        detail::file_descriptor descriptor;
+        detail::tree_position lastAllocated{
+            detail::lut::sector_position_of(mCommittedRoot.maximum_extent - 1)};
         index_tree_layout layout(*mIndexTree, mIndexBlocks, lastAllocated);
 
         for (const auto &[path, fid] : lockedIndex)
         {
             try
             {
-                descriptor.set_filepath(path);
-                auto ufid = fid.as_uuid();
-                span sfid(ufid.data);
-                descriptor.set_fileid(sfid.data(), sfid.size_bytes());
+                descriptor.fileId = fid.as_uuid();
+                auto pathBytes = as_bytes(span(path));
 
                 mFiles.update_fn(fid, [&](vfilesystem_entry &e) {
                     if (!e.needs_index_update)
                     {
                         return;
                     }
+
+                    // reuse allocation if possible
+                    descriptor.filePath.resize(pathBytes.size());
+                    // #TODO #char8_t convert vfilesystem to u8string
+                    vefs::copy(pathBytes,
+                               as_writable_bytes(span(descriptor.filePath)));
 
                     if (auto syncrx = layout.sync_to_tree(e, descriptor);
                         !syncrx)
@@ -925,11 +982,9 @@ namespace vefs
 
         auto maxExtent = (layout.last_allocated().position() + 1) *
                          detail::sector_device::sector_payload_size;
-        return mIndexTree->commit([
-            this, maxExtent
-        ](detail::root_sector_info rootInfo) noexcept->result<void> {
-            return sync_commit_info(rootInfo, maxExtent);
-        });
+        return mIndexTree->commit(
+            [this, maxExtent](detail::root_sector_info rootInfo) noexcept
+            -> result<void> { return sync_commit_info(rootInfo, maxExtent); });
     }
 
     auto vfilesystem::sync_commit_info(detail::root_sector_info rootInfo,
@@ -938,9 +993,12 @@ namespace vefs
     {
         rootInfo.maximum_extent = maxExtent;
 
-        mDevice.archive_header().filesystem_index.tree_info = rootInfo;
-        VEFS_TRY_INJECT(mDevice.update_header(),
+        VEFS_TRY_INJECT(mDevice.update_header(mCryptoCtx, rootInfo,
+                                              mSectorAllocator.crypto_ctx(),
+                                              {}),
                         ed::archive_file{"[archive-header]"});
+
+        mCommittedRoot = rootInfo;
 
         mWriteFlag.unmark();
         return success();
@@ -961,7 +1019,7 @@ namespace vefs
         // precondition the central directory index is currently committed
         {
             VEFS_TRY(indexTree, inspection_tree::open_existing(
-                                    mDevice, mInfo.crypto_ctx, mInfo.tree_info,
+                                    mDevice, mCryptoCtx, mCommittedRoot,
                                     mSectorAllocator));
 
             VEFS_TRY(indexTree->extract_alloc_map(allocBits));

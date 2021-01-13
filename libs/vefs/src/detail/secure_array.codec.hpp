@@ -1,5 +1,9 @@
 #pragma once
 
+#include <cstddef>
+
+#include <span>
+
 #include <dplx/dp/decoder/std_container.hpp>
 #include <dplx/dp/encoder/core.hpp>
 

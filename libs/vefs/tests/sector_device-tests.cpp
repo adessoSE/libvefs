@@ -33,7 +33,8 @@ struct sector_device_test_fixture
         testSubject=vefs::detail::sector_device::open(
                           testFile.reopen(0).value(), &cryptoProviderMock,
                           default_user_prk, true)
-                          .value();
+                          .value()
+                          .device;
     }
 };
 
@@ -72,7 +73,8 @@ BOOST_AUTO_TEST_CASE(write_sector_seals_sector)
     auto testSubject = vefs::detail::sector_device::open(
                            testFile.reopen(0).value(), &cryptoProviderMock,
                            default_user_prk, true)
-                           .value();
+                           .value()
+                           .device;
 
     const std::array<std::byte, 1 << 15> &rhs = std::array<std::byte, 1 << 15>{};
     EXPECT_CALL(

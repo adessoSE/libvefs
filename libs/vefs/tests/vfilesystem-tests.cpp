@@ -41,7 +41,8 @@ struct vfilesystem_test_dependencies
 
     llfio::mapped_file_handle testFile;
     std::unique_ptr<sector_device> device;
-    
+    master_file_info filesystemIndex;
+
     std::unique_ptr<file_crypto_ctx> cryptoCtx;
 
     archive_sector_allocator sectorAllocator;
@@ -55,22 +56,24 @@ struct vfilesystem_test_dependencies
         , device(sector_device::open(testFile.reopen(0).value(),
                                      test::only_mac_crypto_provider(),
                                      default_user_prk, true)
-                     .value())
+                     .value()
+                     .device)
+        , filesystemIndex{}
         , workExecutor(&thread_pool::shared())
-        , sectorAllocator(*device)
+        , sectorAllocator(*device, {})
     {
         TEST_RESULT_REQUIRE(sectorAllocator.initialize_new());
         cryptoCtx = device->create_file_secrets().value();
-        testSubject =
-            vfilesystem::create_new(*device, sectorAllocator, workExecutor,
-                                    device->archive_header().filesystem_index)
-                .value();
+        testSubject = vfilesystem::create_new(*device, sectorAllocator,
+                                              workExecutor, filesystemIndex)
+                          .value();
     }
 };
 
 BOOST_FIXTURE_TEST_SUITE(vfilesystem_tests, vfilesystem_test_dependencies)
 
-BOOST_AUTO_TEST_CASE(recover_sectors_does_not_change_size_if_no_sector_to_recover)
+BOOST_AUTO_TEST_CASE(
+    recover_sectors_does_not_change_size_if_no_sector_to_recover)
 {
     BOOST_TEST(5 == device->size());
     testSubject->commit();
@@ -79,18 +82,17 @@ BOOST_AUTO_TEST_CASE(recover_sectors_does_not_change_size_if_no_sector_to_recove
     BOOST_TEST(5 == device->size());
 }
 
-BOOST_AUTO_TEST_CASE(
-    recover_sectors_does_shrinks_size)
+BOOST_AUTO_TEST_CASE(recover_sectors_does_shrinks_size)
 {
-     auto vfilerx = testSubject->open("testpath", file_open_mode::readwrite |
+    auto vfilerx = testSubject->open("testpath", file_open_mode::readwrite |
                                                      file_open_mode::create);
-    
-     TEST_RESULT_REQUIRE(vfilerx);
-     auto file = vfilerx.assume_value();
-     TEST_RESULT_REQUIRE(file->truncate(0xFFFF));
-    
-     TEST_RESULT_REQUIRE(file->commit());
-     file = nullptr;
+
+    TEST_RESULT_REQUIRE(vfilerx);
+    auto file = vfilerx.assume_value();
+    TEST_RESULT_REQUIRE(file->truncate(0xFFFF));
+
+    TEST_RESULT_REQUIRE(file->commit());
+    file = nullptr;
 
     BOOST_TEST(9 == device->size());
     testSubject->commit();
@@ -124,48 +126,46 @@ BOOST_AUTO_TEST_CASE(create_file_allocs_sectors)
     BOOST_TEST(9 == device->size());
     TEST_RESULT_REQUIRE(sectorAllocator.alloc_one());
     BOOST_TEST(13 == device->size());
-
 }
-
 
 BOOST_AUTO_TEST_CASE(load_existing_filesystem_keeps_files)
 {
     auto vfilerx = testSubject->open("testpath", file_open_mode::readwrite |
                                                      file_open_mode::create);
-    
+
     TEST_RESULT_REQUIRE(vfilerx);
     auto file = vfilerx.assume_value();
     TEST_RESULT_REQUIRE(file->truncate(0xFFFF));
     auto writeBlob = utils::make_byte_array(0x9, 0x22, 0x6, 0xde);
 
     auto write_rx = file->write(writeBlob, 1);
-   
+
     TEST_RESULT_REQUIRE(file->commit());
     file = nullptr;
     testSubject->commit();
-    auto newSectorAllocator = archive_sector_allocator(*device);
+    filesystemIndex.tree_info = testSubject->committed_root();
+    testSubject.reset();
+    auto newSectorAllocator = archive_sector_allocator(*device, {});
 
-    auto vfsrx =
-        vfilesystem::open_existing(*device, newSectorAllocator, workExecutor,
-                                   device->archive_header().filesystem_index);
+    auto vfsrx = vfilesystem::open_existing(*device, newSectorAllocator,
+                                            workExecutor, filesystemIndex);
     TEST_RESULT_REQUIRE(vfsrx);
     auto existingFileSystem = std::move(vfsrx).assume_value();
 
-    auto reloadedFile = existingFileSystem->open("testpath", file_open_mode::read).value();
-    auto result = utils::make_byte_array(0x0, 0x0, 0x0, 0x0);
+    auto reloadedFile =
+        existingFileSystem->open("testpath", file_open_mode::read).value();
+    std::array<std::byte, 4> result{};
     TEST_RESULT_REQUIRE(reloadedFile->read(result, 1));
 
     BOOST_TEST(result == writeBlob);
-
 }
-
 
 BOOST_AUTO_TEST_CASE(newly_created_file_can_be_found_has_size_zero)
 {
     auto file = testSubject
-                       ->open("testpath", file_open_mode::readwrite |
-                                              file_open_mode::create)
-                       .value();
+                    ->open("testpath",
+                           file_open_mode::readwrite | file_open_mode::create)
+                    .value();
     (void)file->commit();
 
     auto result = testSubject->query("testpath").value();
@@ -174,13 +174,12 @@ BOOST_AUTO_TEST_CASE(newly_created_file_can_be_found_has_size_zero)
     BOOST_TEST(result.allowed_flags == file_open_mode::readwrite);
 }
 
-
 BOOST_AUTO_TEST_CASE(newly_created_file_is_not_dirty_after_successful_commit)
 {
     auto file = testSubject
-                       ->open("testpath", file_open_mode::readwrite |
-                                              file_open_mode::create)
-                       .value();
+                    ->open("testpath",
+                           file_open_mode::readwrite | file_open_mode::create)
+                    .value();
     auto commitRx = file->commit();
 
     auto result = testSubject->query("testpath");
@@ -291,7 +290,6 @@ BOOST_AUTO_TEST_CASE(erase_removes_unused_file)
     auto result = testSubject->erase("testpath");
 
     BOOST_TEST(!result.has_error());
-
 }
 
 BOOST_AUTO_TEST_CASE(erasing_non_existing_file_throws_error)

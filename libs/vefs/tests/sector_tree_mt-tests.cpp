@@ -130,7 +130,8 @@ struct sector_tree_mt_dependencies
         , device(sector_device::open(testFile.reopen(0).value(),
                                      vefs::test::only_mac_crypto_provider(),
                                      default_user_prk, true)
-                     .value())
+                     .value()
+                     .device)
         , workExecutor(&thread_pool::shared()) // #TODO create test thread pool
         , fileCryptoContext(file_crypto_ctx::zero_init)
         , rootSectorInfo()

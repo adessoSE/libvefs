@@ -1,7 +1,6 @@
 #include "file_crypto_ctx.hpp"
 
 #include "../crypto/kdf.hpp"
-#include "proto-helper.hpp"
 
 namespace vefs::detail
 {
@@ -20,16 +19,17 @@ namespace vefs::detail
     } // namespace
 
     file_crypto_ctx::file_crypto_ctx(zero_init_t)
-        : secret{}
-        , write_counter{}
+        : mState{}
+        , mStateSync()
     {
     }
 
     file_crypto_ctx::file_crypto_ctx(ro_blob<32> secretView,
                                      crypto::counter secretCounter)
-        : secret(secretView)
-        , write_counter(secretCounter)
+        : mState{.counter = secretCounter}
+        , mStateSync()
     {
+        vefs::copy(secretView, span(mState.secret));
     }
 
     auto file_crypto_ctx::seal_sector(
@@ -37,15 +37,20 @@ namespace vefs::detail
         crypto::crypto_provider &provider, ro_blob<16> sessionSalt,
         ro_blob<(1 << 15) - (1 << 5)> data) noexcept -> result<void>
     {
-        // #TODO constant extraction
-        const auto salt = ciphertext.first<32>();
-        const auto nonce = write_counter.fetch_increment();
-        VEFS_TRY(crypto::kdf(salt, nonce.view(), as_bytes(sector_kdf_salt),
-                             sessionSalt));
-
         utils::secure_byte_array<44> sectorKeyNonce;
-        VEFS_TRY(crypto::kdf(as_span(sectorKeyNonce), as_span(secret),
-                             as_bytes(sector_kdf_prk), salt));
+        {
+            std::lock_guard stateLock{mStateSync};
+
+            // #TODO constant extraction
+            auto const salt = ciphertext.first<32>();
+            auto const nonce = mState.counter.value();
+            mState.counter.increment();
+            VEFS_TRY(crypto::kdf(salt, as_bytes(as_span(nonce)),
+                                 as_bytes(sector_kdf_salt), sessionSalt));
+
+            VEFS_TRY(crypto::kdf(as_span(sectorKeyNonce), as_span(mState.secret),
+                                 as_bytes(sector_kdf_prk), salt));
+        }
 
         return provider.box_seal(ciphertext.subspan<32>(), mac,
                                  as_span(sectorKeyNonce), data);
@@ -60,35 +65,10 @@ namespace vefs::detail
         const auto salt = ciphertext.first<32>();
 
         utils::secure_byte_array<44> sectorKeyNonce;
-        VEFS_TRY(crypto::kdf(as_span(sectorKeyNonce), as_span(secret),
+        VEFS_TRY(crypto::kdf(as_span(sectorKeyNonce), as_span(mState.secret),
                              as_bytes(sector_kdf_prk), salt));
 
         return provider.box_open(data, as_span(sectorKeyNonce),
                                  ciphertext.subspan<32>(), mac);
-    }
-
-    void file_crypto_ctx::pack_to(adesso::vefs::FileDescriptor &fd)
-    {
-        fd.set_filesecret(secret.data(), secret.size());
-        auto ctr = write_counter.load();
-        fd.set_filesecretcounter(ctr.view().data(), ctr.view().size());
-    }
-    void file_crypto_ctx::unpack(adesso::vefs::FileDescriptor &descriptor)
-    {
-        ro_blob<32> ssecret{
-            as_bytes(span(descriptor.filesecret())).first<32>()};
-        ro_blob<16> scounter{
-            as_bytes(span(descriptor.filesecretcounter())).first<16>()};
-
-        copy(ssecret, span(secret));
-        write_counter.store(crypto::counter{scounter});
-    }
-    auto file_crypto_ctx::unpack_from(adesso::vefs::FileDescriptor &descriptor)
-        -> file_crypto_ctx
-    {
-        ro_blob<32> secret{as_bytes(span(descriptor.filesecret())).first<32>()};
-        ro_blob<16> counter{
-            as_bytes(span(descriptor.filesecretcounter())).first<16>()};
-        return file_crypto_ctx{secret, crypto::counter{counter}};
     }
 } // namespace vefs::detail
