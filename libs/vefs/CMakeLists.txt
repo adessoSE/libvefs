@@ -54,7 +54,6 @@ DEF_SOURCE_GROUP(vefs "detail"
         src/detail/preallocated_tree_allocator.hpp
 
         src/detail/proto-helper.hpp
-        src/detail/streams.hpp
 )
 
 DEF_SOURCE_GROUP(vefs "disappointment"
