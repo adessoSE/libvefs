@@ -18,7 +18,6 @@
 #include <vefs/utils/bitset_overlay.hpp>
 #include <vefs/utils/misc.hpp>
 
-#include "detail/proto-helper.hpp"
 #include "detail/sector_device.hpp"
 #include "detail/tree_walker.hpp"
 
@@ -42,13 +41,15 @@ namespace vefs
                        ro_blob<32> userPRK, bool createNew)
         -> result<std::unique_ptr<archive>>
     {
-        VEFS_TRY(primitives,
-                          sector_device::open(std::move(mfh), cryptoProvider,
-                                              userPRK, createNew));
+        VEFS_TRY(bundledPrimitives,
+                 sector_device::open(std::move(mfh), cryptoProvider, userPRK,
+                                     createNew));
+        auto &&[primitives, filesystemFile, freeSectorFile] =
+            std::move(bundledPrimitives);
 
         std::unique_ptr<archive> arc{new archive(std::move(primitives))};
-        if (auto alloc = new (std::nothrow)
-                detail::archive_sector_allocator(*arc->mArchive))
+        if (auto alloc = new (std::nothrow) detail::archive_sector_allocator(
+                *arc->mArchive, freeSectorFile.crypto_state))
         {
             arc->mSectorAllocator.reset(alloc);
         }
@@ -64,7 +65,7 @@ namespace vefs
 
             if (auto crx = vfilesystem::create_new(
                     *arc->mArchive, *arc->mSectorAllocator, arc->mWorkTracker,
-                    arc->mArchive->archive_header().filesystem_index))
+                    filesystemFile))
             {
                 arc->mFilesystem = std::move(crx).assume_value();
             }
@@ -78,7 +79,7 @@ namespace vefs
         {
             if (auto crx = vfilesystem::open_existing(
                     *arc->mArchive, *arc->mSectorAllocator, arc->mWorkTracker,
-                    arc->mArchive->archive_header().filesystem_index))
+                    filesystemFile))
             {
                 arc->mFilesystem = std::move(crx).assume_value();
             }
@@ -89,9 +90,7 @@ namespace vefs
                 return std::move(crx).as_failure();
             }
 
-            auto &freeSectorHeader =
-                arc->mArchive->archive_header().free_sector_index;
-            if (freeSectorHeader.tree_info.root.sector == sector_id::master)
+            if (freeSectorFile.tree_info.root.sector == sector_id::master)
             {
                 VEFS_TRY(arc->mFilesystem->recover_unused_sectors());
 
@@ -101,12 +100,14 @@ namespace vefs
             else
             {
                 VEFS_TRY_INJECT(arc->mSectorAllocator->initialize_from(
-                                    freeSectorHeader.tree_info,
-                                    freeSectorHeader.crypto_ctx),
+                                    freeSectorFile.tree_info),
                                 ed::archive_file{"[free-block-list]"});
 
-                freeSectorHeader.tree_info = {};
-                VEFS_TRY(arc->mArchive->update_header());
+                freeSectorFile.tree_info = {};
+                VEFS_TRY(arc->mArchive->update_header(
+                    arc->mFilesystem->crypto_ctx(), filesystemFile.tree_info,
+                    arc->mSectorAllocator->crypto_ctx(),
+                    freeSectorFile.tree_info));
             }
         }
         return std::move(arc);
@@ -116,12 +117,8 @@ namespace vefs
     {
         if (mSectorAllocator && !mSectorAllocator->sector_leak_detected())
         {
-            auto &header = mArchive->archive_header().free_sector_index;
-            if (auto rx = mSectorAllocator->serialize_to(header.crypto_ctx))
-            {
-                header.tree_info = rx.assume_value();
-                (void)mArchive->update_header();
-            }
+            (void)mSectorAllocator->finalize(mFilesystem->crypto_ctx(),
+                                             mFilesystem->committed_root());
         }
 
         mWorkTracker.wait();
@@ -163,9 +160,8 @@ namespace vefs
         auto readrx = handle->read(buffer, readFilePos);
         if (readrx.has_error())
         {
-            readrx.assume_error() << ed::archive_file_read_area{ed::file_span{
-                readFilePos, readFilePos + buffer.size()}}
-            ;
+            readrx.assume_error() << ed::archive_file_read_area{
+                ed::file_span{readFilePos, readFilePos + buffer.size()}};
         }
         return readrx;
     }
@@ -185,9 +181,8 @@ namespace vefs
         auto writerx = handle->write(data, writeFilePos);
         if (writerx.has_error())
         {
-            writerx.assume_error() << ed::archive_file_write_area{ed::file_span{
-                writeFilePos, writeFilePos + data.size()}}
-            ;
+            writerx.assume_error() << ed::archive_file_write_area{
+                ed::file_span{writeFilePos, writeFilePos + data.size()}};
         }
         return writerx;
     }

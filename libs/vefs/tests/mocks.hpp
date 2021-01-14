@@ -28,10 +28,6 @@ public:
 class file_crypto_ctx_mock : public vefs::detail::file_crypto_ctx_interface
 {
 public:
-    MOCK_METHOD(void, pack_to, (adesso::vefs::FileDescriptor & descriptor),
-                (override));
-    MOCK_METHOD(void, unpack, (adesso::vefs::FileDescriptor & descriptor),
-                (override));
     MOCK_METHOD(vefs::result<void>, seal_sector,
                 (vefs::rw_blob<1 << 15> ciphertext, vefs::rw_blob<16> mac,
                  vefs::crypto::crypto_provider &provider,

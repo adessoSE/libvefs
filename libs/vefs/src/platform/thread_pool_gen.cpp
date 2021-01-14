@@ -53,7 +53,7 @@ namespace vefs::detail
                 // we need to get rid of all already existing worker threads
                 try
                 {
-                    for (auto i = 0; i < mWorkerList.size(); ++i)
+                    for (std::size_t i = 0; i < mWorkerList.size(); ++i)
                     {
                         mTaskQueue.enqueue(work_item_t{});
                     }

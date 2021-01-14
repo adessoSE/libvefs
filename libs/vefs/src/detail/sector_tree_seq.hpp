@@ -298,7 +298,7 @@ namespace vefs::detail
         auto layer = last_loaded_index();
         reference_sector_layout layout{node_data_span(layer)};
 
-        for (int i = 0; i < layout.references_per_sector; ++i)
+        for (unsigned i = 0; i < layout.references_per_sector; ++i)
         {
             auto ref = layout.read(i);
             if (ref.sector == sector_id::master)

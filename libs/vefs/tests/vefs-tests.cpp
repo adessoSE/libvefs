@@ -4,7 +4,6 @@
 #include <openssl/err.h>
 
 #include <gmock/gmock.h>
-#include <google/protobuf/stubs/common.h>
 
 #include "../src/crypto/provider.hpp"
 
@@ -37,15 +36,6 @@ struct BoringSslTlsFixture
     }
 };
 BoringSslTlsFixture BoringSslTlsInitializer;
-
-struct ProtobufShutdownFixture
-{
-    ~ProtobufShutdownFixture()
-    {
-        google::protobuf::ShutdownProtobufLibrary();
-    }
-};
-BOOST_TEST_GLOBAL_FIXTURE(ProtobufShutdownFixture);
 
 // we can't use the macros to specify the module name, because the
 // defining header is already included in the precompiled header...

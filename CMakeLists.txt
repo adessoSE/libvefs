@@ -59,8 +59,7 @@ find_package(GTest CONFIG REQUIRED)
 # botan provider is currently not implemented
 #find_package(botan 2.8.0)
 
-# protobuf + protoc
-find_package(protobuf CONFIG REQUIRED)
+find_package(deeppack CONFIG REQUIRED)
 
 find_package(Boost 1.70 REQUIRED COMPONENTS
     system
@@ -85,7 +84,7 @@ add_subdirectory(external)
 
 # we require c++14 and some c++17 features
 set(CMAKE_C_STANDARD 11)
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # adjust compiler warning levels
@@ -110,7 +109,10 @@ if (GCC_COMPATIBLE)
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wno-long-long -Wpedantic")
 endif()
 if (GXX_COMPATIBLE)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-long-long -Wpedantic -Wno-c++98-compat -Wno-reserved-id-macro")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-long-long -Wpedantic -Wno-unknown-pragmas -Wno-deprecated-declarations")
+endif()
+if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    add_compile_options(-Wno-c++98-compat -Wno-reserved-id-macro)
 endif()
 
 # additional compiler tweaks
@@ -161,7 +163,11 @@ configure_file(tools/vefs-config.cmake
     COPYONLY
 )
 
-install(EXPORT vefs-targets DESTINATION cmake COMPONENT core)
+install(EXPORT vefs-targets
+    NAMESPACE Vefs::
+    DESTINATION cmake
+    COMPONENT core
+)
 
 include(CMakePackageConfigHelpers)
 write_basic_package_version_file(
