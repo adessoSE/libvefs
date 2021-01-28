@@ -344,6 +344,40 @@ namespace vefs::detail
         return success();
     }
 
+    auto read_archive_personalization_area(
+        llfio::file_handle &file,
+        std::span<std::byte, 1 << 12> out) noexcept -> result<void>
+    {
+        std::byte masterSectorMemory[sector_device::static_header_size];
+
+        static_assert(1 << 12 == sector_device::personalization_area_size);
+        llfio::io_handle::buffer_type outBuffers[] = {
+            {masterSectorMemory, sizeof(masterSectorMemory)},
+            {out.data(), out.size()}};
+
+        VEFS_TRY(readBuffers, file.read({outBuffers, 0}));
+
+        if (readBuffers[0].size() != sector_device::static_header_size ||
+            readBuffers[1].size() != sector_device::personalization_area_size)
+        {
+            vefs::fill_blob(out);
+            return archive_errc::no_archive_header;
+        }
+        if (!std::ranges::equal(
+                std::span(readBuffers[0]).first<file_format_id.size()>(),
+                std::span(file_format_id)))
+        {
+            vefs::fill_blob(out);
+            return archive_errc::invalid_prefix;
+        }
+        if (readBuffers[1].data() != out.data())
+        {
+            vefs::copy(std::span(readBuffers[1]), out);
+        }
+
+        return oc::success();
+    }
+
     auto sector_device::parse_archive_header(header_id which)
         -> result<archive_header>
     {
@@ -483,6 +517,17 @@ namespace vefs::detail
         VEFS_TRY(mArchiveFile.write({writeBuffers, 0}));
 
         return success();
+    }
+
+    auto sector_device::sync_personalization_area() noexcept -> result<void>
+    {
+        auto persArea = personalization_area();
+
+        llfio::io_handle::const_buffer_type writeBuffers[] = {
+            {persArea.data(), persArea.size()}};
+        VEFS_TRY(mArchiveFile.write({writeBuffers, static_header_size}));
+
+        return oc::success();
     }
 
     auto sector_device::read_sector(rw_blob<sector_payload_size> contentDest,

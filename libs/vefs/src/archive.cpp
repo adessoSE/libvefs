@@ -247,7 +247,6 @@ namespace vefs
         return handle->maximum_extent();
     }
 
-    //#Todo Why do we need this method?
     auto archive::commit(const vfile_handle &handle) -> result<void>
     {
         if (!handle)
@@ -258,5 +257,26 @@ namespace vefs
         auto syncrx = handle->commit();
 
         return syncrx;
+    }
+
+    auto archive::personalization_area() noexcept
+        -> std::span<std::byte, 1 << 12>
+    {
+        return mArchive->personalization_area();
+    }
+
+    auto archive::sync_personalization_area() noexcept -> result<void>
+    {
+        return mArchive->sync_personalization_area();
+    }
+
+    auto read_archive_personalization_area(
+        llfio::path_handle const &base, llfio::path_view where,
+        std::span<std::byte, 1 << 12> out) noexcept -> result<void>
+    {
+        VEFS_TRY(file, llfio::file(base, where, llfio::handle::mode::read,
+                                   llfio::handle::creation::open_existing));
+
+        return detail::read_archive_personalization_area(file, out);
     }
 } // namespace vefs
