@@ -15,7 +15,7 @@ struct sector_device_test_fixture
 
     sector_device_test_fixture()
         : testFile(vefs::llfio::mapped_temp_inode().value())
-        
+
     {
         EXPECT_CALL(cryptoProviderMock, generate_session_salt())
             .WillRepeatedly(
@@ -26,11 +26,10 @@ struct sector_device_test_fixture
                 return vefs::outcome::success();
             });
         EXPECT_CALL(cryptoProviderMock,
-                        box_seal(testing::_, testing::_, testing::_,
-                        testing::_))
-                .WillRepeatedly(testing::Return(vefs::outcome::success()));
-        
-        testSubject=vefs::detail::sector_device::open(
+                    box_seal(testing::_, testing::_, testing::_, testing::_))
+            .WillRepeatedly(testing::Return(vefs::outcome::success()));
+
+        testSubject = vefs::detail::sector_device::open(
                           testFile.reopen(0).value(), &cryptoProviderMock,
                           default_user_prk, true)
                           .value()
@@ -50,8 +49,8 @@ BOOST_AUTO_TEST_CASE(open_existing_sector_device_throws_error_for_empty_file)
 {
     auto emptyFile = vefs::llfio::mapped_temp_inode().value();
     auto deviceRx = vefs::detail::sector_device::open(
-        emptyFile.reopen(0).value(), &cryptoProviderMock,
-        default_user_prk, false);
+        emptyFile.reopen(0).value(), &cryptoProviderMock, default_user_prk,
+        false);
 
     BOOST_TEST(deviceRx.has_error());
     BOOST_TEST(deviceRx.assume_error() ==
@@ -78,8 +77,7 @@ BOOST_AUTO_TEST_CASE(write_sector_seals_sector)
 
     EXPECT_CALL(
         fileCryptoCtx,
-        seal_sector(testing::_, mac,
-                    testing::Ref(cryptoProviderMock),
+        seal_sector(testing::_, mac, testing::Ref(cryptoProviderMock),
                     vefs::utils::as_span(vefs::utils::secure_byte_array<16>{}),
                     dataBlob))
         .Times(1)
@@ -87,11 +85,12 @@ BOOST_AUTO_TEST_CASE(write_sector_seals_sector)
 
     // when
     auto masterSectorId = vefs::detail::sector_id{1};
-    auto result = testSubject->write_sector<vefs::detail::file_crypto_ctx_interface>(
+    auto result =
+        testSubject->write_sector<vefs::detail::file_crypto_ctx_interface>(
             mac, fileCryptoCtx, masterSectorId, dataBlob);
 }
 
-//BOOST_AUTO_TEST_CASE(open_existing)
+// BOOST_AUTO_TEST_CASE(open_existing)
 //{
 //    auto second_device = vefs::detail::sector_device::open(
 //        testFile.reopen(0).value(), &cryptoProviderMock,
