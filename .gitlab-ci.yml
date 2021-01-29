@@ -99,7 +99,6 @@ test_release:
     - cd build
     - powershell Compress-Archive -Path "include", "lib", "cmake" -DestinationPath vefs-lib.zip
     - powershell $ProgressPreference = 'SilentlyContinue'; iwr -H @{'X-JFrog-Art-Api'=$env:ARTIFACTORY_TOKEN} -method PUT -uri $env:ARTIFACTORY_URL/$env:ARTIFACTORY_GENERIC_REPO_KEY/de/mdk/bs/vefs/vefs-lib/vefs_lib_$env:VEFS_VERSION$env:VERSION_SUFFIX.zip -Infile vefs-lib.zip
-    - powershell $ProgressPreference = 'SilentlyContinue'; iwr -H @{'X-JFrog-Art-Api'=$env:ARTIFACTORY_TOKEN_NEW} -method PUT -uri $env:ARTIFACTORY_URL_NEW/$env:ARTIFACTORY_GENERIC_REPO_KEY_NEW/de/mdk/bs/vefs/vefs-lib/vefs_lib_$env:VEFS_VERSION$env:VERSION_SUFFIX.zip -Infile vefs-lib.zip
 
   dependencies:
     - test_release
