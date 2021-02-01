@@ -16,9 +16,10 @@ build_debug:
   only:
     refs:
       - master
-      - /^feature/
       - develop
-      - merge_requests
+      - /^bugfix/
+      - /^feature/
+      - /^release/
   allow_failure: false
   script:
     - powershell $ProgressPreference = 'SilentlyContinue'; iwr -H @{'X-JFrog-Art-Api'=$env:ARTIFACTORY_TOKEN} -method GET -uri $env:ARTIFACTORY_URL/$env:ARTIFACTORY_GENERIC_REPO_KEY/de/mdk/bs/vefs/vefs-packages/vefs_packages_$env:VEFS_PACKAGES_VERSION.zip -Outfile vefs-packages.zip
@@ -38,9 +39,10 @@ test_debug:
   only:
     refs:
       - master
-      - /^feature/
       - develop
-      - merge_requests
+      - /^bugfix/
+      - /^feature/
+      - /^release/
   allow_failure: false
   script:
     - call build\bin\Debug\vefs-tests
@@ -54,9 +56,10 @@ build_release:
   only:
     refs:
       - master
-      - /^feature/
       - develop
-      - merge_requests
+      - /^bugfix/
+      - /^feature/
+      - /^release/
   allow_failure: false
   script:
     - powershell $ProgressPreference = 'SilentlyContinue'; iwr -H @{'X-JFrog-Art-Api'=$env:ARTIFACTORY_TOKEN} -method GET -uri $env:ARTIFACTORY_URL/$env:ARTIFACTORY_GENERIC_REPO_KEY/de/mdk/bs/vefs/vefs-packages/vefs_packages_$env:VEFS_PACKAGES_VERSION.zip -Outfile vefs-packages.zip
@@ -78,9 +81,10 @@ test_release:
   only:
     refs:
       - master
-      - /^feature/
       - develop
-      - merge_requests
+      - /^bugfix/
+      - /^feature/
+      - /^release/
   allow_failure: false
   script:
     - call build\bin\Release\vefs-tests
@@ -109,7 +113,6 @@ release_production:
     - tags
   except:
     - develop
-    - /^feature/
   variables:
     VERSION_SUFFIX: ''
   <<: *publish_release
