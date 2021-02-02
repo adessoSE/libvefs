@@ -7,7 +7,7 @@
 #include <thread>
 #include <type_traits>
 
-#include <moodycamel/blockingconcurrentqueue.h>
+#include <concurrentqueue/blockingconcurrentqueue.h>
 #include <vefs/platform/thread_pool.hpp>
 
 namespace vefs::detail

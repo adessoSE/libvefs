@@ -50,6 +50,8 @@ find_package(outcome CONFIG REQUIRED)
 
 find_package(llfio CONFIG REQUIRED)
 
+find_package(unofficial-concurrentqueue CONFIG REQUIRED)
+
 find_package(libb2 REQUIRED CONFIG)
 
 find_package(boringssl REQUIRED CONFIG)
