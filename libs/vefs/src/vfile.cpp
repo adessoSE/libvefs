@@ -51,11 +51,9 @@ namespace vefs
                               detail::archive_sector_allocator &allocator,
                               detail::root_sector_info treeRoot) -> result<void>
     {
-        VEFS_TRY(fileTree,
+        VEFS_TRY(mFileTree,
                  tree_type::open_existing(device, cryptoCtx, mWorkTracker,
                                           treeRoot, allocator));
-
-        mFileTree = std::move(fileTree);
 
         return success();
     }
@@ -83,10 +81,9 @@ namespace vefs
                            detail::archive_sector_allocator &allocator,
                            detail::file_crypto_ctx &cryptoCtx) -> result<void>
     {
-        VEFS_TRY(fileTree, tree_type::create_new(device, cryptoCtx,
+        VEFS_TRY(mFileTree, tree_type::create_new(device, cryptoCtx,
                                                  mWorkTracker, allocator));
 
-        mFileTree = std::move(fileTree);
         mWriteFlag.mark();
         return success();
     }

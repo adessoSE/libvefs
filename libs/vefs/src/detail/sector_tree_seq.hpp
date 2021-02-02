@@ -710,7 +710,7 @@ namespace vefs::detail
             return success();
         }
 
-        VEFS_TRY(writeSector,
+        VEFS_TRY(auto &&writeSector,
                  mTreeAllocator.reallocate(nodeInfo.mSectorAllocator));
 
         sector_reference updatedRef;

@@ -15,7 +15,7 @@ namespace vefs::crypto::detail
         rw_dynblob ciphertext, rw_dynblob mac, ro_dynblob keyMaterial,
         ro_dynblob plaintext) const noexcept
     {
-        VEFS_TRY(aead, boringssl_aead::create(keyMaterial.subspan(0, 32)));
+        VEFS_TRY(auto &&aead, boringssl_aead::create(keyMaterial.subspan(0, 32)));
 
         return aead.seal(ciphertext, mac, keyMaterial.subspan(32, 12),
                          plaintext);
@@ -25,7 +25,7 @@ namespace vefs::crypto::detail
         rw_dynblob plaintext, ro_dynblob keyMaterial, ro_dynblob ciphertext,
         ro_dynblob mac) const noexcept
     {
-        VEFS_TRY(aead, boringssl_aead::create(keyMaterial.subspan(0, 32)));
+        VEFS_TRY(auto &&aead, boringssl_aead::create(keyMaterial.subspan(0, 32)));
 
         return aead.open(plaintext, keyMaterial.subspan(32, 12), ciphertext,
                          mac);

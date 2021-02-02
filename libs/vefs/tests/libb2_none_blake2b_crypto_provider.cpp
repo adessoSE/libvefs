@@ -99,7 +99,7 @@ namespace vefs::test
 
         VEFS_TRY(blakeCtx.final(cpMac.subspan(0, hashLen)));
 
-        VEFS_TRY(cmp, ct_compare(cpMac, mac));
+        VEFS_TRY(auto &&cmp, ct_compare(cpMac, mac));
         if (cmp != 0)
         {
             utils::secure_memzero(plaintext);

@@ -158,7 +158,7 @@ namespace vefs
                 sectorContent = sectorContent.subspan(
                     alloc_map_size + blockOffset * block_size, maxChunkSize);
 
-                DPLX_TRY(auto streamInfo,
+                VEFS_TRY(auto streamInfo,
                          parse_stream_prefix(sectorContent.data()));
 
                 auto const initialChunkSize =
@@ -272,7 +272,7 @@ namespace vefs
             {
                 auto const nextPosition = next(begin.sector.node_position());
 
-                DPLX_TRY(begin.sector, mIndexTree.access(nextPosition));
+                VEFS_TRY(begin.sector, mIndexTree.access(nextPosition));
 
                 std::span<std::byte const> const sectorContent =
                     as_span(begin.sector);
@@ -313,7 +313,7 @@ namespace vefs
                 dplx::dp::byte_buffer_view buffer(
                     std::span(as_span(handle)).subspan(offset, block_size));
 
-                DPLX_TRY(emit::binary(buffer, size));
+                VEFS_TRY(emit::binary(buffer, size));
 
                 return buffer.consumed_size();
             }
@@ -330,13 +330,13 @@ namespace vefs
                     offset -
                     firstPosition * detail::sector_device::sector_payload_size;
 
-                VEFS_TRY(firstSector,
+                VEFS_TRY(auto &&firstSector,
                          owner.mIndexTree.access(
                              detail::tree_position(firstPosition)));
 
                 tree_type::write_handle writeHandle(std::move(firstSector));
                 owner.write_block_header(writeHandle);
-                VEFS_TRY(prefixSize,
+                VEFS_TRY(auto &&prefixSize,
                          write_byte_stream_prefix(writeHandle, inSectorOffset,
                                                   encodedSize));
 
@@ -387,7 +387,7 @@ namespace vefs
             detail::file_descriptor descriptor;
             vfilesystem_entry entry;
             tree_stream_position entryPosition{{}, 0};
-            DPLX_TRY(entryPosition.sector,
+            VEFS_TRY(entryPosition.sector,
                      mIndexTree.access(detail::tree_position(0)));
 
             // To write optimal code always start with an infinite loop.
@@ -438,7 +438,7 @@ namespace vefs
                 entry.num_reserved_blocks = -entryPosition.next_block;
 
                 {
-                    VEFS_TRY(entryStream,
+                    VEFS_TRY(auto &&entryStream,
                              tree_input_stream::open(
                                  &mIndexTree, std::move(entryPosition.sector),
                                  entryPosition.next_block));
@@ -488,8 +488,7 @@ namespace vefs
                 if (i == blocks_per_sector)
                 {
                     currentPosition = next(currentPosition);
-                    VEFS_TRY(nextSector, mIndexTree.access(currentPosition));
-                    sector = std::move(nextSector);
+                    VEFS_TRY(sector, mIndexTree.access(currentPosition));
                     allocMap = utils::const_bitset_overlay{
                         as_span(sector).first<alloc_map_size>()};
                     numBlocks -= std::exchange(i, 0);
@@ -521,7 +520,7 @@ namespace vefs
 
             VEFS_TRY(reallocate(entry, neededBlocks));
 
-            VEFS_TRY(outStream,
+            VEFS_TRY(auto &&outStream,
                      tree_writer::create(*this, entry.index_file_position,
                                          encodedSize));
 
@@ -537,8 +536,8 @@ namespace vefs
 
             while (numBlocks > 0)
             {
-                VEFS_TRY(sector, mIndexTree.access(detail::tree_position(
-                                     block_to_tree_position(startPos))));
+                VEFS_TRY(auto &&sector, mIndexTree.access(detail::tree_position(
+                                            block_to_tree_position(startPos))));
 
                 write_block_header(tree_type::write_handle{sector});
 
@@ -775,7 +774,7 @@ namespace vefs
         }
         if (mode % file_open_mode::create)
         {
-            VEFS_TRY(secrets, mDevice.create_file_secrets());
+            VEFS_TRY(auto &&secrets, mDevice.create_file_secrets());
 
             thread_local utils::xoroshiro128plus fileid_prng = []() {
                 std::array<std::uint64_t, 2> randomState{};
@@ -878,9 +877,9 @@ namespace vefs
 
             // #TODO enqueue on an executor
 
-            VEFS_TRY(eraser, eraser_tree::open_existing(
-                                 mDevice, *victim.crypto_ctx, victim.tree_info,
-                                 mSectorAllocator));
+            VEFS_TRY(auto &&eraser, eraser_tree::open_existing(
+                                        mDevice, *victim.crypto_ctx,
+                                        victim.tree_info, mSectorAllocator));
             VEFS_TRY(
                 erase_contiguous(*eraser, victim.tree_info.maximum_extent));
             return success();
@@ -1018,9 +1017,9 @@ namespace vefs
 
         // precondition the central directory index is currently committed
         {
-            VEFS_TRY(indexTree, inspection_tree::open_existing(
-                                    mDevice, mCryptoCtx, mCommittedRoot,
-                                    mSectorAllocator));
+            VEFS_TRY(auto &&indexTree, inspection_tree::open_existing(
+                                           mDevice, mCryptoCtx, mCommittedRoot,
+                                           mSectorAllocator));
 
             VEFS_TRY(indexTree->extract_alloc_map(allocBits));
         }
@@ -1029,9 +1028,9 @@ namespace vefs
 
         for (auto &[id, e] : lockedIndex)
         {
-            VEFS_TRY(tree, inspection_tree::open_existing(
-                               mDevice, *e.crypto_ctx, e.tree_info,
-                               mSectorAllocator));
+            VEFS_TRY(auto &&tree, inspection_tree::open_existing(
+                                      mDevice, *e.crypto_ctx, e.tree_info,
+                                      mSectorAllocator));
 
             VEFS_TRY(tree->extract_alloc_map(allocBits));
         }

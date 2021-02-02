@@ -20,15 +20,15 @@ namespace vefs::crypto
 
         using emit = dp::item_emitter<dp::byte_buffer_view>;
 
-        DPLX_TRY(emit::array(outStream, 3u));
+        VEFS_TRY(emit::array(outStream, 3u));
 
-        DPLX_TRY(emit::binary(outStream, 32u));
+        VEFS_TRY(emit::binary(outStream, 32u));
         rw_blob<32> salt(outStream.consume(32), 32);
 
-        DPLX_TRY(emit::binary(outStream, 16u));
+        VEFS_TRY(emit::binary(outStream, 16u));
         rw_blob<16> mac(outStream.consume(16), 16);
 
-        DPLX_TRY(emit::binary(outStream, dataLength));
+        VEFS_TRY(emit::binary(outStream, dataLength));
 
         return cbor_box_layout{salt, mac};
     }
@@ -38,7 +38,7 @@ namespace vefs::crypto
     {
         using namespace dplx;
 
-        DPLX_TRY(auto &&head, dp::parse_tuple_head(inStream));
+        VEFS_TRY(auto &&head, dp::parse_tuple_head(inStream));
 
         if (head.num_properties != 3)
         {
@@ -50,7 +50,7 @@ namespace vefs::crypto
         }
 
         // 32B salt
-        DPLX_TRY(auto info, dp::detail::parse_item_info(inStream));
+        VEFS_TRY(auto info, dp::detail::parse_item_info(inStream));
         if (std::byte{info.type} != dp::type_code::binary)
         {
             return dp::errc::item_type_mismatch;
@@ -66,7 +66,7 @@ namespace vefs::crypto
         ro_blob<32> salt(inStream.consume(32), 32);
 
         // 16B mac
-        DPLX_TRY(info, dp::detail::parse_item_info(inStream));
+        VEFS_TRY(info, dp::detail::parse_item_info(inStream));
         if (std::byte{info.type} != dp::type_code::binary)
         {
             return dp::errc::item_type_mismatch;
@@ -81,7 +81,7 @@ namespace vefs::crypto
         }
         ro_blob<16> mac(inStream.consume(16u), 16);
 
-        DPLX_TRY(info, dp::detail::parse_item_info(inStream));
+        VEFS_TRY(info, dp::detail::parse_item_info(inStream));
         if (std::byte{info.type} != dp::type_code::binary)
         {
             return dp::errc::item_type_mismatch;

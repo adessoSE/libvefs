@@ -141,7 +141,7 @@ namespace vefs::detail
     {
         assert(num > 0);
 
-        VEFS_TRY(allocated, mine_new_raw(num));
+        VEFS_TRY(auto &&allocated, mine_new_raw(num));
 
         if (auto insertrx =
                 mSectorManager.dealloc_contiguous(allocated.first(), num);
@@ -168,8 +168,7 @@ namespace vefs::detail
 
     auto archive_sector_allocator::initialize_new() noexcept -> result<void>
     {
-        VEFS_TRY(newRoot, alloc_one());
-        mFreeBlockFileRootSector = newRoot;
+        VEFS_TRY(mFreeBlockFileRootSector, alloc_one());
 
         return success();
     }
@@ -183,7 +182,7 @@ namespace vefs::detail
         sector_id const fileEndId{mSectorDevice.size()};
 
         file_tree_allocator::sector_id_container idContainer;
-        VEFS_TRY(freeSectorTree,
+        VEFS_TRY(auto &&freeSectorTree,
                  file_tree::open_existing(mSectorDevice, mFileCtx, rootInfo,
                                           idContainer));
 
@@ -321,7 +320,7 @@ namespace vefs::detail
         VEFS_TRY(preallocate_serialization_storage(
             mFreeBlockFileRootSector, mSectorManager, idContainer));
 
-        VEFS_TRY(freeSectorTree,
+        VEFS_TRY(auto &&freeSectorTree,
                  file_tree::create_new(mSectorDevice, mFileCtx, idContainer));
 
         auto offset = 0;

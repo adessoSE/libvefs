@@ -197,7 +197,7 @@ namespace vefs::detail
         -> result<open_info>
     {
 
-        VEFS_TRY(max_extent, mfh.maximum_extent());
+        VEFS_TRY(auto &&max_extent, mfh.maximum_extent());
         const size_t numSectors = max_extent / sector_size;
 
         open_info self{};
@@ -253,7 +253,7 @@ namespace vefs::detail
             llfio::io_handle::buffer_type masterSectorBuffer[] = {
                 {buffer.data(), sector_size}};
 
-            VEFS_TRY(readBuffers,
+            VEFS_TRY(auto &&readBuffers,
                      archive->mArchiveFile.read({masterSectorBuffer, 0}));
             if (readBuffers.size() != 1 || readBuffers[0].size() < sector_size)
             {
@@ -307,7 +307,7 @@ namespace vefs::detail
             return archive_errc::invalid_prefix;
         }
 
-        VEFS_TRY(staticHeaderBox, crypto::cbor_box_decode_head(mstream));
+        VEFS_TRY(auto &&staticHeaderBox, crypto::cbor_box_decode_head(mstream));
 
         if (staticHeaderBox.dataLength > static_cast<int>(static_header_size))
         {
@@ -345,8 +345,8 @@ namespace vefs::detail
     }
 
     auto read_archive_personalization_area(
-        llfio::file_handle &file,
-        std::span<std::byte, 1 << 12> out) noexcept -> result<void>
+        llfio::file_handle &file, std::span<std::byte, 1 << 12> out) noexcept
+        -> result<void>
     {
         std::byte masterSectorMemory[sector_device::static_header_size];
 
@@ -355,7 +355,7 @@ namespace vefs::detail
             {masterSectorMemory, sizeof(masterSectorMemory)},
             {out.data(), out.size()}};
 
-        VEFS_TRY(readBuffers, file.read({outBuffers, 0}));
+        VEFS_TRY(auto &&readBuffers, file.read({outBuffers, 0}));
 
         if (readBuffers[0].size() != sector_device::static_header_size ||
             readBuffers[1].size() != sector_device::personalization_area_size)
@@ -387,7 +387,7 @@ namespace vefs::detail
 
         dplx::dp::byte_buffer_view mstream(encryptedHeaderArea);
 
-        VEFS_TRY(headerBox, crypto::cbor_box_decode_head(mstream));
+        VEFS_TRY(auto &&headerBox, crypto::cbor_box_decode_head(mstream));
 
         if (headerBox.dataLength > static_cast<int>(pheader_size))
         {
@@ -425,9 +425,10 @@ namespace vefs::detail
         // determine which header to apply
         if (header[0] && header[1])
         {
-            VEFS_TRY(cmp, mCryptoProvider->ct_compare(
-                              header[0].assume_value().archive_secret_counter,
-                              header[1].assume_value().archive_secret_counter));
+            VEFS_TRY(auto &&cmp,
+                     mCryptoProvider->ct_compare(
+                         header[0].assume_value().archive_secret_counter,
+                         header[1].assume_value().archive_secret_counter));
             if (0 == cmp)
             {
                 // both headers are at the same counter value which is an
@@ -490,9 +491,10 @@ namespace vefs::detail
         VEFS_TRY(dplx::dp::encode(plainStream, mStaticHeader));
         auto const encoded = plainStream.consumed();
 
-        VEFS_TRY(boxHead, crypto::cbor_box_layout_head(
-                              staticHeaderSectors,
-                              static_cast<std::uint16_t>(encoded.size())));
+        VEFS_TRY(auto &&boxHead,
+                 crypto::cbor_box_layout_head(
+                     staticHeaderSectors,
+                     static_cast<std::uint16_t>(encoded.size())));
 
         VEFS_TRY(crypto::kdf(boxHead.salt, keyUsageCount.view(),
                              archive_static_header_kdf_salt,
@@ -671,7 +673,7 @@ namespace vefs::detail
             mMasterSector.as_span().subspan(headerOffset, pheader_size);
 
         dplx::dp::byte_buffer_view encryptionBuffer(writeArea);
-        VEFS_TRY(box, crypto::cbor_box_layout_head(
+        VEFS_TRY(auto &&box, crypto::cbor_box_layout_head(
                           encryptionBuffer,
                           static_cast<std::uint16_t>(
                               serializationBuffer.consumed_size())));

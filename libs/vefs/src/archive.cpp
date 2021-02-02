@@ -41,7 +41,7 @@ namespace vefs
                        ro_blob<32> userPRK, bool createNew)
         -> result<std::unique_ptr<archive>>
     {
-        VEFS_TRY(bundledPrimitives,
+        VEFS_TRY(auto &&bundledPrimitives,
                  sector_device::open(std::move(mfh), cryptoProvider, userPRK,
                                      createNew));
         auto &&[primitives, filesystemFile, freeSectorFile] =
@@ -117,7 +117,7 @@ namespace vefs
                            crypto::crypto_provider *cryptoProvider,
                            ro_blob<32> userPRK) -> result<void>
     {
-        VEFS_TRY(bundledPrimitives,
+        VEFS_TRY(auto &&bundledPrimitives,
                  sector_device::open(std::move(mfh), cryptoProvider, userPRK,
                                      false));
         auto &&[primitives, filesystemFile, freeSectorFile] =
@@ -274,7 +274,7 @@ namespace vefs
         llfio::path_handle const &base, llfio::path_view where,
         std::span<std::byte, 1 << 12> out) noexcept -> result<void>
     {
-        VEFS_TRY(file, llfio::file(base, where, llfio::handle::mode::read,
+        VEFS_TRY(auto &&file, llfio::file(base, where, llfio::handle::mode::read,
                                    llfio::handle::creation::open_existing));
 
         return detail::read_archive_personalization_area(file, out);

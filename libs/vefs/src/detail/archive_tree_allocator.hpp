@@ -40,8 +40,8 @@ namespace vefs::detail
             {
                 return part.current;
             }
-            VEFS_TRY(allocated, mSource.alloc_one());
-            return part.current = allocated;
+            VEFS_TRY(part.current, mSource.alloc_one());
+            return part.current;
         }
 
         auto dealloc_one(const sector_id which) noexcept -> result<void>

@@ -592,7 +592,7 @@ namespace vefs::detail
         -> result<read_handle>
     {
         const tree_path accessPath(nodePosition);
-        VEFS_TRY(node, access<false>(accessPath.begin(), accessPath.end()));
+        VEFS_TRY(auto &&node, access<false>(accessPath.begin(), accessPath.end()));
         return read_handle(std::move(node));
     }
 
@@ -615,7 +615,7 @@ namespace vefs::detail
             }
         }
 
-        VEFS_TRY(mountPoint,
+        VEFS_TRY(auto &&mountPoint,
                  access<true>(sectorPath.begin(), sectorPath.end()));
         if (mountPoint->node_position() == node)
         {
@@ -871,7 +871,7 @@ namespace vefs::detail
             return success();
         }
 
-        VEFS_TRY(writePosition, mTreeAllocator.reallocate(h->mNodeAllocator));
+        VEFS_TRY(auto &&writePosition, mTreeAllocator.reallocate(h->mNodeAllocator));
 
         sector_reference updated{writePosition, {}};
         if (result<void> writerx = mDevice.write_sector(
@@ -988,7 +988,7 @@ namespace vefs::detail
         using boost::container::static_vector;
 
         const tree_path accessPath(tree_position(0, targetDepth));
-        VEFS_TRY(newRoot, access<false>(accessPath.begin(), accessPath.end()));
+        VEFS_TRY(auto &&newRoot, access<false>(accessPath.begin(), accessPath.end()));
 
         static_vector<sector_handle, lut::max_tree_depth + 1> victimChildren;
 
@@ -1121,7 +1121,7 @@ namespace vefs::detail
     {
         for (;;)
         {
-            VEFS_TRY(erased, try_erase_child(parent, child, childParentOffset));
+            VEFS_TRY(auto &&erased, try_erase_child(parent, child, childParentOffset));
             if (erased)
             {
                 return success();
@@ -1146,7 +1146,7 @@ namespace vefs::detail
 
         while (buffer)
         {
-            VEFS_TRY(sector, tree.access(std::exchange(
+            VEFS_TRY(auto &&sector, tree.access(std::exchange(
                                  it, tree_position{it.position() + 1})));
 
             auto chunk = as_span(sector).subspan(std::exchange(offset, 0));
@@ -1166,16 +1166,16 @@ namespace vefs::detail
             return outcome::success();
         }
 
-        using write_handle =
-            typename sector_tree_mt<TreeAllocator, Executor, MutexType>::write_handle;
+        using write_handle = typename sector_tree_mt<TreeAllocator, Executor,
+                                                     MutexType>::write_handle;
 
         tree_position it{lut::sector_position_of(writePos)};
         auto offset = writePos % sector_device::sector_payload_size;
 
         while (data)
         {
-            VEFS_TRY(sector, tree.access_or_create(std::exchange(
-                                 it, tree_position{it.position() + 1})));
+            VEFS_TRY(auto &&sector, tree.access_or_create(std::exchange(
+                                        it, tree_position{it.position() + 1})));
 
             write_handle writableSector{std::move(sector)};
 
