@@ -4,5 +4,5 @@
 
 namespace vefs
 {
-    namespace llfio = LLFIO_V2_NAMESPACE;
+namespace llfio = LLFIO_V2_NAMESPACE;
 }

@@ -4,6 +4,5 @@
 
 namespace vefs::utils
 {
-    using uuid = boost::uuids::uuid;
+using uuid = boost::uuids::uuid;
 }
-

@@ -12,11 +12,13 @@
 #include "windows-proper.h"
 
 #define RtlGenRandom SystemFunction036
-extern "C" BOOLEAN NTAPI RtlGenRandom(PVOID RandomBuffer, ULONG RandomBufferLength);
+extern "C" BOOLEAN NTAPI RtlGenRandom(PVOID RandomBuffer,
+                                      ULONG RandomBufferLength);
 
 /**
-* Windows implementation of a cryptographically safe random bytes generator. Uses windows builtin-function.
-*/
+ * Windows implementation of a cryptographically safe random bytes generator.
+ * Uses windows builtin-function.
+ */
 vefs::result<void> vefs::detail::random_bytes(rw_dynblob buffer) noexcept
 {
     using namespace vefs;
@@ -24,18 +26,20 @@ vefs::result<void> vefs::detail::random_bytes(rw_dynblob buffer) noexcept
 
     if (!buffer)
     {
-        return error{errc::invalid_argument} << ed::error_code_api_origin{"random_bytes"sv};
+        return error{errc::invalid_argument}
+            << ed::error_code_api_origin{"random_bytes"sv};
     }
     do
     {
         using c_type = std::common_type_t<ULONG, std::size_t>;
         constexpr auto max_portion = std::numeric_limits<ULONG>::max();
-        const auto portion = static_cast<ULONG>(std::min<c_type>(max_portion, buffer.size()));
+        const auto portion = static_cast<ULONG>(
+                std::min<c_type>(max_portion, buffer.size()));
 
         if (!RtlGenRandom(buffer.data(), portion))
         {
             return error{collect_system_error()}
-                   << ed::error_code_api_origin{"SystemFunction036"sv};
+                << ed::error_code_api_origin{"SystemFunction036"sv};
         }
         buffer = buffer.subspan(portion);
     } while (buffer);
@@ -63,7 +67,8 @@ vefs::result<void> vefs::detail::random_bytes(rw_dynblob buffer) noexcept
 
     if (!buffer)
     {
-        return error{errc::invalid_argument} << ed::error_code_api_origin{"random_bytes"sv};
+        return error{errc::invalid_argument}
+            << ed::error_code_api_origin{"random_bytes"sv};
     }
 
     int urandom = open("/dev/urandom", O_RDONLY);
@@ -79,7 +84,8 @@ vefs::result<void> vefs::detail::random_bytes(rw_dynblob buffer) noexcept
 
     while (buffer)
     {
-        constexpr size_t max_portion = static_cast<size_t>(std::numeric_limits<ssize_t>::max());
+        constexpr size_t max_portion
+                = static_cast<size_t>(std::numeric_limits<ssize_t>::max());
         const auto portion = std::min(max_portion, buffer.size());
 
         ssize_t tmp = read(urandom, buffer.data(), portion);
@@ -107,7 +113,8 @@ vefs::result<void> vefs::detail::random_bytes(rw_dynblob buffer) noexcept
 
     if (!buffer)
     {
-        return error{errc::invalid_argument} << ed::error_code_api_origin{"random_bytes"sv};
+        return error{errc::invalid_argument}
+            << ed::error_code_api_origin{"random_bytes"sv};
     }
 
     while (buffer)
@@ -115,10 +122,11 @@ vefs::result<void> vefs::detail::random_bytes(rw_dynblob buffer) noexcept
         constexpr size_t max_portion = static_cast<size_t>(33554431);
         const auto portion = std::min(max_portion, buffer.size());
 
-        ssize_t tmp = getrandom(static_cast<void*>(buffer.data()), portion, 0);
+        ssize_t tmp = getrandom(static_cast<void *>(buffer.data()), portion, 0);
         if (tmp == -1)
         {
-            return error{collect_system_error()} << ed::error_code_api_origin{"getrandom"sv};
+            return error{collect_system_error()}
+                << ed::error_code_api_origin{"getrandom"sv};
         }
         if (tmp == 0)
         {

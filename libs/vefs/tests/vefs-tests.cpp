@@ -15,13 +15,13 @@ public:
     void OnTestPartResult(const ::testing::TestPartResult &result)
     {
         boost::unit_test::unit_test_log
-            << boost::unit_test::log::begin(result.file_name(),
-                                            result.line_number())
-            << boost::unit_test::log_all_errors << result.summary()
-            << boost::unit_test::log::end();
+                << boost::unit_test::log::begin(result.file_name(),
+                                                result.line_number())
+                << boost::unit_test::log_all_errors << result.summary()
+                << boost::unit_test::log::end();
         boost::unit_test::framework::assertion_result(
-            result.passed() ? boost::unit_test::AR_PASSED
-                            : boost::unit_test::AR_FAILED);
+                result.passed() ? boost::unit_test::AR_PASSED
+                                : boost::unit_test::AR_FAILED);
     }
 };
 // BoringSSL manually allocates TLS storage on first use

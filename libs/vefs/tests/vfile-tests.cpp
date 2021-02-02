@@ -26,8 +26,9 @@ struct vfile_dependencies_fixture
         : testFile(vefs::llfio::mapped_temp_inode().value())
         , device(sector_device::open(testFile.reopen(0).value(),
                                      test::only_mac_crypto_provider(),
-                                     default_user_prk, true)
-                     .value())
+                                     default_user_prk,
+                                     true)
+                         .value())
         , workExecutor(&thread_pool::shared())
         , sectorAllocator(*device)
     {
@@ -36,17 +37,18 @@ struct vfile_dependencies_fixture
         cryptoCtx = device->create_file_secrets().value();
 
         fileSystem = vefs::vfilesystem::create_new(
-                         *device, sectorAllocator, workExecutor,
-                         device->archive_header().filesystem_index)
-                         .value();
+                             *device, sectorAllocator, workExecutor,
+                             device->archive_header().filesystem_index)
+                             .value();
 
         testSubject = vefs::vfile::create_new(
-                          fileSystem.get(), workExecutor, sectorAllocator,
-                          file_id(vefs::utils::uuid{
-                              0xc7, 0xa5, 0x3d, 0x7a, 0xa4, 0xf0, 0x40, 0x53,
-                              0xa7, 0xa3, 0x35, 0xf3, 0x5c, 0xdf, 0x53, 0x3d}),
-                          *device, *cryptoCtx)
-                          .value();
+                              fileSystem.get(), workExecutor, sectorAllocator,
+                              file_id(vefs::utils::uuid{
+                                      0xc7, 0xa5, 0x3d, 0x7a, 0xa4, 0xf0, 0x40,
+                                      0x53, 0xa7, 0xa3, 0x35, 0xf3, 0x5c, 0xdf,
+                                      0x53, 0x3d}),
+                              *device, *cryptoCtx)
+                              .value();
     }
 };
 

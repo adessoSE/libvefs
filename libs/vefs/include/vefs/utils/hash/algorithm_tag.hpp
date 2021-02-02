@@ -2,8 +2,8 @@
 
 namespace vefs::utils::hash
 {
-    template <typename T>
-    struct algorithm_tag final
-    {
-    };
-}
+template <typename T>
+struct algorithm_tag final
+{
+};
+} // namespace vefs::utils::hash
