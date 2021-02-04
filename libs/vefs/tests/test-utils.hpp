@@ -12,11 +12,6 @@
 #include <vefs/disappointment.hpp>
 #include <vefs/utils/random.hpp>
 
-namespace adesso::vefs
-{
-class FileDescriptor;
-} // namespace adesso::vefs
-
 struct test_rng : vefs::utils::xoroshiro128plus
 {
     // default initialize the test rng to the first 32 hex digits of pi
@@ -103,8 +98,9 @@ inline auto boost_test_print_type(std::ostream &s, std::byte b)
 }
 } // namespace std
 
-namespace adesso::vefs
+namespace vefs_tests
 {
-std::ostream &operator<<(std::ostream &os,
-                         const adesso::vefs::FileDescriptor &ref);
-} // namespace adesso::vefs
+
+extern vefs::llfio::path_handle const current_path;
+
+}

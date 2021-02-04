@@ -75,10 +75,13 @@ public:
 
     static constexpr auto to_offset(sector_id id) -> std::uint64_t;
 
-    static auto open(llfio::mapped_file_handle mfh,
-                     crypto::crypto_provider *cryptoProvider,
-                     ro_blob<32> userPRK,
-                     bool createNew) -> result<open_info>;
+    static auto open_existing(llfio::mapped_file_handle fileHandle,
+                              crypto::crypto_provider *cryptoProvider,
+                              ro_blob<32> userPRK) noexcept
+            -> result<open_info>;
+    static auto create_new(llfio::mapped_file_handle fileHandle,
+                           crypto::crypto_provider *cryptoProvider,
+                           ro_blob<32> userPRK) noexcept -> result<open_info>;
 
     ~sector_device() = default;
 

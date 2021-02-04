@@ -53,10 +53,9 @@ struct vfilesystem_test_dependencies
 
     vfilesystem_test_dependencies()
         : testFile(vefs::llfio::mapped_temp_inode().value())
-        , device(sector_device::open(testFile.reopen(0).value(),
-                                     test::only_mac_crypto_provider(),
-                                     default_user_prk,
-                                     true)
+        , device(sector_device::create_new(testFile.reopen(0).value(),
+                                           test::only_mac_crypto_provider(),
+                                           default_user_prk)
                          .value()
                          .device)
         , filesystemIndex{}
