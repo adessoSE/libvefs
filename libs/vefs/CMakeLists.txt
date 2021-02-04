@@ -207,7 +207,7 @@ target_link_libraries(vefs
         llfio::llfio
         outcome::outcome
         unofficial::concurrentqueue::concurrentqueue
-        cuckoohash
+        libcuckoo
 )
 
 if (botan_FOUND)
@@ -260,7 +260,7 @@ add_test(NAME vefs-tests COMMAND vefs-tests)
 
 ##########################################################################
 # install targets
-install(TARGETS vefs cuckoohash EXPORT vefs-targets
+install(TARGETS vefs EXPORT vefs-targets
     RUNTIME DESTINATION bin/$<CONFIG>
     LIBRARY DESTINATION lib/$<CONFIG>
     ARCHIVE DESTINATION lib/$<CONFIG>
