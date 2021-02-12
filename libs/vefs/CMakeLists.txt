@@ -26,6 +26,8 @@ DEF_SOURCE_GROUP(vefs "detail"
         src/detail/cache_handle.hpp
         src/detail/cache_page.hpp
 
+        src/detail/archive_header.hpp
+        src/detail/archive_header.codec.hpp
         src/detail/archive_file_id.hpp
         src/detail/block_manager.hpp
         src/detail/file_crypto_ctx.cpp
@@ -42,6 +44,10 @@ DEF_SOURCE_GROUP(vefs "detail"
         src/detail/tree_walker.cpp
         src/detail/tree_walker.hpp
 
+        src/detail/cbor_utils.hpp
+        src/detail/file_descriptor.hpp
+        src/detail/file_descriptor.codec.hpp
+
         src/detail/archive_sector_allocator.cpp
         src/detail/archive_sector_allocator.hpp
         src/detail/archive_tree_allocator.cpp
@@ -50,8 +56,6 @@ DEF_SOURCE_GROUP(vefs "detail"
         src/detail/cow_tree_allocator_mt.hpp
         src/detail/preallocated_tree_allocator.cpp
         src/detail/preallocated_tree_allocator.hpp
-
-        src/detail/proto-helper.hpp
 )
 
 DEF_SOURCE_GROUP(vefs "disappointment"
@@ -91,6 +95,9 @@ DEF_SOURCE_GROUP(vefs "crypto"
     SOURCES
         src/crypto/ct_compare.hpp
 
+        src/crypto/cbor_box.hpp
+        src/crypto/cbor_box.cpp
+
         src/crypto/blake2.cpp
         src/crypto/blake2.hpp
         src/crypto/boringssl_aead.hpp
@@ -102,6 +109,7 @@ DEF_SOURCE_GROUP(vefs "crypto"
 
         src/crypto/counter.cpp
         src/crypto/counter.hpp
+        src/crypto/counter.codec.hpp
 )
 if (boringssl_FOUND)
     DEF_SOURCE_GROUP(vefs "crypto"
@@ -163,6 +171,9 @@ DEF_SOURCE_GROUP(vefs "utils"
         include/vefs/utils/unordered_map_mt.hpp
 
         vefs.natvis
+
+    SOURCES
+        src/detail/secure_array.codec.hpp
 )
 
 DEF_SOURCE_GROUP(vefs "external/SpookyV2"
@@ -173,9 +184,6 @@ DEF_SOURCE_GROUP(vefs "external/SpookyV2"
     SOURCES
         src/detail/SpookyV2.cpp
 )
-
-target_sources(vefs PRIVATE fileformat.proto)
-protobuf_generate(TARGET vefs)
 
 target_compile_definitions(vefs
     PUBLIC
@@ -190,17 +198,14 @@ target_include_directories(vefs
 )
 target_link_libraries(vefs
     PUBLIC
-        advapi32
+        $<$<PLATFORM_ID:Windows>:advapi32>
         Boost::boost
         Boost::system
+        Deeplex::deeppack
         libb2
-        protobuf::libprotobuf
         fmt::fmt
-        llfio
-        ntkernel-error-category
-        outcome
-        quickcpplib
-
+        llfio::llfio
+        outcome::outcome
         concurrentqueue
         cuckoohash
 )
@@ -224,6 +229,7 @@ add_executable(vefs-tests
     tests/vefs-tests.cpp
     tests/boost-unit-test.hpp
     tests/test-utils.hpp
+    tests/test-utils.cpp
     tests/libb2_none_blake2b_crypto_provider.cpp
     tests/libb2_none_blake2b_crypto_provider.hpp
     tests/disappointment-tests.cpp
@@ -240,7 +246,9 @@ add_executable(vefs-tests
     tests/block_manager-tests.cpp
     tests/tree_lut-tests.cpp
     tests/tree_walker-tests.cpp
-)
+    tests/archive_file_id_tests.cpp
+    tests/archive-integration-tests.cpp
+ )
 target_link_libraries(vefs-tests
     PUBLIC
         vefs

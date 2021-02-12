@@ -67,10 +67,12 @@ namespace vefs::detail
 
 #pragma endregion
 
-    archive_sector_allocator::archive_sector_allocator(sector_device &device)
+    archive_sector_allocator::archive_sector_allocator(
+        sector_device &device, file_crypto_ctx::state_type const &cryptoCtx)
         : mSectorDevice(device)
         , mSectorManager()
         , mAllocatorSync()
+        , mFileCtx(cryptoCtx)
         , mFreeBlockFileRootSector()
         , mSectorsLeaked(false)
     {
@@ -173,17 +175,16 @@ namespace vefs::detail
     }
 
     auto archive_sector_allocator::initialize_from(
-        root_sector_info rootInfo, file_crypto_ctx &cryptoCtx) noexcept
-        -> result<void>
+        root_sector_info rootInfo) noexcept -> result<void>
     {
         using file_tree_allocator = preallocated_tree_allocator;
         using file_tree = sector_tree_seq<file_tree_allocator>;
 
-        const sector_id fileEndId{mSectorDevice.size()};
+        sector_id const fileEndId{mSectorDevice.size()};
 
         file_tree_allocator::sector_id_container idContainer;
         VEFS_TRY(freeSectorTree,
-                 file_tree::open_existing(mSectorDevice, cryptoCtx, rootInfo,
+                 file_tree::open_existing(mSectorDevice, mFileCtx, rootInfo,
                                           idContainer));
 
         const auto lastSectorPos =
@@ -306,9 +307,9 @@ namespace vefs::detail
         return success();
     }
 
-    auto
-    archive_sector_allocator::serialize_to(file_crypto_ctx &cryptoCtx) noexcept
-        -> result<root_sector_info>
+    auto archive_sector_allocator::finalize(
+        file_crypto_ctx const &filesystemCryptoCtx,
+        root_sector_info filesystemRoot) noexcept -> result<void>
     {
         using file_tree_allocator = preallocated_tree_allocator;
         using file_tree = sector_tree_seq<file_tree_allocator>;
@@ -321,7 +322,7 @@ namespace vefs::detail
             mFreeBlockFileRootSector, mSectorManager, idContainer));
 
         VEFS_TRY(freeSectorTree,
-                 file_tree::create_new(mSectorDevice, cryptoCtx, idContainer));
+                 file_tree::create_new(mSectorDevice, mFileCtx, idContainer));
 
         auto offset = 0;
         free_block_sector_layout sector{freeSectorTree->writeable_bytes()};
@@ -342,19 +343,25 @@ namespace vefs::detail
 
         for (;;)
         {
-            root_sector_info rootInfo;
+            VEFS_TRY(freeSectorTree->commit(
+                [&](root_sector_info rootInfo) noexcept -> result<void> {
+                    if (!idContainer.empty())
+                    {
+                        return success();
+                    }
+                    rootInfo.maximum_extent =
+                        (freeSectorTree->position().position() + 1) *
+                        sector_device::sector_payload_size;
 
-            VEFS_TRY(freeSectorTree->commit([&](root_sector_info ri) noexcept
-                                                ->result<void> {
-                                                    rootInfo = ri;
-                                                    return success();
-                                                }));
+                    VEFS_TRY(mSectorDevice.update_header(filesystemCryptoCtx,
+                                                         filesystemRoot,
+                                                         mFileCtx, rootInfo));
+                    return success();
+                }));
+
             if (idContainer.empty())
             {
-                rootInfo.maximum_extent =
-                    (freeSectorTree->position().position() + 1) *
-                    sector_device::sector_payload_size;
-                return rootInfo;
+                return success();
             }
             else
             {

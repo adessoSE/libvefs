@@ -20,7 +20,8 @@ namespace vefs::detail
         };
         static constexpr auto leak_on_failure = leak_on_failure_t{};
 
-        archive_sector_allocator(sector_device &device);
+        archive_sector_allocator(sector_device &device,
+                                 file_crypto_ctx::state_type const &cryptoCtx);
 
         auto alloc_one() noexcept -> result<sector_id>;
         // #TBI multi sector allocation
@@ -36,11 +37,10 @@ namespace vefs::detail
             -> result<void>;
 
         auto initialize_new() noexcept -> result<void>;
-        auto initialize_from(root_sector_info rootInfo,
-                             file_crypto_ctx &cryptoCtx) noexcept
+        auto initialize_from(root_sector_info rootInfo) noexcept
             -> result<void>;
-        auto serialize_to(file_crypto_ctx &cryptoCtx) noexcept
-            -> result<root_sector_info>;
+        auto finalize(file_crypto_ctx const &filesystemCryptoCtx,
+                      root_sector_info filesystemRoot) noexcept -> result<void>;
 
         void on_leak_detected() noexcept
         {
@@ -49,6 +49,11 @@ namespace vefs::detail
         bool sector_leak_detected() noexcept
         {
             return mSectorsLeaked;
+        }
+
+        auto crypto_ctx() const noexcept -> file_crypto_ctx const &
+        {
+            return mFileCtx;
         }
 
     private:
@@ -60,6 +65,7 @@ namespace vefs::detail
         sector_device &mSectorDevice;
         utils::block_manager<sector_id> mSectorManager;
         std::mutex mAllocatorSync;
+        file_crypto_ctx mFileCtx;
         sector_id mFreeBlockFileRootSector;
         std::atomic<bool> mSectorsLeaked;
     };

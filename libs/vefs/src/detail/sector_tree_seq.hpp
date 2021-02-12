@@ -136,7 +136,7 @@ namespace vefs::detail
         auto create(tree_path::const_iterator updateIt,
                     const tree_path::iterator end) noexcept -> result<void>;
 
-        auto compute_update_range(const tree_path newPath,
+        auto compute_update_range(const tree_path &newPath,
                                   const bool forceReload) const noexcept
             -> std::pair<tree_path::const_iterator, tree_path::const_iterator>;
 
@@ -298,7 +298,7 @@ namespace vefs::detail
         auto layer = last_loaded_index();
         reference_sector_layout layout{node_data_span(layer)};
 
-        for (int i = 0; i < layout.references_per_sector; ++i)
+        for (unsigned i = 0; i < layout.references_per_sector; ++i)
         {
             auto ref = layout.read(i);
             if (ref.sector == sector_id::master)
@@ -519,7 +519,7 @@ namespace vefs::detail
 
     template <typename TreeAllocator>
     inline auto sector_tree_seq<TreeAllocator>::compute_update_range(
-        const tree_path newPath, const bool forceReload) const noexcept
+        const tree_path &newPath, const bool forceReload) const noexcept
         -> std::pair<tree_path::const_iterator, tree_path::const_iterator>
     {
         if (forceReload)

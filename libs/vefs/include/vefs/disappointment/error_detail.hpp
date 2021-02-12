@@ -3,10 +3,14 @@
 #include <tuple>
 #include <string>
 #include <type_traits>
+#ifdef __GNUC__
+#include <cxxabi.h>
+#endif
 
 #include <fmt/format.h>
 
 #include <vefs/disappointment/fwd.hpp>
+#include <vefs/platform/platform.hpp>
 
 namespace vefs
 {
@@ -88,18 +92,12 @@ namespace vefs
     template<typename Tag, typename T>
     inline void error_detail<Tag, T>::stringify(format_buffer &out) const noexcept
     {
+        using namespace std::string_view_literals;
         auto start = out.size();
         try
         {
-            std::string_view type{ typeid(Tag).name() };
-            if (type.size() > 0)
-            {
-                fmt::format_to(out, "[{}] = ", type);
-            }
-            else
-            {
-                fmt::format_to(out, "unknown type: ");
-            }
+            fmt::format_to(out, FMT_STRING("[{}] = "),
+                           detail::type_info_fmt{typeid(Tag)});
         }
         catch (...)
         {

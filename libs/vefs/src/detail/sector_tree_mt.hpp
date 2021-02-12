@@ -153,7 +153,7 @@ namespace vefs::detail
     private:
         using sector_type = sector;
         using sector_cache =
-            cache_car<tree_position, sector_type, 1 << 10>; // 64 cached pages
+            cache_car<tree_position, sector_type, 1 << 10>; // 1024 cached pages
 
         template <typename... AllocatorCtorArgs>
         sector_tree_mt(sector_device &device, file_crypto_ctx &cryptoCtx,
@@ -927,7 +927,7 @@ namespace vefs::detail
     {
         using boost::container::static_vector;
 
-        const int depthDifference = targetDepth - mRootInfo.tree_depth;
+        // const int depthDifference = targetDepth - mRootInfo.tree_depth;
 
         // static_vector<sector_id, lut::max_tree_depth + 1> allocatedSectors;
         // utils::scope_guard allocationRollbackGuard = [this,

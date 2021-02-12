@@ -79,22 +79,22 @@ namespace vefs::utils
         }
         return static_cast<int>(result);
 
-#elif defined BOOST_COMP_GCC_AVAILABLE || defined BOOST_COMP_CLANG_AVAILABLE
+#elif defined(BOOST_COMP_GNUC_AVAILABLE) || defined(BOOST_COMP_CLANG_AVAILABLE)
 
         int result;
         if constexpr (sizeof(T) <= sizeof(unsigned int))
         {
-            result = __builtin_countlz(static_cast<unsigned int>(x));
+            result = __builtin_clz(static_cast<unsigned int>(x));
             result -= unsigned_digit_distance_v<unsigned int, T>;
         }
         else if constexpr (sizeof(T) <= sizeof(unsigned long))
         {
-            result = __builtin_countlzl(static_cast<unsigned long>(x));
+            result = __builtin_clzl(static_cast<unsigned long>(x));
             result -= unsigned_digit_distance_v<unsigned long, T>;
         }
         else if constexpr (sizeof(T) <= sizeof(unsigned long long))
         {
-            result = __builtin_countlzll(static_cast<unsigned long long>(x));
+            result = __builtin_clzll(static_cast<unsigned long long>(x));
             result -= unsigned_digit_distance_v<unsigned long long, T>;
         }
         return result;
@@ -124,44 +124,50 @@ namespace vefs::utils
         if constexpr (sizeof(T) <= sizeof(unsigned long))
         {
             _BitScanForward(&result, static_cast<unsigned long>(x));
-            result -= unsigned_digit_distance_v<unsigned long, T>;
+            return static_cast<int>(result);
         }
         else if constexpr (sizeof(T) <= sizeof(unsigned long long))
         {
+
 #if defined(_M_ARM64) || defined(_M_AMD64)
 
             _BitScanForward64(&result, static_cast<unsigned long long>(x));
-            result -= unsigned_digit_distance_v<unsigned long long, T>;
+            return static_cast<int>(result);
 
 #else
+
             static_assert(sizeof(unsigned long) * 2 ==
                           sizeof(unsigned long long));
 
-            using ulong_limits = std::numeric_limits<unsigned long>;
-            if (!_BitScanForward(&result, static_cast<unsigned long>(x)))
+            if (_BitScanForward(&result, static_cast<unsigned long>(x)))
             {
-                _BitScanForward(&result, static_cast<unsigned long>(
-                                             x >> ulong_limits::digits));
-                result += ulong_limits::digits;
+                return static_cast<int>(result);
+            }
+            else
+            {
+                _BitScanForward(
+                    &result,
+                    static_cast<unsigned long>(
+                        x >> std::numeric_limits<unsigned long>::digits));
+                return static_cast<int>(result);
             }
 #endif
         }
-        return static_cast<int>(result);
 
-#elif defined BOOST_COMP_GCC_AVAILABLE || defined BOOST_COMP_CLANG_AVAILABLE
+#elif defined BOOST_COMP_GNUC_AVAILABLE || defined BOOST_COMP_CLANG_AVAILABLE
 
         int result;
         if constexpr (sizeof(T) <= sizeof(unsigned int))
         {
-            result = __builtin_countffs(static_cast<unsigned int>(x));
+            result = __builtin_ffs(static_cast<unsigned int>(x));
         }
         else if constexpr (sizeof(T) <= sizeof(unsigned long))
         {
-            result = __builtin_countffsl(static_cast<unsigned long>(x));
+            result = __builtin_ffsl(static_cast<unsigned long>(x));
         }
         else if constexpr (sizeof(T) <= sizeof(unsigned long long))
         {
-            result = __builtin_countffsll(static_cast<unsigned long long>(x));
+            result = __builtin_ffsll(static_cast<unsigned long long>(x));
         }
         return result;
 

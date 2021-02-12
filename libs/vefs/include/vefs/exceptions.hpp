@@ -13,18 +13,18 @@
 #pragma warning(push, 3)
 #pragma warning(disable : 6246)
 #endif
-#if defined BOOST_COMP_GNUC_AVAILABLE || defined BOOST_COMP_CLANG_AVAILABLE
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpotentially-evaluated-expression"
-#pragma GCC diagnostic ignored "-Wdelete-non-abstract-non-virtual-dtor"
-#pragma GCC diagnostic ignored "-Wunused-parameter"
+#if defined(BOOST_COMP_CLANG_AVAILABLE)
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wpotentially-evaluated-expression"
+#pragma clang diagnostic ignored "-Wdelete-non-abstract-non-virtual-dtor"
+#pragma clang diagnostic ignored "-Wunused-parameter"
 #endif
 
 #include <boost/exception/all.hpp>
 #include <boost/throw_exception.hpp>
 
-#if defined BOOST_COMP_GNUC_AVAILABLE || defined BOOST_COMP_CLANG_AVAILABLE
-#pragma GCC diagnostic pop
+#if defined(BOOST_COMP_CLANG_AVAILABLE)
+#pragma clang diagnostic pop
 #endif
 #if defined BOOST_COMP_MSVC_AVAILABLE
 #pragma warning(pop)

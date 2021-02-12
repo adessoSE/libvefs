@@ -53,17 +53,17 @@ namespace vefs
         vfilesystem(detail::sector_device &device,
                     detail::archive_sector_allocator &allocator,
                     detail::thread_pool &executor,
-                    detail::master_file_info &info);
+                    detail::master_file_info const &info);
 
         static auto open_existing(detail::sector_device &device,
                                   detail::archive_sector_allocator &allocator,
                                   detail::thread_pool &executor,
-                                  detail::master_file_info &info)
+                                  detail::master_file_info const &info)
             -> result<std::unique_ptr<vfilesystem>>;
         static auto create_new(detail::sector_device &device,
                                detail::archive_sector_allocator &allocator,
                                detail::thread_pool &executor,
-                               detail::master_file_info &info)
+                               detail::master_file_info const &info)
             -> result<std::unique_ptr<vfilesystem>>;
 
         auto open(const std::string_view filePath,
@@ -78,6 +78,14 @@ namespace vefs
             -> result<void>;
 
         auto commit() -> result<void>;
+        auto crypto_ctx() const noexcept -> detail::file_crypto_ctx const &
+        {
+            return mCryptoCtx;
+        }
+        auto committed_root() const noexcept -> detail::root_sector_info
+        {
+            return mCommittedRoot;
+        }
 
         auto recover_unused_sectors() -> result<void>;
         auto validate() -> result<void>;
@@ -90,9 +98,11 @@ namespace vefs
                               std::uint64_t maxExtent) noexcept -> result<void>;
 
         detail::sector_device &mDevice;
-        detail::master_file_info &mInfo;
         detail::archive_sector_allocator &mSectorAllocator;
         detail::thread_pool &mDeviceExecutor;
+
+        detail::file_crypto_ctx mCryptoCtx;
+        detail::root_sector_info mCommittedRoot;
 
         index_t mIndex;
         files_t mFiles;

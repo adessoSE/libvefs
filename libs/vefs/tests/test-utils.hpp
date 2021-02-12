@@ -9,7 +9,13 @@
 #include "../src/detail/cache_car.hpp"
 #include "libb2_none_blake2b_crypto_provider.hpp"
 #include <vefs/disappointment.hpp>
+#include "../src/detail/file_crypto_ctx.hpp"
 #include <vefs/utils/random.hpp>
+
+namespace adesso::vefs
+{
+    class FileDescriptor;
+} // namespace adesso::vefs
 
 struct test_rng : vefs::utils::xoroshiro128plus
 {
@@ -96,3 +102,10 @@ namespace std
         return s;
     }
 } // namespace std
+
+
+namespace adesso::vefs
+{
+    std::ostream &operator<<(std::ostream &os,
+                             const adesso::vefs::FileDescriptor &ref);
+} // namespace adesso::vefs

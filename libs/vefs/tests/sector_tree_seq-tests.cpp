@@ -90,7 +90,8 @@ struct sector_tree_seq_pre_create_fixture
         , device(sector_device::open(testFile.reopen(0).value(),
                                      vefs::test::only_mac_crypto_provider(),
                                      default_user_prk, true)
-                     .value())
+                     .value()
+                     .device)
         , fileCryptoContext(file_crypto_ctx::zero_init)
         , rootSectorInfo()
     {
@@ -186,7 +187,7 @@ BOOST_AUTO_TEST_CASE(shrink_on_commit_if_possible)
     TEST_RESULT_REQUIRE(testTree->commit(
         [this](root_sector_info cri) { rootSectorInfo = cri; }));
 
-    auto expectedRootMac = vefs::utils::make_byte_array(
+    [[maybe_unused]] auto expectedRootMac = vefs::utils::make_byte_array(
         0xe2, 0x1b, 0x52, 0x74, 0xe1, 0xd5, 0x8b, 0x69, 0x87, 0x36, 0x88, 0x3f,
         0x34, 0x4e, 0x5e, 0x2b);
 

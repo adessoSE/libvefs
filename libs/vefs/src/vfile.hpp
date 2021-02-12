@@ -68,7 +68,7 @@ namespace vefs
                         detail::file_crypto_ctx &cryptoCtx) -> result<void>;
 
         auto
-        sync_commit_info(detail::root_sector_info commitedRootInfo) noexcept
+        sync_commit_info(detail::root_sector_info committedRootInfo) noexcept
             -> result<void>;
 
         vfilesystem *mOwner;

@@ -5,6 +5,7 @@
 #include <cassert>
 
 #include <array>
+#include <compare>
 #include <limits>
 #include <functional>
 
@@ -57,11 +58,18 @@ namespace vefs::detail
         constexpr storage_type raw() const noexcept;
 
         explicit constexpr operator bool() const noexcept;
+        auto operator==(tree_position const &other) const noexcept
+            -> bool = default;
+        auto operator<=>(tree_position const &other) const noexcept
+            -> std::strong_ordering = default;
 
     private:
         // 8bit layer pos + 56bit sector position on that layer
         storage_type mLayerPosition;
     };
+
+    constexpr auto next(tree_position position) noexcept -> tree_position;
+    constexpr auto prev(tree_position position) noexcept -> tree_position;
 
     template <typename Impl>
     inline void compute_hash(const tree_position &obj, Impl &state);
@@ -237,15 +245,14 @@ namespace vefs::detail
     }
 
 
-    constexpr bool operator==(tree_position lhs, tree_position rhs)
+    constexpr auto next(tree_position value) noexcept -> tree_position
     {
-        return lhs.raw() == rhs.raw();
+        return tree_position(value.position() + 1, value.layer());
     }
-    constexpr bool operator!=(tree_position lhs, tree_position rhs)
+    constexpr auto prev(tree_position value) noexcept -> tree_position
     {
-        return !(lhs == rhs);
+        return tree_position(value.position() - 1, value.layer());
     }
-
 
     template <typename Impl>
     inline void compute_hash(const tree_position &obj, Impl &state)

@@ -120,7 +120,7 @@ namespace vefs::detail
         if constexpr (over_aligned)
         {
             void *tmp = nullptr;
-            if (auto merrno = posix_memalign(&tmp, size, alignment); merrno != 0)
+            if (auto merrno = posix_memalign(&tmp, alignment, size); merrno != 0)
             {
                 if (merrno == ENOMEM)
                 {

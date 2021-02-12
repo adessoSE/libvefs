@@ -67,7 +67,7 @@ namespace vefs::test
             hashLen, keyMaterial,
             vefs::crypto::detail::vefs_blake2b_personalization_view));
 
-        VEFS_TRY(blakeCtx.update(ciphertext));
+        VEFS_TRY(blakeCtx.update(plaintext));
         VEFS_TRY(blakeCtx.final(mac.subspan(0, hashLen)));
 
         if (mac.size() > vefs::crypto::detail::blake2b::digest_bytes)
