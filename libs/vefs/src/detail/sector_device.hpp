@@ -2,6 +2,7 @@
 
 #include <array>
 #include <memory>
+#include <shared_mutex>
 #include <type_traits>
 
 #include <dplx/dp/byte_buffer.hpp>
@@ -144,6 +145,7 @@ namespace vefs::detail
         crypto::atomic_counter mJournalCounter;
         std::atomic<std::uint64_t> mEraseCounter;
 
+        std::shared_mutex mSizeSync;
         std::atomic<uint64_t> mNumSectors;
 
         header_id mHeaderSelector;
@@ -162,6 +164,7 @@ namespace vefs::detail
     inline auto vefs::detail::sector_device::resize(std::uint64_t numSectors)
         -> result<void>
     {
+        std::unique_lock guard{mSizeSync};
         VEFS_TRY(bytesTruncated,
                  mArchiveFile.truncate(numSectors * sector_size));
         if (bytesTruncated != (numSectors * sector_size))

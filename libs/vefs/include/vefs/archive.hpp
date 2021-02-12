@@ -40,11 +40,14 @@ namespace vefs
 
     class archive
     {
-    public:                    
+    public:
         static auto open(llfio::mapped_file_handle mfh,
                          crypto::crypto_provider *cryptoProvider,
                          ro_blob<32> userPRK, bool createNew)
             -> result<std::unique_ptr<archive>>;
+        static auto validate(llfio::mapped_file_handle mfh,
+                             crypto::crypto_provider *cryptoProvider,
+                             ro_blob<32> userPRK) -> result<void>;
         ~archive();
 
         auto commit() -> result<void>;
@@ -60,7 +63,8 @@ namespace vefs
                    std::uint64_t writeFilePos) -> result<void>;
         auto truncate(const vfile_handle &handle, std::uint64_t maxExtent)
             -> result<void>;
-        auto maximum_extent_of(const vfile_handle &handle) -> result<std::uint64_t>;
+        auto maximum_extent_of(const vfile_handle &handle)
+            -> result<std::uint64_t>;
         auto commit(const vfile_handle &handle) -> result<void>;
 
     private:

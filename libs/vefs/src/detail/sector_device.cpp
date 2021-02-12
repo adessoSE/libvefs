@@ -476,6 +476,7 @@ namespace vefs::detail
             staticHeaderSectors.consume(staticHeaderSectors.remaining_size()),
             0, staticHeaderSectors.remaining_size());
 
+        std::shared_lock guard{mSizeSync};
         llfio::io_handle::const_buffer_type writeBuffers[] = {
             {staticHeaderSectors.consumed_begin(),
              static_cast<std::size_t>(staticHeaderSectors.buffer_size())}};
@@ -506,6 +507,8 @@ namespace vefs::detail
         {
             return errc::invalid_argument;
         }
+
+        std::shared_lock guard{mSizeSync};
 
         const auto sectorOffset = to_offset(sectorIdx);
 
@@ -558,6 +561,7 @@ namespace vefs::detail
 
         const auto sectorOffset = to_offset(sectorIdx);
 
+        std::shared_lock guard{mSizeSync};
         VEFS_TRY_INJECT(mArchiveFile.write(
                             sectorOffset, {{ioBuffer.data(), ioBuffer.size()}}),
                         ed::sector_idx{sectorIdx});
@@ -578,6 +582,7 @@ namespace vefs::detail
                              sector_kdf_erase));
 
         const auto offset = to_offset(sectorIdx);
+        std::shared_lock guard{mSizeSync};
         VEFS_TRY_INJECT(
             mArchiveFile.write(offset, {{salt.data(), salt.size()}}),
             ed::sector_idx{sectorIdx});
@@ -643,6 +648,7 @@ namespace vefs::detail
         std::memset(encryptionBuffer.remaining_begin(), 0,
                     encryptionBuffer.remaining_size());
 
+        std::shared_lock guard{mSizeSync};
         VEFS_TRY_INJECT(mArchiveFile.write(headerOffset, {{writeArea.data(),
                                                            writeArea.size()}}),
                         ed::archive_file{"[archive-header]"});

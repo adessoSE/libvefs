@@ -88,6 +88,7 @@ namespace vefs
         }
 
         auto recover_unused_sectors() -> result<void>;
+        auto validate() -> result<void>;
 
     private:
         auto open_existing_impl() -> result<void>;
