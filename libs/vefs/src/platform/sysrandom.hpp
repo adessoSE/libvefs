@@ -1,9 +1,9 @@
 #pragma once
 
-#include <vefs/span.hpp>
 #include <vefs/disappointment.hpp>
+#include <vefs/span.hpp>
 
 namespace vefs::detail
 {
-    result<void> random_bytes(rw_dynblob buffer) noexcept;
+result<void> random_bytes(rw_dynblob buffer) noexcept;
 }

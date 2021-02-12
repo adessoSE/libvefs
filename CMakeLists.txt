@@ -50,7 +50,11 @@ find_package(outcome CONFIG REQUIRED)
 
 find_package(llfio CONFIG REQUIRED)
 
+find_package(unofficial-concurrentqueue CONFIG REQUIRED)
+
 find_package(libb2 REQUIRED CONFIG)
+
+find_package(libcuckoo CONFIG REQUIRED)
 
 find_package(boringssl REQUIRED CONFIG)
 
@@ -75,9 +79,6 @@ find_package(fmt CONFIG REQUIRED)
 if (NOT (botan_FOUND OR boringssl_FOUND))
     message(WARNING "no crypto provider library (BoringSSL, botan) could be found.")
 endif()
-
-# additional in repository dependencies
-add_subdirectory(external)
 
 ##########################################################################
 # compiler adjustments

@@ -9,60 +9,63 @@
 
 namespace vefs::detail
 {
-    thread_pool &thread_pool::shared()
-    {
+thread_pool &thread_pool::shared()
+{
 #if defined BOOST_OS_WINDOWS_AVAILABLE
-        static thread_pool_win32_default pool;
+    static thread_pool_win32_default pool;
 #else
-        static thread_pool_gen pool{std::thread::hardware_concurrency() * 2,
-                                    std::thread::hardware_concurrency() * 2, "vefs-process-shared"};
+    static thread_pool_gen pool{std::thread::hardware_concurrency() * 2,
+                                std::thread::hardware_concurrency() * 2,
+                                "vefs-process-shared"};
 #endif
-        return pool;
-    }
+    return pool;
+}
 
-    void thread_pool::xdo(task_t &work) noexcept
+void thread_pool::xdo(task_t &work) noexcept
+{
+    try
     {
-        try
-        {
-            work();
-        }
-        catch (...)
-        {
-        }
+        work();
     }
-
-    pooled_work_tracker::pooled_work_tracker(thread_pool *pool)
-        : mPool{pool}
-        , mSync{}
-        , mWorkCtr{0}
-        , mOnDecr{}
+    catch (...)
     {
     }
+}
 
-    void pooled_work_tracker::wait()
+pooled_work_tracker::pooled_work_tracker(thread_pool *pool)
+    : mPool{pool}
+    , mSync{}
+    , mWorkCtr{0}
+    , mOnDecr{}
+{
+}
+
+void pooled_work_tracker::wait()
+{
+    std::unique_lock lock{mSync};
+    mOnDecr.wait(lock, [this]() {
+        return mWorkCtr.load(std::memory_order_acquire) == 0;
+    });
+}
+
+void pooled_work_tracker::execute(std::unique_ptr<task_t> task)
+{
+    assert(task);
+
+    mWorkCtr.fetch_add(1, std::memory_order_release);
+    VEFS_ERROR_EXIT
     {
-        std::unique_lock lock{mSync};
-        mOnDecr.wait(lock, [this]() { return mWorkCtr.load(std::memory_order_acquire) == 0; });
-    }
+        mWorkCtr.fetch_sub(1, std::memory_order_release);
+    };
 
-    void pooled_work_tracker::execute(std::unique_ptr<task_t> task)
-    {
-        assert(task);
-
-        mWorkCtr.fetch_add(1, std::memory_order_release);
-        VEFS_ERROR_EXIT
+    mPool->execute([this, xtask = std::move(*task)]() mutable {
+        VEFS_SCOPE_EXIT
         {
             mWorkCtr.fetch_sub(1, std::memory_order_release);
+            mOnDecr.notify_all();
         };
 
-        mPool->execute([this, xtask = std::move(*task)]() mutable {
-            VEFS_SCOPE_EXIT
-            {
-                mWorkCtr.fetch_sub(1, std::memory_order_release);
-                mOnDecr.notify_all();
-            };
-
-            xtask();
-        });
-    }
+        xtask();
+    });
+}
 } // namespace vefs::detail

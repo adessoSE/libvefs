@@ -48,7 +48,7 @@ public:
     }
 
     auto dealloc_one([[maybe_unused]] sector_id const which) noexcept
-        -> result<void>
+            -> result<void>
     {
         return success();
     }
@@ -89,9 +89,10 @@ struct sector_tree_seq_pre_create_fixture
         : testFile(vefs::llfio::mapped_temp_inode().value())
         , device(sector_device::open(testFile.reopen(0).value(),
                                      vefs::test::only_mac_crypto_provider(),
-                                     default_user_prk, true)
-                     .value()
-                     .device)
+                                     default_user_prk,
+                                     true)
+                         .value()
+                         .device)
         , fileCryptoContext(file_crypto_ctx::zero_init)
         , rootSectorInfo()
     {
@@ -106,11 +107,11 @@ struct sector_tree_seq_fixture : sector_tree_seq_pre_create_fixture
         : sector_tree_seq_pre_create_fixture()
         , testTree()
     {
-        testTree =
-            tree_type::create_new(*device, fileCryptoContext, *device).value();
+        testTree = tree_type::create_new(*device, fileCryptoContext, *device)
+                           .value();
 
         testTree->commit([this](root_sector_info ri) { rootSectorInfo = ri; })
-            .value();
+                .value();
     }
 
     auto open_test_tree() -> result<std::unique_ptr<tree_type>>
@@ -130,11 +131,11 @@ BOOST_FIXTURE_TEST_CASE(create_new, sector_tree_seq_pre_create_fixture)
 
     root_sector_info newRootInfo;
     TEST_RESULT_REQUIRE(tree->commit(
-        [&newRootInfo](root_sector_info cri) { newRootInfo = cri; }));
+            [&newRootInfo](root_sector_info cri) { newRootInfo = cri; }));
 
     auto expectedRootMac = vefs::utils::make_byte_array(
-        0xe2, 0x1b, 0x52, 0x74, 0xe1, 0xd5, 0x8b, 0x69, 0x87, 0x36, 0x88, 0x3f,
-        0x34, 0x4e, 0x5e, 0x2b);
+            0xe2, 0x1b, 0x52, 0x74, 0xe1, 0xd5, 0x8b, 0x69, 0x87, 0x36, 0x88,
+            0x3f, 0x34, 0x4e, 0x5e, 0x2b);
 
     BOOST_TEST(newRootInfo.root.mac == expectedRootMac);
     BOOST_TEST(newRootInfo.root.sector == sector_id{1});
@@ -168,11 +169,11 @@ BOOST_AUTO_TEST_CASE(expand_to_two_sectors)
 
     root_sector_info newRootInfo;
     TEST_RESULT_REQUIRE(testTree->commit(
-        [&newRootInfo](root_sector_info cri) { newRootInfo = cri; }));
+            [&newRootInfo](root_sector_info cri) { newRootInfo = cri; }));
 
     auto expectedRootMac = vefs::utils::make_byte_array(
-        0xc2, 0xaa, 0x29, 0x03, 0x00, 0x60, 0xb8, 0x4e, 0x3f, 0xc3, 0x57, 0x2e,
-        0xed, 0x2d, 0x0d, 0xb5);
+            0xc2, 0xaa, 0x29, 0x03, 0x00, 0x60, 0xb8, 0x4e, 0x3f, 0xc3, 0x57,
+            0x2e, 0xed, 0x2d, 0x0d, 0xb5);
 
     BOOST_TEST(newRootInfo.root.mac == expectedRootMac);
     BOOST_TEST(newRootInfo.root.sector == sector_id{3});
@@ -182,14 +183,14 @@ BOOST_AUTO_TEST_CASE(expand_to_two_sectors)
 BOOST_AUTO_TEST_CASE(shrink_on_commit_if_possible)
 {
     TEST_RESULT_REQUIRE(
-        testTree->move_to(2019, tree_type::access_mode::create));
+            testTree->move_to(2019, tree_type::access_mode::create));
 
     TEST_RESULT_REQUIRE(testTree->commit(
-        [this](root_sector_info cri) { rootSectorInfo = cri; }));
+            [this](root_sector_info cri) { rootSectorInfo = cri; }));
 
     [[maybe_unused]] auto expectedRootMac = vefs::utils::make_byte_array(
-        0xe2, 0x1b, 0x52, 0x74, 0xe1, 0xd5, 0x8b, 0x69, 0x87, 0x36, 0x88, 0x3f,
-        0x34, 0x4e, 0x5e, 0x2b);
+            0xe2, 0x1b, 0x52, 0x74, 0xe1, 0xd5, 0x8b, 0x69, 0x87, 0x36, 0x88,
+            0x3f, 0x34, 0x4e, 0x5e, 0x2b);
 
     // BOOST_TEST(rootSectorInfo.root.mac == expectedRootMac);
     BOOST_TEST(rootSectorInfo.root.sector == sector_id{5});
@@ -204,7 +205,7 @@ BOOST_AUTO_TEST_CASE(shrink_on_commit_if_possible)
 
     root_sector_info newRootInfo;
     TEST_RESULT_REQUIRE(testTree->commit(
-        [&newRootInfo](root_sector_info cri) { newRootInfo = cri; }));
+            [&newRootInfo](root_sector_info cri) { newRootInfo = cri; }));
 
     // BOOST_TEST(newRootInfo.root.mac == expectedRootMac);
     BOOST_TEST(newRootInfo.root.sector == sector_id{1});

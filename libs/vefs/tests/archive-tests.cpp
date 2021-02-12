@@ -10,28 +10,28 @@ using namespace vefs;
 
 namespace
 {
-    constexpr std::array<std::byte, 32> default_user_prk{};
-    static_assert(default_user_prk.size() == 32);
+constexpr std::array<std::byte, 32> default_user_prk{};
+static_assert(default_user_prk.size() == 32);
 
-    constexpr auto default_archive_path = "./test-archive.vefs"sv;
-    constexpr auto default_file_path = "diupdope"sv;
+constexpr auto default_archive_path = "./test-archive.vefs"sv;
+constexpr auto default_file_path = "diupdope"sv;
 
-    struct archive_test_dependencies
+struct archive_test_dependencies
+{
+    vefs::crypto::crypto_provider *cprov;
+    std::unique_ptr<vefs::archive> testSubject;
+    vefs::llfio::mapped_file_handle testFile;
+
+    archive_test_dependencies()
+        : cprov(vefs::test::only_mac_crypto_provider())
+        , testFile(vefs::llfio::mapped_temp_inode().value())
     {
-        vefs::crypto::crypto_provider *cprov;
-        std::unique_ptr<vefs::archive> testSubject;
-        vefs::llfio::mapped_file_handle testFile;
-
-        archive_test_dependencies()
-            : cprov(vefs::test::only_mac_crypto_provider())
-            , testFile(vefs::llfio::mapped_temp_inode().value())
-        {
-            testSubject =
-                std::move(vefs::archive::open(testFile.reopen(0).value(), cprov,
-                                              default_user_prk, true)
-                              .value());
-        }
-    };
+        testSubject
+                = std::move(vefs::archive::open(testFile.reopen(0).value(),
+                                                cprov, default_user_prk, true)
+                                    .value());
+    }
+};
 
 } // namespace
 
@@ -42,8 +42,8 @@ BOOST_AUTO_TEST_CASE(archive_create)
     using namespace vefs;
     testSubject.reset();
 
-    auto openrx =
-        archive::open(std::move(testFile), cprov, default_user_prk, true);
+    auto openrx
+            = archive::open(std::move(testFile), cprov, default_user_prk, true);
     TEST_RESULT_REQUIRE(openrx);
     TEST_RESULT(openrx.assume_value()->commit());
 }
@@ -54,8 +54,8 @@ BOOST_AUTO_TEST_CASE(reopen_archive_succeeds)
 
     testSubject.reset();
     auto cloned = testFile.reopen(0).value();
-    auto openrx =
-        archive::open(std::move(cloned), cprov, default_user_prk, false);
+    auto openrx
+            = archive::open(std::move(cloned), cprov, default_user_prk, false);
     TEST_RESULT(openrx);
 }
 
@@ -63,8 +63,8 @@ BOOST_AUTO_TEST_CASE(reopen_keeps_created_files)
 {
 
     TEST_RESULT_REQUIRE(testSubject->commit());
-    constexpr std::uint64_t pos =
-        detail::sector_device::sector_payload_size * 2 - 1;
+    constexpr std::uint64_t pos
+            = detail::sector_device::sector_payload_size * 2 - 1;
     using file_type = std::array<std::byte, (1 << 17) * 3 - 1>;
     auto bigFile = std::make_unique<file_type>();
     span writeContent{*bigFile};
@@ -72,8 +72,9 @@ BOOST_AUTO_TEST_CASE(reopen_keeps_created_files)
     utils::xoroshiro128plus dataGenerator{0xC0DE'DEAD'BEEF'3ABA};
     dataGenerator.fill(writeContent);
 
-    auto fileOpenRx = testSubject->open(
-        default_file_path, file_open_mode::readwrite | file_open_mode::create);
+    auto fileOpenRx = testSubject->open(default_file_path,
+                                        file_open_mode::readwrite
+                                                | file_open_mode::create);
     TEST_RESULT_REQUIRE(fileOpenRx);
     auto file = std::move(fileOpenRx).assume_value();
 
@@ -83,8 +84,8 @@ BOOST_AUTO_TEST_CASE(reopen_keeps_created_files)
 
     testSubject.reset();
     auto cloned = testFile.reopen(0).value();
-    auto openrx =
-        archive::open(std::move(cloned), cprov, default_user_prk, false);
+    auto openrx
+            = archive::open(std::move(cloned), cprov, default_user_prk, false);
     TEST_RESULT_REQUIRE(openrx);
 
     testSubject = std::move(openrx.assume_value());
@@ -108,8 +109,8 @@ BOOST_AUTO_TEST_CASE(archive_cannot_be_opened_parallel)
 
     vefs::llfio::log_level_guard guard(vefs::llfio::log_level::none);
     auto cloned = testFile.reopen(0).value();
-    auto reopenrx =
-        archive::open(std::move(cloned), cprov, default_user_prk, false);
+    auto reopenrx
+            = archive::open(std::move(cloned), cprov, default_user_prk, false);
 
     vefs::llfio::log_level_guard reset_guard(vefs::llfio::log_level::all);
 
@@ -118,21 +119,22 @@ BOOST_AUTO_TEST_CASE(archive_cannot_be_opened_parallel)
 
 BOOST_AUTO_TEST_CASE(create_a_new_file_succeeds)
 {
-    auto fileRx = testSubject->open(
-        default_file_path, file_open_mode::readwrite | file_open_mode::create);
+    auto fileRx = testSubject->open(default_file_path,
+                                    file_open_mode::readwrite
+                                            | file_open_mode::create);
     TEST_RESULT_REQUIRE(fileRx);
     TEST_RESULT_REQUIRE(testSubject->commit(fileRx.assume_value()));
     TEST_RESULT_REQUIRE(testSubject->commit());
 
-    auto reopenedFile =
-        testSubject->open(default_file_path, file_open_mode::read);
+    auto reopenedFile
+            = testSubject->open(default_file_path, file_open_mode::read);
     TEST_RESULT_REQUIRE(reopenedFile);
 }
 
 BOOST_AUTO_TEST_CASE(read_content_that_was_written)
 {
-    constexpr std::uint64_t pos =
-        detail::sector_device::sector_payload_size * 2 - 1;
+    constexpr std::uint64_t pos
+            = detail::sector_device::sector_payload_size * 2 - 1;
     using file_type = std::array<std::byte, (1 << 17) * 3 - 1>;
     auto bigFile = std::make_unique<file_type>();
     span writeContent{*bigFile};
@@ -140,8 +142,9 @@ BOOST_AUTO_TEST_CASE(read_content_that_was_written)
     utils::xoroshiro128plus dataGenerator{0xC0DE'DEAD'BEEF'3ABA};
     dataGenerator.fill(writeContent);
 
-    auto fileOpenRx = testSubject->open(
-        default_file_path, file_open_mode::readwrite | file_open_mode::create);
+    auto fileOpenRx = testSubject->open(default_file_path,
+                                        file_open_mode::readwrite
+                                                | file_open_mode::create);
     TEST_RESULT_REQUIRE(fileOpenRx);
     auto file = std::move(fileOpenRx).assume_value();
 
@@ -164,16 +167,17 @@ BOOST_AUTO_TEST_CASE(read_content_that_was_written)
 
 BOOST_AUTO_TEST_CASE(archive_file_shrink)
 {
-    constexpr std::uint64_t pos =
-        detail::sector_device::sector_payload_size * 2 - 1;
+    constexpr std::uint64_t pos
+            = detail::sector_device::sector_payload_size * 2 - 1;
     using file_type = std::array<std::byte, (1 << 17) * 3 - 1>;
     auto bigFile = std::make_unique<file_type>();
     span writeContent{*bigFile};
 
     utils::xoroshiro128plus dataGenerator{0};
     dataGenerator.fill(writeContent);
-    auto fileOpenRx = testSubject->open(
-        default_file_path, file_open_mode::readwrite | file_open_mode::create);
+    auto fileOpenRx = testSubject->open(default_file_path,
+                                        file_open_mode::readwrite
+                                                | file_open_mode::create);
     TEST_RESULT_REQUIRE(fileOpenRx);
     auto hFile = std::move(fileOpenRx).assume_value();
 
@@ -181,13 +185,13 @@ BOOST_AUTO_TEST_CASE(archive_file_shrink)
     TEST_RESULT_REQUIRE(testSubject->commit(hFile));
     TEST_RESULT_REQUIRE(testSubject->commit());
 
-    auto fopenrx =
-        testSubject->open(default_file_path, file_open_mode::readwrite);
+    auto fopenrx
+            = testSubject->open(default_file_path, file_open_mode::readwrite);
     TEST_RESULT_REQUIRE(fopenrx);
     hFile = std::move(fopenrx).assume_value();
 
     TEST_RESULT(testSubject->truncate(
-        hFile, 2 * detail::sector_device::sector_payload_size));
+            hFile, 2 * detail::sector_device::sector_payload_size));
 
     TEST_RESULT_REQUIRE(testSubject->commit(hFile));
     TEST_RESULT_REQUIRE(testSubject->commit());
@@ -204,14 +208,14 @@ BOOST_AUTO_TEST_CASE(archive_file_shrink)
     auto readBuffer = std::make_unique<file_type>();
     auto read_result = testSubject->read(hFile, span{*readBuffer}, pos);
     BOOST_TEST_REQUIRE(!testSubject->read(hFile, span{*readBuffer}, pos));
-    BOOST_TEST(read_result.assume_error() ==
-               archive_errc::sector_reference_out_of_range);
+    BOOST_TEST(read_result.assume_error()
+               == archive_errc::sector_reference_out_of_range);
 }
 
 BOOST_AUTO_TEST_CASE(erased_file_cannot_be_queried)
 {
-    constexpr std::uint64_t pos =
-        detail::sector_device::sector_payload_size * 2 - 1;
+    constexpr std::uint64_t pos
+            = detail::sector_device::sector_payload_size * 2 - 1;
     using file_type = std::array<std::byte, (1 << 17) * 3 - 1>;
     auto bigFile = std::make_unique<file_type>();
     span file{*bigFile};
@@ -219,8 +223,9 @@ BOOST_AUTO_TEST_CASE(erased_file_cannot_be_queried)
     utils::xoroshiro128plus dataGenerator{0};
     dataGenerator.fill(file);
 
-    auto fileOpenRx = testSubject->open(
-        default_file_path, file_open_mode::readwrite | file_open_mode::create);
+    auto fileOpenRx = testSubject->open(default_file_path,
+                                        file_open_mode::readwrite
+                                                | file_open_mode::create);
     TEST_RESULT_REQUIRE(fileOpenRx);
     auto hFile = std::move(fileOpenRx).assume_value();
 
@@ -235,22 +240,22 @@ BOOST_AUTO_TEST_CASE(erased_file_cannot_be_queried)
     TEST_RESULT_REQUIRE(testSubject->commit());
 
     auto queryRx = testSubject->query(default_file_path);
-    BOOST_REQUIRE(queryRx.has_error() &&
-                  queryRx.assume_error() == archive_errc::no_such_file);
+    BOOST_REQUIRE(queryRx.has_error()
+                  && queryRx.assume_error() == archive_errc::no_such_file);
 }
 
 BOOST_AUTO_TEST_CASE(query_cannot_find_non_existing_file)
 {
-    auto result =
-        testSubject->query("somerandomfilename/asdflsdfmasfw/sadfaöjksdfn");
+    auto result = testSubject->query(
+            "somerandomfilename/asdflsdfmasfw/sadfaöjksdfn");
     BOOST_REQUIRE(!result);
     BOOST_TEST(result.error() == archive_errc::no_such_file);
 }
 
 BOOST_AUTO_TEST_CASE(query_finds_existing_file)
 {
-    constexpr std::uint64_t pos =
-        detail::sector_device::sector_payload_size * 2 - 1;
+    constexpr std::uint64_t pos
+            = detail::sector_device::sector_payload_size * 2 - 1;
     using file_type = std::array<std::byte, (1 << 17) * 3 - 1>;
     auto bigFile = std::make_unique<file_type>();
     span file{*bigFile};
@@ -258,15 +263,16 @@ BOOST_AUTO_TEST_CASE(query_finds_existing_file)
     utils::xoroshiro128plus dataGenerator{0};
     dataGenerator.fill(file);
 
-    auto fileOpenRx = testSubject->open(
-        default_file_path, file_open_mode::readwrite | file_open_mode::create);
+    auto fileOpenRx = testSubject->open(default_file_path,
+                                        file_open_mode::readwrite
+                                                | file_open_mode::create);
     TEST_RESULT_REQUIRE(fileOpenRx);
     auto hFile = std::move(fileOpenRx).assume_value();
 
     TEST_RESULT(testSubject->write(hFile, file, pos));
 
-    BOOST_TEST_REQUIRE(testSubject->maximum_extent_of(hFile).value() ==
-                       file.size() + pos);
+    BOOST_TEST_REQUIRE(testSubject->maximum_extent_of(hFile).value()
+                       == file.size() + pos);
 
     TEST_RESULT_REQUIRE(testSubject->commit(hFile));
     TEST_RESULT_REQUIRE(testSubject->commit());
@@ -281,7 +287,7 @@ BOOST_AUTO_TEST_CASE(personalization_round_trips)
 {
     std::array<std::byte,
                vefs::detail::sector_device::personalization_area_size>
-        personalization;
+            personalization;
     for (std::size_t i = 0; i < personalization.size(); ++i)
     {
         personalization[i] = static_cast<std::byte>(i);
@@ -303,11 +309,11 @@ BOOST_AUTO_TEST_CASE(personalization_round_trips)
 
     std::array<std::byte,
                vefs::detail::sector_device::personalization_area_size>
-        readContent{};
+            readContent{};
     {
 
         auto readRx = vefs::detail::read_archive_personalization_area(
-            testFile, readContent);
+                testFile, readContent);
         TEST_RESULT_REQUIRE(readRx);
     }
 

@@ -11,9 +11,9 @@
 
 namespace dplx::dp
 {
-    template <std::size_t N, input_stream Stream>
-    class basic_decoder<vefs::utils::secure_byte_array<N>, Stream>
-        : public basic_decoder<std::span<std::byte>, Stream>
-    {
-    };
+template <std::size_t N, input_stream Stream>
+class basic_decoder<vefs::utils::secure_byte_array<N>, Stream>
+    : public basic_decoder<std::span<std::byte>, Stream>
+{
+};
 } // namespace dplx::dp

@@ -13,109 +13,108 @@ using namespace vefs::detail;
 
 namespace
 {
-    class mock_mutex
+class mock_mutex
+{
+public:
+    void lock()
     {
-    public:
-        void lock()
-        {
-            BOOST_TEST(mLockCounter == mUnlockCounter);
-            mLockCounter++;
-        }
+        BOOST_TEST(mLockCounter == mUnlockCounter);
+        mLockCounter++;
+    }
 
-        bool try_lock()
+    bool try_lock()
+    {
+        if (mLockCounter == mUnlockCounter)
         {
-            if (mLockCounter == mUnlockCounter)
-            {
-                mLockCounter += 1;
-                return true;
-            }
-            return false;
+            mLockCounter += 1;
+            return true;
         }
+        return false;
+    }
 
-        void unlock()
-        {
-            BOOST_TEST(mLockCounter - 1 == mUnlockCounter);
-            mUnlockCounter++;
-        }
+    void unlock()
+    {
+        BOOST_TEST(mLockCounter - 1 == mUnlockCounter);
+        mUnlockCounter++;
+    }
 
-        static int lock_counter()
-        {
-            return mLockCounter;
-        }
+    static int lock_counter()
+    {
+        return mLockCounter;
+    }
 
-        static int unlock_counter()
-        {
-            return mUnlockCounter;
-        }
+    static int unlock_counter()
+    {
+        return mUnlockCounter;
+    }
 
-        static void reset()
+    static void reset()
+    {
+        mLockCounter = 0;
+        mUnlockCounter = 0;
+    }
+
+private:
+    static int mLockCounter;
+    static int mUnlockCounter;
+};
+
+int mock_mutex::mLockCounter = 0;
+int mock_mutex::mUnlockCounter = 0;
+
+class allocator_stub
+{
+public:
+    struct sector_allocator
+    {
+        friend class allocator_stub;
+
+        explicit sector_allocator(allocator_stub &owner, sector_id current)
+            : mCurrent(current)
         {
-            mLockCounter = 0;
-            mUnlockCounter = 0;
         }
 
     private:
-        static int mLockCounter;
-        static int mUnlockCounter;
+        sector_id mCurrent;
     };
 
-    int mock_mutex::mLockCounter = 0;
-    int mock_mutex::mUnlockCounter = 0;
-
-    class allocator_stub
+    allocator_stub(sector_device &device)
+        : alloc_sync()
+        , alloc_counter(1)
+        , device(device)
     {
-    public:
-        struct sector_allocator
+    }
+
+    auto reallocate(sector_allocator &forWhich) noexcept -> result<sector_id>
+    {
+        if (forWhich.mCurrent != sector_id{})
         {
-            friend class allocator_stub;
-
-            explicit sector_allocator(allocator_stub &owner, sector_id current)
-                : mCurrent(current)
-            {
-            }
-
-        private:
-            sector_id mCurrent;
-        };
-
-        allocator_stub(sector_device &device)
-            : alloc_sync()
-            , alloc_counter(1)
-            , device(device)
-        {
+            return forWhich.mCurrent;
         }
+        std::lock_guard allocGuard{alloc_sync};
+        sector_id allocated{alloc_counter++};
+        VEFS_TRY(device.resize(alloc_counter));
+        return allocated;
+    }
 
-        auto reallocate(sector_allocator &forWhich) noexcept
-            -> result<sector_id>
-        {
-            if (forWhich.mCurrent != sector_id{})
-            {
-                return forWhich.mCurrent;
-            }
-            std::lock_guard allocGuard{alloc_sync};
-            sector_id allocated{alloc_counter++};
-            VEFS_TRY(device.resize(alloc_counter));
-            return allocated;
-        }
+    auto dealloc_one(sector_id const) noexcept -> result<void>
+    {
+        return success();
+    }
 
-        auto dealloc_one(sector_id const) noexcept -> result<void>
-        {
-            return success();
-        }
+    auto on_commit() noexcept -> result<void>
+    {
+        return success();
+    }
 
-        auto on_commit() noexcept -> result<void>
-        {
-            return success();
-        }
+    void on_leak_detected() noexcept
+    {
+    }
 
-        void on_leak_detected() noexcept
-        {
-        }
-
-        std::mutex alloc_sync;
-        uint64_t alloc_counter;
-        sector_device &device;
-    };
+    std::mutex alloc_sync;
+    uint64_t alloc_counter;
+    sector_device &device;
+};
 } // namespace
 
 template class vefs::detail::sector_tree_mt<allocator_stub, thread_pool>;
@@ -139,9 +138,10 @@ struct sector_tree_mt_dependencies
         : testFile(vefs::llfio::mapped_temp_inode().value())
         , device(sector_device::open(testFile.reopen(0).value(),
                                      vefs::test::only_mac_crypto_provider(),
-                                     default_user_prk, true)
-                     .value()
-                     .device)
+                                     default_user_prk,
+                                     true)
+                         .value()
+                         .device)
         , workExecutor(&thread_pool::shared()) // #TODO create test thread pool
         , fileCryptoContext(file_crypto_ctx::zero_init)
         , rootSectorInfo()
@@ -160,11 +160,11 @@ struct sector_tree_mt_fixture : sector_tree_mt_dependencies
     {
         existingTree = tree_type::create_new(*device, fileCryptoContext,
                                              workExecutor, *device)
-                           .value();
+                               .value();
 
         existingTree
-            ->commit([this](root_sector_info ri) { rootSectorInfo = ri; })
-            .value();
+                ->commit([this](root_sector_info ri) { rootSectorInfo = ri; })
+                .value();
     }
 };
 
@@ -178,7 +178,7 @@ BOOST_FIXTURE_TEST_CASE(new_sector_tree_has_id_one, sector_tree_mt_dependencies)
     auto newTree = std::move(createrx).assume_value();
     root_sector_info newRootInfo;
     TEST_RESULT_REQUIRE(newTree->commit(
-        [&newRootInfo](root_sector_info rsi) { newRootInfo = rsi; }));
+            [&newRootInfo](root_sector_info rsi) { newRootInfo = rsi; }));
 
     BOOST_TEST(newRootInfo.root.sector == sector_id{1});
     BOOST_TEST(newRootInfo.tree_depth == 0);
@@ -193,11 +193,11 @@ BOOST_FIXTURE_TEST_CASE(check_initial_sector_tree_mac,
     auto newTree = std::move(createrx).assume_value();
     root_sector_info newRootInfo;
     TEST_RESULT_REQUIRE(newTree->commit(
-        [&newRootInfo](root_sector_info rsi) { newRootInfo = rsi; }));
+            [&newRootInfo](root_sector_info rsi) { newRootInfo = rsi; }));
 
     auto expectedRootMac = vefs::utils::make_byte_array(
-        0xe2, 0x1b, 0x52, 0x74, 0xe1, 0xd5, 0x8b, 0x69, 0x87, 0x36, 0x88, 0x3f,
-        0x34, 0x4e, 0x5e, 0x2b);
+            0xe2, 0x1b, 0x52, 0x74, 0xe1, 0xd5, 0x8b, 0x69, 0x87, 0x36, 0x88,
+            0x3f, 0x34, 0x4e, 0x5e, 0x2b);
     BOOST_TEST(newRootInfo.root.mac == expectedRootMac);
 }
 
@@ -222,15 +222,15 @@ BOOST_FIXTURE_TEST_CASE(new_sector_tree_has_node_with_zero_bytes,
 }
 
 BOOST_AUTO_TEST_CASE(
-    access_non_existing_node_returns_sector_reference_out_of_range)
+        access_non_existing_node_returns_sector_reference_out_of_range)
 {
     // when
     auto rootAccessRx = existingTree->access(tree_position(2));
 
     // then
     BOOST_TEST(rootAccessRx.has_error());
-    BOOST_TEST(rootAccessRx.assume_error() ==
-               archive_errc::sector_reference_out_of_range);
+    BOOST_TEST(rootAccessRx.assume_error()
+               == archive_errc::sector_reference_out_of_range);
 }
 
 BOOST_AUTO_TEST_CASE(open_existing_tree_creates_existing_tree)
@@ -240,7 +240,7 @@ BOOST_AUTO_TEST_CASE(open_existing_tree_creates_existing_tree)
 
     // when
     auto openrx = tree_type::open_existing(
-        *device, fileCryptoContext, workExecutor, rootSectorInfo, *device);
+            *device, fileCryptoContext, workExecutor, rootSectorInfo, *device);
     TEST_RESULT_REQUIRE(openrx);
     auto createdTree = std::move(openrx).assume_value();
 
@@ -263,12 +263,12 @@ BOOST_AUTO_TEST_CASE(creation_of_a_new_node_changes_mac)
 
     root_sector_info newRootInfo;
     TEST_RESULT_REQUIRE(existingTree->commit(
-        [&newRootInfo](root_sector_info cri) { newRootInfo = cri; }));
+            [&newRootInfo](root_sector_info cri) { newRootInfo = cri; }));
 
     // then
     auto expectedRootMac = vefs::utils::make_byte_array(
-        0xc2, 0xaa, 0x29, 0x03, 0x00, 0x60, 0xb8, 0x4e, 0x3f, 0xc3, 0x57, 0x2e,
-        0xed, 0x2d, 0x0d, 0xb5);
+            0xc2, 0xaa, 0x29, 0x03, 0x00, 0x60, 0xb8, 0x4e, 0x3f, 0xc3, 0x57,
+            0x2e, 0xed, 0x2d, 0x0d, 0xb5);
     BOOST_TEST(newRootInfo.root.mac == expectedRootMac);
 }
 
@@ -276,10 +276,11 @@ BOOST_FIXTURE_TEST_CASE(creation_of_a_new_node_locks,
                         sector_tree_mt_dependencies)
 {
     // given
-    auto testSubject =
-        sector_tree_mt<allocator_stub, thread_pool, mock_mutex>::create_new(
-            *device, fileCryptoContext, workExecutor, *device)
-            .value();
+    auto testSubject
+            = sector_tree_mt<allocator_stub, thread_pool,
+                             mock_mutex>::create_new(*device, fileCryptoContext,
+                                                     workExecutor, *device)
+                      .value();
     // when
     TEST_RESULT_REQUIRE(testSubject->access_or_create(tree_position(1)));
     TEST_RESULT_REQUIRE(testSubject->commit([](root_sector_info) {}));
@@ -294,10 +295,11 @@ BOOST_FIXTURE_TEST_CASE(creation_of_a_new_node_locks,
 BOOST_FIXTURE_TEST_CASE(commit_locks, sector_tree_mt_dependencies)
 {
     // given
-    auto testSubject =
-        sector_tree_mt<allocator_stub, thread_pool, mock_mutex>::create_new(
-            *device, fileCryptoContext, workExecutor, *device)
-            .value();
+    auto testSubject
+            = sector_tree_mt<allocator_stub, thread_pool,
+                             mock_mutex>::create_new(*device, fileCryptoContext,
+                                                     workExecutor, *device)
+                      .value();
     // when
     TEST_RESULT_REQUIRE(testSubject->commit([](root_sector_info) {}));
 
@@ -337,7 +339,7 @@ BOOST_AUTO_TEST_CASE(creation_of_a_new_node_expands_to_two_sectors)
     // when
     root_sector_info newRootInfo;
     TEST_RESULT_REQUIRE(existingTree->commit(
-        [&newRootInfo](root_sector_info rsi) { newRootInfo = rsi; }));
+            [&newRootInfo](root_sector_info rsi) { newRootInfo = rsi; }));
 
     // then
     BOOST_TEST(newRootInfo.root.sector == sector_id{3});
@@ -354,7 +356,7 @@ BOOST_AUTO_TEST_CASE(erase_leaf_lets_tree_shrink)
     TEST_RESULT_REQUIRE(existingTree->erase_leaf(1));
     root_sector_info newRootInfo;
     TEST_RESULT_REQUIRE(existingTree->commit(
-        [&newRootInfo](root_sector_info rsi) { newRootInfo = rsi; }));
+            [&newRootInfo](root_sector_info rsi) { newRootInfo = rsi; }));
 
     // then
     BOOST_TEST(newRootInfo.root.sector == sector_id{1});
@@ -371,7 +373,7 @@ BOOST_AUTO_TEST_CASE(erase_leaf_does_not_let_tree_shrink_if_not_possible)
     TEST_RESULT_REQUIRE(existingTree->erase_leaf(1));
     root_sector_info newRootInfo;
     TEST_RESULT_REQUIRE(existingTree->commit(
-        [&newRootInfo](root_sector_info rsi) { newRootInfo = rsi; }));
+            [&newRootInfo](root_sector_info rsi) { newRootInfo = rsi; }));
 
     // then
     BOOST_TEST(newRootInfo.root.sector == sector_id{3});
@@ -396,10 +398,10 @@ BOOST_AUTO_TEST_CASE(erase_leaf_for_not_existing_leaf_does_not_do_anything)
     // then
     root_sector_info newRootInfo;
     TEST_RESULT_REQUIRE(existingTree->commit(
-        [&newRootInfo](root_sector_info cri) { newRootInfo = cri; }));
+            [&newRootInfo](root_sector_info cri) { newRootInfo = cri; }));
     auto expectedRootMac = vefs::utils::make_byte_array(
-        0xe2, 0x1b, 0x52, 0x74, 0xe1, 0xd5, 0x8b, 0x69, 0x87, 0x36, 0x88, 0x3f,
-        0x34, 0x4e, 0x5e, 0x2b);
+            0xe2, 0x1b, 0x52, 0x74, 0xe1, 0xd5, 0x8b, 0x69, 0x87, 0x36, 0x88,
+            0x3f, 0x34, 0x4e, 0x5e, 0x2b);
 
     BOOST_TEST(newRootInfo.root.mac == expectedRootMac);
     BOOST_TEST(newRootInfo.tree_depth == 0);
@@ -415,12 +417,12 @@ BOOST_AUTO_TEST_CASE(erase_leaf_changes_mac)
     TEST_RESULT_REQUIRE(existingTree->erase_leaf(1));
     root_sector_info newRootInfo;
     TEST_RESULT_REQUIRE(existingTree->commit(
-        [&newRootInfo](root_sector_info cri) { newRootInfo = cri; }));
+            [&newRootInfo](root_sector_info cri) { newRootInfo = cri; }));
 
     // then
     auto expectedRootMac = vefs::utils::make_byte_array(
-        0xe2, 0x1b, 0x52, 0x74, 0xe1, 0xd5, 0x8b, 0x69, 0x87, 0x36, 0x88, 0x3f,
-        0x34, 0x4e, 0x5e, 0x2b);
+            0xe2, 0x1b, 0x52, 0x74, 0xe1, 0xd5, 0x8b, 0x69, 0x87, 0x36, 0x88,
+            0x3f, 0x34, 0x4e, 0x5e, 0x2b);
     BOOST_TEST(newRootInfo.root.mac == expectedRootMac);
 }
 

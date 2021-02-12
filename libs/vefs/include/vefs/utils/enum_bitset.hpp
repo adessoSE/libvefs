@@ -20,8 +20,8 @@ template <typename E>
 std::false_type allow_enum_bitset(E &&);
 
 template <typename E>
-constexpr bool enum_bitsets_allowed
-    = std::is_enum_v<E> && decltype(allow_enum_bitset(std::declval<E>()))::value;
+constexpr bool enum_bitsets_allowed = std::is_enum_v<E> &&decltype(
+        allow_enum_bitset(std::declval<E>()))::value;
 
 /**
  * Wrapper for enums to enable bitoperations
@@ -71,9 +71,9 @@ public:
 
     constexpr enum_bitset operator&(enum_bitset rhs) const
     {
-        return enum_bitset{ mValue & rhs.mValue };
+        return enum_bitset{mValue & rhs.mValue};
     }
-    constexpr enum_bitset & operator&=(enum_bitset rhs)
+    constexpr enum_bitset &operator&=(enum_bitset rhs)
     {
         mValue &= rhs.mValue;
         return *this;
@@ -81,9 +81,9 @@ public:
 
     constexpr enum_bitset operator|(enum_bitset rhs) const
     {
-        return enum_bitset{ mValue | rhs.mValue };
+        return enum_bitset{mValue | rhs.mValue};
     }
-    constexpr enum_bitset & operator|=(enum_bitset rhs)
+    constexpr enum_bitset &operator|=(enum_bitset rhs)
     {
         mValue |= rhs.mValue;
         return *this;
@@ -91,9 +91,9 @@ public:
 
     constexpr enum_bitset operator^(enum_bitset rhs) const
     {
-        return enum_bitset{ mValue ^ rhs.mValue };
+        return enum_bitset{mValue ^ rhs.mValue};
     }
-    constexpr enum_bitset & operator^=(enum_bitset rhs)
+    constexpr enum_bitset &operator^=(enum_bitset rhs)
     {
         mValue ^= rhs.mValue;
         return *this;
@@ -101,7 +101,7 @@ public:
 
     constexpr enum_bitset operator~() const
     {
-        return enum_bitset{ ~mValue };
+        return enum_bitset{~mValue};
     }
 
 private:
@@ -113,7 +113,8 @@ constexpr enum_bitset<E> operator|(E lhs, E rhs)
 {
     using bitset_type = ::enum_bitset<E>;
     using value_type = typename bitset_type::underlying_type;
-    return bitset_type{ static_cast<value_type>(lhs) | static_cast<value_type>(rhs) };
+    return bitset_type{static_cast<value_type>(lhs)
+                       | static_cast<value_type>(rhs)};
 }
 template <class E, std::enable_if_t<enum_bitsets_allowed<E>, int> = 0>
 constexpr enum_bitset<E> operator|(E lhs, enum_bitset<E> rhs)
@@ -126,7 +127,8 @@ constexpr enum_bitset<E> operator&(E lhs, E rhs)
 {
     using bitset_type = ::enum_bitset<E>;
     using value_type = typename bitset_type::underlying_type;
-    return bitset_type{ static_cast<value_type>(lhs) & static_cast<value_type>(rhs) };
+    return bitset_type{static_cast<value_type>(lhs)
+                       & static_cast<value_type>(rhs)};
 }
 template <class E, std::enable_if_t<enum_bitsets_allowed<E>, int> = 0>
 constexpr enum_bitset<E> operator&(E lhs, enum_bitset<E> rhs)
@@ -139,7 +141,8 @@ constexpr enum_bitset<E> operator^(E lhs, E rhs)
 {
     using bitset_type = ::enum_bitset<E>;
     using value_type = typename bitset_type::underlying_type;
-    return bitset_type{ static_cast<value_type>(lhs) ^ static_cast<value_type>(rhs) };
+    return bitset_type{static_cast<value_type>(lhs)
+                       ^ static_cast<value_type>(rhs)};
 }
 template <class E, std::enable_if_t<enum_bitsets_allowed<E>, int> = 0>
 constexpr enum_bitset<E> operator^(E lhs, enum_bitset<E> rhs)
