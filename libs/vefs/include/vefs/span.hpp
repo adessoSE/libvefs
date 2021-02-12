@@ -656,6 +656,16 @@ namespace vefs
             std::memset(target.data(), std::to_integer<int>(value), target.size());
         }
     }
+    template <std::size_t Extent>
+    inline void fill_blob(std::span<std::byte, Extent> target, std::byte value = std::byte{})
+    {
+        // calling memset with a nullptr is UB
+        if (target.size() > 0)
+        {
+            std::memset(target.data(), std::to_integer<int>(value),
+                        target.size());
+        }
+    }
 
     template <typename T>
     inline auto rw_blob_cast(T &obj) -> rw_blob<sizeof(obj)>

@@ -69,7 +69,8 @@ namespace vefs::detail
         static constexpr size_t sector_payload_size =
             sector_size - (1 << 5); // 2^15-2^5
 
-        static constexpr std::size_t static_header_size = 1 << 13;
+        static constexpr std::size_t static_header_size = 1 << 12;
+        static constexpr std::size_t personalization_area_size = 1 << 12;
         static constexpr std::size_t pheader_size = (1 << 13) + (1 << 12);
 
         static constexpr auto to_offset(sector_id id) -> std::uint64_t;
@@ -91,6 +92,10 @@ namespace vefs::detail
                           ro_blob<sector_payload_size> data) noexcept
             -> result<void>;
         auto erase_sector(sector_id sectorIdx) noexcept -> result<void>;
+
+        auto personalization_area() noexcept
+            -> std::span<std::byte, personalization_area_size>;
+        auto sync_personalization_area() noexcept -> result<void>;
 
         auto update_header(file_crypto_ctx const &filesystemIndexCtx,
                            root_sector_info filesystemIndexRoot,
@@ -156,6 +161,11 @@ namespace vefs::detail
     static_assert(!std::is_move_constructible_v<sector_device>);
     static_assert(!std::is_move_assignable_v<sector_device>);
 
+    auto read_archive_personalization_area(
+        llfio::file_handle &file,
+                                 std::span<std::byte, 1 << 12> out) noexcept
+        -> result<void>;
+
     constexpr std::uint64_t sector_device::to_offset(sector_id id)
     {
         return static_cast<std::uint64_t>(id) * sector_size;
@@ -209,13 +219,20 @@ namespace vefs::detail
     constexpr auto sector_device::header_offset(header_id which) const noexcept
         -> std::size_t
     {
-        return static_header_size +
+        return static_header_size + personalization_area_size +
                ((-static_cast<std::size_t>(which)) & pheader_size);
     }
     inline void sector_device::switch_header() noexcept
     {
         mHeaderSelector = header_id{
             !static_cast<std::underlying_type_t<header_id>>(mHeaderSelector)};
+    }
+
+    inline auto sector_device::personalization_area() noexcept
+        -> std::span<std::byte, personalization_area_size>
+    {
+        return mMasterSector.as_span()
+            .subspan<static_header_size, personalization_area_size>();
     }
 
 #if defined BOOST_COMP_MSVC_AVAILABLE
