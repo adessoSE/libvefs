@@ -11,7 +11,7 @@
 #
 ########################################################################
 cmake_minimum_required(VERSION 3.15)
-project(vefs VERSION 0.3.1 LANGUAGES CXX)
+project(vefs VERSION 0.3.2 LANGUAGES CXX)
 
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
     message(FATAL_ERROR "in-source builds are not supported!")
