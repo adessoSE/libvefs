@@ -277,4 +277,43 @@ BOOST_AUTO_TEST_CASE(query_finds_existing_file)
     BOOST_TEST(result.assume_value().size == file.size() + pos);
 }
 
+BOOST_AUTO_TEST_CASE(personalization_round_trips)
+{
+    std::array<std::byte,
+               vefs::detail::sector_device::personalization_area_size>
+        personalization;
+    for (std::size_t i = 0; i < personalization.size(); ++i)
+    {
+        personalization[i] = static_cast<std::byte>(i);
+    }
+
+    {
+        vefs::copy(std::span(personalization),
+                   testSubject->personalization_area());
+        auto syncRx = testSubject->sync_personalization_area();
+        TEST_RESULT_REQUIRE(syncRx);
+
+        TEST_RESULT_REQUIRE(testSubject->commit());
+    }
+
+    testSubject.reset();
+    // this is the easiest way to set the mapped reservation to the underlying
+    // maximum extent
+    testFile = testFile.reopen(0).value();
+
+    std::array<std::byte,
+               vefs::detail::sector_device::personalization_area_size>
+        readContent{};
+    {
+
+        auto readRx = vefs::detail::read_archive_personalization_area(
+            testFile, readContent);
+        TEST_RESULT_REQUIRE(readRx);
+    }
+
+    BOOST_CHECK_EQUAL_COLLECTIONS(personalization.cbegin(),
+                                  personalization.cend(), readContent.cbegin(),
+                                  readContent.cend());
+}
+
 BOOST_AUTO_TEST_SUITE_END()

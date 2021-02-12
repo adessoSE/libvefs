@@ -3,6 +3,7 @@
 #include <atomic>
 #include <memory>
 #include <optional>
+#include <span>
 #include <string_view>
 
 #include <vefs/archive_fwd.hpp>
@@ -67,6 +68,9 @@ namespace vefs
             -> result<std::uint64_t>;
         auto commit(const vfile_handle &handle) -> result<void>;
 
+        auto personalization_area() noexcept -> std::span<std::byte, 1 << 12>;
+        auto sync_personalization_area() noexcept -> result<void>;
+
     private:
         archive(std::unique_ptr<detail::sector_device> primitives);
         detail::thread_pool &ops_pool();
@@ -77,6 +81,10 @@ namespace vefs
 
         detail::pooled_work_tracker mWorkTracker;
     };
+
+    auto read_archive_personalization_area(
+        llfio::path_handle const &base, llfio::path_view where,
+        std::span<std::byte, 1 << 12> out) noexcept -> result<void>;
 
     inline detail::thread_pool &vefs::archive::ops_pool()
     {
