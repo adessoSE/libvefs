@@ -7,8 +7,12 @@
 #include <string>
 #include <type_traits>
 
+#include <boost/predef/compiler.h>
+#include <boost/predef/other/workaround.h>
+
 namespace vefs::detail
 {
+
 class thread_pool
 {
 public:
@@ -82,8 +86,11 @@ private:
     virtual void execute(std::unique_ptr<task_t> task) override;
 
     thread_pool *const mPool;
+    std::atomic_int mWorkCtr;
+#if __cpp_lib_atomic_wait < 201907L // TODO: remove after gcc11 release
     std::mutex mSync;
-    std::atomic<int> mWorkCtr;
     std::condition_variable mOnDecr;
+#endif
 };
+
 } // namespace vefs::detail
