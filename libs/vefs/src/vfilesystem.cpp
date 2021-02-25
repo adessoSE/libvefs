@@ -1042,8 +1042,9 @@ auto vfilesystem::validate() -> result<void>
 
     auto lockedIndex = mFiles.lock_table();
 
-    for (auto &[id, e] : lockedIndex)
+    for (auto &fileInfo : lockedIndex)
     {
+        auto &[id, e] = fileInfo;
         std::unique_ptr<inspection_tree> tree;
 
         if (auto openrx = inspection_tree::open_existing(
@@ -1061,7 +1062,8 @@ auto vfilesystem::validate() -> result<void>
                                   detail::sector_device::sector_payload_size);
         for (std::uint64_t i = 1; i < numSectors; ++i)
         {
-            VEFS_TRY_INJECT(tree->move_forward(), ed::archive_file_id{id});
+            VEFS_TRY_INJECT(tree->move_forward(),
+                            ed::archive_file_id{fileInfo.first});
         }
     }
 

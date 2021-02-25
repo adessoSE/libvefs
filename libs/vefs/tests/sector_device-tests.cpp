@@ -29,9 +29,9 @@ struct sector_device_test_fixture
                     box_seal(testing::_, testing::_, testing::_, testing::_))
                 .WillRepeatedly(testing::Return(vefs::outcome::success()));
 
-        testSubject = vefs::detail::sector_device::open(
+        testSubject = vefs::detail::sector_device::create_new(
                               testFile.reopen(0).value(), &cryptoProviderMock,
-                              default_user_prk, true)
+                              default_user_prk)
                               .value()
                               .device;
     }
@@ -48,9 +48,8 @@ BOOST_AUTO_TEST_CASE(
 BOOST_AUTO_TEST_CASE(open_existing_sector_device_throws_error_for_empty_file)
 {
     auto emptyFile = vefs::llfio::mapped_temp_inode().value();
-    auto deviceRx = vefs::detail::sector_device::open(
-            emptyFile.reopen(0).value(), &cryptoProviderMock, default_user_prk,
-            false);
+    auto deviceRx = vefs::detail::sector_device::open_existing(
+            emptyFile.reopen(0).value(), &cryptoProviderMock, default_user_prk);
 
     BOOST_TEST(deviceRx.has_error());
     BOOST_TEST(deviceRx.assume_error()
@@ -69,9 +68,9 @@ BOOST_AUTO_TEST_CASE(write_sector_seals_sector)
     vefs::fill_blob(vefs::rw_blob<32736>(ro_data), std::byte(0x1a));
     auto mac = vefs::rw_blob<16>(mac_data);
     auto dataBlob = vefs::ro_blob<32736>(ro_data);
-    auto testSubject = vefs::detail::sector_device::open(
+    auto testSubject = vefs::detail::sector_device::create_new(
                                testFile.reopen(0).value(), &cryptoProviderMock,
-                               default_user_prk, true)
+                               default_user_prk)
                                .value()
                                .device;
 

@@ -22,11 +22,11 @@ using unordered_map_mt
 template <typename T,
           typename Allocator = std::allocator<std::pair<const std::string, T>>,
           std::size_t SLOT_PER_BUCKET = LIBCUCKOO_DEFAULT_SLOT_PER_BUCKET>
-using unordered_string_map_mt = cuckoohash_map<
-        std::string,
-        T,
-        utils::hash::default_weak_std<std::string_view>,
-        std::equal_to<>,
-        Allocator,
-        SLOT_PER_BUCKET>;
+using unordered_string_map_mt
+        = cuckoohash_map<std::string,
+                         T,
+                         utils::hash::default_weak_std<std::string_view>,
+                         std::equal_to<>,
+                         Allocator,
+                         SLOT_PER_BUCKET>;
 } // namespace vefs::utils

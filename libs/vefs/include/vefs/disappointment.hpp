@@ -1,6 +1,5 @@
 #pragma once
 
-#include "llfio.hpp"
 #include <string_view>
 #include <system_error>
 #include <variant>
@@ -28,6 +27,7 @@
 #include <vefs/disappointment/error_exception.hpp>
 #include <vefs/disappointment/fwd.hpp>
 #include <vefs/disappointment/std_adapter.hpp>
+#include <vefs/llfio.hpp>
 
 namespace vefs::ed
 {
@@ -165,12 +165,36 @@ using op_outcome = oc::basic_outcome<R,
                                      std::exception_ptr,
                                      detail::outcome_no_value_policy>;
 
+template <typename T, typename... Args>
+requires(!std::is_array_v<T>) auto make_unique_nothrow(Args &&...args) noexcept(
+        std::is_nothrow_constructible_v<T, decltype(args)...>)
+        -> std::unique_ptr<T>
+{
+    return std::unique_ptr<T>(new (std::nothrow)
+                                      T(static_cast<Args &&>(args)...));
+}
+
+template <typename T, typename... Args>
+requires(!std::is_array_v<T>) auto make_unique_rx(Args &&...args) noexcept(
+        std::is_nothrow_constructible_v<T, decltype(args)...>)
+        -> result<std::unique_ptr<T>>
+{
+    if (auto ptr = new (std::nothrow) T(static_cast<Args &&>(args)...))
+    {
+        return std::unique_ptr<T>(ptr);
+    }
+    else
+    {
+        return errc::not_enough_memory;
+    }
+}
+
 template <typename T, typename InjectFn>
 auto inject(result<T> rx, InjectFn &&injectFn) -> result<T>
 {
     if (rx.has_error())
     {
-        injectFn(rx.assume_error());
+        std::forward<InjectFn>(injectFn)(rx.assume_error());
     }
     return std::move(rx);
 }
@@ -181,7 +205,7 @@ auto inject(llfio::io_handle::io_result<T> rx, InjectFn &&injectFn)
 {
     if (rx.has_error())
     {
-        injectFn(rx.assume_error());
+        std::forward<InjectFn>(injectFn)(rx.assume_error());
     }
     return std::move(rx);
 }
@@ -392,4 +416,4 @@ auto collect_system_error() -> std::error_code;
 #define VEFS_TRY(...) OUTCOME_TRY(__VA_ARGS__)
 
 #define VEFS_TRY_INJECT(stmt, injected)                                        \
-    VEFS_TRY(vefs::inject((stmt), [&](auto &e) { e << injected; }))
+    VEFS_TRY(vefs::inject((stmt), [&](auto &e) mutable { e << injected; }))

@@ -1,10 +1,13 @@
 #include "test-utils.hpp"
-namespace adesso::vefs
+
+#include <filesystem>
+
+namespace vefs_tests
 {
-std::ostream &operator<<(std::ostream &os,
-                         const adesso::vefs::FileDescriptor &ref)
-{
-    os << "Forward declared ref: \n";
-    return os;
+
+vefs::llfio::path_handle const current_path = [] {
+    auto currentPath = std::filesystem::current_path();
+    return vefs::llfio::path(currentPath).value();
+}();
+
 }
-} // namespace adesso::vefs

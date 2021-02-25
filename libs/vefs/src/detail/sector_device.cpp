@@ -202,19 +202,21 @@ sector_device::sector_device(llfio::mapped_file_handle mfh,
 {
 }
 
-auto sector_device::open(llfio::mapped_file_handle mfh,
-                         crypto::crypto_provider *cryptoProvider,
-                         ro_blob<32> userPRK,
-                         bool createNew) -> result<open_info>
+auto sector_device::open_existing(llfio::mapped_file_handle fileHandle,
+                                  crypto::crypto_provider *cryptoProvider,
+                                  ro_blob<32> userPRK) noexcept
+        -> result<open_info>
 {
+    VEFS_TRY(auto &&max_extent, fileHandle.maximum_extent());
+    size_t const numSectors = max_extent / sector_size;
 
-    VEFS_TRY(auto &&max_extent, mfh.maximum_extent());
-    const size_t numSectors = max_extent / sector_size;
-
-    open_info self{};
+    if (numSectors < 1)
+    {
+        return archive_errc::no_archive_header;
+    }
 
     std::unique_ptr<sector_device> archive{new (std::nothrow) sector_device(
-            std::move(mfh), cryptoProvider, numSectors)};
+            std::move(fileHandle), cryptoProvider, numSectors)};
 
     if (!archive)
     {
@@ -225,78 +227,86 @@ auto sector_device::open(llfio::mapped_file_handle mfh,
         return errc::still_in_use;
     }
 
-    VEFS_TRY(archive->mArchiveFile.update_map());
-
     VEFS_TRY(archive->mMasterSector.resize(sector_size));
+    auto buffer = archive->mMasterSector.as_span();
+    llfio::io_handle::buffer_type masterSectorBuffer[]
+            = {{buffer.data(), sector_size}};
 
-    if (createNew)
+    VEFS_TRY(auto &&readBuffers,
+             archive->mArchiveFile.read({masterSectorBuffer, 0}));
+    if (readBuffers.size() != 1 || readBuffers[0].size() < sector_size)
     {
-        VEFS_TRY(archive->resize(1));
-
-        VEFS_TRY(cryptoProvider->random_bytes(
-                as_span(archive->mStaticHeader.master_secret)));
-
-        crypto::counter::state counterState;
-        VEFS_TRY(cryptoProvider->random_bytes(
-                as_writable_bytes(as_span(counterState))));
-        archive->mStaticHeader.master_counter.store(
-                crypto::counter(counterState));
-
-        std::memset(archive->mMasterSector.as_span().data(), 0, sector_size);
-
-        VEFS_TRY(archive->write_static_archive_header(userPRK));
-
-        OUTCOME_TRY(self.filesystem_index.crypto_state,
-                    archive->create_file_secrets2());
-
-        OUTCOME_TRY(self.free_sector_index.crypto_state,
-                    archive->create_file_secrets2());
-    }
-    else if (archive->size() < 1)
-    {
-        // at least the master sector is required
         return archive_errc::no_archive_header;
+    }
+    if (readBuffers[0].data() != buffer.data())
+    {
+        std::memcpy(buffer.data(), readBuffers[0].data(), sector_size);
+    }
+
+    VEFS_TRY_INJECT(archive->parse_static_archive_header(userPRK),
+                    ed::archive_file{"[archive-static-header]"}
+                            << ed::sector_idx{sector_id::master});
+
+    if (auto headerRx = archive->parse_archive_header(); headerRx.has_value())
+    {
+        auto &&header = std::move(headerRx).assume_value();
+        archive->mArchiveSecretCounter.store(
+                crypto::counter(span(header.archive_secret_counter)));
+        archive->mJournalCounter.store(
+                crypto::counter(span(header.journal_counter)));
+
+        return open_info{std::move(archive),
+                         master_file_info(header.filesystem_index),
+                         master_file_info(header.free_sector_index)};
     }
     else
     {
-        auto buffer = archive->mMasterSector.as_span();
-        llfio::io_handle::buffer_type masterSectorBuffer[]
-                = {{buffer.data(), sector_size}};
-
-        VEFS_TRY(auto &&readBuffers,
-                 archive->mArchiveFile.read({masterSectorBuffer, 0}));
-        if (readBuffers.size() != 1 || readBuffers[0].size() < sector_size)
-        {
-            return archive_errc::no_archive_header;
-        }
-        if (readBuffers[0].data() != buffer.data())
-        {
-            std::memcpy(buffer.data(), readBuffers[0].data(), sector_size);
-        }
-
-        VEFS_TRY_INJECT(archive->parse_static_archive_header(userPRK),
-                        ed::archive_file{"[archive-static-header]"}
-                                << ed::sector_idx{sector_id::master});
-
-        if (auto headerRx = archive->parse_archive_header();
-            headerRx.has_value())
-        {
-            auto &&header = headerRx.assume_value();
-            self.filesystem_index = master_file_info(header.filesystem_index);
-            self.free_sector_index = master_file_info(header.free_sector_index);
-            archive->mArchiveSecretCounter.store(
-                    crypto::counter(span(header.archive_secret_counter)));
-            archive->mJournalCounter.store(
-                    crypto::counter(span(header.journal_counter)));
-        }
-        else
-        {
-            return std::move(headerRx).assume_error()
-                << ed::archive_file{"[archive-header]"}
-                << ed::sector_idx{sector_id::master};
-        }
+        return std::move(headerRx).assume_error()
+            << ed::archive_file{"[archive-header]"}
+            << ed::sector_idx{sector_id::master};
     }
-    self.device = std::move(archive);
+}
+
+auto sector_device::create_new(llfio::mapped_file_handle fileHandle,
+                               crypto::crypto_provider *cryptoProvider,
+                               ro_blob<32> userPRK) noexcept
+        -> result<open_info>
+{
+    std::unique_ptr<sector_device> archive{new (std::nothrow) sector_device(
+            std::move(fileHandle), cryptoProvider, 0)};
+
+    if (!archive)
+    {
+        return errc::not_enough_memory;
+    }
+    if (!archive->mArchiveFileLock.try_lock())
+    {
+        return errc::still_in_use;
+    }
+
+    VEFS_TRY(archive->mMasterSector.resize(sector_size));
+
+    VEFS_TRY(archive->resize(1));
+
+    VEFS_TRY(cryptoProvider->random_bytes(
+            as_span(archive->mStaticHeader.master_secret)));
+
+    crypto::counter::state counterState;
+    VEFS_TRY(cryptoProvider->random_bytes(
+            as_writable_bytes(as_span(counterState))));
+    archive->mStaticHeader.master_counter.store(crypto::counter(counterState));
+
+    std::memset(archive->mMasterSector.as_span().data(), 0, sector_size);
+
+    VEFS_TRY(archive->write_static_archive_header(userPRK));
+
+    open_info self{std::move(archive)};
+    VEFS_TRY(self.filesystem_index.crypto_state,
+             self.device->create_file_secrets2());
+
+    VEFS_TRY(self.free_sector_index.crypto_state,
+             self.device->create_file_secrets2());
+
     return std::move(self);
 }
 
