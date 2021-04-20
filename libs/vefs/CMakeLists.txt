@@ -225,37 +225,39 @@ endif()
 
 ##########################################################################
 # test target
-add_executable(vefs-tests
-    tests/vefs-tests.cpp
-    tests/boost-unit-test.hpp
-    tests/test-utils.hpp
-    tests/test-utils.cpp
-    tests/libb2_none_blake2b_crypto_provider.cpp
-    tests/libb2_none_blake2b_crypto_provider.hpp
-    tests/disappointment-tests.cpp
-    tests/allocator-tests.cpp
-    tests/cache-tests.cpp
-    tests/cache_clock-tests.cpp
-    tests/sector_device-tests.cpp
-    tests/sector_tree_mt-tests.cpp
-    tests/sector_tree_seq-tests.cpp
-    tests/archive-tests.cpp
-    tests/vfilesystem-tests.cpp
-    tests/span-tests.cpp
-    tests/crypto_provider-tests.cpp
-    tests/block_manager-tests.cpp
-    tests/tree_lut-tests.cpp
-    tests/tree_walker-tests.cpp
-    tests/archive_file_id_tests.cpp
-    tests/archive-integration-tests.cpp
- )
-target_link_libraries(vefs-tests
-    PUBLIC
-        vefs
-        Boost::unit_test_framework
-        GTest::gmock
-)
-add_test(NAME vefs-tests COMMAND vefs-tests)
+if (BUILD_TESTING)
+    add_executable(vefs-tests
+        tests/vefs-tests.cpp
+        tests/boost-unit-test.hpp
+        tests/test-utils.hpp
+        tests/test-utils.cpp
+        tests/libb2_none_blake2b_crypto_provider.cpp
+        tests/libb2_none_blake2b_crypto_provider.hpp
+        tests/disappointment-tests.cpp
+        tests/allocator-tests.cpp
+        tests/cache-tests.cpp
+        tests/cache_clock-tests.cpp
+        tests/sector_device-tests.cpp
+        tests/sector_tree_mt-tests.cpp
+        tests/sector_tree_seq-tests.cpp
+        tests/archive-tests.cpp
+        tests/vfilesystem-tests.cpp
+        tests/span-tests.cpp
+        tests/crypto_provider-tests.cpp
+        tests/block_manager-tests.cpp
+        tests/tree_lut-tests.cpp
+        tests/tree_walker-tests.cpp
+        tests/archive_file_id_tests.cpp
+        tests/archive-integration-tests.cpp
+     )
+    target_link_libraries(vefs-tests
+        PUBLIC
+            vefs
+            Boost::unit_test_framework
+            GTest::gmock
+    )
+    add_test(NAME vefs-tests COMMAND vefs-tests)
+endif()
 
 
 ##########################################################################
