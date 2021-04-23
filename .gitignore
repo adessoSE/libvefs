@@ -1,8 +1,6 @@
 # build directory as mandated by the pitchfork layout
 /build
 
-# visual studio cmake config
-/CMakeSettings.json
 # visual studio settings
 /.vs/
 # visual studio code settings

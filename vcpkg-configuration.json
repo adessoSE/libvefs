@@ -1,0 +1,18 @@
+{
+    "registries": [
+        {
+            "kind": "git",
+            "repository": "https://github.com/deeplex-net/vcpkg-registry",
+            "packages": [
+                "boringssl",
+                "deeppack",
+                "gtest",
+                "libb2",
+                "llfio",
+                "ntkernel-error-category",
+                "outcome",
+                "quickcpplib-unofficial"
+            ]
+        }
+    ]
+}

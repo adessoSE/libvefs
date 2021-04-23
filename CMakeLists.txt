@@ -11,11 +11,37 @@
 #
 ########################################################################
 cmake_minimum_required(VERSION 3.15)
-project(vefs VERSION 0.3.2 LANGUAGES CXX)
 
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
     message(FATAL_ERROR "in-source builds are not supported!")
 endif()
+
+########################################################################
+# configure vcpkg from environment vars if possible
+
+if(DEFINED ENV{VCPKG_ROOT} AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
+    set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
+            CACHE STRING "")
+endif()
+
+if(DEFINED ENV{VCPKG_DEFAULT_TRIPLET} AND NOT DEFINED VCPKG_TARGET_TRIPLET)
+    set(VCPKG_TARGET_TRIPLET "$ENV{VCPKG_DEFAULT_TRIPLET}" CACHE STRING "")
+endif()
+
+if(NOT DEFINED VCPKG_FEATURE_FLAGS)
+    set(VCPKG_FEATURE_FLAGS "registries" CACHE STRING "")
+endif()
+if(NOT DEFINED VCPKG_OVERLAY_TRIPLETS)
+    set(VCPKG_OVERLAY_TRIPLETS "${CMAKE_SOURCE_DIR}/tools/triplets" CACHE STRING "")
+endif()
+
+option(BUILD_TESTING "Add test targets" OFF)
+if (BUILD_TESTING)
+    list(APPEND VCPKG_MANIFEST_FEATURES "tests")
+endif()
+
+########################################################################
+project(vefs VERSION 0.3.2 LANGUAGES CXX)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/tools/cmake/")
@@ -58,17 +84,22 @@ find_package(libcuckoo CONFIG REQUIRED)
 
 find_package(boringssl REQUIRED CONFIG)
 
-find_package(GTest CONFIG REQUIRED)
+if (BUILD_TESTING)
+    find_package(GTest CONFIG REQUIRED)
+endif()
 
 # botan provider is currently not implemented
 #find_package(botan 2.8.0)
 
 find_package(deeppack CONFIG REQUIRED)
 
+if (BUILD_TESTING)
+    set(_VEFS_REQUIRE_UNIT_TEST_FRAMEWORK unit_test_framework)
+endif()
 find_package(Boost 1.70 REQUIRED COMPONENTS
     system
     program_options
-    unit_test_framework
+    ${_VEFS_REQUIRE_UNIT_TEST_FRAMEWORK}
 )
 
 find_package(benchmark)
