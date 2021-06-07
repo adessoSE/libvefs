@@ -1,4 +1,4 @@
-﻿{
+{
   "configurations": [
     {
       "name": "amd64-Debug",
@@ -147,6 +147,33 @@
           "type": "BOOL"
         }
       ]
+    },
+    {
+        "name": "Linux-GCC-Debug",
+        "generator": "Ninja",
+        "configurationType": "Debug",
+        "cmakeExecutable": "cmake",
+        "remoteCopySourcesExclusionList": [ ".vs", ".git", "out" ],
+        "cmakeCommandArgs": "",
+        "buildCommandArgs": "",
+        "ctestCommandArgs": "",
+        "inheritEnvironments": [ "linux_x64" ],
+        "cmakeToolchain": "$HOME/.vs/vcpkg/scripts/buildsystems/vcpkg.cmake",
+        "remoteMachineName": "${defaultRemoteMachineName}",
+        "remoteCMakeListsRoot": "$HOME/.vs/${projectDirName}/${workspaceHash}/src",
+        "remoteBuildRoot": "$HOME/.vs/${projectDirName}/out/build/${name}",
+        "remoteInstallRoot": "$HOME/.vs/${projectDirName}/out/install/${name}",
+        "remoteCopySources": true,
+        "rsyncCommandArgs": "-t --delete --delete-excluded",
+        "remoteCopyBuildOutput": false,
+        "remoteCopySourcesMethod": "rsync",
+        "variables": [
+            {
+                "name": "BUILD_TESTING",
+                "value": "TRUE",
+                "type": "BOOL"
+            }
+        ]
     }
   ]
 }

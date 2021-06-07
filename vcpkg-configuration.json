@@ -7,7 +7,7 @@
         {
             "kind": "git",
             "repository": "https://github.com/deeplex-net/vcpkg-registry",
-            "baseline": "78e655a06df7db0adec988b2dfc0e2994bd96864",
+            "baseline": "3084b6021aa844cf57b6209ea3616201005cac17",
             "packages": [
                 "boringssl",
                 "deeppack",

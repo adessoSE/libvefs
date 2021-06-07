@@ -5,7 +5,6 @@
 #include <dplx/dp/encoder/api.hpp>
 #include <dplx/dp/encoder/core.hpp>
 
-#include "../detail/cbor_utils.hpp"
 #include "../detail/secure_array.codec.hpp"
 #include "counter.hpp"
 
@@ -14,32 +13,25 @@ namespace dplx::dp
 template <input_stream Stream>
 class basic_decoder<vefs::crypto::counter, Stream>
 {
+    using parse = dp::item_parser<Stream>;
+
 public:
     using value_type = vefs::crypto::counter;
 
     inline auto operator()(Stream &inStream, value_type &value) const
             -> result<void>
     {
-        DPLX_TRY(auto &&headInfo, detail::parse_item_info(inStream));
+        vefs::utils::secure_byte_array<value_type::state_size> state{};
+        DPLX_TRY(auto xsize,
+                 parse::binary_finite(inStream, state, value_type::state_size,
+                                      parse_mode::canonical));
 
-        if (std::byte{headInfo.type} != type_code::binary)
+        if (xsize != value_type::state_size)
         {
-            return errc::item_type_mismatch;
+            return errc::item_value_out_of_range;
         }
-        if (headInfo.value != 16)
-        {
-            return errc::invalid_additional_information;
-        }
-
-        DPLX_TRY(auto readProxy, read(inStream, 16));
-        value = value_type(vefs::ro_blob<16>(readProxy));
-
-        if constexpr (lazy_input_stream<Stream>)
-        {
-            DPLX_TRY(consume(inStream, readProxy));
-        }
-
-        return success();
+        value = value_type(vefs::ro_blob<value_type::state_size>(state));
+        return oc::success();
     }
 };
 

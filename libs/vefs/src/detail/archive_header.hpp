@@ -2,7 +2,6 @@
 
 #include <array>
 
-#include "cbor_utils.hpp"
 #include "file_descriptor.hpp"
 
 namespace vefs::detail

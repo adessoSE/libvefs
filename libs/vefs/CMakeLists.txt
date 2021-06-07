@@ -44,7 +44,6 @@ DEF_SOURCE_GROUP(vefs "detail"
         src/detail/tree_walker.cpp
         src/detail/tree_walker.hpp
 
-        src/detail/cbor_utils.hpp
         src/detail/file_descriptor.hpp
         src/detail/file_descriptor.codec.hpp
 
