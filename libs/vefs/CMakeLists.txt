@@ -173,6 +173,7 @@ DEF_SOURCE_GROUP(vefs "utils"
 
     SOURCES
         src/detail/secure_array.codec.hpp
+        src/detail/uuid.codec.hpp
 )
 
 DEF_SOURCE_GROUP(vefs "external/SpookyV2"

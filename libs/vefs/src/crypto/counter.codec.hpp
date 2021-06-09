@@ -77,4 +77,19 @@ public:
         return encode(outStream, value.load());
     }
 };
+
+
+constexpr auto tag_invoke(encoded_size_of_fn,
+                          vefs::crypto::counter const &) noexcept -> unsigned
+{
+    return 17U;
+}
+
+constexpr auto tag_invoke(encoded_size_of_fn,
+                          vefs::crypto::atomic_counter const &) noexcept -> unsigned
+{
+    return 17U;
+}
+
+
 } // namespace dplx::dp
