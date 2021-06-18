@@ -1,39 +1,38 @@
 #include "cbor_box.hpp"
 
+#include <dplx/dp/decoder/tuple_utils.hpp>
 #include <dplx/dp/item_emitter.hpp>
 #include <dplx/dp/item_parser.hpp>
 #include <dplx/dp/streams/memory_input_stream.hpp>
 #include <dplx/dp/streams/memory_output_stream.hpp>
-
-#include "../detail/cbor_utils.hpp"
 
 using namespace dplx;
 
 namespace vefs::crypto
 {
 
-auto cbor_box_layout_head(dplx::dp::byte_buffer_view &outStream,
+auto cbor_box_layout_head(dplx::dp::memory_buffer &outStream,
                           std::uint16_t dataLength) noexcept
         -> result<cbor_box_layout>
 {
     using namespace dplx;
 
-    using emit = dp::item_emitter<dp::byte_buffer_view>;
+    using emit = dp::item_emitter<dp::memory_buffer>;
 
-    VEFS_TRY(emit::array(outStream, 3u));
+    VEFS_TRY(emit::array(outStream, 3U));
 
-    VEFS_TRY(emit::binary(outStream, 32u));
-    rw_blob<32> salt(outStream.consume(32), 32);
+    VEFS_TRY(emit::binary(outStream, box_salt_size));
+    rw_blob<32> salt(outStream.consume(box_salt_size), box_salt_size);
 
-    VEFS_TRY(emit::binary(outStream, 16u));
-    rw_blob<16> mac(outStream.consume(16), 16);
+    VEFS_TRY(emit::binary(outStream, box_mac_size));
+    rw_blob<16> mac(outStream.consume(box_mac_size), box_mac_size);
 
     VEFS_TRY(emit::binary(outStream, dataLength));
 
     return cbor_box_layout{salt, mac};
 }
 
-auto cbor_box_decode_head(dplx::dp::byte_buffer_view &inStream) noexcept
+auto cbor_box_decode_head(dplx::dp::memory_buffer &inStream) noexcept
         -> result<cbor_box_head>
 {
     using namespace dplx;

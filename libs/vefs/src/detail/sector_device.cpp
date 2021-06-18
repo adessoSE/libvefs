@@ -5,6 +5,7 @@
 #include <random>
 
 #include <dplx/dp/decoder/std_container.hpp>
+#include <dplx/dp/decoder/tuple_utils.hpp>
 #include <dplx/dp/streams/memory_input_stream.hpp>
 #include <dplx/dp/streams/memory_output_stream.hpp>
 
@@ -20,7 +21,6 @@
 #include "../platform/sysrandom.hpp"
 #include "archive_file_id.hpp"
 #include "archive_header.codec.hpp"
-#include "cbor_utils.hpp"
 #include "file_descriptor.codec.hpp"
 #include "secure_array.codec.hpp"
 
@@ -315,7 +315,7 @@ result<void> sector_device::parse_static_archive_header(ro_blob<32> userPRK)
     auto const staticHeaderSectors
             = mMasterSector.as_span().first(static_header_size);
 
-    dplx::dp::byte_buffer_view mstream(staticHeaderSectors);
+    dplx::dp::memory_buffer mstream(staticHeaderSectors);
 
     // check for magic number
     if (std::span<std::byte, file_format_id.size()> archivePrefix(
@@ -354,7 +354,7 @@ result<void> sector_device::parse_static_archive_header(ro_blob<32> userPRK)
         utils::secure_memzero(staticHeader);
     };
 
-    dplx::dp::const_byte_buffer_view staticHeaderStream(staticHeader);
+    dplx::dp::memory_view staticHeaderStream(staticHeader);
 
     VEFS_TRY(dplx::dp::decode(staticHeaderStream, mStaticHeader));
     return success();
@@ -401,7 +401,7 @@ auto sector_device::parse_archive_header(header_id which)
     auto const encryptedHeaderArea
             = mMasterSector.as_span().subspan(offset, pheader_size);
 
-    dplx::dp::byte_buffer_view mstream(encryptedHeaderArea);
+    dplx::dp::memory_buffer mstream(encryptedHeaderArea);
 
     VEFS_TRY(auto &&headerBox, crypto::cbor_box_decode_head(mstream));
 
@@ -423,7 +423,7 @@ auto sector_device::parse_archive_header(header_id which)
         utils::secure_memzero(headerArea);
     };
 
-    dplx::dp::const_byte_buffer_view headerStream{headerArea};
+    dplx::dp::memory_view headerStream{headerArea};
 
     archive_header header{};
     VEFS_TRY(dplx::dp::decode(headerStream, header));
@@ -483,7 +483,7 @@ auto sector_device::parse_archive_header() -> result<archive_header>
 
 result<void> sector_device::write_static_archive_header(ro_blob<32> userPRK)
 {
-    dplx::dp::byte_buffer_view staticHeaderSectors(
+    dplx::dp::memory_buffer staticHeaderSectors(
             mMasterSector.as_span().first(static_header_size));
 
     // insert file format id
@@ -497,8 +497,8 @@ result<void> sector_device::write_static_archive_header(ro_blob<32> userPRK)
     auto keyUsageCount = mStaticHeader.master_counter.fetch_increment();
 
     std::array<std::byte, static_header_size> encodingBuffer;
-    dplx::dp::byte_buffer_view plainStream(encodingBuffer.data(),
-                                           encodingBuffer.size(), 0);
+    dplx::dp::memory_buffer plainStream(encodingBuffer.data(),
+                                        encodingBuffer.size(), 0);
     VEFS_SCOPE_EXIT
     {
         utils::secure_memzero(encodingBuffer);
@@ -675,7 +675,7 @@ auto vefs::detail::sector_device::update_header(
     {
         utils::secure_memzero(serializationMemory);
     };
-    dplx::dp::byte_buffer_view serializationBuffer{
+    dplx::dp::memory_buffer serializationBuffer{
             std::span<std::byte>{serializationMemory}};
 
     VEFS_TRY(dplx::dp::encode(serializationBuffer, assembled));
@@ -684,7 +684,7 @@ auto vefs::detail::sector_device::update_header(
     auto const writeArea
             = mMasterSector.as_span().subspan(headerOffset, pheader_size);
 
-    dplx::dp::byte_buffer_view encryptionBuffer(writeArea);
+    dplx::dp::memory_buffer encryptionBuffer(writeArea);
     VEFS_TRY(auto &&box, crypto::cbor_box_layout_head(
                                  encryptionBuffer,
                                  static_cast<std::uint16_t>(

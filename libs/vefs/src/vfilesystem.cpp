@@ -4,8 +4,8 @@
 #include <boost/endian/conversion.hpp>
 #include <boost/uuid/random_generator.hpp>
 
-#include <dplx/dp/byte_buffer.hpp>
 #include <dplx/dp/item_emitter.hpp>
+#include <dplx/dp/memory_buffer.hpp>
 #include <dplx/dp/stream.hpp>
 #include <dplx/dp/streams/chunked_input_stream.hpp>
 #include <dplx/dp/streams/chunked_output_stream.hpp>
@@ -191,13 +191,10 @@ private:
         {
             using namespace dplx;
 
-            auto streamInfo = dp::detail::parse_item_info_speculative(data);
+            DPLX_TRY(dp::item_info const streamInfo,
+                     dp::detail::parse_item_speculative(data));
 
-            if (streamInfo.code != dp::detail::decode_errc::nothing)
-            {
-                return static_cast<dp::errc>(streamInfo.code);
-            }
-            if (std::byte{streamInfo.type} != dp::type_code::binary)
+            if (streamInfo.type != dp::type_code::binary)
             {
                 return dplx::dp::errc::item_type_mismatch;
             }
@@ -206,14 +203,13 @@ private:
                 return dplx::dp::errc::item_value_out_of_range;
             }
 
-            return stream_info{.prefix_size = static_cast<unsigned int>(
-                                       streamInfo.encoded_length),
+            return stream_info{.prefix_size = streamInfo.encoded_length,
                                .stream_size
                                = static_cast<std::uint32_t>(streamInfo.value)};
         }
 
         auto acquire_next_chunk_impl(std::uint64_t remaining) noexcept
-                -> dplx::dp::result<dplx::dp::const_byte_buffer_view>
+                -> dplx::dp::result<dplx::dp::memory_view>
         {
             auto const currentPosition = mCurrentSector.node_position();
             auto const nextPosition = next(currentPosition);
@@ -249,7 +245,7 @@ private:
                 return dplx::dp::errc::end_of_stream;
             }
 
-            return dplx::dp::const_byte_buffer_view(
+            return dplx::dp::memory_view(
                     memory.subspan(alloc_map_size, nextChunkSize));
         }
     };
@@ -306,9 +302,9 @@ private:
                                              std::uint32_t size)
                 -> dplx::dp::result<int>
         {
-            using emit = dplx::dp::item_emitter<dplx::dp::byte_buffer_view>;
+            using emit = dplx::dp::item_emitter<dplx::dp::memory_buffer>;
 
-            dplx::dp::byte_buffer_view buffer(
+            dplx::dp::memory_buffer buffer(
                     std::span(as_span(handle)).subspan(offset, block_size));
 
             VEFS_TRY(emit::binary(buffer, size));
@@ -747,20 +743,23 @@ auto vfilesystem::open(const std::string_view filePath,
 
     if (mIndex.find_fn(filePath, [&id](const file_id &elem) { id = elem; }))
     {
-        if (mFiles.update_fn(id, [&](vfilesystem_entry &e) {
-                if (auto h = e.instance.lock())
-                {
-                    rx = h;
-                    return;
-                }
-                rx = vfile::open_existing(this, mDeviceExecutor,
-                                          mSectorAllocator, id, mDevice,
-                                          *e.crypto_ctx, e.tree_info);
-                if (rx)
-                {
-                    e.instance = rx.assume_value();
-                }
-            }))
+        if (mFiles.update_fn(id,
+                             [&](vfilesystem_entry &e)
+                             {
+                                 if (auto h = e.instance.lock())
+                                 {
+                                     rx = h;
+                                     return;
+                                 }
+                                 rx = vfile::open_existing(
+                                         this, mDeviceExecutor,
+                                         mSectorAllocator, id, mDevice,
+                                         *e.crypto_ctx, e.tree_info);
+                                 if (rx)
+                                 {
+                                     e.instance = rx.assume_value();
+                                 }
+                             }))
         {
             return rx;
         }
@@ -769,7 +768,8 @@ auto vfilesystem::open(const std::string_view filePath,
     {
         VEFS_TRY(auto &&secrets, mDevice.create_file_secrets());
 
-        thread_local utils::xoroshiro128plus fileid_prng = []() {
+        thread_local utils::xoroshiro128plus fileid_prng = []()
+        {
             std::array<std::uint64_t, 2> randomState{};
             auto rx = random_bytes(as_writable_bytes(span(randomState)));
             if (!rx)
@@ -832,14 +832,16 @@ auto vfilesystem::erase(std::string_view filePath) -> result<void>
 
     bool erased = false;
     vfilesystem_entry victim;
-    bool found = mFiles.erase_fn(id, [&](vfilesystem_entry &e) {
-        erased = e.instance.expired();
-        if (erased)
-        {
-            victim = std::move(e);
-        }
-        return erased;
-    });
+    bool found = mFiles.erase_fn(id,
+                                 [&](vfilesystem_entry &e)
+                                 {
+                                     erased = e.instance.expired();
+                                     if (erased)
+                                     {
+                                         victim = std::move(e);
+                                     }
+                                     return erased;
+                                 });
 
     if (!found)
     {
@@ -888,15 +890,18 @@ auto vfilesystem::query(const std::string_view filePath)
     result<file_query_result> rx = archive_errc::no_such_file;
     if (mIndex.find_fn(filePath, [&](const file_id &e) { id = e; }))
     {
-        mFiles.find_fn(id, [&](const vfilesystem_entry &e) {
-            auto maxExtent = e.tree_info.maximum_extent;
-            if (auto h = e.instance.lock())
-            {
-                maxExtent = h->maximum_extent();
-            }
+        mFiles.find_fn(id,
+                       [&](const vfilesystem_entry &e)
+                       {
+                           auto maxExtent = e.tree_info.maximum_extent;
+                           if (auto h = e.instance.lock())
+                           {
+                               maxExtent = h->maximum_extent();
+                           }
 
-            rx = file_query_result{file_open_mode::readwrite, maxExtent};
-        });
+                           rx = file_query_result{file_open_mode::readwrite,
+                                                  maxExtent};
+                       });
     }
     return rx;
 }
@@ -905,10 +910,12 @@ auto vfilesystem::on_vfile_commit(detail::file_id fileId,
                                   detail::root_sector_info updatedRootInfo)
         -> result<void>
 {
-    bool found = mFiles.update_fn(fileId, [&](vfilesystem_entry &e) {
-        e.needs_index_update = true;
-        e.tree_info = updatedRootInfo;
-    });
+    bool found = mFiles.update_fn(fileId,
+                                  [&](vfilesystem_entry &e)
+                                  {
+                                      e.needs_index_update = true;
+                                      e.tree_info = updatedRootInfo;
+                                  });
     if (!found)
     {
         return archive_errc::no_such_file;
@@ -938,25 +945,30 @@ auto vfilesystem::commit() -> result<void>
             descriptor.fileId = fid.as_uuid();
             auto pathBytes = as_bytes(span(path));
 
-            mFiles.update_fn(fid, [&](vfilesystem_entry &e) {
-                if (!e.needs_index_update)
-                {
-                    return;
-                }
+            mFiles.update_fn(
+                    fid,
+                    [&](vfilesystem_entry &e)
+                    {
+                        if (!e.needs_index_update)
+                        {
+                            return;
+                        }
 
-                // reuse allocation if possible
-                descriptor.filePath.resize(pathBytes.size());
-                // #TODO #char8_t convert vfilesystem to u8string
-                vefs::copy(pathBytes,
-                           as_writable_bytes(span(descriptor.filePath)));
+                        // reuse allocation if possible
+                        descriptor.filePath.resize(pathBytes.size());
+                        // #TODO #char8_t convert vfilesystem to u8string
+                        vefs::copy(pathBytes, as_writable_bytes(span(
+                                                      descriptor.filePath)));
 
-                if (auto syncrx = layout.sync_to_tree(e, descriptor); !syncrx)
-                {
-                    syncrx.assume_error()
-                            << ed::archive_file{"[archive-index]"};
-                    throw error_exception(std::move(syncrx).assume_error());
-                }
-            });
+                        if (auto syncrx = layout.sync_to_tree(e, descriptor);
+                            !syncrx)
+                        {
+                            syncrx.assume_error()
+                                    << ed::archive_file{"[archive-index]"};
+                            throw error_exception(
+                                    std::move(syncrx).assume_error());
+                        }
+                    });
         }
         catch (const error_exception &exc)
         {

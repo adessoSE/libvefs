@@ -4,7 +4,7 @@ include:
     file: 'native-build-dep-vars.yml'
 
 variables:
-  VCPKG_COMMIT_HASH: "807a7987612bbd702be9d9b8069124be62aff857"
+  VCPKG_VERSION: "2021.05.12"
   BUILD_PARALLELISM: "6"
 
 
@@ -29,10 +29,7 @@ workflow:
   before_script:
     - $ProgressPreference = "SilentlyContinue"
     - mkdir build
-    - '[Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12'
-    - iwr -Method Get -Uri "https://github.com/microsoft/vcpkg/archive/$env:VCPKG_COMMIT_HASH.zip" -Outfile "build/vcpkg.zip"
-    - 7z.exe x "build/vcpkg.zip" -obuild
-    - mv "build/vcpkg-$VCPKG_COMMIT_HASH" "build/vcpkg"
+    - 'git clone --depth 1 --branch $VCPKG_VERSION https://github.com/microsoft/vcpkg.git build/vcpkg'
     - $env:VCPKG_ROOT="$pwd\build\vcpkg"
     - cd build
     - '& vcpkg\bootstrap-vcpkg -disableMetrics'

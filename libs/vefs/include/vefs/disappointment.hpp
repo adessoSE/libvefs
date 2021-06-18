@@ -14,7 +14,9 @@
 #pragma warning(disable : 6285)
 #endif
 
-#include <outcome.hpp>
+#include <outcome/basic_outcome.hpp>
+#include <outcome/basic_result.hpp>
+#include <outcome/try.hpp>
 
 #if defined BOOST_COMP_MSVC_AVAILABLE
 #pragma warning(pop)

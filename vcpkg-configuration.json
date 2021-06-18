@@ -1,8 +1,13 @@
 {
+    "default-registry": {
+        "kind": "builtin",
+        "baseline": "5568f110b509a9fd90711978a7cb76bae75bb092"
+    },
     "registries": [
         {
             "kind": "git",
             "repository": "https://github.com/deeplex-net/vcpkg-registry",
+            "baseline": "9ee4fb01e03a67db36040cae571d684b10e9e760",
             "packages": [
                 "boringssl",
                 "deeppack",

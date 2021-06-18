@@ -5,7 +5,7 @@
 #include <shared_mutex>
 #include <type_traits>
 
-#include <dplx/dp/byte_buffer.hpp>
+#include <dplx/dp/memory_buffer.hpp>
 
 #include <vefs/llfio.hpp>
 
@@ -142,7 +142,7 @@ private:
     llfio::mapped_file_handle mArchiveFile;
     llfio::unique_file_lock mArchiveFileLock;
 
-    dplx::dp::byte_buffer<llfio::utils::page_allocator<std::byte>>
+    dplx::dp::memory_allocation<llfio::utils::page_allocator<std::byte>>
             mMasterSector;
 
     master_header mStaticHeader;
