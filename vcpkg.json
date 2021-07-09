@@ -1,0 +1,33 @@
+{
+    "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg/master/scripts/vcpkg.schema.json",
+    "name": "vefs",
+    "version-semver": "0.3.2",
+    "homepage": "https://github.com/BurningEnlightenment/libvefs",
+    "dependencies": [
+        "benchmark",
+        "boost-exception",
+        "boost-io",
+        "boost-iterator",
+        "boost-predef",
+        "boost-program-options",
+        "boost-preprocessor",
+        "boost-system",
+        "boost-uuid",
+        "boringssl",
+        "concurrentqueue",
+        "deeppack",
+        "fmt",
+        "libb2",
+        "libcuckoo",
+        "llfio"
+    ],
+    "features": {
+        "tests": {
+            "description": "Build the test suite",
+            "dependencies": [
+                "boost-test",
+                "gtest"
+            ]
+        }
+    }
+}

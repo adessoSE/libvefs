@@ -14,11 +14,14 @@ static constexpr std::size_t size_one = 1;
 BOOST_AUTO_TEST_SUITE(allocator_tests)
 
 BOOST_DATA_TEST_CASE(
-    system_allocation,
-    bdata::random((bdata::engine = test_rng{},
-                   bdata::distribution = std::uniform_int_distribution<std::size_t>(0, 1 << 20))) ^
-        bdata::xrange(1024),
-    size, index)
+        system_allocation,
+        bdata::random((bdata::engine = test_rng{},
+                       bdata::distribution
+                       = std::uniform_int_distribution<std::size_t>(0,
+                                                                    1 << 20)))
+                ^ bdata::xrange(1024),
+        size,
+        index)
 {
     (void)index;
     using allocator_t = system_allocator<>;

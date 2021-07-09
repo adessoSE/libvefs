@@ -85,8 +85,8 @@ BOOST_AUTO_TEST_CASE(first_sector_is_always_allocated)
 
 BOOST_AUTO_TEST_CASE(first_sector_allocation_sizes)
 {
-    constexpr auto sector_payload_size =
-        vefs::detail::sector_device::sector_payload_size;
+    constexpr auto sector_payload_size
+            = vefs::detail::sector_device::sector_payload_size;
     using vefs::detail::lut::required_sector_count;
 
     BOOST_TEST(required_sector_count(1) == 1);
@@ -96,8 +96,8 @@ BOOST_AUTO_TEST_CASE(first_sector_allocation_sizes)
 
 BOOST_AUTO_TEST_CASE(tree_height_increases_for_two_sectors)
 {
-    constexpr auto sector_payload_size =
-        vefs::detail::sector_device::sector_payload_size;
+    constexpr auto sector_payload_size
+            = vefs::detail::sector_device::sector_payload_size;
     using vefs::detail::lut::required_sector_count;
 
     // reference sector
@@ -108,15 +108,17 @@ BOOST_AUTO_TEST_CASE(tree_height_increases_for_two_sectors)
 
 BOOST_AUTO_TEST_CASE(tree_height_increase_2)
 {
-    constexpr auto sector_payload_size =
-        vefs::detail::sector_device::sector_payload_size;
+    constexpr auto sector_payload_size
+            = vefs::detail::sector_device::sector_payload_size;
     using vefs::detail::lut::references_per_sector;
     using vefs::detail::lut::required_sector_count;
 
-    BOOST_TEST(required_sector_count(sector_payload_size *
-                                     references_per_sector) == 1024);
-    BOOST_TEST(required_sector_count(
-                   sector_payload_size * references_per_sector + 1) == 1027);
+    BOOST_TEST(
+            required_sector_count(sector_payload_size * references_per_sector)
+            == 1024);
+    BOOST_TEST(required_sector_count(sector_payload_size * references_per_sector
+                                     + 1)
+               == 1027);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -45,10 +45,10 @@ BOOST_AUTO_TEST_CASE(boringssl_encrypts_end_decrypts_plaintext_to_same_value)
     vefs::fill_blob(mac_span, std::byte{0xcc});
     vefs::fill_blob(msg_span, std::byte{0xaa});
 
-    auto seal_result =
-        test_subject->box_seal(msg_span, mac_span, key_span, msg_span);
-    auto open_result =
-        test_subject->box_open(msg_span, key_span, msg_span, mac_span);
+    auto seal_result
+            = test_subject->box_seal(msg_span, mac_span, key_span, msg_span);
+    auto open_result
+            = test_subject->box_open(msg_span, key_span, msg_span, mac_span);
 
     auto plain_byte = 0xaa;
 
@@ -75,10 +75,10 @@ BOOST_AUTO_TEST_CASE(boringssl_decrypts_returns_error_if_mac_is_18_bytes_long)
     vefs::fill_blob(mac_span, std::byte{0xcc});
     vefs::fill_blob(msg_span, std::byte{0xaa});
 
-    auto seal_result =
-        test_subject->box_seal(msg_span, mac_span, key_span, msg_span);
-    auto open_result =
-        test_subject->box_open(msg_span, key_span, msg_span, mac_span);
+    auto seal_result
+            = test_subject->box_seal(msg_span, mac_span, key_span, msg_span);
+    auto open_result
+            = test_subject->box_open(msg_span, key_span, msg_span, mac_span);
 
     BOOST_TEST(!seal_result.has_error());
     BOOST_TEST(open_result.has_error());
@@ -113,8 +113,8 @@ BOOST_AUTO_TEST_CASE(ct_compare_compares_second_smaller_returns_1)
     vefs::fill_blob(first_to_compare_span, std::byte{0xcd});
     vefs::fill_blob(second_to_compare_span, std::byte{0xcc});
 
-    auto result =
-        test_subject->ct_compare(first_to_compare_span, second_to_compare_span);
+    auto result = test_subject->ct_compare(first_to_compare_span,
+                                           second_to_compare_span);
 
     BOOST_TEST(!result.has_error());
     BOOST_TEST(result.value() == 1);
@@ -131,8 +131,8 @@ BOOST_AUTO_TEST_CASE(ct_compare_compares_second_larger_returns_minus_1)
     vefs::fill_blob(first_to_compare_span, std::byte{0xca});
     vefs::fill_blob(second_to_compare_span, std::byte{0xcc});
 
-    auto result =
-        test_subject->ct_compare(first_to_compare_span, second_to_compare_span);
+    auto result = test_subject->ct_compare(first_to_compare_span,
+                                           second_to_compare_span);
 
     BOOST_TEST(!result.has_error());
     BOOST_TEST(result.value() == -1);
@@ -149,8 +149,8 @@ BOOST_AUTO_TEST_CASE(ct_comparing_two_different_size_arrays_gives_error)
     vefs::fill_blob(first_to_compare_span, std::byte{0xca});
     vefs::fill_blob(second_shorter_span, std::byte{0xca});
 
-    auto result =
-        test_subject->ct_compare(first_to_compare_span, second_shorter_span);
+    auto result = test_subject->ct_compare(first_to_compare_span,
+                                           second_shorter_span);
 
     BOOST_TEST(result.error() == vefs::errc::invalid_argument);
     BOOST_TEST(!result.has_value());
@@ -162,7 +162,7 @@ BOOST_AUTO_TEST_CASE(ct_comparing_two_zero_size_arrays_gives_error)
     std::array<std::byte, 0> second_with_smaller_size;
 
     auto result = test_subject->ct_compare(
-        vefs::span(first_to_compare), vefs::span(second_with_smaller_size));
+            vefs::span(first_to_compare), vefs::span(second_with_smaller_size));
 
     BOOST_TEST(result.has_error());
     BOOST_TEST(result.error() == vefs::errc::invalid_argument);

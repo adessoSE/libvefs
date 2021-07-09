@@ -30,127 +30,10 @@ using namespace vefs::detail;
 
 namespace vefs
 {
-    archive::archive(std::unique_ptr<detail::sector_device> primitives)
-        : mArchive{std::move(primitives)}
-        , mWorkTracker{&thread_pool::shared()}
-    {
-    }
 
-    auto archive::open(llfio::mapped_file_handle mfh,
-                       crypto::crypto_provider *cryptoProvider,
-                       ro_blob<32> userPRK, bool createNew)
-        -> result<std::unique_ptr<archive>>
-    {
-        VEFS_TRY(bundledPrimitives,
-                 sector_device::open(std::move(mfh), cryptoProvider, userPRK,
-                                     createNew));
-        auto &&[primitives, filesystemFile, freeSectorFile] =
-            std::move(bundledPrimitives);
-
-        std::unique_ptr<archive> arc{new archive(std::move(primitives))};
-        if (auto alloc = new (std::nothrow) detail::archive_sector_allocator(
-                *arc->mArchive, freeSectorFile.crypto_state))
-        {
-            arc->mSectorAllocator.reset(alloc);
-        }
-        else
-        {
-            return errc::not_enough_memory;
-        }
-
-        if (createNew)
-        {
-            VEFS_TRY_INJECT(arc->mSectorAllocator->initialize_new(),
-                            ed::archive_file{"[free-block-list]"});
-
-            if (auto crx = vfilesystem::create_new(
-                    *arc->mArchive, *arc->mSectorAllocator, arc->mWorkTracker,
-                    filesystemFile))
-            {
-                arc->mFilesystem = std::move(crx).assume_value();
-            }
-            else
-            {
-                crx.assume_error() << ed::archive_file{"[archive-index]"};
-                return std::move(crx).as_failure();
-            }
-        }
-        else
-        {
-            if (auto crx = vfilesystem::open_existing(
-                    *arc->mArchive, *arc->mSectorAllocator, arc->mWorkTracker,
-                    filesystemFile))
-            {
-                arc->mFilesystem = std::move(crx).assume_value();
-            }
-            else
-            {
-                arc->mSectorAllocator.reset();
-                crx.assume_error() << ed::archive_file{"[archive-index]"};
-                return std::move(crx).as_failure();
-            }
-
-            if (freeSectorFile.tree_info.root.sector == sector_id::master)
-            {
-                VEFS_TRY(arc->mFilesystem->recover_unused_sectors());
-
-                VEFS_TRY_INJECT(arc->mSectorAllocator->initialize_new(),
-                                ed::archive_file{"[free-block-list]"});
-            }
-            else
-            {
-                VEFS_TRY_INJECT(arc->mSectorAllocator->initialize_from(
-                                    freeSectorFile.tree_info),
-                                ed::archive_file{"[free-block-list]"});
-
-                freeSectorFile.tree_info = {};
-                VEFS_TRY(arc->mArchive->update_header(
-                    arc->mFilesystem->crypto_ctx(), filesystemFile.tree_info,
-                    arc->mSectorAllocator->crypto_ctx(),
-                    freeSectorFile.tree_info));
-            }
-        }
-        return std::move(arc);
-    }
-
-    auto archive::validate(llfio::mapped_file_handle mfh,
-                           crypto::crypto_provider *cryptoProvider,
-                           ro_blob<32> userPRK) -> result<void>
-    {
-        VEFS_TRY(bundledPrimitives,
-                 sector_device::open(std::move(mfh), cryptoProvider, userPRK,
-                                     false));
-        auto &&[primitives, filesystemFile, freeSectorFile] =
-            std::move(bundledPrimitives);
-
-        std::unique_ptr<archive> arc{new archive(std::move(primitives))};
-        if (auto alloc = new (std::nothrow) detail::archive_sector_allocator(
-                *arc->mArchive, freeSectorFile.crypto_state))
-        {
-            alloc->on_leak_detected(); // dirty hack to prevent overwriting
-                                       // the archive header on destruction
-            arc->mSectorAllocator.reset(alloc);
-        }
-        else
-        {
-            return errc::not_enough_memory;
-        }
-
-        if (auto crx = vfilesystem::open_existing(
-                *arc->mArchive, *arc->mSectorAllocator, arc->mWorkTracker,
-                filesystemFile))
-        {
-            arc->mFilesystem = std::move(crx).assume_value();
-            return arc->mFilesystem->validate();
-        }
-        else
-        {
-            return std::move(crx.error())
-                   << ed::archive_file("[archive-index]");
-        }
-    }
-
-    archive::~archive()
+archive_handle::~archive_handle()
+{
+    if (mFilesystem)
     {
         if (mSectorAllocator && !mSectorAllocator->sector_leak_detected())
         {
@@ -158,125 +41,375 @@ namespace vefs
                                              mFilesystem->committed_root());
         }
 
-        mWorkTracker.wait();
+        mWorkTracker->wait();
     }
+}
 
-    auto archive::commit() -> result<void>
-    {
-        return mFilesystem->commit();
-    }
+archive_handle::archive_handle() noexcept
+    : mArchive{}
+    , mSectorAllocator{}
+    , mWorkTracker{}
+    , mFilesystem{}
+{
+}
 
-    auto archive::open(const std::string_view filePath,
-                       const file_open_mode_bitset mode) -> result<vfile_handle>
-    {
-        return mFilesystem->open(filePath, mode);
-    }
+archive_handle::archive_handle(sector_device_owner sectorDevice,
+                               sector_allocator_owner sectorAllocator,
+                               work_tracker_owner workTracker,
+                               vfilesystem_owner filesystem) noexcept
+    : mArchive{std::move(sectorDevice)}
+    , mSectorAllocator{std::move(sectorAllocator)}
+    , mWorkTracker{std::move(workTracker)}
+    , mFilesystem{std::move(filesystem)}
+{
+}
 
-    auto archive::query(const std::string_view filePath)
-        -> result<file_query_result>
-    {
-        return mFilesystem->query(filePath);
-    }
+archive_handle::archive_handle(archive_handle &&other) noexcept
+    : mArchive{std::move(other.mArchive)}
+    , mSectorAllocator{std::move(other.mSectorAllocator)}
+    , mWorkTracker{std::move(other.mWorkTracker)}
+    , mFilesystem{std::move(other.mFilesystem)}
+{
+}
 
-    auto archive::erase(std::string_view filePath) -> result<void>
+auto archive_handle::operator=(archive_handle &&other) noexcept
+        -> archive_handle &
+{
+    if (mFilesystem)
     {
-        return mFilesystem->erase(filePath);
-    }
-
-    auto archive::read(const vfile_handle &handle, rw_dynblob buffer,
-                       std::uint64_t readFilePos) -> result<void>
-    {
-        if (!buffer)
+        if (mSectorAllocator && !mSectorAllocator->sector_leak_detected())
         {
-            return outcome::success();
-        }
-        if (!handle)
-        {
-            return errc::invalid_argument;
-        }
-        auto readrx = handle->read(buffer, readFilePos);
-        if (readrx.has_error())
-        {
-            readrx.assume_error() << ed::archive_file_read_area{
-                ed::file_span{readFilePos, readFilePos + buffer.size()}};
-        }
-        return readrx;
-    }
-
-    auto archive::write(const vfile_handle &handle, ro_dynblob data,
-                        std::uint64_t writeFilePos) -> result<void>
-    {
-        if (!data)
-        {
-            return outcome::success();
-        }
-        if (!handle)
-        {
-            return errc::invalid_argument;
+            (void)mSectorAllocator->finalize(mFilesystem->crypto_ctx(),
+                                             mFilesystem->committed_root());
         }
 
-        auto writerx = handle->write(data, writeFilePos);
-        if (writerx.has_error())
-        {
-            writerx.assume_error() << ed::archive_file_write_area{
-                ed::file_span{writeFilePos, writeFilePos + data.size()}};
-        }
-        return writerx;
+        mWorkTracker->wait();
     }
 
-    auto archive::truncate(const vfile_handle &handle, std::uint64_t maxExtent)
+    mFilesystem = std::move(other.mFilesystem);
+    mWorkTracker = std::move(other.mWorkTracker);
+    mSectorAllocator = std::move(other.mSectorAllocator);
+    mArchive = std::move(other.mArchive);
+
+    return *this;
+}
+
+namespace
+{
+
+auto map_creation_flag(archive_handle::creation mode) noexcept
+        -> llfio::handle::creation
+{
+    using mapped = llfio::handle::creation;
+    switch (mode)
+    {
+    default:
+    case archive_handle::creation::open_existing:
+        return mapped::open_existing;
+    case archive_handle::creation::only_if_not_exist:
+        return mapped::only_if_not_exist;
+    case archive_handle::creation::if_needed:
+        return mapped::if_needed;
+    case archive_handle::creation::always_new:
+        return mapped::always_new;
+    }
+}
+
+} // namespace
+
+auto archive_handle::archive(llfio::path_handle const &base,
+                             llfio::path_view path,
+                             ro_blob<32> userPRK,
+                             crypto::crypto_provider *cryptoProvider,
+                             creation creationMode) -> result<archive_handle>
+{
+    auto mappedCreationMode = map_creation_flag(creationMode);
+
+    llfio::file_handle clonedHandle;
+    VEFS_TRY(auto fileHandle,
+             llfio::mapped_file(base, path, llfio::handle::mode::write,
+                                mappedCreationMode));
+
+    bool created = creationMode != creation::open_existing;
+    if (creationMode == creation::if_needed)
+    {
+        VEFS_TRY(auto maxExtent, fileHandle.maximum_extent());
+        created = maxExtent == 0;
+    }
+
+    if (!created)
+    {
+        return archive_handle::open_existing(std::move(fileHandle),
+                                             cryptoProvider, userPRK);
+    }
+
+    VEFS_TRY(clonedHandle,
+             (static_cast<llfio::file_handle &>(fileHandle).reopen()));
+
+    if (auto createRx = archive_handle::create_new(std::move(fileHandle),
+                                                   cryptoProvider, userPRK))
+    {
+        return std::move(createRx).assume_value();
+    }
+    else
+    {
+        (void)llfio::unlink(fileHandle);
+        return std::move(createRx).assume_error();
+    }
+}
+
+auto archive_handle::open_existing(llfio::mapped_file_handle mfh,
+                                   crypto::crypto_provider *cryptoProvider,
+                                   ro_blob<32> userPRK) noexcept
+        -> result<archive_handle>
+{
+    VEFS_TRY(auto &&bundledPrimitives,
+             sector_device::open_existing(std::move(mfh), cryptoProvider,
+                                          userPRK));
+    auto &&[sectorDevice, filesystemFile, freeSectorFile]
+            = std::move(bundledPrimitives);
+
+    VEFS_TRY(auto &&sectorAllocator,
+             make_unique_rx<detail::archive_sector_allocator>(
+                     *sectorDevice, freeSectorFile.crypto_state));
+
+    VEFS_TRY(auto &&workTracker, make_unique_rx<detail::pooled_work_tracker>(
+                                         &detail::thread_pool::shared()));
+
+    vfilesystem_owner filesystem;
+    if (auto openFsRx = vfilesystem::open_existing(
+                *sectorDevice, *sectorAllocator, *workTracker, filesystemFile))
+    {
+        filesystem = std::move(openFsRx).assume_value();
+    }
+    else
+    {
+        openFsRx.assume_error() << ed::archive_file{"[archive-index]"};
+        return std::move(openFsRx).assume_error();
+    }
+
+    if (freeSectorFile.tree_info.root.sector == sector_id::master)
+    {
+        VEFS_TRY(filesystem->recover_unused_sectors());
+
+        VEFS_TRY_INJECT(sectorAllocator->initialize_new(),
+                        ed::archive_file{"[free-block-list]"});
+    }
+    else
+    {
+        VEFS_TRY_INJECT(
+                sectorAllocator->initialize_from(freeSectorFile.tree_info),
+                ed::archive_file{"[free-block-list]"});
+
+        freeSectorFile.tree_info = {};
+        VEFS_TRY(sectorDevice->update_header(
+                filesystem->crypto_ctx(), filesystemFile.tree_info,
+                sectorAllocator->crypto_ctx(), freeSectorFile.tree_info));
+    }
+
+    return result<archive_handle>(
+            std::in_place_type<archive_handle>, std::move(sectorDevice),
+            std::move(sectorAllocator), std::move(workTracker),
+            std::move(filesystem));
+}
+
+auto archive_handle::create_new(llfio::mapped_file_handle mfh,
+                                crypto::crypto_provider *cryptoProvider,
+                                ro_blob<32> userPRK) noexcept
+        -> result<archive_handle>
+{
+    VEFS_TRY(
+            auto &&bundledPrimitives,
+            sector_device::create_new(std::move(mfh), cryptoProvider, userPRK));
+    auto &&[sectorDevice, filesystemFile, freeSectorFile]
+            = std::move(bundledPrimitives);
+
+    VEFS_TRY(auto &&sectorAllocator,
+             make_unique_rx<detail::archive_sector_allocator>(
+                     *sectorDevice, freeSectorFile.crypto_state));
+
+    VEFS_TRY(auto &&workTracker, make_unique_rx<detail::pooled_work_tracker>(
+                                         &detail::thread_pool::shared()));
+
+    VEFS_TRY_INJECT(sectorAllocator->initialize_new(),
+                    ed::archive_file{"[free-block-list]"});
+
+    vfilesystem_owner filesystem;
+    if (auto crx = vfilesystem::create_new(*sectorDevice, *sectorAllocator,
+                                           *workTracker, filesystemFile))
+    {
+        filesystem = std::move(crx).assume_value();
+    }
+    else
+    {
+        crx.assume_error() << ed::archive_file{"[archive-index]"};
+        return std::move(crx).as_failure();
+    }
+
+    return result<archive_handle>(
+            std::in_place_type<archive_handle>, std::move(sectorDevice),
+            std::move(sectorAllocator), std::move(workTracker),
+            std::move(filesystem));
+}
+
+auto archive_handle::validate(llfio::path_handle const &base,
+                              llfio::path_view path,
+                              ro_blob<32> userPRK,
+                              crypto::crypto_provider *cryptoProvider)
         -> result<void>
+{
+    VEFS_TRY(auto fileHandle,
+             llfio::mapped_file(base, path, llfio::handle::mode::read,
+                                llfio::handle::creation::open_existing));
+
+    VEFS_TRY(auto &&bundledPrimitives,
+             sector_device::open_existing(std::move(fileHandle), cryptoProvider,
+                                          userPRK));
+    auto &&[sectorDevice, filesystemFile, freeSectorFile]
+            = std::move(bundledPrimitives);
+
+    VEFS_TRY(auto &&sectorAllocator,
+             make_unique_rx<detail::archive_sector_allocator>(
+                     *sectorDevice, freeSectorFile.crypto_state));
+
+    VEFS_TRY(auto &&workTracker, make_unique_rx<detail::pooled_work_tracker>(
+                                         &detail::thread_pool::shared()));
+
+    vfilesystem_owner filesystem;
+    if (auto openFsRx = vfilesystem::open_existing(
+                *sectorDevice, *sectorAllocator, *workTracker, filesystemFile))
     {
-        if (!handle)
-        {
-            return errc::invalid_argument;
-        }
-
-        auto resizerx = handle->truncate(maxExtent);
-
-        return resizerx;
+        filesystem = std::move(openFsRx).assume_value();
+    }
+    else
+    {
+        openFsRx.assume_error() << ed::archive_file{"[archive-index]"};
+        return std::move(openFsRx).assume_error();
     }
 
-    auto archive::maximum_extent_of(const vfile_handle &handle)
+    return filesystem->validate();
+}
+
+auto archive_handle::commit() -> result<void>
+{
+    return mFilesystem->commit();
+}
+
+auto archive_handle::open(const std::string_view filePath,
+                          const file_open_mode_bitset mode)
+        -> result<vfile_handle>
+{
+    return mFilesystem->open(filePath, mode);
+}
+
+auto archive_handle::query(const std::string_view filePath)
+        -> result<file_query_result>
+{
+    return mFilesystem->query(filePath);
+}
+
+auto archive_handle::erase(std::string_view filePath) -> result<void>
+{
+    return mFilesystem->erase(filePath);
+}
+
+auto archive_handle::read(const vfile_handle &handle,
+                          rw_dynblob buffer,
+                          std::uint64_t readFilePos) -> result<void>
+{
+    if (!buffer)
+    {
+        return outcome::success();
+    }
+    if (!handle)
+    {
+        return errc::invalid_argument;
+    }
+    auto readrx = handle->read(buffer, readFilePos);
+    if (readrx.has_error())
+    {
+        readrx.assume_error() << ed::archive_file_read_area{
+                ed::file_span{readFilePos, readFilePos + buffer.size()}};
+    }
+    return readrx;
+}
+
+auto archive_handle::write(const vfile_handle &handle,
+                           ro_dynblob data,
+                           std::uint64_t writeFilePos) -> result<void>
+{
+    if (!data)
+    {
+        return outcome::success();
+    }
+    if (!handle)
+    {
+        return errc::invalid_argument;
+    }
+
+    auto writerx = handle->write(data, writeFilePos);
+    if (writerx.has_error())
+    {
+        writerx.assume_error() << ed::archive_file_write_area{
+                ed::file_span{writeFilePos, writeFilePos + data.size()}};
+    }
+    return writerx;
+}
+
+auto archive_handle::truncate(const vfile_handle &handle,
+                              std::uint64_t maxExtent) -> result<void>
+{
+    if (!handle)
+    {
+        return errc::invalid_argument;
+    }
+
+    auto resizerx = handle->truncate(maxExtent);
+
+    return resizerx;
+}
+
+auto archive_handle::maximum_extent_of(const vfile_handle &handle)
         -> result<std::uint64_t>
+{
+    if (!handle)
     {
-        if (!handle)
-        {
-            return errc::invalid_argument;
-        }
-        return handle->maximum_extent();
+        return errc::invalid_argument;
+    }
+    return handle->maximum_extent();
+}
+
+auto archive_handle::commit(const vfile_handle &handle) -> result<void>
+{
+    if (!handle)
+    {
+        return errc::invalid_argument;
     }
 
-    auto archive::commit(const vfile_handle &handle) -> result<void>
-    {
-        if (!handle)
-        {
-            return errc::invalid_argument;
-        }
+    auto syncrx = handle->commit();
 
-        auto syncrx = handle->commit();
+    return syncrx;
+}
 
-        return syncrx;
-    }
-
-    auto archive::personalization_area() noexcept
+auto archive_handle::personalization_area() noexcept
         -> std::span<std::byte, 1 << 12>
-    {
-        return mArchive->personalization_area();
-    }
+{
+    return mArchive->personalization_area();
+}
 
-    auto archive::sync_personalization_area() noexcept -> result<void>
-    {
-        return mArchive->sync_personalization_area();
-    }
+auto archive_handle::sync_personalization_area() noexcept -> result<void>
+{
+    return mArchive->sync_personalization_area();
+}
 
-    auto read_archive_personalization_area(
-        llfio::path_handle const &base, llfio::path_view where,
+auto read_archive_personalization_area(
+        llfio::path_handle const &base,
+        llfio::path_view where,
         std::span<std::byte, 1 << 12> out) noexcept -> result<void>
-    {
-        VEFS_TRY(file, llfio::file(base, where, llfio::handle::mode::read,
-                                   llfio::handle::creation::open_existing));
+{
+    VEFS_TRY(auto &&file, llfio::file(base, where, llfio::handle::mode::read,
+                                      llfio::handle::creation::open_existing));
 
-        return detail::read_archive_personalization_area(file, out);
-    }
+    return detail::read_archive_personalization_area(file, out);
+}
 } // namespace vefs

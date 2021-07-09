@@ -4,16 +4,34 @@
 
 #include <span>
 
-#include <dplx/dp/decoder/std_container.hpp>
-#include <dplx/dp/encoder/core.hpp>
+#include <dplx/dp/customization.hpp>
 
 #include <vefs/utils/secure_array.hpp>
 
 namespace dplx::dp
 {
-    template <std::size_t N, input_stream Stream>
-    class basic_decoder<vefs::utils::secure_byte_array<N>, Stream>
-        : public basic_decoder<std::span<std::byte>, Stream>
+
+template <typename T, std::size_t N>
+inline auto tag_invoke(container_reserve_fn,
+                       vefs::utils::secure_array<T, N> &c,
+                       std::size_t size) noexcept -> result<void>
+{
+    if (size <= c.size())
     {
-    };
+        return oc::success();
+    }
+    return errc::not_enough_memory;
+}
+template <typename T, std::size_t N>
+inline auto tag_invoke(container_resize_fn,
+                       vefs::utils::secure_array<T, N> &c,
+                       std::size_t size) noexcept -> result<void>
+{
+    if (size <= c.size())
+    {
+        return oc::success();
+    }
+    return errc::not_enough_memory;
+}
+
 } // namespace dplx::dp

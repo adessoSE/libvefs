@@ -41,8 +41,8 @@ BOOST_AUTO_TEST_CASE(error_code_initialization)
 {
     error e{errc::result_out_of_range};
 
-    BOOST_TEST(e.code() ==
-               static_cast<vefs::error_code>(errc::result_out_of_range));
+    BOOST_TEST(e.code()
+               == static_cast<vefs::error_code>(errc::result_out_of_range));
     BOOST_CHECK(e.domain() == vefs::generic_domain());
     BOOST_TEST(!e.has_info());
     BOOST_TEST(e);
@@ -127,8 +127,9 @@ BOOST_AUTO_TEST_CASE(error_format_w_details)
     error info{vefs::archive_errc::tag_mismatch};
     info << vefs::ed::error_code_api_origin{"xyz-xapi()"sv};
 
-    BOOST_TEST("{}"_format(info) ==
-               "vefs-archive-domain => decryption failed because the message "
+    BOOST_TEST(
+            "{}"_format(info)
+            == "vefs-archive-domain => decryption failed because the message "
                "tag didn't match\n"
                "\t[enum vefs::ed::error_code_origin_tag] = xyz-xapi()"sv);
 }

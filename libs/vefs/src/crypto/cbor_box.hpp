@@ -1,6 +1,6 @@
 #pragma once
 
-#include <dplx/dp/byte_buffer.hpp>
+#include <dplx/dp/memory_buffer.hpp>
 
 #include <vefs/disappointment.hpp>
 #include <vefs/span.hpp>
@@ -9,22 +9,25 @@
 
 namespace vefs::crypto
 {
-    struct cbor_box_head
-    {
-        ro_blob<32> salt;
-        ro_blob<16> mac;
-        int dataLength;
-    };
-    struct cbor_box_layout
-    {
-        rw_blob<32> salt;
-        rw_blob<16> mac;
-    };
+inline constexpr unsigned box_salt_size = 32U;
+inline constexpr unsigned box_mac_size = 16U;
 
-    auto cbor_box_layout_head(dplx::dp::byte_buffer_view &outStream,
-                              std::uint16_t dataLength) noexcept
+struct cbor_box_head
+{
+    ro_blob<box_salt_size> salt;
+    ro_blob<box_mac_size> mac;
+    int dataLength;
+};
+struct cbor_box_layout
+{
+    rw_blob<box_salt_size> salt;
+    rw_blob<box_mac_size> mac;
+};
+
+auto cbor_box_layout_head(dplx::dp::memory_buffer &outStream,
+                          std::uint16_t dataLength) noexcept
         -> result<cbor_box_layout>;
 
-    auto cbor_box_decode_head(dplx::dp::byte_buffer_view &inStream) noexcept
+auto cbor_box_decode_head(dplx::dp::memory_buffer &inStream) noexcept
         -> result<cbor_box_head>;
 } // namespace vefs::crypto

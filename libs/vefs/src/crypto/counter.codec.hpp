@@ -5,85 +5,91 @@
 #include <dplx/dp/encoder/api.hpp>
 #include <dplx/dp/encoder/core.hpp>
 
-#include "../detail/cbor_utils.hpp"
 #include "../detail/secure_array.codec.hpp"
 #include "counter.hpp"
 
 namespace dplx::dp
 {
-    template <input_stream Stream>
-    class basic_decoder<vefs::crypto::counter, Stream>
-    {
-    public:
-        using value_type = vefs::crypto::counter;
+template <input_stream Stream>
+class basic_decoder<vefs::crypto::counter, Stream>
+{
+    using parse = dp::item_parser<Stream>;
 
-        inline auto operator()(Stream &inStream, value_type &value) const
+public:
+    using value_type = vefs::crypto::counter;
+
+    inline auto operator()(Stream &inStream, value_type &value) const
             -> result<void>
-        {
-            DPLX_TRY(auto &&headInfo, detail::parse_item_info(inStream));
-
-            if (std::byte{headInfo.type} != type_code::binary)
-            {
-                return errc::item_type_mismatch;
-            }
-            if (headInfo.value != 16)
-            {
-                return errc::invalid_additional_information;
-            }
-
-            DPLX_TRY(auto readProxy, read(inStream, 16));
-            value = value_type(vefs::ro_blob<16>(readProxy));
-
-            if constexpr (lazy_input_stream<Stream>)
-            {
-                DPLX_TRY(consume(inStream, readProxy));
-            }
-
-            return success();
-        }
-    };
-
-    template <input_stream Stream>
-    class basic_decoder<std::atomic<vefs::crypto::counter>, Stream>
     {
-    public:
-        using value_type = std::atomic<vefs::crypto::counter>;
+        vefs::utils::secure_byte_array<value_type::state_size> state{};
+        DPLX_TRY(auto xsize,
+                 parse::binary_finite(inStream, state, value_type::state_size,
+                                      parse_mode::canonical));
 
-        inline auto operator()(Stream &inStream, value_type &value) const
-            -> result<void>
+        if (xsize != value_type::state_size)
         {
-            using counter_type = typename value_type::value_type;
-            DPLX_TRY(auto nested, decode(as_value<counter_type>, inStream));
-
-            value.store(nested);
-            return success();
+            return errc::item_value_out_of_range;
         }
-    };
+        value = value_type(vefs::ro_blob<value_type::state_size>(state));
+        return oc::success();
+    }
+};
 
-    template <output_stream Stream>
-    class basic_encoder<vefs::crypto::counter, Stream>
+template <input_stream Stream>
+class basic_decoder<std::atomic<vefs::crypto::counter>, Stream>
+{
+public:
+    using value_type = std::atomic<vefs::crypto::counter>;
+
+    inline auto operator()(Stream &inStream, value_type &value) const
+            -> result<void>
     {
-    public:
-        using value_type = vefs::crypto::counter;
+        using counter_type = typename value_type::value_type;
+        DPLX_TRY(auto nested, decode(as_value<counter_type>, inStream));
 
-        inline auto operator()(Stream &outStream, value_type const &value) const
+        value.store(nested);
+        return success();
+    }
+};
+
+template <output_stream Stream>
+class basic_encoder<vefs::crypto::counter, Stream>
+{
+public:
+    using value_type = vefs::crypto::counter;
+
+    inline auto operator()(Stream &outStream, value_type const &value) const
             -> result<void>
-        {
-            return encode(outStream,
-                          std::span<std::byte const, 16>(value.view()));
-        }
-    };
-
-    template <output_stream Stream>
-    class basic_encoder<std::atomic<vefs::crypto::counter>, Stream>
     {
-    public:
-        using value_type = std::atomic<vefs::crypto::counter>;
+        return encode(outStream, std::span<std::byte const, 16>(value.view()));
+    }
+};
 
-        inline auto operator()(Stream &outStream, value_type const &value) const
+template <output_stream Stream>
+class basic_encoder<std::atomic<vefs::crypto::counter>, Stream>
+{
+public:
+    using value_type = std::atomic<vefs::crypto::counter>;
+
+    inline auto operator()(Stream &outStream, value_type const &value) const
             -> result<void>
-        {
-            return encode(outStream, value.load());
-        }
-    };
+    {
+        return encode(outStream, value.load());
+    }
+};
+
+
+constexpr auto tag_invoke(encoded_size_of_fn,
+                          vefs::crypto::counter const &) noexcept -> unsigned
+{
+    return 17U;
+}
+
+constexpr auto tag_invoke(encoded_size_of_fn,
+                          vefs::crypto::atomic_counter const &) noexcept -> unsigned
+{
+    return 17U;
+}
+
+
 } // namespace dplx::dp

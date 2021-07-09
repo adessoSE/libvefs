@@ -44,7 +44,6 @@ DEF_SOURCE_GROUP(vefs "detail"
         src/detail/tree_walker.cpp
         src/detail/tree_walker.hpp
 
-        src/detail/cbor_utils.hpp
         src/detail/file_descriptor.hpp
         src/detail/file_descriptor.codec.hpp
 
@@ -174,6 +173,7 @@ DEF_SOURCE_GROUP(vefs "utils"
 
     SOURCES
         src/detail/secure_array.codec.hpp
+        src/detail/uuid.codec.hpp
 )
 
 DEF_SOURCE_GROUP(vefs "external/SpookyV2"
@@ -206,8 +206,8 @@ target_link_libraries(vefs
         fmt::fmt
         llfio::llfio
         outcome::outcome
-        concurrentqueue
-        cuckoohash
+        unofficial::concurrentqueue::concurrentqueue
+        libcuckoo
 )
 
 if (botan_FOUND)
@@ -225,42 +225,44 @@ endif()
 
 ##########################################################################
 # test target
-add_executable(vefs-tests
-    tests/vefs-tests.cpp
-    tests/boost-unit-test.hpp
-    tests/test-utils.hpp
-    tests/test-utils.cpp
-    tests/libb2_none_blake2b_crypto_provider.cpp
-    tests/libb2_none_blake2b_crypto_provider.hpp
-    tests/disappointment-tests.cpp
-    tests/allocator-tests.cpp
-    tests/cache-tests.cpp
-    tests/cache_clock-tests.cpp
-    tests/sector_device-tests.cpp
-    tests/sector_tree_mt-tests.cpp
-    tests/sector_tree_seq-tests.cpp
-    tests/archive-tests.cpp
-    tests/vfilesystem-tests.cpp
-    tests/span-tests.cpp
-    tests/crypto_provider-tests.cpp
-    tests/block_manager-tests.cpp
-    tests/tree_lut-tests.cpp
-    tests/tree_walker-tests.cpp
-    tests/archive_file_id_tests.cpp
-    tests/archive-integration-tests.cpp
- )
-target_link_libraries(vefs-tests
-    PUBLIC
-        vefs
-        Boost::unit_test_framework
-        GTest::gmock
-)
-add_test(NAME vefs-tests COMMAND vefs-tests)
+if (BUILD_TESTING)
+    add_executable(vefs-tests
+        tests/vefs-tests.cpp
+        tests/boost-unit-test.hpp
+        tests/test-utils.hpp
+        tests/test-utils.cpp
+        tests/libb2_none_blake2b_crypto_provider.cpp
+        tests/libb2_none_blake2b_crypto_provider.hpp
+        tests/disappointment-tests.cpp
+        tests/allocator-tests.cpp
+        tests/cache-tests.cpp
+        tests/cache_clock-tests.cpp
+        tests/sector_device-tests.cpp
+        tests/sector_tree_mt-tests.cpp
+        tests/sector_tree_seq-tests.cpp
+        tests/archive-tests.cpp
+        tests/vfilesystem-tests.cpp
+        tests/span-tests.cpp
+        tests/crypto_provider-tests.cpp
+        tests/block_manager-tests.cpp
+        tests/tree_lut-tests.cpp
+        tests/tree_walker-tests.cpp
+        tests/archive_file_id_tests.cpp
+        tests/archive-integration-tests.cpp
+     )
+    target_link_libraries(vefs-tests
+        PUBLIC
+            vefs
+            Boost::unit_test_framework
+            GTest::gmock
+    )
+    add_test(NAME vefs-tests COMMAND vefs-tests)
+endif()
 
 
 ##########################################################################
 # install targets
-install(TARGETS vefs concurrentqueue cuckoohash EXPORT vefs-targets
+install(TARGETS vefs EXPORT vefs-targets
     RUNTIME DESTINATION bin/$<CONFIG>
     LIBRARY DESTINATION lib/$<CONFIG>
     ARCHIVE DESTINATION lib/$<CONFIG>

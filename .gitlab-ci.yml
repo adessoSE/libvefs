@@ -1,124 +1,90 @@
 include:
-  - local: 'properties.yml'
   - project: 'templates/ci-job-templates'
     ref: master
     file: 'native-build-dep-vars.yml'
 
+variables:
+  VCPKG_VERSION: "2021.05.12"
+  BUILD_PARALLELISM: "6"
+
+
 stages:
 - build
 - test
-- release
 
-build_debug:
+workflow:
+  rules:
+    - if: '$CI_PIPELINE_SOURCE == "merge_request_event"'
+      when: never
+    - if: $CI_COMMIT_TAG
+    - if: '$CI_COMMIT_BRANCH !~ /^wip/'
+
+
+########################################################################
+# build template
+.build: &build
   stage: build
   tags:
-    - windows-cpp
-  only:
-    refs:
-      - master
-      - develop
-      - /^bugfix/
-      - /^feature/
-      - /^release/
-  allow_failure: false
-  script:
-    - powershell $ProgressPreference = 'SilentlyContinue'; iwr -H @{'X-JFrog-Art-Api'=$env:ARTIFACTORY_TOKEN} -method GET -uri $env:ARTIFACTORY_URL/$env:ARTIFACTORY_GENERIC_REPO_KEY/de/mdk/bs/vefs/vefs-packages/vefs_packages_$env:VEFS_PACKAGES_VERSION.zip -Outfile vefs-packages.zip
-    - powershell 7z.exe x vefs-packages.zip
-    - call mkdir build
-    - call cd build
-    - call cmake -G "Visual Studio 16 2019"  -A x64 -DVCPKG_TARGET_TRIPLET:STRING="x64-windows-ltcg-static" -DCMAKE_MSVC_RUNTIME_LIBRARY:STRING="MultiThreadedDebug" -DCMAKE_EXE_LINKER_FLAGS_DEBUG:STRING="/debug /INCREMENTAL" -DCMAKE_TOOLCHAIN_FILE="../vefs_packages/scripts/buildsystems/vcpkg.cmake" -DCMAKE_BUILD_TYPE="Debug" ".."
-    - call cmake --build .
-  artifacts:
+    - windows-cpp-13
+  before_script:
+    - $ProgressPreference = "SilentlyContinue"
+    - mkdir build
+    - 'git clone --depth 1 --branch $VCPKG_VERSION https://github.com/microsoft/vcpkg.git build/vcpkg'
+    - $env:VCPKG_ROOT="$pwd\build\vcpkg"
+    - cd build
+    - '& vcpkg\bootstrap-vcpkg -disableMetrics'
+    - '[IO.File]::WriteAllLines("$pwd\nuget.config", ''<?xml version="1.0" encoding="utf-8"?><configuration></configuration>'')'
+    - $nuget=vcpkg\vcpkg fetch nuget | select -last 1
+    - '& $nuget sources Add -Name MdkNugetV3 -Source "$ARTIFACTORY_URL/api/nuget/v3/$ARTIFACTORY_NUGET_REPO_KEY" -UserName $ARTIFACTORY_USER -Password $ARTIFACTORY_TOKEN -ConfigFile .\nuget.config'
+    - '& $nuget config -Set "defaultPushSource=$ARTIFACTORY_URL/api/nuget/v3/$ARTIFACTORY_NUGET_REPO_KEY" -ConfigFile .\nuget.config'
+    - $env:VCPKG_BINARY_SOURCES="clear;nugetconfig,$pwd\nuget.config,readwrite"
+  artifacts: &build_artifacts
     paths:
-      - build/
+      - build/bin
+    expire_in: 1 week
 
-test_debug:
+# test template
+.test: &test
   stage: test
   tags:
-    - windows-cpp
-  only:
-    refs:
-      - master
-      - develop
-      - /^bugfix/
-      - /^feature/
-      - /^release/
-  allow_failure: false
+    - windows-cpp-13
   script:
-    - call build\bin\Debug\vefs-tests
-  dependencies:
-    - build_debug
+    - build\bin\Debug\vefs-tests
 
-build_release:
-  stage: build
-  tags:
-    - windows-cpp
-  only:
-    refs:
-      - master
-      - develop
-      - /^bugfix/
-      - /^feature/
-      - /^release/
-  allow_failure: false
+
+########################################################################
+# build jobs
+build:debug:
+  <<: *build
   script:
-    - powershell $ProgressPreference = 'SilentlyContinue'; iwr -H @{'X-JFrog-Art-Api'=$env:ARTIFACTORY_TOKEN} -method GET -uri $env:ARTIFACTORY_URL/$env:ARTIFACTORY_GENERIC_REPO_KEY/de/mdk/bs/vefs/vefs-packages/vefs_packages_$env:VEFS_PACKAGES_VERSION.zip -Outfile vefs-packages.zip
-    - powershell 7z.exe x vefs-packages.zip
-    - call mkdir build
-    - call cd build
-    - call cmake -G "Visual Studio 16 2019"  -A x64 -DVCPKG_TARGET_TRIPLET:STRING="x64-windows-ltcg-static" -DCMAKE_MSVC_RUNTIME_LIBRARY:STRING="MultiThreaded" -DCMAKE_EXE_LINKER_FLAGS:STRING="/debug /INCREMENTAL" -DCMAKE_TOOLCHAIN_FILE="../vefs_packages/scripts/buildsystems/vcpkg.cmake" -DCMAKE_INSTALL_PREFIX=. -DCMAKE_BUILD_TYPE="Release" ".."
-    - call cmake --build . --config Release
-    - call cmake --install .
-
+    - cmake -G "Visual Studio 16 2019"  -A x64 -DVCPKG_TARGET_TRIPLET:STRING="x64-windows-ltcg-static" -DCMAKE_MSVC_RUNTIME_LIBRARY:STRING="MultiThreadedDebug" -DCMAKE_EXE_LINKER_FLAGS_DEBUG:STRING="/debug /INCREMENTAL" -DBUILD_TESTING=ON ".."
+    - cmake --build . -j $BUILD_PARALLELISM
   artifacts:
-    paths:
-      - build/
+    <<: *build_artifacts
+    expose_as: debug binaries
+
+build:release:
+  <<: *build
+  script:
+    - cmake -G "Visual Studio 16 2019"  -A x64 -DVCPKG_TARGET_TRIPLET:STRING="x64-windows-ltcg-static" -DCMAKE_MSVC_RUNTIME_LIBRARY:STRING="MultiThreaded" -DCMAKE_EXE_LINKER_FLAGS:STRING="/debug /INCREMENTAL" -DCMAKE_BUILD_TYPE="Release" -DBUILD_TESTING=ON ".."
+    - cmake --build . -j $BUILD_PARALLELISM --config Release
+  artifacts:
+    <<: *build_artifacts
+    expose_as: release binaries
+
+# test jobs
+test:debug:
+  <<: *test
+  script:
+    - build\bin\Debug\vefs-tests
+  needs: ["build:debug"]
+  dependencies:
+    - build:debug
 
 test_release:
-  stage: test
-  tags:
-    - windows-cpp
-  only:
-    refs:
-      - master
-      - develop
-      - /^bugfix/
-      - /^feature/
-      - /^release/
-  allow_failure: false
+  <<: *test
   script:
-    - call build\bin\Release\vefs-tests
+    - build\bin\Release\vefs-tests
+  needs: ["build:release"]
   dependencies:
-    - build_release
-
-.publish_release: &publish_release
-  stage: release
-  tags:
-    - windows-cpp
-  only:
-    refs:
-      - master
-      - develop
-  script:
-    - cd build
-    - powershell Compress-Archive -Path "include", "lib", "cmake" -DestinationPath vefs-lib.zip
-    - powershell $ProgressPreference = 'SilentlyContinue'; iwr -H @{'X-JFrog-Art-Api'=$env:ARTIFACTORY_TOKEN} -method PUT -uri $env:ARTIFACTORY_URL/$env:ARTIFACTORY_GENERIC_REPO_KEY/de/mdk/bs/vefs/vefs-lib/vefs_lib_$env:VEFS_VERSION$env:VERSION_SUFFIX.zip -Infile vefs-lib.zip
-
-  dependencies:
-    - test_release
-    - build_release
-
-release_production:
-  only:
-    - tags
-  except:
-    - develop
-  variables:
-    VERSION_SUFFIX: ''
-  <<: *publish_release
-
-release-dev:
-  variables:
-    VERSION_SUFFIX: -$CI_COMMIT_REF_NAME-SNAPSHOT
-  allow_failure: false
-  <<: *publish_release
+    - build:release

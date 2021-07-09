@@ -1,27 +1,37 @@
 #pragma once
 
+#include <memory>
+
 namespace vefs
 {
-    class file;
-    class filesystem;
 
-    class archive;
+class vfilesystem;
+class vfile;
+using vfile_handle = std::shared_ptr<vfile>;
 
-    namespace detail
-    {
-        class thread_pool;
+class archive_handle;
 
-        class archive_sector_allocator;
+} // namespace vefs
 
-        class sector_device;
-        struct basic_archive_file_meta;
-    }
+namespace vefs::detail
+{
 
-    namespace crypto
-    {
-        class crypto_provider;
+class thread_pool;
 
-        // mirroring <vefs/crypto/provider.hpp>
-        crypto_provider * boringssl_aes_256_gcm_crypto_provider();
-    }
-}
+class archive_sector_allocator;
+
+class sector_device;
+
+class pooled_work_tracker;
+
+} // namespace vefs::detail
+
+namespace vefs::crypto
+{
+
+class crypto_provider;
+
+// mirroring <vefs/crypto/provider.hpp>
+auto boringssl_aes_256_gcm_crypto_provider() -> crypto_provider *;
+
+} // namespace vefs::crypto

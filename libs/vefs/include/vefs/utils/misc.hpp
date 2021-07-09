@@ -14,181 +14,180 @@
 
 namespace vefs::utils
 {
-    template <typename T>
-    constexpr T div_ceil(T dividend, T divisor)
-    {
-        static_assert(std::is_unsigned_v<T>);
+template <typename T>
+constexpr T div_ceil(T dividend, T divisor)
+{
+    static_assert(std::is_unsigned_v<T>);
 
-        return dividend / divisor + (dividend % divisor != 0);
+    return dividend / divisor + (dividend % divisor != 0);
+}
+template <typename T, typename U>
+constexpr auto div_ceil(T dividend, U divisor) -> std::common_type_t<T, U>
+{
+    using common_t = std::common_type_t<T, U>;
+    return div_ceil(static_cast<common_t>(dividend),
+                    static_cast<common_t>(divisor));
+}
+
+template <typename T, typename U>
+constexpr auto mod(T k, U n) -> std::common_type_t<T, U>
+{
+    assert(n > 0);
+
+    const auto r = k % n;
+    return r < 0 ? k + n : k;
+}
+
+constexpr auto upow(std::uint64_t x, std::uint64_t e)
+{
+    std::uint64_t result = 1;
+    while (e)
+    {
+        if (e & 1)
+            result *= x;
+
+        e >>= 1;
+        x *= x;
     }
-    template <typename T, typename U>
-    constexpr auto div_ceil(T dividend, U divisor) -> std::common_type_t<T, U>
+    return result;
+}
+
+template <std::uint8_t... Values>
+constexpr auto make_byte_array()
+{
+    return std::array<std::byte, sizeof...(Values)>{std::byte{Values}...};
+}
+template <typename... Ts>
+constexpr auto make_byte_array(Ts &&...ts)
+        -> std::array<std::byte, sizeof...(Ts)>
+{
+    static_assert((... && std::is_integral_v<Ts>));
+    if ((... || (static_cast<std::make_unsigned_t<Ts>>(ts) > 0xFFu)))
     {
-        using common_t = std::common_type_t<T, U>;
-        return div_ceil(static_cast<common_t>(dividend),
-                        static_cast<common_t>(divisor));
+        throw std::logic_error("tried to make a byte with a value > 0xFF");
     }
+    return {static_cast<std::byte>(ts)...};
+}
 
-    template <typename T, typename U>
-    constexpr auto mod(T k, U n) -> std::common_type_t<T, U>
+constexpr auto is_null_byte(const std::byte value) noexcept -> bool
+{
+    return value == std::byte{};
+}
+constexpr auto is_non_null_byte(const std::byte value) noexcept -> bool
+{
+    return !is_null_byte(value);
+}
+
+template <typename R, typename Fn, std::size_t... is, typename... Args>
+constexpr auto
+sequence_init(Fn &&initFn, std::index_sequence<is...>, Args &&...args) -> R
+{
+    return R{initFn(args..., is)...};
+}
+
+template <typename R, std::size_t N, typename Fn, typename... Args>
+constexpr auto sequence_init(Fn &&initFn, Args &&...args) -> R
+{
+    return sequence_init<R>(std::forward<Fn>(initFn),
+                            std::make_index_sequence<N>{},
+                            std::forward<Args>(args)...);
+}
+
+template <typename T>
+struct remove_cvref
+{
+    using type = std::remove_cv_t<std::remove_reference_t<T>>;
+};
+
+template <typename T>
+using remove_cvref_t = typename remove_cvref<T>::type;
+
+template <typename F, typename... Args>
+inline decltype(auto) error_code_scope(F &&f, Args &&...args)
+{
+    std::error_code ec;
+    if constexpr (std::is_void_v<decltype(f(std::forward<Args>(args)..., ec))>)
     {
-        assert(n > 0);
-
-        const auto r = k % n;
-        return r < 0 ? k + n : k;
-    }
-
-    constexpr auto upow(std::uint64_t x, std::uint64_t e)
-    {
-        std::uint64_t result = 1;
-        while (e)
+        f(std::forward<Args>(args)..., ec);
+        if (ec)
         {
-            if (e & 1)
-                result *= x;
-
-            e >>= 1;
-            x *= x;
+            BOOST_THROW_EXCEPTION(std::system_error(ec));
+        }
+    }
+    else
+    {
+        decltype(auto) result = f(std::forward<Args>(args)..., ec);
+        if (ec)
+        {
+            BOOST_THROW_EXCEPTION(std::system_error(ec));
         }
         return result;
     }
+}
 
-    template <std::uint8_t... Values>
-    constexpr auto make_byte_array()
+template <typename Fn>
+struct scope_guard
+{
+    BOOST_FORCEINLINE scope_guard(Fn &&fn)
+        : mFn(std::forward<Fn>(fn))
     {
-        return std::array<std::byte, sizeof...(Values)>{std::byte{Values}...};
     }
-    template <typename... Ts>
-    constexpr auto make_byte_array(Ts &&... ts)
-        -> std::array<std::byte, sizeof...(Ts)>
+    BOOST_FORCEINLINE ~scope_guard() noexcept
     {
-        static_assert((... && std::is_integral_v<Ts>));
-        if ((... || (static_cast<std::make_unsigned_t<Ts>>(ts) > 0xFFu)))
-        {
-            throw std::logic_error("tried to make a byte with a value > 0xFF");
-        }
-        return {static_cast<std::byte>(ts)...};
+        mFn();
     }
 
-    constexpr auto is_null_byte(const std::byte value) noexcept -> bool
+private:
+    Fn mFn;
+};
+
+enum class on_exit_scope
+{
+};
+
+template <typename Fn>
+BOOST_FORCEINLINE scope_guard<Fn> operator+(on_exit_scope, Fn &&fn)
+{
+    return scope_guard<Fn>{std::forward<Fn>(fn)};
+}
+
+template <typename Fn>
+struct error_scope_guard
+{
+    BOOST_FORCEINLINE error_scope_guard(Fn &&fn)
+        : mFn(std::forward<Fn>(fn))
+        , mUncaughtExceptions(std::uncaught_exceptions())
     {
-        return value == std::byte{};
     }
-    constexpr auto is_non_null_byte(const std::byte value) noexcept -> bool
+    BOOST_FORCEINLINE ~error_scope_guard() noexcept
     {
-        return !is_null_byte(value);
-    }
-
-    template <typename R, typename Fn, std::size_t... is, typename... Args>
-    constexpr auto sequence_init(Fn &&initFn, std::index_sequence<is...>,
-                                 Args &&... args) -> R
-    {
-        return R{initFn(args..., is)...};
-    }
-
-    template <typename R, std::size_t N, typename Fn, typename... Args>
-    constexpr auto sequence_init(Fn &&initFn, Args &&... args) -> R
-    {
-        return sequence_init<R>(std::forward<Fn>(initFn),
-                                std::make_index_sequence<N>{},
-                                std::forward<Args>(args)...);
-    }
-
-    template <typename T>
-    struct remove_cvref
-    {
-        using type = std::remove_cv_t<std::remove_reference_t<T>>;
-    };
-
-    template <typename T>
-    using remove_cvref_t = typename remove_cvref<T>::type;
-
-    template <typename F, typename... Args>
-    inline decltype(auto) error_code_scope(F &&f, Args &&... args)
-    {
-        std::error_code ec;
-        if constexpr (std::is_void_v<decltype(
-                          f(std::forward<Args>(args)..., ec))>)
-        {
-            f(std::forward<Args>(args)..., ec);
-            if (ec)
-            {
-                BOOST_THROW_EXCEPTION(std::system_error(ec));
-            }
-        }
-        else
-        {
-            decltype(auto) result = f(std::forward<Args>(args)..., ec);
-            if (ec)
-            {
-                BOOST_THROW_EXCEPTION(std::system_error(ec));
-            }
-            return result;
-        }
-    }
-
-    template <typename Fn>
-    struct scope_guard
-    {
-        BOOST_FORCEINLINE scope_guard(Fn &&fn)
-            : mFn(std::forward<Fn>(fn))
-        {
-        }
-        BOOST_FORCEINLINE ~scope_guard() noexcept
+        if (mUncaughtExceptions < std::uncaught_exceptions())
         {
             mFn();
         }
-
-    private:
-        Fn mFn;
-    };
-
-    enum class on_exit_scope
-    {
-    };
-
-    template <typename Fn>
-    BOOST_FORCEINLINE scope_guard<Fn> operator+(on_exit_scope, Fn &&fn)
-    {
-        return scope_guard<Fn>{std::forward<Fn>(fn)};
     }
 
-    template <typename Fn>
-    struct error_scope_guard
-    {
-        BOOST_FORCEINLINE error_scope_guard(Fn &&fn)
-            : mFn(std::forward<Fn>(fn))
-            , mUncaughtExceptions(std::uncaught_exceptions())
-        {
-        }
-        BOOST_FORCEINLINE ~error_scope_guard() noexcept
-        {
-            if (mUncaughtExceptions < std::uncaught_exceptions())
-            {
-                mFn();
-            }
-        }
+private:
+    Fn mFn;
+    int mUncaughtExceptions;
+};
 
-    private:
-        Fn mFn;
-        int mUncaughtExceptions;
-    };
+enum class on_error_exit
+{
+};
 
-    enum class on_error_exit
-    {
-    };
-
-    template <typename Fn>
-    BOOST_FORCEINLINE error_scope_guard<Fn> operator+(on_error_exit, Fn &&fn)
-    {
-        return error_scope_guard<Fn>{std::forward<Fn>(fn)};
-    }
+template <typename Fn>
+BOOST_FORCEINLINE error_scope_guard<Fn> operator+(on_error_exit, Fn &&fn)
+{
+    return error_scope_guard<Fn>{std::forward<Fn>(fn)};
+}
 
 #define VEFS_ANONYMOUS_VAR(id) BOOST_PP_CAT(id, __LINE__)
 #define VEFS_SCOPE_EXIT                                                        \
-    auto VEFS_ANONYMOUS_VAR(_scope_exit_guard_) =                              \
-        ::vefs::utils::on_exit_scope{} + [&]()
+    auto VEFS_ANONYMOUS_VAR(_scope_exit_guard_)                                \
+            = ::vefs::utils::on_exit_scope{} + [&]()
 #define VEFS_ERROR_EXIT                                                        \
-    auto VEFS_ANONYMOUS_VAR(_error_exit_guard_) =                              \
-        ::vefs::utils::on_error_exit{} + [&]()
+    auto VEFS_ANONYMOUS_VAR(_error_exit_guard_)                                \
+            = ::vefs::utils::on_error_exit{} + [&]()
 
 } // namespace vefs::utils

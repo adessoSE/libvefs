@@ -9,60 +9,95 @@
 
 namespace vefs::detail
 {
-    thread_pool &thread_pool::shared()
-    {
+
+thread_pool &thread_pool::shared()
+{
 #if defined BOOST_OS_WINDOWS_AVAILABLE
-        static thread_pool_win32_default pool;
+    static thread_pool_win32_default pool;
 #else
-        static thread_pool_gen pool{std::thread::hardware_concurrency() * 2,
-                                    std::thread::hardware_concurrency() * 2, "vefs-process-shared"};
+    static thread_pool_gen pool{std::thread::hardware_concurrency() * 2,
+                                std::thread::hardware_concurrency() * 2,
+                                "vefs-process-shared"};
 #endif
-        return pool;
-    }
+    return pool;
+}
 
-    void thread_pool::xdo(task_t &work) noexcept
+void thread_pool::xdo(task_t &work) noexcept
+{
+    try
     {
-        try
+        work();
+    }
+    catch (...)
+    {
+    }
+}
+
+#if __cpp_lib_atomic_wait < 201907L
+pooled_work_tracker::pooled_work_tracker(thread_pool *pool)
+    : mPool{pool}
+    , mWorkCtr{0}
+    , mSync{}
+    , mOnDecr{}
+{
+}
+#else
+pooled_work_tracker::pooled_work_tracker(thread_pool *pool)
+    : mPool{pool}
+    , mWorkCtr{0}
+{
+}
+#endif
+
+void pooled_work_tracker::wait()
+{
+#if __cpp_lib_atomic_wait < 201907L
+    std::unique_lock lock{mSync};
+    mOnDecr.wait(lock, [this]() {
+        return mWorkCtr.load(std::memory_order_acquire) == 0;
+    });
+#else
+    auto currentValue = mWorkCtr.load(std::memory_order::acquire);
+    while (currentValue > 0)
+    {
+        mWorkCtr.wait(currentValue, std::memory_order::acquire);
+        currentValue = mWorkCtr.load(std::memory_order::acquire);
+    }
+#endif
+}
+
+void pooled_work_tracker::execute(std::unique_ptr<task_t> task)
+{
+    assert(task);
+
+    mWorkCtr.fetch_add(1, std::memory_order::release);
+    VEFS_ERROR_EXIT
+    {
+        if (0 == mWorkCtr.fetch_sub(1, std::memory_order::acq_rel))
         {
-            work();
+#if __cpp_lib_atomic_wait < 201907L
+            mOnDecr.notify_all();
+#else
+            mWorkCtr.notify_all();
+#endif
         }
-        catch (...)
+    };
+
+    mPool->execute([this, xtask = std::move(*task)]() mutable {
+        VEFS_SCOPE_EXIT
         {
-        }
-    }
-
-    pooled_work_tracker::pooled_work_tracker(thread_pool *pool)
-        : mPool{pool}
-        , mSync{}
-        , mWorkCtr{0}
-        , mOnDecr{}
-    {
-    }
-
-    void pooled_work_tracker::wait()
-    {
-        std::unique_lock lock{mSync};
-        mOnDecr.wait(lock, [this]() { return mWorkCtr.load(std::memory_order_acquire) == 0; });
-    }
-
-    void pooled_work_tracker::execute(std::unique_ptr<task_t> task)
-    {
-        assert(task);
-
-        mWorkCtr.fetch_add(1, std::memory_order_release);
-        VEFS_ERROR_EXIT
-        {
-            mWorkCtr.fetch_sub(1, std::memory_order_release);
+            if (0 == mWorkCtr.fetch_sub(1, std::memory_order::acq_rel))
+            {
+#if __cpp_lib_atomic_wait < 201907L
+                mOnDecr.notify_all();
+#else
+                mWorkCtr.notify_all();
+#endif
+            }
         };
 
-        mPool->execute([this, xtask = std::move(*task)]() mutable {
-            VEFS_SCOPE_EXIT
-            {
-                mWorkCtr.fetch_sub(1, std::memory_order_release);
-                mOnDecr.notify_all();
-            };
+        xtask();
+    });
+}
 
-            xtask();
-        });
-    }
 } // namespace vefs::detail

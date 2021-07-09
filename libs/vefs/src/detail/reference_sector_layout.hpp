@@ -7,39 +7,44 @@
 
 namespace vefs::detail
 {
-    class reference_sector_layout
+class reference_sector_layout
+{
+public:
+    static constexpr std::size_t serialized_reference_size = 32;
+    static constexpr std::size_t references_per_sector
+            = sector_device::sector_payload_size / serialized_reference_size;
+
+    explicit reference_sector_layout(
+            rw_blob<sector_device::sector_payload_size> data) noexcept
+        : mCodec(data)
     {
-    public:
-        static constexpr std::size_t serialized_reference_size = 32;
-        static constexpr std::size_t references_per_sector =
-            sector_device::sector_payload_size / serialized_reference_size;
+    }
 
-        explicit reference_sector_layout(rw_blob<sector_device::sector_payload_size> data) noexcept
-            : mCodec(data)
-        {
-        }
+    inline auto read(int which) const noexcept -> sector_reference
+    {
+        const auto baseOffset
+                = static_cast<std::size_t>(which) * serialized_reference_size;
 
-        inline auto read(int which) const noexcept -> sector_reference
-        {
-            const auto baseOffset = static_cast<std::size_t>(which) * serialized_reference_size;
+        sector_reference deserialized;
+        deserialized.sector = mCodec.read<sector_id>(baseOffset);
+        copy(mCodec.as_bytes().subspan(baseOffset + 16, 16),
+             span(deserialized.mac));
 
-            sector_reference deserialized;
-            deserialized.sector = mCodec.read<sector_id>(baseOffset);
-            copy(mCodec.as_bytes().subspan(baseOffset + 16, 16), span(deserialized.mac));
+        return deserialized;
+    }
 
-            return deserialized;
-        }
+    inline void write(int which, sector_reference reference) noexcept
+    {
+        const auto baseOffset
+                = static_cast<std::size_t>(which) * serialized_reference_size;
 
-        inline void write(int which, sector_reference reference) noexcept
-        {
-            const auto baseOffset = static_cast<std::size_t>(which) * serialized_reference_size;
+        mCodec.write(reference.sector, baseOffset);
+        mCodec.write<std::uint64_t>(0, baseOffset + 8);
+        copy(span(reference.mac),
+             mCodec.as_writeable_bytes().subspan(baseOffset + 16, 16));
+    }
 
-            mCodec.write(reference.sector, baseOffset);
-            mCodec.write<std::uint64_t>(0, baseOffset + 8);
-            copy(span(reference.mac), mCodec.as_writeable_bytes().subspan(baseOffset + 16, 16));
-        }
-
-    private:
-        utils::binary_codec<sector_device::sector_payload_size> mCodec;
-    };
+private:
+    utils::binary_codec<sector_device::sector_payload_size> mCodec;
+};
 } // namespace vefs::detail

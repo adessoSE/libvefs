@@ -14,8 +14,8 @@ BOOST_AUTO_TEST_CASE(archive_file_id_stringify)
                                      0x53, 0xa7, 0xa3, 0x35, 0xf3, 0x5c, 0xdf,
                                      0x53, 0x3d}};
 
-    BOOST_TEST(fmt::format("{}", testId) ==
-               "C7A53D7A-A4F0-4053-A7A3-35F35CDF533D"sv);
+    BOOST_TEST(fmt::format("{}", testId)
+               == "C7A53D7A-A4F0-4053-A7A3-35F35CDF533D"sv);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

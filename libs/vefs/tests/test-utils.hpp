@@ -7,15 +7,10 @@
 #include <fmt/ostream.h>
 
 #include "../src/detail/cache_car.hpp"
+#include "../src/detail/file_crypto_ctx.hpp"
 #include "libb2_none_blake2b_crypto_provider.hpp"
 #include <vefs/disappointment.hpp>
-#include "../src/detail/file_crypto_ctx.hpp"
 #include <vefs/utils/random.hpp>
-
-namespace adesso::vefs
-{
-    class FileDescriptor;
-} // namespace adesso::vefs
 
 struct test_rng : vefs::utils::xoroshiro128plus
 {
@@ -31,25 +26,25 @@ struct test_rng : vefs::utils::xoroshiro128plus
 
 namespace vefs
 {
-    inline std::ostream &operator<<(std::ostream &s, const error_domain &domain)
-    {
-        using namespace fmt::literals;
-        s << "[error_domain|{}]"_format(domain.name());
-        return s;
-    }
+inline std::ostream &operator<<(std::ostream &s, const error_domain &domain)
+{
+    using namespace fmt::literals;
+    s << "[error_domain|{}]"_format(domain.name());
+    return s;
+}
 
-    template <typename T>
-    inline auto check_result(const result<T> &rx)
+template <typename T>
+inline auto check_result(const result<T> &rx)
         -> boost::test_tools::predicate_result
+{
+    if (!rx)
     {
-        if (!rx)
-        {
-            boost::test_tools::predicate_result prx{false};
-            prx.message() << rx.assume_error();
-            return prx;
-        }
-        return true;
+        boost::test_tools::predicate_result prx{false};
+        prx.message() << rx.assume_error();
+        return prx;
     }
+    return true;
+}
 } // namespace vefs
 
 #define TEST_RESULT(...) BOOST_TEST((::vefs::check_result((__VA_ARGS__))))
@@ -58,54 +53,54 @@ namespace vefs
 
 namespace fmt
 {
-    template <typename T>
-    struct formatter<vefs::detail::cache_handle<T>>
+template <typename T>
+struct formatter<vefs::detail::cache_handle<T>>
+{
+    template <typename ParseContext>
+    constexpr auto parse(ParseContext &ctx)
     {
-        template <typename ParseContext>
-        constexpr auto parse(ParseContext &ctx)
-        {
-            return ctx.begin();
-        }
+        return ctx.begin();
+    }
 
-        template <typename FormatContext>
-        auto format(const vefs::detail::cache_handle<T> &h, FormatContext &ctx)
+    template <typename FormatContext>
+    auto format(const vefs::detail::cache_handle<T> &h, FormatContext &ctx)
+    {
+        if (h)
         {
-            if (h)
-            {
-                return format_to(ctx.out(), "{}", *h);
-            }
-            else
-            {
-                return format_to(ctx.out(), "[nullptr cache_handle]");
-            }
+            return format_to(ctx.out(), "{}", *h);
         }
-    };
+        else
+        {
+            return format_to(ctx.out(), "[nullptr cache_handle]");
+        }
+    }
+};
 } // namespace fmt
 
 namespace vefs::detail
 {
-    template <typename T>
-    inline auto boost_test_print_type(std::ostream &s, const cache_handle<T> &h)
+template <typename T>
+inline auto boost_test_print_type(std::ostream &s, const cache_handle<T> &h)
         -> std::ostream &
-    {
-        fmt::print(s, FMT_STRING("{}"), h);
-        return s;
-    }
+{
+    fmt::print(s, FMT_STRING("{}"), h);
+    return s;
+}
 } // namespace vefs::detail
 
 namespace std
 {
-    inline auto boost_test_print_type(std::ostream &s, std::byte b)
+inline auto boost_test_print_type(std::ostream &s, std::byte b)
         -> std::ostream &
-    {
-        fmt::print(s, FMT_STRING("{:x}"), static_cast<std::uint8_t>(b));
-        return s;
-    }
+{
+    fmt::print(s, FMT_STRING("{:x}"), static_cast<std::uint8_t>(b));
+    return s;
+}
 } // namespace std
 
-
-namespace adesso::vefs
+namespace vefs_tests
 {
-    std::ostream &operator<<(std::ostream &os,
-                             const adesso::vefs::FileDescriptor &ref);
-} // namespace adesso::vefs
+
+extern vefs::llfio::path_handle const current_path;
+
+}

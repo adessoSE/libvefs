@@ -9,30 +9,30 @@ using namespace vefs::detail;
 
 namespace vefs
 {
-    std::ostream &operator<<(std::ostream &str, file_open_mode_bitset val)
+std::ostream &operator<<(std::ostream &str, file_open_mode_bitset val)
+{
+    using namespace std::string_view_literals;
+
+    std::array<std::string_view, 4> attributes{};
+    auto end = attributes.begin();
+    *end++ = "read"sv;
+
+    if (val % file_open_mode::write)
     {
-        using namespace std::string_view_literals;
-
-        std::array<std::string_view, 4> attributes{};
-        auto end = attributes.begin();
-        *end++ = "read"sv;
-
-        if (val % file_open_mode::write)
-        {
-            *end++ = "write"sv;
-        }
-        if (val % file_open_mode::create)
-        {
-            *end++ = "create"sv;
-        }
-        if (val % file_open_mode::truncate)
-        {
-            *end++ = "truncate"sv;
-        }
-        fmt::print(str, "(file mode:{})"sv,
-                   fmt::join(attributes.begin(), end, "|"sv));
-        return str;
+        *end++ = "write"sv;
     }
+    if (val % file_open_mode::create)
+    {
+        *end++ = "create"sv;
+    }
+    if (val % file_open_mode::truncate)
+    {
+        *end++ = "truncate"sv;
+    }
+    fmt::print(str, "(file mode:{})"sv,
+               fmt::join(attributes.begin(), end, "|"sv));
+    return str;
+}
 } // namespace vefs
 
 struct vfilesystem_test_dependencies
@@ -53,11 +53,11 @@ struct vfilesystem_test_dependencies
 
     vfilesystem_test_dependencies()
         : testFile(vefs::llfio::mapped_temp_inode().value())
-        , device(sector_device::open(testFile.reopen(0).value(),
-                                     test::only_mac_crypto_provider(),
-                                     default_user_prk, true)
-                     .value()
-                     .device)
+        , device(sector_device::create_new(testFile.reopen(0).value(),
+                                           test::only_mac_crypto_provider(),
+                                           default_user_prk)
+                         .value()
+                         .device)
         , filesystemIndex{}
         , sectorAllocator(*device, {})
         , workExecutor(&thread_pool::shared())
@@ -66,14 +66,14 @@ struct vfilesystem_test_dependencies
         cryptoCtx = device->create_file_secrets().value();
         testSubject = vfilesystem::create_new(*device, sectorAllocator,
                                               workExecutor, filesystemIndex)
-                          .value();
+                              .value();
     }
 };
 
 BOOST_FIXTURE_TEST_SUITE(vfilesystem_tests, vfilesystem_test_dependencies)
 
 BOOST_AUTO_TEST_CASE(
-    recover_sectors_does_not_change_size_if_no_sector_to_recover)
+        recover_sectors_does_not_change_size_if_no_sector_to_recover)
 {
     BOOST_TEST(5 == device->size());
     TEST_RESULT_REQUIRE(testSubject->commit());
@@ -84,8 +84,8 @@ BOOST_AUTO_TEST_CASE(
 
 BOOST_AUTO_TEST_CASE(recover_sectors_does_shrinks_size)
 {
-    auto vfilerx = testSubject->open("testpath", file_open_mode::readwrite |
-                                                     file_open_mode::create);
+    auto vfilerx = testSubject->open(
+            "testpath", file_open_mode::readwrite | file_open_mode::create);
 
     TEST_RESULT_REQUIRE(vfilerx);
     auto file = vfilerx.assume_value();
@@ -109,8 +109,8 @@ BOOST_AUTO_TEST_CASE(recover_sectors_does_shrinks_size)
 
 BOOST_AUTO_TEST_CASE(create_file_allocs_sectors)
 {
-    auto vfilerx = testSubject->open("testpath", file_open_mode::readwrite |
-                                                     file_open_mode::create);
+    auto vfilerx = testSubject->open(
+            "testpath", file_open_mode::readwrite | file_open_mode::create);
 
     TEST_RESULT_REQUIRE(vfilerx);
     auto file = vfilerx.assume_value();
@@ -130,8 +130,8 @@ BOOST_AUTO_TEST_CASE(create_file_allocs_sectors)
 
 BOOST_AUTO_TEST_CASE(load_existing_filesystem_keeps_files)
 {
-    auto vfilerx = testSubject->open("testpath", file_open_mode::readwrite |
-                                                     file_open_mode::create);
+    auto vfilerx = testSubject->open(
+            "testpath", file_open_mode::readwrite | file_open_mode::create);
 
     TEST_RESULT_REQUIRE(vfilerx);
     auto file = vfilerx.assume_value();
@@ -152,8 +152,9 @@ BOOST_AUTO_TEST_CASE(load_existing_filesystem_keeps_files)
     TEST_RESULT_REQUIRE(vfsrx);
     auto existingFileSystem = std::move(vfsrx).assume_value();
 
-    auto reloadedFile =
-        existingFileSystem->open("testpath", file_open_mode::read).value();
+    auto reloadedFile
+            = existingFileSystem->open("testpath", file_open_mode::read)
+                      .value();
     std::array<std::byte, 4> result{};
     TEST_RESULT_REQUIRE(reloadedFile->read(result, 1));
 
@@ -163,9 +164,9 @@ BOOST_AUTO_TEST_CASE(load_existing_filesystem_keeps_files)
 BOOST_AUTO_TEST_CASE(newly_created_file_can_be_found_has_size_zero)
 {
     auto file = testSubject
-                    ->open("testpath",
-                           file_open_mode::readwrite | file_open_mode::create)
-                    .value();
+                        ->open("testpath", file_open_mode::readwrite
+                                                   | file_open_mode::create)
+                        .value();
     (void)file->commit();
 
     auto result = testSubject->query("testpath").value();
@@ -177,9 +178,9 @@ BOOST_AUTO_TEST_CASE(newly_created_file_can_be_found_has_size_zero)
 BOOST_AUTO_TEST_CASE(newly_created_file_is_not_dirty_after_successful_commit)
 {
     auto file = testSubject
-                    ->open("testpath",
-                           file_open_mode::readwrite | file_open_mode::create)
-                    .value();
+                        ->open("testpath", file_open_mode::readwrite
+                                                   | file_open_mode::create)
+                        .value();
     auto commitRx = file->commit();
 
     auto result = testSubject->query("testpath");
@@ -191,9 +192,9 @@ BOOST_AUTO_TEST_CASE(newly_created_file_is_not_dirty_after_successful_commit)
 BOOST_AUTO_TEST_CASE(file_with_size_1000_can_be_found_has_size_1000)
 {
     auto vfilerx = testSubject
-                       ->open("testpath", file_open_mode::readwrite |
-                                              file_open_mode::create)
-                       .value();
+                           ->open("testpath", file_open_mode::readwrite
+                                                      | file_open_mode::create)
+                           .value();
     (void)vfilerx->truncate(1000);
     (void)vfilerx->commit();
 
@@ -221,13 +222,14 @@ BOOST_AUTO_TEST_CASE(new_file_system_is_dirty)
 
 BOOST_AUTO_TEST_CASE(filesystem_cannot_commit_non_existing_files)
 {
-    auto file = vefs::vfile::create_new(
-                    testSubject.get(), workExecutor, sectorAllocator,
-                    file_id(vefs::utils::uuid{
-                        0xc7, 0xa5, 0x3d, 0x7a, 0xa4, 0xf0, 0x40, 0x53, 0xa7,
-                        0xa3, 0x35, 0xf3, 0x5c, 0xdf, 0x53, 0x3d}),
-                    *device, *cryptoCtx)
-                    .value();
+    auto file
+            = vefs::vfile::create_new(
+                      testSubject.get(), workExecutor, sectorAllocator,
+                      file_id(vefs::utils::uuid{
+                              0xc7, 0xa5, 0x3d, 0x7a, 0xa4, 0xf0, 0x40, 0x53,
+                              0xa7, 0xa3, 0x35, 0xf3, 0x5c, 0xdf, 0x53, 0x3d}),
+                      *device, *cryptoCtx)
+                      .value();
     auto result = file->commit();
 
     BOOST_TEST(!result);
@@ -238,9 +240,9 @@ BOOST_AUTO_TEST_CASE(filesystem_cannot_commit_non_existing_files)
 BOOST_AUTO_TEST_CASE(file_in_use_cannot_be_erased)
 {
     auto vfilerx = testSubject
-                       ->open("testpath", file_open_mode::readwrite |
-                                              file_open_mode::create)
-                       .value();
+                           ->open("testpath", file_open_mode::readwrite
+                                                      | file_open_mode::create)
+                           .value();
 
     auto result = testSubject->erase("testpath");
 
@@ -251,9 +253,9 @@ BOOST_AUTO_TEST_CASE(file_in_use_cannot_be_erased)
 BOOST_AUTO_TEST_CASE(file_not_committed_cannot_be_erased_invalid_argument)
 {
     auto vfilerx = testSubject
-                       ->open("testpath", file_open_mode::readwrite |
-                                              file_open_mode::create)
-                       .value();
+                           ->open("testpath", file_open_mode::readwrite
+                                                      | file_open_mode::create)
+                           .value();
     vfilerx = nullptr;
     auto result = testSubject->erase("testpath");
 
@@ -265,9 +267,9 @@ BOOST_AUTO_TEST_CASE(file_not_committed_cannot_be_erased_invalid_argument)
 BOOST_AUTO_TEST_CASE(erased_file_cannot_be_queried)
 {
     auto vfilerx = testSubject
-                       ->open("testpath", file_open_mode::readwrite |
-                                              file_open_mode::create)
-                       .value();
+                           ->open("testpath", file_open_mode::readwrite
+                                                      | file_open_mode::create)
+                           .value();
     (void)vfilerx->commit();
     vfilerx = nullptr;
     auto result = testSubject->erase("testpath");
@@ -282,9 +284,9 @@ BOOST_AUTO_TEST_CASE(erased_file_cannot_be_queried)
 BOOST_AUTO_TEST_CASE(erase_removes_unused_file)
 {
     auto vfilerx = testSubject
-                       ->open("testpath", file_open_mode::readwrite |
-                                              file_open_mode::create)
-                       .value();
+                           ->open("testpath", file_open_mode::readwrite
+                                                      | file_open_mode::create)
+                           .value();
     (void)vfilerx->commit();
     vfilerx = nullptr;
     auto result = testSubject->erase("testpath");
