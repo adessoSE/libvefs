@@ -2,7 +2,7 @@
     "version": 2,
     "cmakeMinimumRequired": {
         "major": 3,
-        "minor": 21,
+        "minor": 20,
         "patch": 0
     },
     "configurePresets": [
@@ -30,6 +30,10 @@
                 "CMAKE_MSVC_RUNTIME_LIBRARY": "MultiThreaded$<$<CONFIG:Debug>:Debug>",
                 "VCPKG_TARGET_TRIPLET": "x64-windows-static"
             },
+            "environment": {
+                "VCPKG_VISUAL_STUDIO_PATH_": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise",
+                "VCPKG_VISUAL_STUDIO_PATH": "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Enterprise"
+            },
             "vendor": {
                 "microsoft.com/VisualStudioSettings/CMake/1.0": {
                     "hostOS": [
@@ -45,7 +49,7 @@
                 "x64-windows"
             ],
             "cacheVariables": {
-                "CMAKE_CXX_STANDARD": "23",
+                "CMAKE_CXX_STANDARD": "20",
                 "CMAKE_C_COMPILER": "cl",
                 "CMAKE_CXX_COMPILER": "cl"
             }
