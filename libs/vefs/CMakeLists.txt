@@ -185,6 +185,7 @@ DEF_SOURCE_GROUP(vefs "external/SpookyV2"
         src/detail/SpookyV2.cpp
 )
 
+target_compile_features(vefs INTERFACE cxx_std_20)
 target_compile_definitions(vefs
     PUBLIC
         BOOST_UUID_NO_TYPE_TRAITS=1
@@ -204,8 +205,8 @@ target_link_libraries(vefs
         Deeplex::deeppack
         libb2
         fmt::fmt
-        llfio::llfio
-        outcome::outcome
+        llfio::${DLOG_LLFIO_TARGET}
+        outcome::hl
         unofficial::concurrentqueue::concurrentqueue
         libcuckoo
 )

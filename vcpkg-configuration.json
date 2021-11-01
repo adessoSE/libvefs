@@ -1,22 +1,18 @@
 {
     "default-registry": {
         "kind": "builtin",
-        "baseline": "5568f110b509a9fd90711978a7cb76bae75bb092"
+        "baseline": "5bdb9d60123df20c247a1654e6a1def51d6c5140"
     },
     "registries": [
         {
             "kind": "git",
             "repository": "https://github.com/deeplex-net/vcpkg-registry",
-            "baseline": "52145729779fc4368051151b4bc4cb8f5d2afe60",
+            "baseline": "74e458ae4c2071405a62672e0cebe84e41be07cb",
             "packages": [
                 "boringssl",
                 "deeppack",
-                "gtest",
                 "libb2",
-                "llfio",
-                "ntkernel-error-category",
-                "outcome",
-                "quickcpplib-unofficial"
+                "llfio"
             ]
         }
     ]
