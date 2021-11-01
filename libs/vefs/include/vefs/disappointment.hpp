@@ -54,7 +54,8 @@ struct formatter<vefs::ed::file_span>
     template <typename FormatContext>
     auto format(const vefs::ed::file_span &fspan, FormatContext &ctx)
     {
-        return format_to(ctx.out(), "[{},{})", fspan.begin, fspan.end);
+        using namespace std::string_view_literals;
+        return fmt::format_to(ctx.out(), "[{},{})"sv, fspan.begin, fspan.end);
     }
 };
 } // namespace fmt

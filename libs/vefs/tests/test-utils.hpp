@@ -65,13 +65,14 @@ struct formatter<vefs::detail::cache_handle<T>>
     template <typename FormatContext>
     auto format(const vefs::detail::cache_handle<T> &h, FormatContext &ctx)
     {
+        using namespace std::string_view_literals;
         if (h)
         {
-            return format_to(ctx.out(), "{}", *h);
+            return fmt::format_to(ctx.out(), "{}"sv, *h);
         }
         else
         {
-            return format_to(ctx.out(), "[nullptr cache_handle]");
+            return fmt::format_to(ctx.out(), "[nullptr cache_handle]"sv);
         }
     }
 };
