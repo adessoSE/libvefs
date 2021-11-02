@@ -205,7 +205,7 @@ target_link_libraries(vefs
         Deeplex::deeppack
         libb2
         fmt::fmt
-        llfio::${DLOG_LLFIO_TARGET}
+        llfio::${VEFS_LLFIO_TARGET}
         outcome::hl
         unofficial::concurrentqueue::concurrentqueue
         libcuckoo

@@ -63,8 +63,8 @@ endif()
 ##########################################################################
 # options
 
-set(DLOG_LLFIO_TARGET "sl" CACHE STRING "The llfio target to link against, can be 'hl', 'sl' or 'dl'")
-set_property(CACHE DLOG_LLFIO_TARGET PROPERTY STRINGS "hl;sl;dl")
+set(VEFS_LLFIO_TARGET "sl" CACHE STRING "The llfio target to link against, can be 'hl', 'sl' or 'dl'")
+set_property(CACHE VEFS_LLFIO_TARGET PROPERTY STRINGS "hl;sl;dl")
 
 if (BUILD_TESTING)
     enable_testing()
