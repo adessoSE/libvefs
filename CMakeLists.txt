@@ -41,7 +41,7 @@ if (BUILD_TESTING)
 endif()
 
 ########################################################################
-project(vefs VERSION 0.3.3.0 LANGUAGES CXX)
+project(vefs VERSION 0.4.0.0 LANGUAGES CXX)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/tools/cmake/")
@@ -63,6 +63,13 @@ endif()
 ##########################################################################
 # options
 
+set(VEFS_LLFIO_TARGET "sl" CACHE STRING "The llfio target to link against, can be 'hl', 'sl' or 'dl'")
+set_property(CACHE VEFS_LLFIO_TARGET PROPERTY STRINGS "hl;sl;dl")
+
+if (BUILD_TESTING)
+    enable_testing()
+endif()
+
 
 ########################################################################
 # cmake modules
@@ -71,6 +78,8 @@ include(src-helper)
 
 ##########################################################################
 # library includes
+
+find_package(quickcpplib CONFIG REQUIRED PATH_SUFFIXES "share/ned14-internal-quickcpplib")
 
 find_package(outcome CONFIG REQUIRED)
 
@@ -115,8 +124,6 @@ endif()
 # compiler adjustments
 
 # we require c++14 and some c++17 features
-set(CMAKE_C_STANDARD 11)
-set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # adjust compiler warning levels

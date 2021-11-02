@@ -73,7 +73,9 @@ struct formatter<cache_tests::cached_value>
     template <typename FormatContext>
     auto format(const cache_tests::cached_value &h, FormatContext &ctx)
     {
-        return format_to(ctx.out(), "[{},{},{}]", h.val1, h.val2, h.val3);
+        using namespace std::string_view_literals;
+        return fmt::format_to(ctx.out(), "[{},{},{}]"sv, h.val1, h.val2,
+                              h.val3);
     }
 };
 } // namespace fmt
