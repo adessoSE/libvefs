@@ -289,7 +289,8 @@ static auto preallocate_serialization_storage(
         numStorageSectors = num_required_storage_sectors(sectorManager);
         idContainer.resize(numStorageSectors, boost::container::default_init);
 
-        if (auto missing = span(idContainer).subspan(adjustedStorageSectors))
+        auto missing = span(idContainer).subspan(adjustedStorageSectors);
+        if (!missing.empty())
         {
             // numStorageSectors < num_nodes()
             // => numAllocated == numStorageSectors

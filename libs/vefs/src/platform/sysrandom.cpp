@@ -24,7 +24,7 @@ vefs::result<void> vefs::detail::random_bytes(rw_dynblob buffer) noexcept
     using namespace vefs;
     using namespace std::string_view_literals;
 
-    if (!buffer)
+    if (buffer.empty())
     {
         return error{errc::invalid_argument}
             << ed::error_code_api_origin{"random_bytes"sv};
@@ -42,7 +42,7 @@ vefs::result<void> vefs::detail::random_bytes(rw_dynblob buffer) noexcept
                 << ed::error_code_api_origin{"SystemFunction036"sv};
         }
         buffer = buffer.subspan(portion);
-    } while (buffer);
+    } while (!buffer.empty());
 
     return outcome::success();
 }

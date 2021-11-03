@@ -317,7 +317,6 @@ public:
 
     // capacity
     constexpr auto empty() const noexcept -> bool;
-    constexpr explicit operator bool() const noexcept;
 
     // constexpr size_type size() const noexcept;
     using storage::size;
@@ -519,12 +518,6 @@ inline constexpr auto span<T, Extent>::empty() const noexcept -> bool
 }
 
 template <typename T, std::size_t Extent>
-inline constexpr span<T, Extent>::operator bool() const noexcept
-{
-    return size() != 0;
-}
-
-template <typename T, std::size_t Extent>
 inline constexpr auto span<T, Extent>::size_bytes() const noexcept -> size_type
 {
     return size() * sizeof(element_type);
@@ -684,7 +677,7 @@ template <std::size_t Extent>
 inline void fill_blob(rw_blob<Extent> target, std::byte value = std::byte{})
 {
     // calling memset with a nullptr is UB
-    if (target)
+    if (!target.empty())
     {
         std::memset(target.data(), std::to_integer<int>(value), target.size());
     }

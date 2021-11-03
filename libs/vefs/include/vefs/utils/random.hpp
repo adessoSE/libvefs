@@ -129,7 +129,7 @@ public:
     void fill(const rw_dynblob dest)
     {
         auto rem(dest);
-        while (rem)
+        while (!rem.empty())
         {
             auto v = this->operator()();
             copy(ro_blob_cast(v), rem);

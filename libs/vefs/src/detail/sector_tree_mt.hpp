@@ -1177,7 +1177,7 @@ inline auto read(sector_tree_mt<TreeAllocator, Executor, MutexType> &tree,
     auto offset = readPos % detail::sector_device::sector_payload_size;
     tree_position it{detail::lut::sector_position_of(readPos)};
 
-    while (buffer)
+    while (!buffer.empty())
     {
         VEFS_TRY(auto &&sector, tree.access(std::exchange(
                                         it, tree_position{it.position() + 1})));
@@ -1195,7 +1195,7 @@ inline auto write(sector_tree_mt<TreeAllocator, Executor, MutexType> &tree,
                   ro_dynblob data,
                   std::uint64_t writePos) -> result<void>
 {
-    if (!data)
+    if (data.empty())
     {
         return outcome::success();
     }
@@ -1206,7 +1206,8 @@ inline auto write(sector_tree_mt<TreeAllocator, Executor, MutexType> &tree,
     tree_position it{lut::sector_position_of(writePos)};
     auto offset = writePos % sector_device::sector_payload_size;
 
-    while (data)
+    // write to sectors until all data has been written
+    while (!data.empty())
     {
         VEFS_TRY(auto &&sector, tree.access_or_create(std::exchange(
                                         it, tree_position{it.position() + 1})));

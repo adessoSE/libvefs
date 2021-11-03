@@ -78,7 +78,7 @@ private:
             assert(memory.size() == max_entries * sizeof(page_type));
             static_assert(sizeof(page_type) % alignof(page_type) == 0);
 
-            for (auto remaining = memory.writeable_bytes(); remaining;
+            for (auto remaining = memory.writeable_bytes(); !remaining.empty();
                  remaining = remaining.subspan(sizeof(page_type)))
             {
                 new (static_cast<void *>(remaining.data())) page_type();

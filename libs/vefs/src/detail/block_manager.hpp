@@ -458,7 +458,7 @@ inline auto block_manager<IdType>::alloc_multiple(span<id_type> ids) noexcept
     auto blockIt = blocksBegin;
 
     for (const auto blocksEnd = mFreeBlocks.end();
-         remaining && blockIt != blocksEnd; ++blockIt)
+         !remaining.empty() && blockIt != blocksEnd; ++blockIt)
     {
         const auto served = blockIt->pop_front(remaining);
         remaining = remaining.subspan(served);

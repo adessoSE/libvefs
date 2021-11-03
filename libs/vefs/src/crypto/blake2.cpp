@@ -22,7 +22,7 @@ result<void> blake2b::init(std::size_t digestSize, ro_dynblob key) noexcept
     {
         return blake2_errc::invalid_digest_size;
     }
-    if (!key || key.size() > max_key_bytes)
+    if (key.empty() || key.size() > max_key_bytes)
     {
         return blake2_errc::invalid_key_size;
     }
@@ -67,7 +67,7 @@ result<void> blake2b::init(std::size_t digestSize,
         return blake2_errc::state_init_param_failed;
     }
 
-    if (key)
+    if (!key.empty())
     {
         VEFS_TRY(mac_feed_key(*this, key));
     }
@@ -113,7 +113,7 @@ result<void> blake2xb::init(std::size_t digestSize, ro_dynblob key) noexcept
     {
         return blake2_errc::invalid_digest_size;
     }
-    if (!key || key.size() > max_key_bytes)
+    if (key.empty() || key.size() > max_key_bytes)
     {
         return blake2_errc::invalid_key_size;
     }
@@ -133,7 +133,7 @@ result<void> blake2xb::init(std::size_t digestSize,
     {
         return blake2_errc::invalid_digest_size;
     }
-    if (!personalisation)
+    if (personalisation.empty())
     {
         return blake2_errc::invalid_personalization_size;
     }
@@ -162,7 +162,7 @@ result<void> blake2xb::init(std::size_t digestSize,
         return blake2_errc::state_init_param_failed;
     }
 
-    if (key)
+    if (!key.empty())
     {
         VEFS_TRY(mac_feed_key(*this, key));
     }
