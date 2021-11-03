@@ -242,6 +242,7 @@ if (BUILD_TESTING)
         tests/sector_tree_mt-tests.cpp
         tests/sector_tree_seq-tests.cpp
         tests/archive-tests.cpp
+        tests/vfile-tests.cpp
         tests/vfilesystem-tests.cpp
         tests/span-tests.cpp
         tests/crypto_provider-tests.cpp

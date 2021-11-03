@@ -12,6 +12,7 @@ struct vfile_dependencies_fixture
 {
     static constexpr std::array<std::byte, 32> default_user_prk = {};
 
+    master_file_info filesystemIndex;
     llfio::mapped_file_handle testFile;
     std::unique_ptr<sector_device> device;
     std::unique_ptr<file_crypto_ctx> cryptoCtx;
@@ -24,22 +25,22 @@ struct vfile_dependencies_fixture
 
     vfile_dependencies_fixture()
         : testFile(vefs::llfio::mapped_temp_inode().value())
-        , device(sector_device::open(testFile.reopen(0).value(),
-                                     test::only_mac_crypto_provider(),
-                                     default_user_prk,
-                                     true)
-                         .value())
+        , device(sector_device::create_new(testFile.reopen(0).value(),
+                                           test::only_mac_crypto_provider(),
+                                           default_user_prk)
+                         .value()
+                         .device)
+        , filesystemIndex{}
+        , sectorAllocator(*device, {})
         , workExecutor(&thread_pool::shared())
-        , sectorAllocator(*device)
     {
         TEST_RESULT_REQUIRE(sectorAllocator.initialize_new());
 
         cryptoCtx = device->create_file_secrets().value();
 
-        fileSystem = vefs::vfilesystem::create_new(
-                             *device, sectorAllocator, workExecutor,
-                             device->archive_header().filesystem_index)
-                             .value();
+        fileSystem = vefs::vfilesystem::create_new(*device, sectorAllocator,
+                                                workExecutor, filesystemIndex)
+                          .value();
 
         testSubject = vefs::vfile::create_new(
                               fileSystem.get(), workExecutor, sectorAllocator,
