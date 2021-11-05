@@ -10,6 +10,12 @@
 
 namespace vefs::detail
 {
+/**
+ * Thread-safe allocator for all sectors in an archive.
+ *
+ * Uses the \ref block_manager internally to allocate/deallocate sectors and
+ * keep track of free sectors.
+ */
 class archive_sector_allocator final
 {
     using id_range = utils::id_range<sector_id>;

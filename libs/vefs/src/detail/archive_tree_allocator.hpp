@@ -7,6 +7,10 @@
 
 namespace vefs::detail
 {
+/**
+ * Allocator for a single sector tree. Uses the \ref archive_sector_allocator
+ * internally to allocate/deallocate sectors from the archive.
+ */
 class archive_tree_allocator
 {
 public:

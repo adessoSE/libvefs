@@ -18,7 +18,7 @@
 namespace vefs::utils
 {
 /**
- * Represents a contiguous numeric id range as [firstId, lastId]
+ * Represents a contiguous numeric id range as [firstId, lastId].
  */
 template <typename IdType>
 class id_range final
@@ -144,7 +144,10 @@ struct block_range_key_accessor final
 };
 
 /**
- * manages id allocations by tracking unallocated id ranges
+ * Manages id allocations by tracking unallocated id ranges. Note that the
+ * block manager starts of as empty. In other words the block_manager has to be
+ * filled with with unallocated id ranges (blocks) by calls to dealloc_*(..)
+ * before any calls alloc_*(..) can succeed.
  */
 template <typename IdType>
 class block_manager
