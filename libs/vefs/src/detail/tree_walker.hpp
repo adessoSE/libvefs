@@ -306,8 +306,11 @@ BOOST_FORCEINLINE auto tree_path::calc_waypoint_params(int layer,
 template <int layer>
 inline void tree_path::init(std::uint64_t pos) noexcept
 {
-    static_assert(layer < 5);
+    // check sanity of layer
+    static_assert(layer <= lut::max_tree_depth);
     static_assert(layer >= 0);
+    // the following optimization assumes a maximum tree depth of 4
+    static_assert(lut::max_tree_depth == 4);
 
     // this lets the compiler use compile time divisor lookups
     // which in turn allows for turning the division into a montgomery
