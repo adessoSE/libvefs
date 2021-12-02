@@ -13,6 +13,7 @@
 
 namespace vefs
 {
+
 BOOST_NOINLINE error_info::error_info() noexcept
     : mDetails{}
 {
@@ -85,10 +86,12 @@ const char *error_exception::what() const noexcept
     }
     return mErrDesc.c_str();
 }
+
 } // namespace vefs
 
 namespace vefs
 {
+
 class generic_domain_type final : public error_domain
 {
     auto name() const noexcept -> std::string_view override;
@@ -248,6 +251,12 @@ auto archive_domain_type::message(const error &,
     case archive_errc::vfilesystem_invalid_size:
         return "the vfilesystem storage extent is not a multiple of the sector_payload_size"sv;
 
+    case archive_errc::archive_file_already_existed:
+        return "the given file already contained data which would be overwritten, but creation::only_if_not_exist was specified"sv;
+
+    case archive_errc::archive_file_did_not_exist:
+        return "the given file contained no data, but creation::open_existing";
+
     default:
         return "unknown vefs archive error code"sv;
     }
@@ -262,18 +271,23 @@ auto archive_domain() noexcept -> const error_domain &
 {
     return archive_domain_v;
 }
+
 } // namespace vefs
 
 namespace vefs::ed
 {
+
 enum class message_cache_tag;
 using message_cache = error_detail<message_cache_tag, std::string>;
+
 } // namespace vefs::ed
 
 namespace vefs::adl::disappointment
 {
+
 namespace
 {
+
 class std_adapter_domain final : public error_domain
 {
 public:
@@ -394,6 +408,7 @@ auto make_error(const llfio::error_info &info,
 {
     return make_error_code(info);
 }
+
 } // namespace vefs::adl::disappointment
 
 #if defined BOOST_OS_WINDOWS_AVAILABLE
@@ -404,6 +419,7 @@ auto make_error(const llfio::error_info &info,
 
 namespace vefs
 {
+
 auto collect_system_error() -> std::error_code
 {
 #if defined BOOST_OS_WINDOWS_AVAILABLE
@@ -418,4 +434,5 @@ auto make_system_errinfo_code() -> errinfo_code
 {
     return errinfo_code{collect_system_error()};
 }
+
 } // namespace vefs

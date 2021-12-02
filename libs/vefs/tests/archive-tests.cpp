@@ -49,6 +49,33 @@ struct archive_test_dependencies : basic_dependencies
 
 BOOST_FIXTURE_TEST_SUITE(archive_tests, archive_test_dependencies)
 
+BOOST_FIXTURE_TEST_CASE(archive_create_from_temp_inode, basic_dependencies)
+{
+    auto tempINode = llfio::temp_inode().value();
+
+    auto openrx
+            = vefs::archive(tempINode, default_user_prk, cprov,
+                            vefs::archive_handle::creation::only_if_not_exist);
+    TEST_RESULT_REQUIRE(openrx);
+    TEST_RESULT(openrx.assume_value().commit());
+}
+
+BOOST_FIXTURE_TEST_CASE(archive_reopen_from_temp_inode, basic_dependencies)
+{
+    auto tempINode = llfio::temp_inode().value();
+
+    auto openrx
+            = vefs::archive(tempINode, default_user_prk, cprov,
+                            vefs::archive_handle::creation::only_if_not_exist);
+    TEST_RESULT_REQUIRE(openrx);
+    TEST_RESULT(openrx.assume_value().commit());
+    openrx.assume_value() = {};
+
+    openrx = vefs::archive(tempINode, default_user_prk, cprov,
+                           vefs::archive_handle::creation::open_existing);
+    TEST_RESULT(openrx);
+}
+
 BOOST_FIXTURE_TEST_CASE(archive_create, basic_dependencies)
 {
     auto openrx = vefs::archive(
