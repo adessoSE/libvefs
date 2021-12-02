@@ -117,6 +117,44 @@ auto map_creation_flag(archive_handle::creation mode) noexcept
 
 } // namespace
 
+auto archive_handle::archive(llfio::file_handle const &file,
+                             ro_blob<32> userPRK,
+                             crypto::crypto_provider *cryptoProvider,
+                             creation creationMode) -> result<archive_handle>
+{
+    if (!file.is_valid() || !file.is_writable())
+    {
+        return errc::invalid_argument;
+    }
+
+    VEFS_TRY(auto maxExtent, file.maximum_extent());
+    bool const created = maxExtent == 0;
+
+    if (created && creationMode == creation::open_existing)
+    {
+        return archive_errc::archive_file_did_not_exist;
+    }
+    if (!created && creationMode == creation::only_if_not_exist)
+    {
+        return archive_errc::archive_file_already_existed;
+    }
+
+    VEFS_TRY(llfio::file_handle clonedHandle, file.reopen());
+
+    llfio::mapped_file_handle mappedFile(std::move(clonedHandle), 0,
+                                         llfio::section_handle::flag::none);
+    if (!created)
+    {
+        return archive_handle::open_existing(std::move(mappedFile),
+                                             cryptoProvider, userPRK);
+    }
+    else
+    {
+        return archive_handle::create_new(std::move(mappedFile), cryptoProvider,
+                                          userPRK);
+    }
+}
+
 auto archive_handle::archive(llfio::path_handle const &base,
                              llfio::path_view path,
                              ro_blob<32> userPRK,
@@ -153,7 +191,7 @@ auto archive_handle::archive(llfio::path_handle const &base,
     }
     else
     {
-        (void)llfio::unlink(fileHandle);
+        (void)llfio::unlink(clonedHandle);
         return std::move(createRx).assume_error();
     }
 }

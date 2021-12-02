@@ -81,6 +81,12 @@ public:
                    work_tracker_owner workTracker,
                    vfilesystem_owner filesystem) noexcept;
 
+    static auto archive(llfio::file_handle const &file,
+                        ro_blob<32> userPRK,
+                        crypto::crypto_provider *cryptoProvider
+                        = crypto::boringssl_aes_256_gcm_crypto_provider(),
+                        creation creationMode = creation::open_existing)
+            -> result<archive_handle>;
     static auto archive(llfio::path_handle const &base,
                         llfio::path_view path,
                         ro_blob<32> userPRK,
@@ -133,6 +139,14 @@ inline auto vefs::archive_handle::ops_pool() -> detail::pooled_work_tracker &
     return *mWorkTracker;
 }
 
+inline auto archive(llfio::file_handle const &file,
+                    ro_blob<32> userPRK,
+                    crypto::crypto_provider *cryptoProvider
+                    = crypto::boringssl_aes_256_gcm_crypto_provider(),
+                    creation creationMode = creation::open_existing)
+{
+    return archive_handle::archive(file, userPRK, cryptoProvider, creationMode);
+}
 inline auto archive(llfio::path_handle const &base,
                     llfio::path_view path,
                     ro_blob<32> userPRK,

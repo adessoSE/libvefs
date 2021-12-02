@@ -23,6 +23,8 @@ enum class archive_errc : error_code
     wrong_user_prk,
     vfilesystem_entry_serialization_failed,
     vfilesystem_invalid_size,
+    archive_file_already_existed,
+    archive_file_did_not_exist,
 };
 const error_domain &archive_domain() noexcept;
 
