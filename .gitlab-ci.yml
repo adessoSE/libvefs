@@ -33,11 +33,6 @@ workflow:
     - $env:VCPKG_ROOT="$pwd\build\vcpkg"
     - cd build
     - '& vcpkg\bootstrap-vcpkg -disableMetrics'
-    - '[IO.File]::WriteAllLines("$pwd\nuget.config", ''<?xml version="1.0" encoding="utf-8"?><configuration></configuration>'')'
-    - $nuget=vcpkg\vcpkg fetch nuget | select -last 1
-    - '& $nuget sources Add -Name MdkNugetV3 -Source "$ARTIFACTORY_URL/api/nuget/v3/$ARTIFACTORY_NUGET_REPO_KEY" -UserName $ARTIFACTORY_USER -Password $ARTIFACTORY_TOKEN -ConfigFile .\nuget.config'
-    - '& $nuget config -Set "defaultPushSource=$ARTIFACTORY_URL/api/nuget/v3/$ARTIFACTORY_NUGET_REPO_KEY" -ConfigFile .\nuget.config'
-    - $env:VCPKG_BINARY_SOURCES="clear;nugetconfig,$pwd\nuget.config,readwrite"
   artifacts: &build_artifacts
     paths:
       - build/bin
