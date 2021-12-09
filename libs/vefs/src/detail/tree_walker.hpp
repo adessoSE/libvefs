@@ -410,7 +410,7 @@ inline int tree_path::offset(int layer) const noexcept
 
 inline tree_path::operator bool() const noexcept
 {
-    return mTreeDepth < 0;
+    return mTreeDepth >= 0;
 }
 
 #pragma endregion

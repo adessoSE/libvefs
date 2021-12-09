@@ -290,6 +290,107 @@ auto archive_handle::create_new(llfio::mapped_file_handle mfh,
             std::move(filesystem));
 }
 
+auto archive_handle::purge_corruption(llfio::path_handle const &base,
+                                      llfio::path_view path,
+                                      ro_blob<32> userPRK,
+                                      crypto::crypto_provider *cryptoProvider)
+        -> result<void>
+{
+    using namespace std::string_view_literals;
+
+    VEFS_TRY(auto corruptedFile,
+             llfio::file(base, path, llfio::handle::mode::write,
+                         llfio::handle::creation::open_existing));
+
+    llfio::unique_file_lock fileGuard{corruptedFile,
+                                      llfio::lock_kind::unlocked};
+    if (!fileGuard.try_lock())
+    {
+        return errc::still_in_use;
+    }
+
+    auto const disambiguator = llfio::utils::random_string(16);
+    auto const workingCopyPath = ((path.path() += u8"."sv) += disambiguator)
+            += u8".tmp"sv;
+    auto const backupPath = ((path.path() += u8"."sv) += disambiguator)
+            += u8".bak"sv;
+
+    VEFS_TRY(auto workingCopy,
+             llfio::file(base, workingCopyPath, llfio::file_handle::mode::write,
+                         llfio::file_handle::creation::only_if_not_exist));
+    utils::scope_guard cleanup = [&]
+    {
+        if (workingCopy.is_valid())
+        {
+            // if purging fails
+            // we will try to delete the still broken working copy.
+            (void)workingCopy.unlink();
+        }
+    };
+
+    VEFS_TRY(corruptedFile.clone_extents_to(workingCopy));
+
+    VEFS_TRY(auto clonedWorkingCopy, workingCopy.reopen());
+    VEFS_TRY(purge_corruption(
+            llfio::mapped_file_handle(std::move(clonedWorkingCopy),
+                                      llfio::section_handle::flag::none),
+            userPRK, cryptoProvider));
+
+    VEFS_TRY(corruptedFile.relink(base, backupPath));
+    VEFS_TRY(workingCopy.relink(base, path));
+
+    VEFS_TRY(workingCopy.close());
+
+    return oc::success();
+}
+
+auto archive_handle::purge_corruption(llfio::mapped_file_handle &&file,
+                                      ro_blob<32> userPRK,
+                                      crypto::crypto_provider *cryptoProvider)
+        -> result<void>
+{
+    VEFS_TRY(file.reserve());
+
+    VEFS_TRY(auto &&bundledPrimitives,
+             sector_device::open_existing(std::move(file), cryptoProvider,
+                                          userPRK));
+    auto &&[sectorDevice, filesystemFile, freeSectorFile]
+            = std::move(bundledPrimitives);
+    auto const stateNo = sectorDevice->master_secret_counter().load();
+
+    VEFS_TRY(auto &&sectorAllocator,
+             make_unique_rx<detail::archive_sector_allocator>(
+                     *sectorDevice, freeSectorFile.crypto_state));
+
+    VEFS_TRY(auto &&workTracker, make_unique_rx<detail::pooled_work_tracker>(
+                                         &detail::thread_pool::shared()));
+
+    vfilesystem_owner filesystem;
+    if (auto openFsRx = vfilesystem::open_existing(
+                *sectorDevice, *sectorAllocator, *workTracker, filesystemFile))
+    {
+        filesystem = std::move(openFsRx).assume_value();
+    }
+    else
+    {
+        return std::move(openFsRx).assume_error()
+            << ed::archive_file{"[archive-index]"};
+    }
+
+    VEFS_TRY(filesystem->replace_corrupted_sectors());
+
+    if (freeSectorFile.tree_info.root.sector == sector_id{}
+        || stateNo != sectorDevice->master_secret_counter().load())
+    {
+        VEFS_TRY(sectorAllocator->initialize_new());
+        VEFS_TRY(filesystem->recover_unused_sectors());
+        VEFS_TRY(sectorAllocator->finalize(filesystem->crypto_ctx(),
+                                           filesystem->committed_root()));
+    }
+
+    return oc::success();
+}
+
 auto archive_handle::validate(llfio::path_handle const &base,
                               llfio::path_view path,
                               ro_blob<32> userPRK,

@@ -23,6 +23,7 @@
 
 namespace vefs
 {
+
 struct vfilesystem_entry final
 {
     int32_t index_file_position;
@@ -87,6 +88,7 @@ public:
 
     auto recover_unused_sectors() -> result<void>;
     auto validate() -> result<void>;
+    auto replace_corrupted_sectors() -> result<void>;
 
 private:
     auto open_existing_impl() -> result<void>;
@@ -109,4 +111,5 @@ private:
     utils::dirt_flag mWriteFlag;
     std::mutex mIOSync;
 };
+
 } // namespace vefs

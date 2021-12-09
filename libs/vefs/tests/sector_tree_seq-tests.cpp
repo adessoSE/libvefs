@@ -130,8 +130,8 @@ BOOST_FIXTURE_TEST_CASE(create_new, sector_tree_seq_pre_create_fixture)
     auto tree = std::move(createrx).assume_value();
 
     root_sector_info newRootInfo;
-    TEST_RESULT_REQUIRE(tree->commit(
-            [&newRootInfo](root_sector_info cri) { newRootInfo = cri; }));
+    TEST_RESULT_REQUIRE(tree->commit([&newRootInfo](root_sector_info cri)
+                                     { newRootInfo = cri; }));
 
     auto expectedRootMac = vefs::utils::make_byte_array(
             0xe2, 0x1b, 0x52, 0x74, 0xe1, 0xd5, 0x8b, 0x69, 0x87, 0x36, 0x88,
@@ -162,14 +162,34 @@ BOOST_AUTO_TEST_CASE(open_existing)
                            [](std::byte v) { return v == std::byte{}; }));
 }
 
+BOOST_AUTO_TEST_CASE(open_lazy)
+{
+    TEST_RESULT_REQUIRE(testTree->move_forward(tree_type::access_mode::create));
+    TEST_RESULT_REQUIRE(testTree->commit([this](root_sector_info newRoot)
+                                         { rootSectorInfo = newRoot; }));
+    testTree.reset();
+
+    auto openrx = tree_type::open_lazy(*device, fileCryptoContext,
+                                       rootSectorInfo, *device);
+    TEST_RESULT_REQUIRE(openrx);
+    testTree = std::move(openrx).assume_value();
+
+    BOOST_TEST_REQUIRE(!testTree->is_loaded());
+
+    TEST_RESULT_REQUIRE(testTree->move_to(0U));
+    BOOST_TEST_REQUIRE(testTree->is_loaded());
+
+    TEST_RESULT_REQUIRE(testTree->move_forward());
+}
+
 BOOST_AUTO_TEST_CASE(expand_to_two_sectors)
 {
     TEST_RESULT_REQUIRE(testTree->move_forward(tree_type::access_mode::create));
     testTree->writeable_bytes()[0] = std::byte{0b1010'1010};
 
     root_sector_info newRootInfo;
-    TEST_RESULT_REQUIRE(testTree->commit(
-            [&newRootInfo](root_sector_info cri) { newRootInfo = cri; }));
+    TEST_RESULT_REQUIRE(testTree->commit([&newRootInfo](root_sector_info cri)
+                                         { newRootInfo = cri; }));
 
     auto expectedRootMac = vefs::utils::make_byte_array(
             0xc2, 0xaa, 0x29, 0x03, 0x00, 0x60, 0xb8, 0x4e, 0x3f, 0xc3, 0x57,
@@ -185,8 +205,8 @@ BOOST_AUTO_TEST_CASE(shrink_on_commit_if_possible)
     TEST_RESULT_REQUIRE(
             testTree->move_to(2019, tree_type::access_mode::create));
 
-    TEST_RESULT_REQUIRE(testTree->commit(
-            [this](root_sector_info cri) { rootSectorInfo = cri; }));
+    TEST_RESULT_REQUIRE(testTree->commit([this](root_sector_info cri)
+                                         { rootSectorInfo = cri; }));
 
     [[maybe_unused]] auto expectedRootMac = vefs::utils::make_byte_array(
             0xe2, 0x1b, 0x52, 0x74, 0xe1, 0xd5, 0x8b, 0x69, 0x87, 0x36, 0x88,
@@ -204,8 +224,8 @@ BOOST_AUTO_TEST_CASE(shrink_on_commit_if_possible)
     TEST_RESULT_REQUIRE(testTree->erase_leaf(2019));
 
     root_sector_info newRootInfo;
-    TEST_RESULT_REQUIRE(testTree->commit(
-            [&newRootInfo](root_sector_info cri) { newRootInfo = cri; }));
+    TEST_RESULT_REQUIRE(testTree->commit([&newRootInfo](root_sector_info cri)
+                                         { newRootInfo = cri; }));
 
     // BOOST_TEST(newRootInfo.root.mac == expectedRootMac);
     BOOST_TEST(newRootInfo.root.sector == sector_id{1});

@@ -1035,7 +1035,7 @@ auto vfilesystem::recover_unused_sectors() -> result<void>
         VEFS_TRY(tree->extract_alloc_map(allocBits));
     }
 
-    for (std::size_t i = 1; i < numSectors; ++i)
+    for (std::size_t i = 1U; i < numSectors; ++i)
     {
         if (!allocBits[i])
         {
@@ -1072,7 +1072,7 @@ auto vfilesystem::validate() -> result<void>
         std::uint64_t const numSectors
                 = utils::div_ceil(e.tree_info.maximum_extent,
                                   detail::sector_device::sector_payload_size);
-        for (std::uint64_t i = 1; i < numSectors; ++i)
+        for (std::uint64_t i = 1U; i < numSectors; ++i)
         {
             VEFS_TRY_INJECT(tree->move_forward(),
                             ed::archive_file_id{fileInfo.first});
@@ -1081,4 +1081,79 @@ auto vfilesystem::validate() -> result<void>
 
     return success();
 }
+
+auto vfilesystem::replace_corrupted_sectors() -> result<void>
+{
+    using inspection_tree
+            = detail::sector_tree_seq<detail::archive_tree_allocator>;
+
+    auto lockedIndex = mFiles.lock_table();
+
+    auto it = lockedIndex.begin();
+    auto const end = lockedIndex.end();
+    for (; it != end; ++it)
+    {
+        auto &[id, e] = *it;
+        std::unique_ptr<inspection_tree> tree;
+
+        if (auto openrx = inspection_tree::open_lazy(
+                    mDevice, *e.crypto_ctx, e.tree_info, mSectorAllocator))
+        {
+            tree = std::move(openrx).assume_value();
+        }
+        else
+        {
+            // corrupted root sector => erase the file
+            if (e.index_file_position >= 0)
+            {
+                detail::tree_position lastAllocated{
+                        detail::lut::sector_position_of(
+                                mCommittedRoot.maximum_extent - 1)};
+                index_tree_layout layout(*mIndexTree, mIndexBlocks,
+                                         lastAllocated);
+
+                (void)layout.decommission_blocks(e.index_file_position,
+                                                 e.num_reserved_blocks);
+
+                mWriteFlag.mark();
+            }
+            it = lockedIndex.erase(it);
+            mSectorAllocator.on_leak_detected();
+
+            continue;
+        }
+
+        auto const oldRoot = e.tree_info.root;
+
+        VEFS_TRY_INJECT(tree->move_to(0U, inspection_tree::access_mode::force),
+                        ed::archive_file_id{id});
+
+        std::uint64_t const numSectors
+                = utils::div_ceil(e.tree_info.maximum_extent,
+                                  detail::sector_device::sector_payload_size);
+        for (std::uint64_t i = 1U; i < numSectors; ++i)
+        {
+            VEFS_TRY_INJECT(
+                    tree->move_forward(inspection_tree::access_mode::force),
+                    ed::archive_file_id{id});
+        }
+
+        VEFS_TRY_INJECT(tree->commit(
+                                [&](detail::root_sector_info newRoot)
+                                {
+                                    if (e.tree_info != newRoot)
+                                    {
+                                        e.tree_info = newRoot;
+                                        e.needs_index_update = true;
+                                        mWriteFlag.mark();
+                                    }
+                                }),
+                        ed::archive_file_id{id});
+    }
+
+    lockedIndex.unlock();
+
+    return commit();
+}
+
 } // namespace vefs

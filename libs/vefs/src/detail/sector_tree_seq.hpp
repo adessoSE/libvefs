@@ -74,10 +74,17 @@ private:
                     file_crypto_ctx &cryptoCtx,
                     root_sector_info rootInfo,
                     AllocatorCtorArgs &&...args) noexcept;
+    auto init_lazy() noexcept -> result<void>;
     auto init_existing() noexcept -> result<void>;
     auto create_new() noexcept -> result<void>;
 
 public:
+    template <typename... AllocatorCtorArgs>
+    static auto open_lazy(sector_device &device,
+                          file_crypto_ctx &cryptoCtx,
+                          root_sector_info rootInfo,
+                          AllocatorCtorArgs &&...args) noexcept
+            -> result<std::unique_ptr<sector_tree_seq>>;
     template <typename... AllocatorCtorArgs>
     static auto open_existing(sector_device &device,
                               file_crypto_ctx &cryptoCtx,
@@ -214,6 +221,29 @@ inline sector_tree_seq<TreeAllocator>::~sector_tree_seq() noexcept
 
 template <typename TreeAllocator>
 template <typename... AllocatorCtorArgs>
+inline auto
+sector_tree_seq<TreeAllocator>::open_lazy(sector_device &device,
+                                          file_crypto_ctx &cryptoCtx,
+                                          root_sector_info rootInfo,
+                                          AllocatorCtorArgs &&...args) noexcept
+        -> result<std::unique_ptr<sector_tree_seq>>
+{
+    std::unique_ptr<sector_tree_seq> sectorTree(
+            new (std::nothrow)
+                    sector_tree_seq(device, cryptoCtx, rootInfo,
+                                    std::forward<AllocatorCtorArgs>(args)...));
+    if (!sectorTree)
+    {
+        return errc::not_enough_memory;
+    }
+
+    VEFS_TRY(sectorTree->init_lazy());
+
+    return std::move(sectorTree);
+}
+
+template <typename TreeAllocator>
+template <typename... AllocatorCtorArgs>
 inline auto sector_tree_seq<TreeAllocator>::open_existing(
         sector_device &device,
         file_crypto_ctx &cryptoCtx,
@@ -233,6 +263,20 @@ inline auto sector_tree_seq<TreeAllocator>::open_existing(
     VEFS_TRY(sectorTree->init_existing());
 
     return std::move(sectorTree);
+}
+
+template <typename TreeAllocator>
+inline auto sector_tree_seq<TreeAllocator>::init_lazy() noexcept -> result<void>
+{
+    VEFS_TRY(mDevice.read_sector(mDataBlocks[mRootInfo.tree_depth], mCryptoCtx,
+                                 mRootInfo.root.sector, mRootInfo.root.mac));
+
+    mNodeInfos[mRootInfo.tree_depth].construct(
+            node_allocator_type{mTreeAllocator, mRootInfo.root.sector}, false);
+    mLoaded = 0;
+    mCurrentPath = tree_path();
+
+    return oc::success();
 }
 
 template <typename TreeAllocator>
@@ -407,8 +451,8 @@ sector_tree_seq<TreeAllocator>::move_forward(const access_mode mode) noexcept
 
 template <typename TreeAllocator>
 inline auto
-sector_tree_seq<TreeAllocator>::move_to(const std::uint64_t leafPosition,
-                                        const access_mode mode) noexcept
+sector_tree_seq<TreeAllocator>::move_to(std::uint64_t const leafPosition,
+                                        access_mode const mode) noexcept
         -> result<void>
 {
     VEFS_TRY(require_tree_depth(leafPosition, mode));
@@ -524,12 +568,12 @@ inline auto sector_tree_seq<TreeAllocator>::erase_self() noexcept
 
 template <typename TreeAllocator>
 inline auto sector_tree_seq<TreeAllocator>::compute_update_range(
-        const tree_path &newPath, const bool forceReload) const noexcept
+        tree_path const &newPath, bool const forceReload) const noexcept
         -> std::pair<tree_path::const_iterator, tree_path::const_iterator>
 {
-    if (forceReload)
+    if (!mCurrentPath || forceReload)
     {
-        const auto subRootDistance
+        auto const subRootDistance
                 = (lut::max_tree_depth + 2) - mRootInfo.tree_depth;
         return {std::next(newPath.cbegin(), subRootDistance), newPath.cend()};
     }

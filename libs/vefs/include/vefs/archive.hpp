@@ -95,6 +95,11 @@ public:
                         creation creationMode = creation::open_existing)
             -> result<archive_handle>;
 
+    static auto purge_corruption(llfio::path_handle const &base,
+                                 llfio::path_view path,
+                                 ro_blob<32> userPRK,
+                                 crypto::crypto_provider *cryptoProvider)
+            -> result<void>;
     static auto validate(llfio::path_handle const &base,
                          llfio::path_view path,
                          ro_blob<32> userPRK,
@@ -132,6 +137,11 @@ private:
                            crypto::crypto_provider *cryptoProvider,
                            ro_blob<32> userPRK) noexcept
             -> result<archive_handle>;
+
+    static auto purge_corruption(llfio::mapped_file_handle &&file,
+                                 ro_blob<32> userPRK,
+                                 crypto::crypto_provider *cryptoProvider)
+            -> result<void>;
 };
 
 inline auto vefs::archive_handle::ops_pool() -> detail::pooled_work_tracker &
