@@ -41,7 +41,7 @@ if (BUILD_TESTING)
 endif()
 
 ########################################################################
-project(vefs VERSION 0.4.0.1 LANGUAGES CXX)
+project(vefs VERSION 0.4.0.2 LANGUAGES CXX)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/tools/cmake/")
