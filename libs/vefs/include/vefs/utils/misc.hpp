@@ -1,6 +1,8 @@
 #pragma once
 
 #include <cassert>
+
+#include <concepts>
 #include <exception>
 #include <functional>
 #include <stdexcept>
@@ -14,28 +16,75 @@
 
 namespace vefs::utils
 {
+
+template <typename T, typename... Ts>
+concept any_of = (std::same_as<T, Ts> || ...);
+
+template <typename T, typename... Ts>
+concept none_of = (!std::same_as<T, Ts> && ...);
+
+template <typename T>
+concept integer = std::integral<T> && none_of < std::remove_cv_t<T>,
+bool, char, wchar_t, char8_t, char16_t, char32_t > ;
+
+template <typename T>
+concept signed_integer = integer<T> && std::is_signed_v<T>;
+
+template <typename T>
+concept unsigned_integer = integer<T> && !signed_integer<T>;
+
 template <typename T>
 constexpr T div_ceil(T dividend, T divisor)
 {
-    static_assert(std::is_unsigned_v<T>);
-
     return dividend / divisor + (dividend % divisor != 0);
 }
 template <typename T, typename U>
 constexpr auto div_ceil(T dividend, U divisor) -> std::common_type_t<T, U>
 {
     using common_t = std::common_type_t<T, U>;
-    return div_ceil(static_cast<common_t>(dividend),
-                    static_cast<common_t>(divisor));
+    return utils::div_ceil(static_cast<common_t>(dividend),
+                           static_cast<common_t>(divisor));
 }
+
+template <unsigned_integer T, unsigned_integer U>
+constexpr auto round_up(T value, U multiple) noexcept
+        -> std::common_type_t<T, U>
+{
+    return utils::div_ceil(value, multiple) * multiple;
+}
+
+#if defined(BOOST_COMP_MSVC_AVAILABLE)
+#pragma warning(push)
+// > unary minus operator applied to unsigned type, result still unsigned
+// which is exactly what we want in this case #twos-complement.
+#pragma warning(disable : 4146)
+#endif
+
+template <unsigned_integer T, unsigned_integer U>
+constexpr auto round_up_p2(T value, U multiple) noexcept
+        -> std::common_type_t<T, U>
+{
+    return (value + multiple - 1) & -multiple;
+}
+
+#if defined(BOOST_COMP_MSVC_AVAILABLE)
+#pragma warning(pop)
+#endif
 
 template <typename T, typename U>
 constexpr auto mod(T k, U n) -> std::common_type_t<T, U>
 {
-    assert(n > 0);
+    if constexpr (std::is_unsigned_v<T>)
+    {
+        return k % n;
+    }
+    else
+    {
+        assert(n > 0);
 
-    const auto r = k % n;
-    return r < 0 ? k + n : k;
+        const auto r = k % n;
+        return r < 0 ? k + n : k;
+    }
 }
 
 constexpr auto upow(std::uint64_t x, std::uint64_t e)
