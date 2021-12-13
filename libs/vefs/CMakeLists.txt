@@ -32,6 +32,7 @@ DEF_SOURCE_GROUP(vefs "detail"
         src/detail/block_manager.hpp
         src/detail/file_crypto_ctx.cpp
         src/detail/file_crypto_ctx.hpp
+        src/detail/io_buffer_manager.hpp
         src/detail/reference_sector_layout.hpp
         src/detail/root_sector_info.cpp
         src/detail/root_sector_info.hpp
@@ -235,6 +236,7 @@ if (BUILD_TESTING)
         tests/libb2_none_blake2b_crypto_provider.cpp
         tests/libb2_none_blake2b_crypto_provider.hpp
         tests/disappointment-tests.cpp
+        tests/io_buffer_manager.test.cpp
         tests/allocator-tests.cpp
         tests/cache-tests.cpp
         tests/cache_clock-tests.cpp

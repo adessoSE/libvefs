@@ -19,6 +19,7 @@
 #include "archive_header.hpp"
 #include "file_crypto_ctx.hpp"
 #include "file_descriptor.hpp"
+#include "io_buffer_manager.hpp"
 #include "root_sector_info.hpp"
 #include "sector_id.hpp"
 
@@ -75,11 +76,11 @@ public:
 
     static constexpr auto to_offset(sector_id id) -> std::uint64_t;
 
-    static auto open_existing(llfio::mapped_file_handle fileHandle,
+    static auto open_existing(llfio::file_handle fileHandle,
                               crypto::crypto_provider *cryptoProvider,
                               ro_blob<32> userPRK) noexcept
             -> result<open_info>;
-    static auto create_new(llfio::mapped_file_handle fileHandle,
+    static auto create_new(llfio::file_handle fileHandle,
                            crypto::crypto_provider *cryptoProvider,
                            ro_blob<32> userPRK) noexcept -> result<open_info>;
 
@@ -124,7 +125,7 @@ public:
     auto create_file_secrets2() noexcept -> result<file_crypto_ctx::state_type>;
 
 private:
-    sector_device(llfio::mapped_file_handle mfh,
+    sector_device(llfio::file_handle mfh,
                   crypto::crypto_provider *cryptoProvider,
                   size_t numSectors);
 
@@ -139,11 +140,12 @@ private:
     void switch_header() noexcept;
 
     crypto::crypto_provider *const mCryptoProvider;
-    llfio::mapped_file_handle mArchiveFile;
+    llfio::file_handle mArchiveFile;
     llfio::unique_file_lock mArchiveFileLock;
 
     dplx::dp::memory_allocation<llfio::utils::page_allocator<std::byte>>
             mMasterSector;
+    io_buffer_manager mIoBufferManager;
 
     master_header mStaticHeader;
     utils::secure_byte_array<16> mSessionSalt;
@@ -151,7 +153,6 @@ private:
     crypto::atomic_counter mJournalCounter;
     std::atomic<std::uint64_t> mEraseCounter;
 
-    std::shared_mutex mSizeSync;
     std::atomic<uint64_t> mNumSectors;
 
     header_id mHeaderSelector;
@@ -174,20 +175,19 @@ constexpr std::uint64_t sector_device::to_offset(sector_id id)
 inline auto vefs::detail::sector_device::resize(std::uint64_t numSectors)
         -> result<void>
 {
-    std::unique_lock guard{mSizeSync};
     VEFS_TRY(auto &&bytesTruncated,
              mArchiveFile.truncate(numSectors * sector_size));
     if (bytesTruncated != (numSectors * sector_size))
     {
         return errc::bad;
     }
-    mNumSectors = numSectors;
+    mNumSectors.store(numSectors, std::memory_order::relaxed);
 
     return success();
 }
 inline std::uint64_t sector_device::size() const
 {
-    return mNumSectors.load();
+    return mNumSectors.load(std::memory_order::relaxed);
 }
 
 inline ro_blob<64> sector_device::master_secret_view() const

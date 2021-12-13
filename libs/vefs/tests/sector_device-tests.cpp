@@ -8,13 +8,13 @@
 
 struct sector_device_test_fixture
 {
-    vefs::llfio::mapped_file_handle testFile;
+    vefs::llfio::file_handle testFile;
     std::unique_ptr<vefs::detail::sector_device> testSubject;
     std::array<std::byte, 32> default_user_prk{};
     crypto_provider_mock cryptoProviderMock;
 
     sector_device_test_fixture()
-        : testFile(vefs::llfio::mapped_temp_inode().value())
+        : testFile(vefs::llfio::temp_inode().value())
 
     {
         EXPECT_CALL(cryptoProviderMock, generate_session_salt())
@@ -30,7 +30,7 @@ struct sector_device_test_fixture
                 .WillRepeatedly(testing::Return(vefs::outcome::success()));
 
         testSubject = vefs::detail::sector_device::create_new(
-                              testFile.reopen(0).value(), &cryptoProviderMock,
+                              testFile.reopen().value(), &cryptoProviderMock,
                               default_user_prk)
                               .value()
                               .device;
@@ -47,9 +47,9 @@ BOOST_AUTO_TEST_CASE(
 
 BOOST_AUTO_TEST_CASE(open_existing_sector_device_throws_error_for_empty_file)
 {
-    auto emptyFile = vefs::llfio::mapped_temp_inode().value();
+    auto emptyFile = vefs::llfio::temp_inode().value();
     auto deviceRx = vefs::detail::sector_device::open_existing(
-            emptyFile.reopen(0).value(), &cryptoProviderMock, default_user_prk);
+            emptyFile.reopen().value(), &cryptoProviderMock, default_user_prk);
 
     BOOST_TEST(deviceRx.has_error());
     BOOST_TEST(deviceRx.assume_error()

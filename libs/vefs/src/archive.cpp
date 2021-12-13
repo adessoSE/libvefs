@@ -140,18 +140,15 @@ auto archive_handle::archive(llfio::file_handle const &file,
     }
 
     VEFS_TRY(llfio::file_handle clonedHandle, file.reopen());
-
-    llfio::mapped_file_handle mappedFile(std::move(clonedHandle), 0,
-                                         llfio::section_handle::flag::none);
     if (!created)
     {
-        return archive_handle::open_existing(std::move(mappedFile),
+        return archive_handle::open_existing(std::move(clonedHandle),
                                              cryptoProvider, userPRK);
     }
     else
     {
-        return archive_handle::create_new(std::move(mappedFile), cryptoProvider,
-                                          userPRK);
+        return archive_handle::create_new(std::move(clonedHandle),
+                                          cryptoProvider, userPRK);
     }
 }
 
@@ -165,8 +162,9 @@ auto archive_handle::archive(llfio::path_handle const &base,
 
     llfio::file_handle clonedHandle;
     VEFS_TRY(auto fileHandle,
-             llfio::mapped_file(base, path, llfio::handle::mode::write,
-                                mappedCreationMode));
+             llfio::file(base, path, llfio::file_handle::mode::write,
+                         mappedCreationMode,
+                         llfio::handle::caching::reads_and_metadata));
 
     bool created = creationMode != creation::open_existing;
     if (creationMode == creation::if_needed)
@@ -196,7 +194,7 @@ auto archive_handle::archive(llfio::path_handle const &base,
     }
 }
 
-auto archive_handle::open_existing(llfio::mapped_file_handle mfh,
+auto archive_handle::open_existing(llfio::file_handle mfh,
                                    crypto::crypto_provider *cryptoProvider,
                                    ro_blob<32> userPRK) noexcept
         -> result<archive_handle>
@@ -251,7 +249,7 @@ auto archive_handle::open_existing(llfio::mapped_file_handle mfh,
             std::move(filesystem));
 }
 
-auto archive_handle::create_new(llfio::mapped_file_handle mfh,
+auto archive_handle::create_new(llfio::file_handle mfh,
                                 crypto::crypto_provider *cryptoProvider,
                                 ro_blob<32> userPRK) noexcept
         -> result<archive_handle>
@@ -331,10 +329,8 @@ auto archive_handle::purge_corruption(llfio::path_handle const &base,
     VEFS_TRY(corruptedFile.clone_extents_to(workingCopy));
 
     VEFS_TRY(auto clonedWorkingCopy, workingCopy.reopen());
-    VEFS_TRY(purge_corruption(
-            llfio::mapped_file_handle(std::move(clonedWorkingCopy),
-                                      llfio::section_handle::flag::none),
-            userPRK, cryptoProvider));
+    VEFS_TRY(purge_corruption(std::move(clonedWorkingCopy), userPRK,
+                              cryptoProvider));
 
     VEFS_TRY(corruptedFile.relink(base, backupPath));
     VEFS_TRY(workingCopy.relink(base, path));
@@ -344,13 +340,11 @@ auto archive_handle::purge_corruption(llfio::path_handle const &base,
     return oc::success();
 }
 
-auto archive_handle::purge_corruption(llfio::mapped_file_handle &&file,
+auto archive_handle::purge_corruption(llfio::file_handle &&file,
                                       ro_blob<32> userPRK,
                                       crypto::crypto_provider *cryptoProvider)
         -> result<void>
 {
-    VEFS_TRY(file.reserve());
-
     VEFS_TRY(auto &&bundledPrimitives,
              sector_device::open_existing(std::move(file), cryptoProvider,
                                           userPRK));

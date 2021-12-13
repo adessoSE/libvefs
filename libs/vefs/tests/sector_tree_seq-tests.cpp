@@ -79,16 +79,16 @@ struct sector_tree_seq_pre_create_fixture
 
     static constexpr std::array<std::byte, 32> default_user_prk{};
 
-    vefs::llfio::mapped_file_handle testFile;
+    vefs::llfio::file_handle testFile;
     std::unique_ptr<sector_device> device;
 
     file_crypto_ctx fileCryptoContext;
     root_sector_info rootSectorInfo;
 
     sector_tree_seq_pre_create_fixture()
-        : testFile(vefs::llfio::mapped_temp_inode().value())
+        : testFile(vefs::llfio::temp_inode().value())
         , device(sector_device::create_new(
-                         testFile.reopen(0).value(),
+                         testFile.reopen().value(),
                          vefs::test::only_mac_crypto_provider(),
                          default_user_prk)
                          .value()
