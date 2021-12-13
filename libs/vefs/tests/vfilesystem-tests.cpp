@@ -39,7 +39,7 @@ struct vfilesystem_test_dependencies
 {
     static constexpr std::array<std::byte, 32> default_user_prk = {};
 
-    llfio::mapped_file_handle testFile;
+    llfio::file_handle testFile;
     std::unique_ptr<sector_device> device;
     master_file_info filesystemIndex;
 
@@ -52,8 +52,8 @@ struct vfilesystem_test_dependencies
     pooled_work_tracker workExecutor;
 
     vfilesystem_test_dependencies()
-        : testFile(vefs::llfio::mapped_temp_inode().value())
-        , device(sector_device::create_new(testFile.reopen(0).value(),
+        : testFile(vefs::llfio::temp_inode().value())
+        , device(sector_device::create_new(testFile.reopen().value(),
                                            test::only_mac_crypto_provider(),
                                            default_user_prk)
                          .value()

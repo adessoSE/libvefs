@@ -22,6 +22,7 @@
 #include "archive_file_id.hpp"
 #include "archive_header.codec.hpp"
 #include "file_descriptor.codec.hpp"
+#include "io_buffer_manager.hpp"
 #include "secure_array.codec.hpp"
 
 namespace dplx::dp
@@ -191,18 +192,18 @@ auto sector_device::create_file_secrets2() noexcept
                                        crypto::counter{fileWriteCtrState}};
 }
 
-sector_device::sector_device(llfio::mapped_file_handle mfh,
+sector_device::sector_device(llfio::file_handle file,
                              crypto::crypto_provider *cryptoProvider,
                              size_t const numSectors)
     : mCryptoProvider(cryptoProvider)
-    , mArchiveFile(std::move(mfh))
+    , mArchiveFile(std::move(file))
     , mArchiveFileLock(mArchiveFile, llfio::lock_kind::unlocked)
     , mSessionSalt(cryptoProvider->generate_session_salt())
     , mNumSectors(numSectors)
 {
 }
 
-auto sector_device::open_existing(llfio::mapped_file_handle fileHandle,
+auto sector_device::open_existing(llfio::file_handle fileHandle,
                                   crypto::crypto_provider *cryptoProvider,
                                   ro_blob<32> userPRK) noexcept
         -> result<open_info>
@@ -227,14 +228,16 @@ auto sector_device::open_existing(llfio::mapped_file_handle fileHandle,
         return errc::still_in_use;
     }
 
+    VEFS_TRY(archive->mIoBufferManager,
+             io_buffer_manager::create(
+                     sector_size, std::thread::hardware_concurrency() * 2U));
     VEFS_TRY(archive->mMasterSector.resize(sector_size));
-    auto buffer = archive->mMasterSector.as_span();
-    llfio::io_handle::buffer_type masterSectorBuffer[]
-            = {{buffer.data(), sector_size}};
+    auto const buffer = archive->mMasterSector.as_span();
+    llfio::io_handle::buffer_type masterSectorBuffer[] = {buffer};
 
     VEFS_TRY(auto &&readBuffers,
              archive->mArchiveFile.read({masterSectorBuffer, 0}));
-    if (readBuffers.size() != 1 || readBuffers[0].size() < sector_size)
+    if (readBuffers.size() != 1U || readBuffers[0].size() < sector_size)
     {
         return archive_errc::no_archive_header;
     }
@@ -267,7 +270,7 @@ auto sector_device::open_existing(llfio::mapped_file_handle fileHandle,
     }
 }
 
-auto sector_device::create_new(llfio::mapped_file_handle fileHandle,
+auto sector_device::create_new(llfio::file_handle fileHandle,
                                crypto::crypto_provider *cryptoProvider,
                                ro_blob<32> userPRK) noexcept
         -> result<open_info>
@@ -284,6 +287,9 @@ auto sector_device::create_new(llfio::mapped_file_handle fileHandle,
         return errc::still_in_use;
     }
 
+    VEFS_TRY(archive->mIoBufferManager,
+             io_buffer_manager::create(
+                     sector_size, std::thread::hardware_concurrency() * 2U));
     VEFS_TRY(archive->mMasterSector.resize(sector_size));
 
     VEFS_TRY(archive->resize(1));
@@ -527,21 +533,19 @@ result<void> sector_device::write_static_archive_header(ro_blob<32> userPRK)
             staticHeaderSectors.consume(staticHeaderSectors.remaining_size()),
             0, staticHeaderSectors.remaining_size());
 
-    std::shared_lock guard{mSizeSync};
-    llfio::io_handle::const_buffer_type writeBuffers[]
-            = {{staticHeaderSectors.consumed_begin(),
-                static_cast<std::size_t>(staticHeaderSectors.buffer_size())}};
+    llfio::file_handle::const_buffer_type writeBuffers[]
+            = {mMasterSector.as_span().first(
+                    std::max(static_header_size, mIoBufferManager.page_size))};
     VEFS_TRY(mArchiveFile.write({writeBuffers, 0}));
 
-    return success();
+    return oc::success();
 }
 
 auto sector_device::sync_personalization_area() noexcept -> result<void>
 {
-    auto persArea = personalization_area();
+    std::span<std::byte const> persArea = personalization_area();
 
-    llfio::io_handle::const_buffer_type writeBuffers[]
-            = {{persArea.data(), persArea.size()}};
+    llfio::file_handle::const_buffer_type writeBuffers[] = {persArea};
     VEFS_TRY(mArchiveFile.write({writeBuffers, static_header_size}));
 
     return oc::success();
@@ -569,19 +573,26 @@ auto sector_device::read_sector(rw_blob<sector_payload_size> contentDest,
         return errc::invalid_argument;
     }
 
-    std::shared_lock guard{mSizeSync};
-
-    const auto sectorOffset = to_offset(sectorIdx);
-
-    // read request
-    io_buffer ioBuffer{nullptr, sector_size};
-    if (auto readrx = mArchiveFile.read({{&ioBuffer, 1}, sectorOffset}))
+    VEFS_TRY(auto ioBuffer, mIoBufferManager.allocate());
+    utils::scope_guard deallocationGuard = [&]
     {
-        auto buffers = readrx.assume_value();
-        assert(buffers.size() == 1);
-        assert(buffers[0].size() == ioBuffer.size());
+        mIoBufferManager.deallocate(ioBuffer);
+    };
+
+    auto const sectorOffset = to_offset(sectorIdx);
+    llfio::file_handle::buffer_type reqBuffers[] = {ioBuffer};
+
+    if (auto readrx = mArchiveFile.read({reqBuffers, sectorOffset}))
+    {
+        auto const buffers = readrx.assume_value();
+        assert(buffers.size() == 1U);
+        assert(buffers[0].size() == sector_size);
         assert(buffers[0].data() != nullptr);
-        ioBuffer = buffers[0];
+
+        VEFS_TRY_INJECT(fileCtx.unseal_sector(contentDest, *mCryptoProvider,
+                                              buffers[0], contentMAC),
+                        ed::sector_idx{sectorIdx});
+        return oc::success();
     }
     else
     {
@@ -589,20 +600,14 @@ auto sector_device::read_sector(rw_blob<sector_payload_size> contentDest,
         adaptedrx.assume_error() << ed::sector_idx{sectorIdx};
         return adaptedrx;
     }
-
-    VEFS_TRY_INJECT(fileCtx.unseal_sector(contentDest, *mCryptoProvider,
-                                          ioBuffer, contentMAC),
-                    ed::sector_idx{sectorIdx});
-
-    return outcome::success();
 }
 
 template <typename file_crypto_ctx_T>
-auto sector_device::write_sector(rw_blob<16> mac,
-                                 file_crypto_ctx_T &fileCtx,
-                                 sector_id sectorIdx,
-                                 ro_blob<sector_payload_size> data) noexcept
-        -> result<void>
+auto sector_device::write_sector(
+        rw_blob<16> const mac,
+        file_crypto_ctx_T &fileCtx,
+        sector_id const sectorIdx,
+        ro_blob<sector_payload_size> const data) noexcept -> result<void>
 {
     constexpr auto sectorIdxLimit
             = std::numeric_limits<std::uint64_t>::max() / sector_size;
@@ -615,37 +620,50 @@ auto sector_device::write_sector(rw_blob<16> mac,
         return errc::invalid_argument;
     }
 
-    std::array<std::byte, sector_size> ioBuffer;
+    VEFS_TRY(auto const ioBuffer, mIoBufferManager.allocate());
+    utils::scope_guard deallocationGuard = [&]
+    {
+        mIoBufferManager.deallocate(ioBuffer);
+    };
+
     VEFS_TRY_INJECT(fileCtx.seal_sector(ioBuffer, mac, *mCryptoProvider,
                                         session_salt_view(), data),
                     ed::sector_idx{sectorIdx});
 
-    const auto sectorOffset = to_offset(sectorIdx);
+    auto const sectorOffset = to_offset(sectorIdx);
+    llfio::file_handle::const_buffer_type reqBuffers[] = {ioBuffer};
 
-    std::shared_lock guard{mSizeSync};
-    VEFS_TRY_INJECT(mArchiveFile.write(sectorOffset,
-                                       {{ioBuffer.data(), ioBuffer.size()}}),
+    VEFS_TRY_INJECT(mArchiveFile.write({reqBuffers, sectorOffset}),
                     ed::sector_idx{sectorIdx});
 
-    return success();
+    return oc::success();
 }
 
-auto sector_device::erase_sector(sector_id sectorIdx) noexcept -> result<void>
+auto sector_device::erase_sector(sector_id const sectorIdx) noexcept
+        -> result<void>
 {
     if (sectorIdx == sector_id::master)
     {
         return errc::invalid_argument;
     }
-    std::array<std::byte, 32> salt;
-    auto nonce = mEraseCounter.fetch_add(1, std::memory_order_relaxed);
-    VEFS_TRY(crypto::kdf(salt, mSessionSalt, ro_blob_cast(nonce),
+
+    VEFS_TRY(auto const ioBuffer, mIoBufferManager.allocate());
+    utils::scope_guard deallocationGuard = [&]
+    {
+        mIoBufferManager.deallocate(ioBuffer);
+    };
+    auto const writeBuffer = ioBuffer.first(io_buffer_manager::page_size);
+
+    auto const nonce = mEraseCounter.fetch_add(1, std::memory_order::relaxed);
+    VEFS_TRY(crypto::kdf(writeBuffer, mSessionSalt, ro_blob_cast(nonce),
                          sector_kdf_erase));
 
-    const auto offset = to_offset(sectorIdx);
-    std::shared_lock guard{mSizeSync};
-    VEFS_TRY_INJECT(mArchiveFile.write(offset, {{salt.data(), salt.size()}}),
+    auto const sectorOffset = to_offset(sectorIdx);
+    llfio::file_handle::const_buffer_type reqBuffers[] = {writeBuffer};
+
+    VEFS_TRY_INJECT(mArchiveFile.write({reqBuffers, sectorOffset}),
                     ed::sector_idx{sectorIdx});
-    return success();
+    return oc::success();
 }
 
 auto vefs::detail::sector_device::update_header(
@@ -706,12 +724,11 @@ auto vefs::detail::sector_device::update_header(
     std::memset(encryptionBuffer.remaining_begin(), 0,
                 encryptionBuffer.remaining_size());
 
-    std::shared_lock guard{mSizeSync};
     VEFS_TRY_INJECT(mArchiveFile.write(headerOffset,
                                        {{writeArea.data(), writeArea.size()}}),
                     ed::archive_file{"[archive-header]"});
 
-    return success();
+    return oc::success();
 }
 
 result<void>

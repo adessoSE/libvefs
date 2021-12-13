@@ -129,16 +129,16 @@ public:
 private:
     auto ops_pool() -> detail::pooled_work_tracker &;
 
-    static auto open_existing(llfio::mapped_file_handle mfh,
+    static auto open_existing(llfio::file_handle mfh,
                               crypto::crypto_provider *cryptoProvider,
                               ro_blob<32> userPRK) noexcept
             -> result<archive_handle>;
-    static auto create_new(llfio::mapped_file_handle mfh,
+    static auto create_new(llfio::file_handle mfh,
                            crypto::crypto_provider *cryptoProvider,
                            ro_blob<32> userPRK) noexcept
             -> result<archive_handle>;
 
-    static auto purge_corruption(llfio::mapped_file_handle &&file,
+    static auto purge_corruption(llfio::file_handle &&file,
                                  ro_blob<32> userPRK,
                                  crypto::crypto_provider *cryptoProvider)
             -> result<void>;

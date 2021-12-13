@@ -13,7 +13,7 @@ struct vfile_dependencies_fixture
     static constexpr std::array<std::byte, 32> default_user_prk = {};
 
     master_file_info filesystemIndex;
-    llfio::mapped_file_handle testFile;
+    llfio::file_handle testFile;
     std::unique_ptr<sector_device> device;
     std::unique_ptr<file_crypto_ctx> cryptoCtx;
 
@@ -24,8 +24,8 @@ struct vfile_dependencies_fixture
     pooled_work_tracker workExecutor;
 
     vfile_dependencies_fixture()
-        : testFile(vefs::llfio::mapped_temp_inode().value())
-        , device(sector_device::create_new(testFile.reopen(0).value(),
+        : testFile(vefs::llfio::temp_inode().value())
+        , device(sector_device::create_new(testFile.reopen().value(),
                                            test::only_mac_crypto_provider(),
                                            default_user_prk)
                          .value()

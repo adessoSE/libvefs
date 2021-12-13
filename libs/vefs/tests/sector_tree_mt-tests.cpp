@@ -127,7 +127,7 @@ struct sector_tree_mt_dependencies
 
     static constexpr std::array<std::byte, 32> default_user_prk{};
 
-    vefs::llfio::mapped_file_handle testFile;
+    vefs::llfio::file_handle testFile;
     std::unique_ptr<sector_device> device;
 
     pooled_work_tracker workExecutor;
@@ -135,9 +135,9 @@ struct sector_tree_mt_dependencies
     root_sector_info rootSectorInfo;
 
     sector_tree_mt_dependencies()
-        : testFile(vefs::llfio::mapped_temp_inode().value())
+        : testFile(vefs::llfio::temp_inode().value())
         , device(sector_device::create_new(
-                         testFile.reopen(0).value(),
+                         testFile.reopen().value(),
                          vefs::test::only_mac_crypto_provider(),
                          default_user_prk)
                          .value()
