@@ -50,7 +50,7 @@ public:
         return mSectorsLeaked;
     }
 
-    auto crypto_ctx() const noexcept -> file_crypto_ctx const &
+    auto crypto_ctx() noexcept -> file_crypto_ctx &
     {
         return mFileCtx;
     }
