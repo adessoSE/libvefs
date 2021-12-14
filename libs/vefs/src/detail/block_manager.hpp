@@ -584,7 +584,7 @@ inline auto block_manager<IdType>::dealloc_contiguous(
             }
             else
             {
-                precIt->append(1);
+                precIt->append(num);
                 inserted = true;
             }
         }
