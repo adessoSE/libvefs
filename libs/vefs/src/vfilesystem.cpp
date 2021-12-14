@@ -794,7 +794,7 @@ auto vfilesystem::open(const std::string_view filePath,
                                              0,
                                              std::move(secrets),
                                              rx.assume_value(),
-                                             true,
+                                             false,
                                              {}});
 
         if (!mIndex.insert(filePath, fid))
@@ -921,7 +921,8 @@ auto vfilesystem::on_vfile_commit(detail::file_id fileId,
         return archive_errc::no_such_file;
     }
     mWriteFlag.mark();
-    return success();
+
+    return commit();
 }
 
 auto vfilesystem::commit() -> result<void>
