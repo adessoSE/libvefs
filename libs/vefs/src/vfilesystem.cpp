@@ -1092,7 +1092,7 @@ auto vfilesystem::replace_corrupted_sectors() -> result<void>
 
     auto it = lockedIndex.begin();
     auto const end = lockedIndex.end();
-    for (; it != end; ++it)
+    while (it != end)
     {
         auto &[id, e] = *it;
         std::unique_ptr<inspection_tree> tree;
@@ -1102,7 +1102,7 @@ auto vfilesystem::replace_corrupted_sectors() -> result<void>
         {
             tree = std::move(openrx).assume_value();
         }
-        else
+        else if (openrx.assume_error() == archive_errc::tag_mismatch)
         {
             // corrupted root sector => erase the file
             if (e.index_file_position >= 0)
@@ -1122,6 +1122,10 @@ auto vfilesystem::replace_corrupted_sectors() -> result<void>
             mSectorAllocator.on_leak_detected();
 
             continue;
+        }
+        else
+        {
+            return std::move(openrx).assume_error();
         }
 
         auto const oldRoot = e.tree_info.root;
@@ -1150,6 +1154,8 @@ auto vfilesystem::replace_corrupted_sectors() -> result<void>
                                     }
                                 }),
                         ed::archive_file_id{id});
+
+        std::advance(it, 1);
     }
 
     lockedIndex.unlock();
