@@ -18,7 +18,9 @@
 #include <vefs/utils/bitset_overlay.hpp>
 #include <vefs/utils/misc.hpp>
 
+#include "detail/archive_tree_allocator.hpp"
 #include "detail/sector_device.hpp"
+#include "detail/sector_tree_seq.hpp"
 #include "detail/tree_walker.hpp"
 
 #include "detail/archive_sector_allocator.hpp"
@@ -372,6 +374,29 @@ auto archive_handle::purge_corruption(llfio::file_handle &&file,
     }
 
     VEFS_TRY(filesystem->replace_corrupted_sectors());
+
+    if (auto fsOpenRx
+        = detail::sector_tree_seq<detail::archive_tree_allocator>::
+                open_existing(*sectorDevice, sectorAllocator->crypto_ctx(),
+                              freeSectorFile.tree_info, *sectorAllocator);
+        fsOpenRx.has_value())
+    {
+        auto &freeSectorTree = fsOpenRx.assume_value();
+        for (std::uint64_t readPos = sector_device::sector_payload_size;
+             readPos < freeSectorFile.tree_info.maximum_extent;
+             readPos += sector_device::sector_payload_size)
+        {
+            if (freeSectorTree->move_forward().has_failure())
+            {
+                freeSectorFile.tree_info.root.sector = sector_id{};
+                break;
+            }
+        }
+    }
+    else
+    {
+        freeSectorFile.tree_info.root.sector = sector_id{};
+    }
 
     if (freeSectorFile.tree_info.root.sector == sector_id{}
         || stateNo != sectorDevice->master_secret_counter().load())
