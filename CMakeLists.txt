@@ -79,8 +79,6 @@ include(src-helper)
 ##########################################################################
 # library includes
 
-find_package(quickcpplib CONFIG REQUIRED PATH_SUFFIXES "share/ned14-internal-quickcpplib")
-
 find_package(outcome CONFIG REQUIRED)
 
 find_package(llfio CONFIG REQUIRED)

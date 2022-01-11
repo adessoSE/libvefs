@@ -19,7 +19,10 @@
         "fmt",
         "libb2",
         "libcuckoo",
-        "llfio"
+        {
+            "name": "llfio",
+            "features": [ "cxx20" ]
+        }
     ],
     "features": {
         "tests": {

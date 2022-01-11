@@ -1,7 +1,7 @@
 {
     "default-registry": {
         "kind": "builtin",
-        "baseline": "5bdb9d60123df20c247a1654e6a1def51d6c5140"
+        "baseline": "485e459074a75da1650e25768e6de3d546d2036e"
     },
     "registries": [
         {
@@ -11,8 +11,7 @@
             "packages": [
                 "boringssl",
                 "deeppack",
-                "libb2",
-                "llfio"
+                "libb2"
             ]
         }
     ]
