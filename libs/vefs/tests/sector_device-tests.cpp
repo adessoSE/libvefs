@@ -61,18 +61,17 @@ BOOST_AUTO_TEST_CASE(write_sector_seals_sector)
     // given
     file_crypto_ctx_mock fileCryptoCtx;
 
-    auto testFile = vefs::llfio::mapped_temp_inode().value();
-    std::array<std::byte, 32> default_user_prk{};
+    testFile = vefs::llfio::temp_inode().value();
     std::byte mac_data[16];
     std::byte ro_data[32736];
     vefs::fill_blob(vefs::rw_blob<32736>(ro_data), std::byte(0x1a));
     auto mac = vefs::rw_blob<16>(mac_data);
     auto dataBlob = vefs::ro_blob<32736>(ro_data);
-    auto testSubject = vefs::detail::sector_device::create_new(
-                               testFile.reopen(0).value(), &cryptoProviderMock,
-                               default_user_prk)
-                               .value()
-                               .device;
+    testSubject = vefs::detail::sector_device::create_new(
+                          testFile.reopen().value(), &cryptoProviderMock,
+                          default_user_prk)
+                          .value()
+                          .device;
 
     EXPECT_CALL(fileCryptoCtx,
                 seal_sector(testing::_, mac, testing::Ref(cryptoProviderMock),
