@@ -29,7 +29,7 @@ namespace vefs
 inline std::ostream &operator<<(std::ostream &s, const error_domain &domain)
 {
     using namespace fmt::literals;
-    s << "[error_domain|{}]"_format(domain.name());
+    fmt::print(s, "[error_domain|{}]", domain.name());
     return s;
 }
 

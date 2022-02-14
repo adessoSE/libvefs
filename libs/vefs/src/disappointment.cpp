@@ -52,7 +52,8 @@ auto error::diagnostic_information(error_message_format format) const noexcept
     if (format != error_message_format::simple && has_info())
     {
         error_info::diagnostics_buffer buffer;
-        fmt::format_to(buffer, "{} => {}", domain, errorDesc);
+        fmt::format_to(std::back_inserter(buffer), "{} => {}", domain,
+                       errorDesc);
 
         info()->diagnostic_information(buffer, "\n\t");
 
