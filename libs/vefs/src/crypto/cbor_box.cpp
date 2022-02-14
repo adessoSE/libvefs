@@ -36,6 +36,7 @@ auto cbor_box_decode_head(dplx::dp::memory_buffer &inStream) noexcept
         -> result<cbor_box_head>
 {
     using namespace dplx;
+    using parse = dp::item_parser<dp::memory_buffer>;
 
     VEFS_TRY(auto &&head, dp::parse_tuple_head(inStream));
 
@@ -49,48 +50,26 @@ auto cbor_box_decode_head(dplx::dp::memory_buffer &inStream) noexcept
     }
 
     // 32B salt
-    VEFS_TRY(auto info, dp::detail::parse_item_info(inStream));
-    if (std::byte{info.type} != dp::type_code::binary)
-    {
-        return dp::errc::item_type_mismatch;
-    }
-    if (info.value != 32u)
-    {
-        return dp::errc::item_value_out_of_range;
-    }
-    if (info.encoded_length != 2)
-    {
-        return dp::errc::invalid_additional_information;
-    }
+    VEFS_TRY(parse::expect(inStream, dp::type_code::binary, 32U,
+                           dp::parse_mode::strict));
     ro_blob<32> salt(inStream.consume(32), 32);
 
     // 16B mac
-    VEFS_TRY(info, dp::detail::parse_item_info(inStream));
-    if (std::byte{info.type} != dp::type_code::binary)
-    {
-        return dp::errc::item_type_mismatch;
-    }
-    if (info.value != 16u)
-    {
-        return dp::errc::item_value_out_of_range;
-    }
-    if (info.encoded_length != 1)
-    {
-        return dp::errc::invalid_additional_information;
-    }
+    VEFS_TRY(parse::expect(inStream, dp::type_code::binary, 16U,
+                           dp::parse_mode::strict));
     ro_blob<16> mac(inStream.consume(16u), 16);
 
-    VEFS_TRY(info, dp::detail::parse_item_info(inStream));
-    if (std::byte{info.type} != dp::type_code::binary)
+    VEFS_TRY(auto info, parse::generic(inStream));
+    if (info.type != dp::type_code::binary && !info.indefinite())
     {
         return dp::errc::item_type_mismatch;
     }
-    if (info.value > static_cast<unsigned int>(std::numeric_limits<int>::max()))
+    if (!std::in_range<int>(info.value))
     {
         return dp::errc::item_value_out_of_range;
     }
     auto dataLength = static_cast<int>(info.value);
-    if (inStream.remaining_size() < dataLength)
+    if (inStream.remaining_size() < info.value)
     {
         return dp::errc::end_of_stream;
     }
