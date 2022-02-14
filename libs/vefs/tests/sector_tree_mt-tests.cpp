@@ -69,7 +69,8 @@ public:
     {
         friend class allocator_stub;
 
-        explicit sector_allocator(allocator_stub &owner, sector_id current)
+        explicit sector_allocator([[maybe_unused]] allocator_stub &owner,
+                                  sector_id current)
             : mCurrent(current)
         {
         }
