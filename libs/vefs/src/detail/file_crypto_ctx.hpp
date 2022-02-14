@@ -15,6 +15,8 @@ namespace vefs::detail
 class file_crypto_ctx_interface
 {
 public:
+    virtual ~file_crypto_ctx_interface() = default;
+
     virtual auto seal_sector(rw_blob<1 << 15> ciphertext,
                              rw_blob<16> mac,
                              crypto::crypto_provider &provider,
