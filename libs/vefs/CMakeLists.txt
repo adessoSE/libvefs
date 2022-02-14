@@ -1,5 +1,6 @@
 
 add_library(vefs)
+add_library(Vefs::vefs ALIAS vefs)
 
 DEF_SOURCE_GROUP(vefs "core"
     HEADERS
@@ -129,7 +130,6 @@ DEF_SOURCE_GROUP(vefs "platform"
         src/platform/platform.cpp
         src/platform/windows-proper.h
 
-        
         src/platform/thread_pool.cpp
         src/platform/thread_pool_gen.hpp
         src/platform/thread_pool_gen.cpp
@@ -186,20 +186,19 @@ DEF_SOURCE_GROUP(vefs "external/SpookyV2"
         src/detail/SpookyV2.cpp
 )
 
-target_compile_features(vefs INTERFACE cxx_std_20)
 target_compile_definitions(vefs
     PUBLIC
         BOOST_UUID_NO_TYPE_TRAITS=1
 )
 target_include_directories(vefs
-    PRIVATE
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}>
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
 )
 target_link_libraries(vefs
     PUBLIC
+        Vefs::compiler_settings
+
         $<$<PLATFORM_ID:Windows>:advapi32>
         Boost::boost
         Boost::system
@@ -217,12 +216,6 @@ if (botan_FOUND)
 endif()
 if (boringssl_FOUND)
     target_link_libraries(vefs PUBLIC boringssl::crypto)
-endif()
-
-if (MSVC_COMPATIBLE)
-    set_source_files_properties("${CMAKE_CURRENT_BINARY_DIR}/fileformat.pb.cc" PROPERTIES
-        COMPILE_FLAGS "/wd4100 /wd4125 /wd4127 /wd4146 /wd4244"
-    )
 endif()
 
 ##########################################################################
@@ -256,7 +249,7 @@ if (BUILD_TESTING)
      )
     target_link_libraries(vefs-tests
         PUBLIC
-            vefs
+            Vefs::vefs
             Boost::unit_test_framework
             GTest::gmock
     )
@@ -266,9 +259,5 @@ endif()
 
 ##########################################################################
 # install targets
-install(TARGETS vefs EXPORT vefs-targets
-    RUNTIME DESTINATION bin/$<CONFIG>
-    LIBRARY DESTINATION lib/$<CONFIG>
-    ARCHIVE DESTINATION lib/$<CONFIG>
-)
-install(DIRECTORY include/ DESTINATION include COMPONENT core)
+install(TARGETS vefs EXPORT vefs-targets)
+install(DIRECTORY include/ TYPE INCLUDE COMPONENT core)

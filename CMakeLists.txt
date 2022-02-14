@@ -46,19 +46,6 @@ project(vefs VERSION 0.4.0.5 LANGUAGES CXX)
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/tools/cmake/")
 
-if (CMAKE_C_COMPILER_ID STREQUAL "GNU"
-    OR (CMAKE_C_COMPILER_ID STREQUAL "Clang" AND NOT CMAKE_C_SIMULATE_ID STREQUAL "MSVC"))
-    set(GCC_COMPATIBLE 1)
-endif()
-if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU"
-    OR (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND NOT CMAKE_CXX_SIMULATE_ID STREQUAL "MSVC"))
-    set(GXX_COMPATIBLE 1)
-endif()
-
-if(MSVC OR (CMAKE_CXX_COMPILER_ID STREQUAL "Clang" AND CMAKE_CXX_SIMULATE_ID STREQUAL "MSVC"))
-    set(MSVC_COMPATIBLE 1)
-endif()
-
 
 ##########################################################################
 # options
@@ -73,6 +60,8 @@ endif()
 
 ########################################################################
 # cmake modules
+include(CMakePackageConfigHelpers)
+include(GnuInstallDirs)
 include(src-helper)
 
 
@@ -124,19 +113,23 @@ include(CompilerWarnings)
 
 ##########################################################################
 # compiler adjustments
+add_library(compiler_settings INTERFACE)
+add_library(Vefs::compiler_settings ALIAS compiler_settings)
 
-# adjust compiler warning levels
-if (MSVC_COMPATIBLE)
-    # disable "structure was padded due to alignment specifier" warning
-    #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /wd4324 /D_CRT_SECURE_NO_WARNINGS /D_SCL_SECURE_NO_WARNINGS")
-    #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4324 /D_CRT_SECURE_NO_WARNINGS /D_SCL_SECURE_NO_WARNINGS")
+if (CMAKE_CXX_EXTENSIONS)
+    set(CMAKE_CXX_EXTENSIONS OFF CACHE STRING "" FORCE)
 endif()
-
-# additional compiler tweaks
-if (MSVC_COMPATIBLE)
-    # protobuf uses std::iterator within repeated_field.h
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /utf-8 /permissive-")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /utf-8 /permissive- /D_SILENCE_CXX17_ITERATOR_BASE_CLASS_DEPRECATION_WARNING")
+target_compile_features(compiler_settings INTERFACE cxx_std_20)
+if (MSVC)
+    target_compile_options(compiler_settings INTERFACE
+        /utf-8 # all sources are utf-8 encoded
+        /Zc:__cplusplus # correctly define the __cplusplus macro
+    )
+endif()
+if(MINGW AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    target_compile_options(compiler_settings INTERFACE
+        -municode
+    )
 endif()
 
 if(WIN32)
@@ -145,26 +138,20 @@ if(WIN32)
     # force unicode WINAPI symbols
     add_definitions(-DUNICODE -D_UNICODE)
 endif()
-macro(add_mingw_unicode_flags)
-    if(MINGW AND CMAKE_C_COMPILER_ID STREQUAL "GNU")
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -municode")
-    endif()
-    if(MINGW AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-        set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -municode")
-    endif()
-endmacro()
+
+install(TARGETS compiler_settings EXPORT vefs-targets)
 
 
 ########################################################################
 # configure output directories
-set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
-set(CMAKE_LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/lib")
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
 
 
 ##########################################################################
 # the actual library project
-enable_testing()
+if (BUILD_TESTING)
+    enable_testing()
+endif()
 
 add_subdirectory(libs/vefs)
 #add_subdirectory(libs/vefs-cli)
@@ -174,28 +161,26 @@ endif()
 
 
 ##########################################################################
-# install targets
-configure_file(tools/vefs-config.cmake
-    "${CMAKE_CURRENT_BINARY_DIR}/vefs-config.cmake"
-    COPYONLY
-)
-
+# cmake install
 install(EXPORT vefs-targets
     NAMESPACE Vefs::
-    DESTINATION cmake
+    DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}"
     COMPONENT core
 )
 
-include(CMakePackageConfigHelpers)
+configure_package_config_file(tools/vefs-config.cmake.in
+    "${CMAKE_CURRENT_BINARY_DIR}/vefs-config.cmake"
+
+    INSTALL_DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}"
+)
 write_basic_package_version_file(
     "${CMAKE_CURRENT_BINARY_DIR}/vefs-config-version.cmake"
-    VERSION "${VEFS_VERSION}"
-    COMPATIBILITY ExactVersion
+    COMPATIBILITY SameMinorVersion
 )
 
 install(FILES
         "${CMAKE_CURRENT_BINARY_DIR}/vefs-config.cmake"
         "${CMAKE_CURRENT_BINARY_DIR}/vefs-config-version.cmake"
-    DESTINATION cmake
+    DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}"
     COMPONENT core
 )
