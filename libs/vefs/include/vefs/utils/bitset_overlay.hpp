@@ -22,8 +22,8 @@ constexpr std::tuple<std::size_t, Unit> offset_and_mask_of(std::size_t bitpos)
     static_assert(std::is_unsigned_v<Unit>);
 
     return {bitpos / std::numeric_limits<Unit>::digits,
-            static_cast<Unit>(1)
-                    << (bitpos % std::numeric_limits<Unit>::digits)};
+            static_cast<Unit>(static_cast<Unit>(1)
+                              << (bitpos % std::numeric_limits<Unit>::digits))};
 }
 
 template <typename Unit>
