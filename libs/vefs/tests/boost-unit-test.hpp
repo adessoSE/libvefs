@@ -11,6 +11,9 @@
 #endif
 
 #if defined BOOST_COMP_MSVC_AVAILABLE
+// ';': empty controlled statement found; is this the intent?
+// triggered by BOOST_TEST_CONTEXT()
+#pragma warning(disable : 4390)
 #pragma warning(push, 2)
 #pragma warning(disable : 4702)
 #endif

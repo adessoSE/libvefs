@@ -1051,7 +1051,6 @@ auto vfilesystem::validate() -> result<void>
 {
     using inspection_tree
             = detail::sector_tree_seq<detail::archive_tree_allocator>;
-    auto numSectors = mDevice.size();
 
     auto lockedIndex = mFiles.lock_table();
 

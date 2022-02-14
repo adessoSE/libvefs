@@ -13,7 +13,7 @@
             "binaryDir": "${sourceDir}/out/bin/${presetName}",
             "cacheVariables": {
                 "BUILD_TESTING": true,
-                "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}"
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/zinstall/"
             }
         },
         {

@@ -89,8 +89,8 @@ error_info::diagnostic_information(diagnostics_buffer &out,
 {
     fmt::string_view wrappedFormat{detailFormat};
     for (const auto &detail : mDetails)
-    {
-        fmt::format_to(out, wrappedFormat);
+    {       
+        fmt::format_to(std::back_inserter(out), "{}", wrappedFormat);
         detail.second->stringify(out);
     }
 }

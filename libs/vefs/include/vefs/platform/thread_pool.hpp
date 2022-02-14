@@ -15,14 +15,18 @@ namespace vefs::detail
 
 class thread_pool
 {
-public:
-    using task_t = std::function<void()>;
+protected:
+    thread_pool() noexcept = default;
+    virtual ~thread_pool() noexcept = default;
 
+public:
     thread_pool(const thread_pool &) = delete;
     thread_pool(thread_pool &&) = delete;
 
     thread_pool &operator=(const thread_pool &) = delete;
     thread_pool &operator=(thread_pool &&) = delete;
+
+    using task_t = std::function<void()>;
 
     static thread_pool &shared();
 
@@ -33,9 +37,6 @@ public:
     auto twoway_execute(F &&twoway_task);
 
 protected:
-    thread_pool() noexcept = default;
-    ~thread_pool() = default;
-
     static void xdo(task_t &work) noexcept;
 
 private:

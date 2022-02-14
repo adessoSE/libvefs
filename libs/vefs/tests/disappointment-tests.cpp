@@ -90,19 +90,17 @@ BOOST_AUTO_TEST_CASE(error_format_with_curly_braces)
 
     error info;
 
-    BOOST_TEST("{}"_format(info) == "success-domain => success"sv);
+    BOOST_TEST(fmt::format("{}", info) == "success-domain => success"sv);
 }
 
 BOOST_AUTO_TEST_CASE(valid_error_formats)
 {
-    using fmt::format;
-
     error info;
 
     // compile-time check
-    format(FMT_STRING("{}"), info);
-    format(FMT_STRING("{:v}"), info);
-    format(FMT_STRING("{:!v}"), info);
+    (void)fmt::format(FMT_STRING("{}"), info);
+    (void)fmt::format(FMT_STRING("{:v}"), info);
+    (void)fmt::format(FMT_STRING("{:!v}"), info);
 }
 
 BOOST_AUTO_TEST_CASE(error_exception_init)
@@ -128,7 +126,7 @@ BOOST_AUTO_TEST_CASE(error_format_w_details)
     info << vefs::ed::error_code_api_origin{"xyz-xapi()"sv};
 
     BOOST_TEST(
-            "{}"_format(info)
+            fmt::format("{}", info)
             == "vefs-archive-domain => decryption failed because the message "
                "tag didn't match\n"
                "\t[enum vefs::ed::error_code_origin_tag] = xyz-xapi()"sv);

@@ -53,7 +53,8 @@ BOOST_AUTO_TEST_CASE(allocate_more_than_buffered)
 BOOST_AUTO_TEST_CASE(allocations_are_aligned)
 {
     auto rx = vefs::io_buffer_manager::create(
-            vefs::io_buffer_manager::page_size + 1U, 16U);
+            static_cast<std::uint32_t>(vefs::io_buffer_manager::page_size) + 1U,
+            16U);
     TEST_RESULT_REQUIRE(rx);
 
     auto const subject = std::move(rx).assume_value();

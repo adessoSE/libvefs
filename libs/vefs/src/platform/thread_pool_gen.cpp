@@ -29,7 +29,7 @@ inline std::string make_anonymous_pool_name()
 } // namespace
 
 thread_pool_gen::thread_pool_gen(int minWorkers,
-                                 int maxWorkers,
+                                 [[maybe_unused]] int maxWorkers,
                                  std::string_view poolName)
     : mTaskQueue{}
     , mWorkerList{}

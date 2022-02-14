@@ -207,9 +207,10 @@ private:
     auto block_id_of(std::byte const *const ptr) const noexcept -> std::uint32_t
     {
         auto const pages = mAllocatedPages.as_span();
-        return (reinterpret_cast<std::uintptr_t>(ptr)
-                - reinterpret_cast<std::uintptr_t>(pages.data()))
-             / mBufferSize;
+        return static_cast<std::uint32_t>(
+                (reinterpret_cast<std::uintptr_t>(ptr)
+                 - reinterpret_cast<std::uintptr_t>(pages.data()))
+                / mBufferSize);
     }
 };
 

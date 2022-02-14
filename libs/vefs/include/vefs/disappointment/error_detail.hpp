@@ -94,7 +94,7 @@ inline void error_detail<Tag, T>::stringify(format_buffer &out) const noexcept
     auto start = out.size();
     try
     {
-        fmt::format_to(out, FMT_STRING("[{}] = "),
+        fmt::format_to(std::back_inserter(out), FMT_STRING("[{}] = "),
                        detail::type_info_fmt{typeid(Tag)});
     }
     catch (...)
@@ -102,7 +102,8 @@ inline void error_detail<Tag, T>::stringify(format_buffer &out) const noexcept
         out.resize(start);
         try
         {
-            fmt::format_to(out, "<type name format failed>: ");
+            fmt::format_to(std::back_inserter(out),
+                           "<type name format failed>: ");
         }
         catch (...)
         {
@@ -115,7 +116,7 @@ inline void error_detail<Tag, T>::stringify(format_buffer &out) const noexcept
     auto valueStart = out.size();
     try
     {
-        fmt::format_to(out, "{}", mValue);
+        fmt::format_to(std::back_inserter(out), "{}", mValue);
         return; // success
     }
     catch (const std::exception &e)
@@ -124,7 +125,8 @@ inline void error_detail<Tag, T>::stringify(format_buffer &out) const noexcept
         try
         {
             std::string_view what{e.what()};
-            fmt::format_to(out, "<detail value format failed|{}>", what);
+            fmt::format_to(std::back_inserter(out),
+                           "<detail value format failed|{}>", what);
         }
         catch (...)
         {
@@ -139,7 +141,7 @@ inline void error_detail<Tag, T>::stringify(format_buffer &out) const noexcept
     out.resize(valueStart);
     try
     {
-        fmt::format_to(out, "<detail value format failed>");
+        fmt::format_to(std::back_inserter(out), "<detail value format failed>");
     }
     catch (...)
     {
