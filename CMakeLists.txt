@@ -10,7 +10,7 @@
 #     http://creativecommons.org/publicdomain/zero/1.0/
 #
 ########################################################################
-cmake_minimum_required(VERSION 3.15)
+cmake_minimum_required(VERSION 3.16)
 
 if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
     message(FATAL_ERROR "in-source builds are not supported!")
@@ -118,38 +118,18 @@ if (NOT (botan_FOUND OR boringssl_FOUND))
     message(WARNING "no crypto provider library (BoringSSL, botan) could be found.")
 endif()
 
+########################################################################
+# warning configuration
+include(CompilerWarnings)
+
 ##########################################################################
 # compiler adjustments
 
-# we require c++14 and some c++17 features
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
 # adjust compiler warning levels
 if (MSVC_COMPATIBLE)
-    if(${CMAKE_C_FLAGS} MATCHES "/W[0-4]")
-        string(REGEX REPLACE "/W[0-4]" "/W4" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
-    else()
-        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /W4")
-    endif()
-    if(${CMAKE_CXX_FLAGS} MATCHES "/W[0-4]")
-        string(REGEX REPLACE "/W[0-4]" "/W4" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
-    else()
-        set(CMAKE_C_FLAGS "${CMAKE_CXX_FLAGS} /W4")
-    endif()
-
     # disable "structure was padded due to alignment specifier" warning
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /wd4324 /D_CRT_SECURE_NO_WARNINGS /D_SCL_SECURE_NO_WARNINGS")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4324 /D_CRT_SECURE_NO_WARNINGS /D_SCL_SECURE_NO_WARNINGS")
-endif()
-
-if (GCC_COMPATIBLE)
-    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -Wno-long-long -Wpedantic")
-endif()
-if (GXX_COMPATIBLE)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wno-long-long -Wpedantic -Wno-unknown-pragmas -Wno-deprecated-declarations")
-endif()
-if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-    add_compile_options(-Wno-c++98-compat -Wno-reserved-id-macro)
+    #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /wd4324 /D_CRT_SECURE_NO_WARNINGS /D_SCL_SECURE_NO_WARNINGS")
+    #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /wd4324 /D_CRT_SECURE_NO_WARNINGS /D_SCL_SECURE_NO_WARNINGS")
 endif()
 
 # additional compiler tweaks

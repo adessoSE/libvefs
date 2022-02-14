@@ -52,7 +52,7 @@ workflow:
 build:debug:
   <<: *build
   script:
-    - cmake -G "Visual Studio 16 2019"  -A x64 -DVCPKG_TARGET_TRIPLET:STRING="x64-windows-ltcg-static" -DCMAKE_MSVC_RUNTIME_LIBRARY:STRING="MultiThreadedDebug" -DCMAKE_EXE_LINKER_FLAGS_DEBUG:STRING="/debug /INCREMENTAL" -DBUILD_TESTING=ON ".."
+    - cmake -G "Visual Studio 16 2019"  -A x64 -DVCPKG_TARGET_TRIPLET:STRING="x64-windows-ltcg-static" -DCMAKE_MSVC_RUNTIME_LIBRARY:STRING="MultiThreadedDebug" -DCMAKE_EXE_LINKER_FLAGS_DEBUG:STRING="/debug" -DBUILD_TESTING=ON -DWARNINGS_AS_ERRORS=ON ".."
     - cmake --build . -j $BUILD_PARALLELISM
   artifacts:
     <<: *build_artifacts
@@ -61,7 +61,7 @@ build:debug:
 build:release:
   <<: *build
   script:
-    - cmake -G "Visual Studio 16 2019"  -A x64 -DVCPKG_TARGET_TRIPLET:STRING="x64-windows-ltcg-static" -DCMAKE_MSVC_RUNTIME_LIBRARY:STRING="MultiThreaded" -DCMAKE_EXE_LINKER_FLAGS:STRING="/debug /INCREMENTAL" -DCMAKE_BUILD_TYPE="Release" -DBUILD_TESTING=ON ".."
+    - cmake -G "Visual Studio 16 2019"  -A x64 -DVCPKG_TARGET_TRIPLET:STRING="x64-windows-ltcg-static" -DCMAKE_MSVC_RUNTIME_LIBRARY:STRING="MultiThreaded" -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_EXE_LINKER_FLAGS:STRING="/debug" -DCMAKE_BUILD_TYPE="Release" -DBUILD_TESTING=ON -DWARNINGS_AS_ERRORS=ON ".."
     - cmake --build . -j $BUILD_PARALLELISM --config Release
   artifacts:
     <<: *build_artifacts
