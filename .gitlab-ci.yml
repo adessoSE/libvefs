@@ -76,7 +76,7 @@ test:debug:
   dependencies:
     - build:debug
 
-test_release:
+test:release:
   <<: *test
   script:
     - build\bin\Release\vefs-tests

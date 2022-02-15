@@ -1,29 +1,9 @@
 libvefs
 Copyright
-- 2017-2018 adesso AG
-- 2018-2019 Henrik S. Gaßmann
-
-This project uses and distributes the source of Cameron Desrochers' concurrentqueue
-under the terms of the Boost Software License (http://www.boost.org/LICENSE_1_0.txt).
-- include/vefs/ext/concurrentqueue/concurrentqueue.h
-- include/vefs/ext/concurrentqueue/blockingconcurrentqueue.h
-
-This project uses and distributes the source of Jeff Preshing's semaphore
-implementation under the terms of the zlib License.
-- include/vefs/ext/concurrentqueue/blockingconcurrentqueue.h
-
-This project uses and distributes the source of libcuckoo under the terms of the
-Apache License Version 2.0 (http://www.apache.org/licenses/LICENSE-2.0)
-- include/vefs/ext/libcuckoo/cuckoohash_config.hh
-- include/vefs/ext/libcuckoo/cuckoohash_map.hh
-- include/vefs/ext/libcuckoo/cuckoohash_util.hh
-- include/vefs/ext/libcuckoo/libcuckoo_bucket_container.hh
+- 2017-2022 adesso AG
+- 2018-2022 Henrik S. Gaßmann
 
 This project uses and distributes the source of Bob Jenkins Spooky Hash V2 implementation
 which has been placed into the public domain.
 - src/SpookyV2.h
 - src/SpookyV2.cpp
-
-This project uses and distributes the source fo Niall Douglas outcome library
-under the terms of the Boost Software License (http://www.boost.org/LICENSE_1_0.txt).
-- include/vefs/ext/outcome.hpp
