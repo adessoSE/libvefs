@@ -60,8 +60,9 @@ private:
     static constexpr auto reference_node_size
             = sector_device::sector_payload_size;
 
-    using data_node_content_type = span<std::byte, data_node_size>;
-    using reference_node_content_type = span<std::byte, reference_node_size>;
+    using data_node_content_type = std::span<std::byte, data_node_size>;
+    using reference_node_content_type
+            = std::span<std::byte, reference_node_size>;
     using data_storage_type
             = std::array<std::byte,
                          std::max(data_node_size, reference_node_size)>;
@@ -418,7 +419,7 @@ sector_tree_seq<TreeAllocator>::load_next(const int parentRefOffset) noexcept
     {
         return archive_errc::sector_reference_out_of_range;
     }
-    span storage(node_data(layer));
+    std::span storage(node_data(layer));
 
     VEFS_TRY(mDevice.read_sector(storage, mCryptoCtx, ref.sector, ref.mac));
 
@@ -738,7 +739,7 @@ sector_tree_seq<TreeAllocator>::collect_intermediate_nodes() noexcept
         mRootInfo.root = newRootRef;
         mRootInfo.tree_depth -= 1;
 
-        fill_blob(span(block));
+        fill_blob(std::span(block));
         node(i).mDirty = false;
         mNodeInfos[i].destroy();
         mLoaded -= 1;

@@ -66,26 +66,26 @@ template <typename T, typename Impl, typename H>
 inline void
 compute_hash(std::basic_string_view<T> obj, H &h, hash::algorithm_tag<Impl>)
 {
-    Impl::compute(as_bytes(span(obj)), h);
+    Impl::compute(as_bytes(std::span(obj)), h);
 }
 
 template <typename T, typename Impl>
 inline void compute_hash(std::basic_string_view<T> obj, Impl &state)
 {
-    state.update(as_bytes(span(obj)));
+    state.update(as_bytes(std::span(obj)));
 }
 
 template <typename Impl, typename H>
 inline void
 compute_hash(const vefs::utils::uuid &obj, H &h, hash::algorithm_tag<Impl>)
 {
-    Impl::compute(as_bytes(span(obj.data)), h);
+    Impl::compute(as_bytes(std::span(obj.data)), h);
 }
 
 template <typename Impl>
 inline void compute_hash(const vefs::utils::uuid &obj, Impl &state)
 {
-    state.update(as_bytes(span(obj.data)));
+    state.update(as_bytes(std::span(obj.data)));
 }
 } // namespace vefs::utils
 

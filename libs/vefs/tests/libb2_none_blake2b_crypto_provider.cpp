@@ -98,7 +98,7 @@ libb2_none_blake2b_crypto_provider::box_open(rw_dynblob plaintext,
     VEFS_TRY(blakeCtx.update(ciphertext));
 
     std::vector<std::byte> cpMacMem{mac.size(), std::byte{}};
-    span cpMac{cpMacMem};
+    std::span cpMac{cpMacMem};
 
     VEFS_TRY(blakeCtx.final(cpMac.subspan(0, hashLen)));
 

@@ -78,7 +78,7 @@ BOOST_AUTO_TEST_CASE(write_zero_to_bitset_does_not_change_anything)
     auto serializedDataStorage = vefs::utils::make_byte_array(
             0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF);
 
-    vefs::span serializedData{serializedDataStorage};
+    std::span serializedData{serializedDataStorage};
     vefs::utils::bitset_overlay allocMap{serializedData};
 
     (void)test_subject.write_to_bitset(allocMap, 0, 0);
@@ -99,7 +99,7 @@ BOOST_AUTO_TEST_CASE(write_to_bitset_zeros_all_empty_blocks_indizes)
     auto serializedDataStorage = vefs::utils::make_byte_array(
             0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF);
 
-    vefs::span serializedData{serializedDataStorage};
+    std::span serializedData{serializedDataStorage};
     vefs::utils::bitset_overlay allocMap{serializedData};
 
     (void)test_subject.write_to_bitset(allocMap, 0, 50);
@@ -120,7 +120,7 @@ BOOST_AUTO_TEST_CASE(write_to_bitset_zeros_all_empty_blocks_indizes2)
     auto serializedDataStorage = vefs::utils::make_byte_array(
             0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF);
 
-    vefs::span serializedData{serializedDataStorage};
+    std::span serializedData{serializedDataStorage};
     vefs::utils::bitset_overlay allocMap{serializedData};
 
     (void)test_subject.write_to_bitset(allocMap, 0, 10);
@@ -140,7 +140,7 @@ BOOST_AUTO_TEST_CASE(write_to_bitset_sets_all_bits_for_used_blocks)
     auto serializedDataStorage = vefs::utils::make_byte_array(
             0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00);
 
-    vefs::span serializedData{serializedDataStorage};
+    std::span serializedData{serializedDataStorage};
     vefs::utils::bitset_overlay allocMap{serializedData};
 
     (void)test_subject.write_to_bitset(allocMap, 0, 50);
@@ -158,7 +158,7 @@ BOOST_AUTO_TEST_CASE(parse_to_bitset_configures_deallocates_zero_bits)
     auto serializedDataStorage = vefs::utils::make_byte_array(
             0x00, 0x00, 0xF0, 0x1F, 0x00, 0xFF, 0x03, 0x00);
 
-    vefs::span serializedData{serializedDataStorage};
+    std::span serializedData{serializedDataStorage};
     vefs::utils::bitset_overlay allocMap{serializedData};
 
     auto parse_result = test_subject.parse_bitset(allocMap, 0, 50);

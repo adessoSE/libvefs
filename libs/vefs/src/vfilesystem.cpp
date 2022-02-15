@@ -771,7 +771,8 @@ auto vfilesystem::open(const std::string_view filePath,
         thread_local utils::xoroshiro128plus fileid_prng = []()
         {
             std::array<std::uint64_t, 2> randomState{};
-            auto rx = random_bytes(as_writable_bytes(span(randomState)));
+            auto rx = detail::random_bytes(
+                    as_writable_bytes(std::span(randomState)));
             if (!rx)
             {
                 throw error_exception{rx.assume_error()};
@@ -809,7 +810,6 @@ auto vfilesystem::open(const std::string_view filePath,
 
             rx = open(filePath, mode);
         }
-
         else
         {
             mWriteFlag.mark();
@@ -944,7 +944,7 @@ auto vfilesystem::commit() -> result<void>
         try
         {
             descriptor.fileId = fid.as_uuid();
-            auto pathBytes = as_bytes(span(path));
+            auto pathBytes = as_bytes(std::span(path));
 
             mFiles.update_fn(
                     fid,
@@ -958,7 +958,7 @@ auto vfilesystem::commit() -> result<void>
                         // reuse allocation if possible
                         descriptor.filePath.resize(pathBytes.size());
                         // #TODO #char8_t convert vfilesystem to u8string
-                        vefs::copy(pathBytes, as_writable_bytes(span(
+                        vefs::copy(pathBytes, as_writable_bytes(std::span(
                                                       descriptor.filePath)));
 
                         if (auto syncrx = layout.sync_to_tree(e, descriptor);
@@ -1014,7 +1014,7 @@ auto vfilesystem::recover_unused_sectors() -> result<void>
     std::vector<std::size_t> allocMap(utils::div_ceil(
             numSectors, std::numeric_limits<std::size_t>::digits));
 
-    utils::bitset_overlay allocBits{as_writable_bytes(span(allocMap))};
+    utils::bitset_overlay allocBits{as_writable_bytes(std::span(allocMap))};
 
     // precondition the central directory index is currently committed
     {

@@ -6,7 +6,7 @@ namespace vefs::utils
 {
 void secure_memzero(rw_dynblob data)
 {
-    if (data)
+    if (!data.empty())
     {
         OPENSSL_cleanse(data.data(), data.size());
     }

@@ -42,7 +42,7 @@ BOOST_AUTO_TEST_CASE(sqlite_bridge_regression_1)
 {
     using file_type = std::array<std::byte, 8192>;
     auto fileDataStorage = std::make_unique<file_type>();
-    span fileData{*fileDataStorage};
+    std::span fileData{*fileDataStorage};
 
     utils::xoroshiro128plus dataGenerator{0};
 
@@ -118,7 +118,7 @@ BOOST_AUTO_TEST_CASE(sqlite_bridge_regression_2)
 
     using file_type = std::array<std::byte, 0x1000>;
     auto fileDataStorage = std::make_unique<file_type>();
-    span fileData{*fileDataStorage};
+    std::span fileData{*fileDataStorage};
     vefs::fill_blob(fileData, std::byte{0x55});
 
     utils::xoroshiro128plus dataGenerator{0};
@@ -191,7 +191,7 @@ BOOST_AUTO_TEST_CASE(read_write_with_empty_prk_and_boringssl_provider)
             = detail::sector_device::sector_payload_size * 2 - 1;
     using file_type = std::array<std::byte, (1 << 17) * 3 - 1>;
     auto bigFile = std::make_unique<file_type>();
-    span file{*bigFile};
+    std::span file{*bigFile};
 
     utils::xoroshiro128plus dataGenerator{0};
     dataGenerator.fill(file);
@@ -219,11 +219,11 @@ BOOST_AUTO_TEST_CASE(read_write_with_empty_prk_and_boringssl_provider)
                        == file.size() + pos);
 
     auto readBuffer = std::make_unique<file_type>();
-    TEST_RESULT_REQUIRE(testSubject.read(hFile, span{*readBuffer}, pos));
-    auto readSpan = span{*readBuffer};
+    TEST_RESULT_REQUIRE(testSubject.read(hFile, std::span{*readBuffer}, pos));
+    auto readSpan = std::span{*readBuffer};
 
-    BOOST_CHECK_EQUAL_COLLECTIONS(file.cbegin(), file.cend(), readSpan.cbegin(),
-                                  readSpan.cend());
+    BOOST_CHECK_EQUAL_COLLECTIONS(file.begin(), file.end(), readSpan.begin(),
+                                  readSpan.end());
 }
 
 BOOST_AUTO_TEST_SUITE_END()

@@ -28,7 +28,7 @@ public:
         sector_reference deserialized;
         deserialized.sector = mCodec.read<sector_id>(baseOffset);
         copy(mCodec.as_bytes().subspan(baseOffset + 16, 16),
-             span(deserialized.mac));
+             std::span(deserialized.mac));
 
         return deserialized;
     }
@@ -40,7 +40,7 @@ public:
 
         mCodec.write(reference.sector, baseOffset);
         mCodec.write<std::uint64_t>(0, baseOffset + 8);
-        copy(span(reference.mac),
+        copy(std::span(reference.mac),
              mCodec.as_writeable_bytes().subspan(baseOffset + 16, 16));
     }
 

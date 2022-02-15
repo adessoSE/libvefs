@@ -133,7 +133,7 @@ public:
         using namespace std::string_view_literals;
 
         // narrow contract violations
-        if (!out)
+        if (out.empty())
         {
             BOOST_THROW_EXCEPTION(
                     invalid_argument{}
@@ -141,7 +141,7 @@ public:
                     << errinfo_param_misuse_description{
                                "no ciphertext output buffer was supplied"});
         }
-        if (!outTag)
+        if (outTag.empty())
         {
             BOOST_THROW_EXCEPTION(
                     invalid_argument{}
@@ -149,14 +149,14 @@ public:
                     << errinfo_param_misuse_description{
                                "no tag output buffer was supplied"});
         }
-        if (!nonce)
+        if (nonce.empty())
         {
             BOOST_THROW_EXCEPTION(invalid_argument{}
                                   << errinfo_param_name{"nonce"}
                                   << errinfo_param_misuse_description{
                                              "no nonce was supplied"});
         }
-        if (!plain)
+        if (plain.empty())
         {
             BOOST_THROW_EXCEPTION(invalid_argument{}
                                   << errinfo_param_name{"plain"}
@@ -197,7 +197,7 @@ public:
                       ro_dynblob authTag,
                       ro_dynblob ad = ro_dynblob{})
     {
-        if (!out)
+        if (out.empty())
         {
             BOOST_THROW_EXCEPTION(
                     invalid_argument{}
@@ -205,14 +205,14 @@ public:
                     << errinfo_param_misuse_description{
                                "no ciphertext output buffer was supplied"});
         }
-        if (!nonce)
+        if (nonce.empty())
         {
             BOOST_THROW_EXCEPTION(invalid_argument{}
                                   << errinfo_param_name{"nonce"}
                                   << errinfo_param_misuse_description{
                                              "no nonce was supplied"});
         }
-        if (!ciphertext)
+        if (ciphertext.empty())
         {
             BOOST_THROW_EXCEPTION(
                     invalid_argument{}
@@ -220,7 +220,7 @@ public:
                     << errinfo_param_misuse_description{
                                "seal(): no ciphertext was supplied"});
         }
-        if (!authTag)
+        if (authTag.empty())
         {
             BOOST_THROW_EXCEPTION(
                     invalid_argument{}

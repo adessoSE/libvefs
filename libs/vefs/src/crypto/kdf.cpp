@@ -4,11 +4,13 @@
 
 namespace vefs::crypto
 {
+
 namespace detail
 {
+
 result<void> kdf_impl(rw_dynblob prk,
                       ro_dynblob inputKey,
-                      span<const ro_dynblob> domain) noexcept
+                      std::span<const ro_dynblob> domain) noexcept
 {
     blake2xb state{};
 
@@ -20,6 +22,7 @@ result<void> kdf_impl(rw_dynblob prk,
     }
     return state.final(prk);
 }
+
 } // namespace detail
 
 result<void>
@@ -34,4 +37,5 @@ kdf(rw_dynblob prk, ro_dynblob inputKey, ro_dynblob domain) noexcept
     VEFS_TRY(state.update(domain));
     return state.final(prk);
 }
+
 } // namespace vefs::crypto

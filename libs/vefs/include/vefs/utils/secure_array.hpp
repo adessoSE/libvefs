@@ -3,12 +3,13 @@
 #include <cstddef>
 
 #include <array>
+#include <span>
 
 #include <vefs/platform/secure_memzero.hpp>
-#include <vefs/span.hpp>
 
 namespace vefs::utils
 {
+
 template <typename T, std::size_t arr_size>
 struct secure_array : private std::array<T, arr_size>
 {
@@ -18,8 +19,7 @@ private:
 public:
     static constexpr std::size_t static_size = arr_size;
 
-    using span_type = span<T, static_size>;
-    friend span_type;
+    using span_type = std::span<T, static_size>;
 
     using typename base_type::const_iterator;
     using typename base_type::const_pointer;
@@ -34,7 +34,7 @@ public:
     using typename base_type::value_type;
 
     secure_array() noexcept = default;
-    explicit secure_array(span<const T, arr_size> other) noexcept
+    explicit secure_array(std::span<const T, arr_size> other) noexcept
     {
         copy(other, as_span(*this));
     }
@@ -80,16 +80,17 @@ public:
 };
 
 template <typename T, std::size_t arr_size>
-inline auto as_span(secure_array<T, arr_size> &arr) noexcept
+constexpr auto as_span(secure_array<T, arr_size> &arr) noexcept
 {
-    return span<T, arr_size>(arr);
+    return std::span<T, arr_size>(arr);
 }
 template <typename T, std::size_t arr_size>
-inline auto as_span(const secure_array<T, arr_size> &arr) noexcept
+constexpr auto as_span(secure_array<T, arr_size> const &arr) noexcept
 {
-    return span<const T, arr_size>(arr);
+    return std::span<T const, arr_size>(arr);
 }
 
 template <std::size_t arr_size>
 using secure_byte_array = secure_array<std::byte, arr_size>;
+
 } // namespace vefs::utils

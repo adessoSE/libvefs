@@ -18,7 +18,7 @@
 namespace vefs
 {
 template <typename T, std::size_t Extent>
-inline auto load_primitive(span<const std::byte, Extent> memory,
+inline auto load_primitive(std::span<const std::byte, Extent> memory,
                            std::size_t offset = 0) noexcept
         -> utils::remove_cvref_t<T>
 {
@@ -46,14 +46,15 @@ inline auto load_primitive(span<const std::byte, Extent> memory,
 }
 
 template <typename T, std::size_t Extent>
-inline auto load_primitive(span<std::byte, Extent> memory,
+inline auto load_primitive(std::span<std::byte, Extent> memory,
                            std::size_t offset = 0) noexcept
 {
-    return load_primitive<T>(span<const std::byte, Extent>(memory), offset);
+    return load_primitive<T>(std::span<const std::byte, Extent>(memory),
+                             offset);
 }
 
 template <typename T, std::size_t Extent>
-inline void store_primitive(span<std::byte, Extent> memory,
+inline void store_primitive(std::span<std::byte, Extent> memory,
                             T value,
                             std::size_t offset = 0) noexcept
 {
@@ -88,7 +89,7 @@ class binary_codec final
 {
 public:
     binary_codec() = delete;
-    binary_codec(span<std::byte, Extent> buffer)
+    binary_codec(std::span<std::byte, Extent> buffer)
         : mBuffer(buffer)
     {
     }
@@ -127,6 +128,6 @@ public:
     }
 
 private:
-    span<std::byte, Extent> mBuffer;
+    std::span<std::byte, Extent> mBuffer;
 };
 } // namespace vefs::utils

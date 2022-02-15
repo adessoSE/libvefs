@@ -33,7 +33,7 @@ struct master_file_info
     master_file_info() noexcept = default;
     explicit master_file_info(file_descriptor const &desc)
         : crypto_state{.secret
-                       = utils::secure_byte_array<32>(span(desc.secret)),
+                       = utils::secure_byte_array<32>(std::span(desc.secret)),
                        .counter = desc.secretCounter}
         , tree_info(desc.data)
     {

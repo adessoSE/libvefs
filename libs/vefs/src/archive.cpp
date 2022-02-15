@@ -475,7 +475,7 @@ auto archive_handle::read(const vfile_handle &handle,
                           rw_dynblob buffer,
                           std::uint64_t readFilePos) -> result<void>
 {
-    if (!buffer)
+    if (buffer.empty())
     {
         return outcome::success();
     }
@@ -496,7 +496,7 @@ auto archive_handle::write(const vfile_handle &handle,
                            ro_dynblob data,
                            std::uint64_t writeFilePos) -> result<void>
 {
-    if (!data)
+    if (data.empty())
     {
         return outcome::success();
     }
