@@ -66,6 +66,18 @@
             }
         },
         {
+            "name": "x64-windows-msvc-lto-debug",
+            "displayName": "x64 Windows MSVC LTO Debug",
+            "inherits": [
+                "x64-windows-msvc"
+            ],
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_DEBUG_POSTFIX": "-Debug",
+                "VCPKG_TARGET_TRIPLET": "x64-windows-ltcg-static"
+            }
+        },
+        {
             "name": "x64-windows-msvc-release",
             "displayName": "x64 Windows MSVC Release",
             "inherits": [
@@ -76,8 +88,8 @@
             }
         },
         {
-            "name": "x64-windows-msvc-lto",
-            "displayName": "x64 Windows MSVC Release LTO",
+            "name": "x64-windows-msvc-lto-release",
+            "displayName": "x64 Windows MSVC LTO Release",
             "inherits": [
                 "x64-windows-msvc"
             ],
