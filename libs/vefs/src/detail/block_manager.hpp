@@ -89,7 +89,7 @@ public:
      * fills the ids span with as many ids as possible and removes the used
      * ids from the range
      */
-    auto pop_front(span<id_type> ids) noexcept -> std::size_t;
+    auto pop_front(std::span<id_type> ids) noexcept -> std::size_t;
     /**
      * removes num ids from the back of the range and returns the smallest
      * removed id, effectively allocating a contiguous range starting at the
@@ -183,7 +183,7 @@ public:
      * \returns the number of successful allocations or
      * errc::resource_exhausted
      */
-    auto alloc_multiple(span<id_type> ids) noexcept -> result<std::size_t>;
+    auto alloc_multiple(std::span<id_type> ids) noexcept -> result<std::size_t>;
     /**
      * allocates num contiguous blocks
      *
@@ -348,7 +348,7 @@ inline auto id_range<IdType>::pop_front(std::size_t num) noexcept -> id_type
 }
 
 template <typename IdType>
-inline auto id_range<IdType>::pop_front(span<id_type> ids) noexcept
+inline auto id_range<IdType>::pop_front(std::span<id_type> ids) noexcept
         -> std::size_t
 {
     const auto num = std::min(ids.size(), size());
@@ -449,7 +449,8 @@ inline auto block_manager<IdType>::alloc_one() noexcept -> result<id_type>
 }
 
 template <typename IdType>
-inline auto block_manager<IdType>::alloc_multiple(span<id_type> ids) noexcept
+inline auto
+block_manager<IdType>::alloc_multiple(std::span<id_type> ids) noexcept
         -> result<std::size_t>
 {
     auto remaining = ids;

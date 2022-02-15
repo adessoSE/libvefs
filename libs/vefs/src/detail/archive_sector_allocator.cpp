@@ -271,7 +271,7 @@ static auto preallocate_serialization_storage(
 
     // numStorageSectors < num_nodes()
     // => numAllocated == numStorageSectors
-    VEFS_TRY(sectorManager.alloc_multiple(span(idContainer).subspan<1>()));
+    VEFS_TRY(sectorManager.alloc_multiple(std::span(idContainer).subspan<1>()));
 
     // allocating sectors for the free block file, can reduce the size of
     // said file in certain edge cases which in turn may produce some empty
@@ -281,7 +281,7 @@ static auto preallocate_serialization_storage(
         = num_required_storage_sectors(sectorManager);
         adjustedStorageSectors < numStorageSectors)
     {
-        for (auto id : span(idContainer).subspan(adjustedStorageSectors))
+        for (auto id : std::span(idContainer).subspan(adjustedStorageSectors))
         {
             VEFS_TRY(sectorManager.dealloc_one(id));
         }
@@ -289,7 +289,7 @@ static auto preallocate_serialization_storage(
         numStorageSectors = num_required_storage_sectors(sectorManager);
         idContainer.resize(numStorageSectors, boost::container::default_init);
 
-        auto missing = span(idContainer).subspan(adjustedStorageSectors);
+        auto missing = std::span(idContainer).subspan(adjustedStorageSectors);
         if (!missing.empty())
         {
             // numStorageSectors < num_nodes()

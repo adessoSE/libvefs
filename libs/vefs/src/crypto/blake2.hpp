@@ -114,7 +114,7 @@ private:
     blake2xb_state mState{};
 };
 
-constexpr std::array<std::byte, blake2b::personal_bytes>
+inline constexpr std::array<std::byte, blake2b::personal_bytes>
         vefs_blake2b_personalization = utils::make_byte_array(0x76,
                                                               0x65,
                                                               0x66,
@@ -131,5 +131,6 @@ constexpr std::array<std::byte, blake2b::personal_bytes>
                                                               0x08,
                                                               0xd1,
                                                               0x33);
-constexpr span vefs_blake2b_personalization_view{vefs_blake2b_personalization};
+inline constexpr std::span vefs_blake2b_personalization_view{
+        vefs_blake2b_personalization};
 } // namespace vefs::crypto::detail

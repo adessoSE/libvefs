@@ -45,7 +45,7 @@ inline file_id::file_id(utils::uuid rawId) noexcept
 }
 inline file_id::file_id(ro_blob<16> rawData) noexcept
 {
-    copy(rawData, as_writable_bytes(span(mId.data)));
+    copy(rawData, as_writable_bytes(std::span(mId.data)));
 }
 
 inline auto file_id::as_uuid() const noexcept -> utils::uuid

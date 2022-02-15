@@ -9,7 +9,7 @@ namespace
 template <std::size_t N>
 constexpr auto byte_literal(const char8_t (&arr)[N]) noexcept
 {
-    return span<const char8_t, N>(arr).template first<N - 1>();
+    return std::span<const char8_t, N>(arr).template first<N - 1>();
 }
 
 constexpr auto sector_kdf_salt = byte_literal(u8"vefs/salt/Sector-Salt");
@@ -28,7 +28,7 @@ file_crypto_ctx::file_crypto_ctx(ro_blob<32> secretView,
     : mState{.counter = secretCounter}
     , mStateSync()
 {
-    vefs::copy(secretView, span(mState.secret));
+    vefs::copy(secretView, std::span(mState.secret));
 }
 
 auto file_crypto_ctx::seal_sector(rw_blob<1 << 15> ciphertext,

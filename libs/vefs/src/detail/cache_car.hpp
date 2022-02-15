@@ -97,7 +97,7 @@ private:
     static constexpr page_index invalid_page_index_bit
             = page_index(1) << (std::numeric_limits<page_index>::digits - 1);
 
-    inline auto pages() noexcept -> span<page_type, max_entries>;
+    inline auto pages() noexcept -> std::span<page_type, max_entries>;
     inline auto page(std::size_t id) noexcept -> page_type &;
 
     using history_list
@@ -216,9 +216,9 @@ template <typename Key,
           typename Hash,
           typename KeyEqual>
 inline auto cache_car<Key, T, CacheSize, Hash, KeyEqual>::pages() noexcept
-        -> span<page_type, max_entries>
+        -> std::span<page_type, max_entries>
 {
-    return {mPageOwner.get(), max_entries};
+    return std::span<page_type, max_entries>{mPageOwner.get(), max_entries};
 }
 
 template <typename Key,

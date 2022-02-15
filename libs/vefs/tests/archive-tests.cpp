@@ -103,7 +103,7 @@ BOOST_AUTO_TEST_CASE(reopen_keeps_created_files)
             = detail::sector_device::sector_payload_size * 2 - 1;
     using file_type = std::array<std::byte, (1 << 17) * 3 - 1>;
     auto bigFile = std::make_unique<file_type>();
-    span writeContent{*bigFile};
+    std::span writeContent{*bigFile};
 
     utils::xoroshiro128plus dataGenerator{0xC0DE'DEAD'BEEF'3ABA};
     dataGenerator.fill(writeContent);
@@ -130,12 +130,12 @@ BOOST_AUTO_TEST_CASE(reopen_keeps_created_files)
     file = std::move(fileOpenRx).assume_value();
 
     auto readBuffer = std::make_unique<file_type>();
-    TEST_RESULT(testSubject.read(file, span{*readBuffer}, pos));
+    TEST_RESULT(testSubject.read(file, std::span{*readBuffer}, pos));
 
-    auto readSpan = span{*readBuffer};
+    auto readSpan = std::span{*readBuffer};
 
-    BOOST_CHECK_EQUAL_COLLECTIONS(writeContent.cbegin(), writeContent.cend(),
-                                  readSpan.cbegin(), readSpan.cend());
+    BOOST_CHECK_EQUAL_COLLECTIONS(writeContent.begin(), writeContent.end(),
+                                  readSpan.begin(), readSpan.end());
 }
 
 BOOST_AUTO_TEST_CASE(archive_cannot_be_opened_parallel)
@@ -172,7 +172,7 @@ BOOST_AUTO_TEST_CASE(read_content_that_was_written)
             = detail::sector_device::sector_payload_size * 2 - 1;
     using file_type = std::array<std::byte, (1 << 17) * 3 - 1>;
     auto bigFile = std::make_unique<file_type>();
-    span writeContent{*bigFile};
+    std::span writeContent{*bigFile};
 
     utils::xoroshiro128plus dataGenerator{0xC0DE'DEAD'BEEF'3ABA};
     dataGenerator.fill(writeContent);
@@ -192,12 +192,12 @@ BOOST_AUTO_TEST_CASE(read_content_that_was_written)
     file = std::move(fileOpenRx).assume_value();
 
     auto readBuffer = std::make_unique<file_type>();
-    TEST_RESULT(testSubject.read(file, span{*readBuffer}, pos));
+    TEST_RESULT(testSubject.read(file, std::span{*readBuffer}, pos));
 
-    auto readSpan = span{*readBuffer};
+    auto readSpan = std::span{*readBuffer};
 
-    BOOST_CHECK_EQUAL_COLLECTIONS(writeContent.cbegin(), writeContent.cend(),
-                                  readSpan.cbegin(), readSpan.cend());
+    BOOST_CHECK_EQUAL_COLLECTIONS(writeContent.begin(), writeContent.end(),
+                                  readSpan.begin(), readSpan.end());
 }
 
 BOOST_AUTO_TEST_CASE(archive_file_shrink)
@@ -206,7 +206,7 @@ BOOST_AUTO_TEST_CASE(archive_file_shrink)
             = detail::sector_device::sector_payload_size * 2 - 1;
     using file_type = std::array<std::byte, (1 << 17) * 3 - 1>;
     auto bigFile = std::make_unique<file_type>();
-    span writeContent{*bigFile};
+    std::span writeContent{*bigFile};
 
     utils::xoroshiro128plus dataGenerator{0};
     dataGenerator.fill(writeContent);
@@ -241,8 +241,8 @@ BOOST_AUTO_TEST_CASE(archive_file_shrink)
     TEST_RESULT_REQUIRE(testSubject.commit());
 
     auto readBuffer = std::make_unique<file_type>();
-    auto read_result = testSubject.read(hFile, span{*readBuffer}, pos);
-    BOOST_TEST_REQUIRE(!testSubject.read(hFile, span{*readBuffer}, pos));
+    auto read_result = testSubject.read(hFile, std::span{*readBuffer}, pos);
+    BOOST_TEST_REQUIRE(!testSubject.read(hFile, std::span{*readBuffer}, pos));
     BOOST_TEST(read_result.assume_error()
                == archive_errc::sector_reference_out_of_range);
 }
@@ -253,7 +253,7 @@ BOOST_AUTO_TEST_CASE(erased_file_cannot_be_queried)
             = detail::sector_device::sector_payload_size * 2 - 1;
     using file_type = std::array<std::byte, (1 << 17) * 3 - 1>;
     auto bigFile = std::make_unique<file_type>();
-    span file{*bigFile};
+    std::span file{*bigFile};
 
     utils::xoroshiro128plus dataGenerator{0};
     dataGenerator.fill(file);
@@ -293,7 +293,7 @@ BOOST_AUTO_TEST_CASE(query_finds_existing_file)
             = detail::sector_device::sector_payload_size * 2 - 1;
     using file_type = std::array<std::byte, (1 << 17) * 3 - 1>;
     auto bigFile = std::make_unique<file_type>();
-    span file{*bigFile};
+    std::span file{*bigFile};
 
     utils::xoroshiro128plus dataGenerator{0};
     dataGenerator.fill(file);

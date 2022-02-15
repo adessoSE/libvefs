@@ -51,7 +51,7 @@ struct file_descriptor
         , modificationTime()
     {
         auto ctxState = ctx.state();
-        vefs::copy(as_span(ctxState.secret), span(secret));
+        vefs::copy(as_span(ctxState.secret), std::span(secret));
         secretCounter = ctxState.counter;
     }
 

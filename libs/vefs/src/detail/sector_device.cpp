@@ -103,7 +103,7 @@ constexpr auto file_format_id = utils::make_byte_array(0x82,
 template <std::size_t N>
 inline auto byte_literal(const char (&arr)[N]) noexcept
 {
-    span<const char, N> literalMem{arr};
+    std::span<const char, N> literalMem{arr};
     return as_bytes(literalMem.template first<N - 1>());
 }
 
@@ -167,7 +167,7 @@ auto sector_device::create_file_secrets() noexcept
                          master_secret_view(), file_kdf_counter, ctrValue));
 
     std::unique_ptr<file_crypto_ctx> ctx{new (std::nothrow) file_crypto_ctx(
-            fileSecret, crypto::counter{fileWriteCtrState})};
+            as_span(fileSecret), crypto::counter{fileWriteCtrState})};
     if (!ctx)
     {
         return errc::not_enough_memory;
@@ -254,9 +254,9 @@ auto sector_device::open_existing(llfio::file_handle fileHandle,
     {
         auto &&header = std::move(headerRx).assume_value();
         archive->mArchiveSecretCounter.store(
-                crypto::counter(span(header.archive_secret_counter)));
+                crypto::counter(std::span(header.archive_secret_counter)));
         archive->mJournalCounter.store(
-                crypto::counter(span(header.journal_counter)));
+                crypto::counter(std::span(header.journal_counter)));
 
         return open_info{std::move(archive),
                          master_file_info(header.filesystem_index),
@@ -589,9 +589,12 @@ auto sector_device::read_sector(rw_blob<sector_payload_size> contentDest,
         assert(buffers[0].size() == sector_size);
         assert(buffers[0].data() != nullptr);
 
-        VEFS_TRY_INJECT(fileCtx.unseal_sector(contentDest, *mCryptoProvider,
-                                              buffers[0], contentMAC),
-                        ed::sector_idx{sectorIdx});
+        VEFS_TRY_INJECT(
+                fileCtx.unseal_sector(
+                        contentDest, *mCryptoProvider,
+                        std::span<std::byte const, sector_size>(buffers[0]),
+                        contentMAC),
+                ed::sector_idx{sectorIdx});
         return oc::success();
     }
     else
@@ -626,8 +629,9 @@ auto sector_device::write_sector(
         mIoBufferManager.deallocate(ioBuffer);
     };
 
-    VEFS_TRY_INJECT(fileCtx.seal_sector(ioBuffer, mac, *mCryptoProvider,
-                                        session_salt_view(), data),
+    VEFS_TRY_INJECT(fileCtx.seal_sector(
+                            std::span<std::byte, sector_size>(ioBuffer),
+                            mac, *mCryptoProvider, session_salt_view(), data),
                     ed::sector_idx{sectorIdx});
 
     auto const sectorOffset = to_offset(sectorIdx);
@@ -682,9 +686,9 @@ auto vefs::detail::sector_device::update_header(
     auto const ectr = mArchiveSecretCounter.fetch_increment().value();
 
     vefs::copy(as_bytes(mArchiveSecretCounter.fetch_increment().view()),
-               span(assembled.archive_secret_counter));
+               std::span(assembled.archive_secret_counter));
     vefs::copy(as_bytes(mJournalCounter.fetch_increment().view()),
-               span(assembled.journal_counter));
+               std::span(assembled.journal_counter));
 
     switch_header();
 
@@ -708,7 +712,7 @@ auto vefs::detail::sector_device::update_header(
                                  static_cast<std::uint16_t>(
                                          serializationBuffer.consumed_size())));
 
-    VEFS_TRY(crypto::kdf(box.salt, as_bytes(span(ectr)),
+    VEFS_TRY(crypto::kdf(box.salt, as_bytes(std::span(ectr)),
                          archive_header_kdf_salt, mSessionSalt));
 
     secure_byte_array<44> headerKeyNonce;

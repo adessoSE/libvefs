@@ -16,7 +16,7 @@ namespace detail
 {
 result<void> kdf_impl(rw_dynblob prk,
                       ro_dynblob inputKey,
-                      span<const ro_dynblob> domainIt) noexcept;
+                      std::span<const ro_dynblob> domainIt) noexcept;
 }
 
 result<void>
@@ -27,7 +27,7 @@ result<void>
 kdf(rw_dynblob prk, ro_dynblob inputKey, const DomainParts &...parts)
 {
     std::array<ro_dynblob, sizeof...(DomainParts)> lparts{
-            as_bytes(span(parts))...};
+            as_bytes(std::span(parts))...};
 
     return detail::kdf_impl(prk, inputKey, lparts);
 }

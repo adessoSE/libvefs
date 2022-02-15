@@ -14,7 +14,7 @@ static void countnaive(benchmark::State &state)
     {
         state.PauseTiming();
         std::array<std::byte, 64> mem;
-        vefs::fill_blob(vefs::span(mem), std::byte{0b0101'0101});
+        vefs::fill_blob(std::span(mem), std::byte{0b0101'0101});
         //generator.fill(mem);
         state.ResumeTiming();
 
@@ -57,7 +57,7 @@ static void countspecial(benchmark::State &state)
         state.PauseTiming();
         std::array<std::byte, 64> mem;
         //generator.fill(mem);
-        vefs::fill_blob(vefs::span(mem), std::byte{0b0101'0101});
+        vefs::fill_blob(std::span(mem), std::byte{0b0101'0101});
         state.ResumeTiming();
 
         std::size_t r = 0;

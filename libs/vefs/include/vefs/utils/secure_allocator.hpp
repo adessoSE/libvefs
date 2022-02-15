@@ -23,7 +23,7 @@ public:
 
     void deallocate(T *p, std::size_t num)
     {
-        secure_memzero(as_writable_bytes(span(p, num)));
+        secure_memzero(as_writable_bytes(std::span(p, num)));
         std::allocator<T>::deallocate(p, num);
     }
 };

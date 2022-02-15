@@ -58,9 +58,9 @@ result<void> blake2b::init(std::size_t digestSize,
     param.xof_length = 0;
     param.node_depth = 0;
     param.inner_length = 0;
-    fill_blob(as_writable_bytes(span(param.reserved)));
-    fill_blob(as_writable_bytes(span(param.salt)));
-    copy(personalisation, as_writable_bytes(span(param.personal)));
+    fill_blob(as_writable_bytes(std::span(param.reserved)));
+    fill_blob(as_writable_bytes(std::span(param.salt)));
+    copy(personalisation, as_writable_bytes(std::span(param.personal)));
 
     if (blake2b_init_param(&mState, &param))
     {
@@ -153,9 +153,9 @@ result<void> blake2xb::init(std::size_t digestSize,
     param.xof_length = static_cast<uint32_t>(digestSize);
     param.node_depth = 0;
     param.inner_length = 0;
-    fill_blob(as_writable_bytes(span(param.reserved)));
-    fill_blob(as_writable_bytes(span(param.salt)));
-    copy(personalisation, as_writable_bytes(span(param.personal)));
+    fill_blob(as_writable_bytes(std::span(param.reserved)));
+    fill_blob(as_writable_bytes(std::span(param.salt)));
+    copy(personalisation, as_writable_bytes(std::span(param.personal)));
 
     if (blake2b_init_param(mState.S, &param))
     {
