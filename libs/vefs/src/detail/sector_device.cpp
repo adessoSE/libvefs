@@ -25,11 +25,11 @@
 #include "io_buffer_manager.hpp"
 #include "secure_array.codec.hpp"
 
-namespace dplx::dp
+template <dplx::dp::input_stream Stream>
+class dplx::dp::basic_decoder<vefs::detail::master_header, Stream>
 {
-template <input_stream Stream>
-class basic_decoder<vefs::detail::master_header, Stream>
-{
+    using parse = item_parser<Stream>;
+
 public:
     using value_type = vefs::detail::master_header;
     inline auto operator()(Stream &inStream, value_type &value) const
@@ -47,35 +47,34 @@ public:
             return errc::tuple_size_mismatch;
         }
 
-        std::span secretView(value.master_secret);
-        DPLX_TRY(decode(inStream, secretView));
+        DPLX_TRY(parse::expect(inStream, type_code::binary,
+                               value.master_secret.size(), parse_mode::strict));
+        DPLX_TRY(read(inStream, value.master_secret.data(),
+                      value.master_secret.size()));
+
         return decode(inStream, value.master_counter);
     }
 };
 
-template <output_stream Stream>
-class basic_encoder<vefs::detail::master_header, Stream>
+template <dplx::dp::output_stream Stream>
+class dplx::dp::basic_encoder<vefs::detail::master_header, Stream>
 {
+    using emit = item_emitter<Stream>;
+
 public:
     using value_type = vefs::detail::master_header;
     inline auto operator()(Stream &outStream, value_type const &value) const
             -> result<void>
     {
-        using emit = item_emitter<Stream>;
-
         DPLX_TRY(emit::array(outStream, 3u));
         DPLX_TRY(emit::integer(outStream, 0u)); // version prop
 
         DPLX_TRY(encode(outStream, value.master_secret));
 
-        // #TODO span cleanup
-        auto counterValue = value.master_counter.load();
-        auto counterValueView = counterValue.view();
-        std::span<std::byte const, 16> counterView(counterValueView);
-        return encode(outStream, counterView);
+        auto const counter = value.master_counter.load();
+        return encode(outStream, counter.view());
     }
 };
-} // namespace dplx::dp
 
 using namespace vefs::utils; // to be refactored
 
@@ -630,8 +629,8 @@ auto sector_device::write_sector(
     };
 
     VEFS_TRY_INJECT(fileCtx.seal_sector(
-                            std::span<std::byte, sector_size>(ioBuffer),
-                            mac, *mCryptoProvider, session_salt_view(), data),
+                            std::span<std::byte, sector_size>(ioBuffer), mac,
+                            *mCryptoProvider, session_salt_view(), data),
                     ed::sector_idx{sectorIdx});
 
     auto const sectorOffset = to_offset(sectorIdx);

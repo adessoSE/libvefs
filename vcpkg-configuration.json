@@ -6,10 +6,11 @@
     "registries": [
         {
             "kind": "git",
-            "repository": "https://github.com/deeplex-net/vcpkg-registry",
-            "baseline": "60b3a9170276f40ea7e28ba6b9f0ff939a3a7a05",
+            "repository": "https://github.com/deeplex/vcpkg-registry",
+            "baseline": "e945f6a109a0dd1aaf63e1cefde212718d33e978",
             "packages": [
                 "boringssl",
+                "concrete",
                 "deeppack",
                 "libb2"
             ]
