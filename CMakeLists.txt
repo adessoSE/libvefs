@@ -87,6 +87,7 @@ endif()
 # botan provider is currently not implemented
 #find_package(botan 2.8.0)
 
+find_package(concrete CONFIG REQUIRED)
 find_package(deeppack CONFIG REQUIRED)
 
 if (BUILD_TESTING)
