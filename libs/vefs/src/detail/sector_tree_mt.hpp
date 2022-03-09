@@ -19,6 +19,25 @@
 
 namespace vefs::detail
 {
+/**
+ * Thread-safe implementation of a tree of (file-)sectors used to read and write
+ * sectors of a single vfile through a cache.
+ *
+ * While this class represents a recursive data structure, the class itself is
+ * not structured recursively. Each sector, beginning with the root sector,
+ * contains a number of sector_reference objects used to locate a physical block
+ * on a storage device, down to data sectors which hold actual payload data
+ * instead.
+
+ * Each sector is identified by a tree_position object which consists of a layer
+ * number and a position. Data sectors are always at layer zero and can be
+ * distinguished from reference sectors thusly. The position numbers sectors
+ * within a layer from left to right. The maximum number of bytes that can be
+ * stored in a single vfile is 2^64, and, together with the limits on
+ * sector_references per reference sector, this works out to a maximum number of
+ * five layers (one data sector layer and four reference sector layers). See
+ * tree_lut.hpp for further details on limits on sector trees.
+ */
 template <typename TreeAllocator,
           typename Executor,
           typename MutexType = std::mutex>

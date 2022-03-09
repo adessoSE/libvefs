@@ -8,6 +8,10 @@
 
 namespace vefs::detail
 {
+/**
+ * Allocates sectors from a pool of sectors assigned to the allocator at the
+ * beginning of its lifecycle.
+ */
 class preallocated_tree_allocator
 {
 public:

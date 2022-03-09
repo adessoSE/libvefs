@@ -13,6 +13,14 @@
 
 namespace vefs::detail
 {
+/**
+ * Copy-on-write allocator for sector trees.
+ *
+ * Uses an underlying allocator (the SourceAllocator) to re-allocate sectors for
+ * a subsequent write operation. The old sectors produced by call to
+ * reallocate() are kept until commit() is called and are reused in later
+ * calls to reallocate().
+ */
 template <typename SourceAllocator>
 class cow_tree_allocator_mt final
 {

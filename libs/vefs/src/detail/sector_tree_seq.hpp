@@ -19,6 +19,23 @@
 
 namespace vefs::detail
 {
+/**
+ * Tree of (file-) sectors used internally by vefs to store the filesystem
+ * structure of an archive. Unlike sector_tree_mt this implementation is neither
+ * thread-safe, nor does it use a cache.
+ *
+ * Just like \ref sector_tree_mt this class represents a recursive data
+ * structure, but the class itself is not structured recursively. Each sector,
+ * beginning with the root sector, contains a number of sector_reference objects
+ * used to locate a physical block on a storage device, down to data sectors
+ * which hold actual payload data instead.
+ *
+ * An object of \ref sector_tree_seq only holds all sectors of a single path
+ * through the tree in memory, i.e. a data sector and all reference sectors
+ * leading to that data sector. When a different data sector is read or written
+ * than the current data sector, then all sectors on the path to the new data
+ * sector that weren't on the old path are discarded from memory.
+ */
 template <typename TreeAllocator>
 class sector_tree_seq final
 {
