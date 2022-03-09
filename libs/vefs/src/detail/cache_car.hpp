@@ -808,10 +808,21 @@ inline auto cache_car<Key, T, CacheSize, Hash, KeyEqual>::replace() noexcept
 {
     auto p = pages();
     page_index candidate = {};
+    // !!WARNING!! -- temporary workaround
+    // 
+    // currently, sector_tree_mt maintains persistent references into the cache.
+    // These estimate variables  exist in order to account for the case in which
+    // one of the lists consists solely of persistently referenced entries.
+    // 
+    // This needs to be fixed long term by modifying sector_tree_mt
+    std::ptrdiff_t numReferencedRecency = 0;
+    std::ptrdiff_t numReferencedFrequency = 0;
     for (;;)
     {
         if (mRecencyClock.size()
-            >= std::max<std::size_t>(1, mRecencyClock.size_target()))
+                    >= std::max<std::size_t>(1, mRecencyClock.size_target())
+            && numReferencedRecency
+                       < static_cast<std::ptrdiff_t>(mRecencyClock.size()))
         {
             candidate = mRecencyClock.pop_front();
             if (auto rx = p[candidate].try_start_replace();
@@ -842,9 +853,12 @@ inline auto cache_car<Key, T, CacheSize, Hash, KeyEqual>::replace() noexcept
                 {
                     mNotifyDirty(p[candidate].try_peek());
                 }
+                numReferencedRecency
+                        += rx == cache_replacement_result::referenced ? 1 : -1;
             }
         }
-        else
+        else if (numReferencedFrequency
+                 < static_cast<std::ptrdiff_t>(mFrequencyClock.size()))
         {
             candidate = mFrequencyClock.pop_front();
             if (auto rx = p[candidate].try_start_replace();
@@ -869,7 +883,14 @@ inline auto cache_car<Key, T, CacheSize, Hash, KeyEqual>::replace() noexcept
                 {
                     mNotifyDirty(p[candidate].try_peek());
                 }
+                numReferencedFrequency
+                        += rx == cache_replacement_result::referenced ? 1 : -1;
             }
+        }
+        else
+        {
+            numReferencedRecency = 0;
+            numReferencedFrequency = 0;
         }
     }
 
