@@ -358,7 +358,7 @@ inline bool cache_car<Key, T, CacheSize, Hash, KeyEqual>::try_purge(
                 whom,
                 [this, &idx](auto &stored) {
                     if (stored & invalid_page_index_bit
-                        || page(stored).try_purge(false))
+                        || !page(stored).try_purge(false))
                     {
                         // someone does stuff therefore we must not change the
                         // stored index
