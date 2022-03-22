@@ -293,7 +293,8 @@ auto archive_handle::create_new(llfio::file_handle mfh,
 auto archive_handle::purge_corruption(llfio::path_handle const &base,
                                       llfio::path_view path,
                                       ro_blob<32> userPRK,
-                                      crypto::crypto_provider *cryptoProvider)
+                                      crypto::crypto_provider *cryptoProvider,
+                                      backup_mode backupMode)
         -> result<void>
 {
     using namespace std::string_view_literals;
@@ -334,7 +335,15 @@ auto archive_handle::purge_corruption(llfio::path_handle const &base,
     VEFS_TRY(purge_corruption(std::move(clonedWorkingCopy), userPRK,
                               cryptoProvider));
 
-    VEFS_TRY(corruptedFile.relink(base, backupPath));
+    if (backupMode == backup_mode::clone_extents)
+    {
+        VEFS_TRY(corruptedFile.relink(base, backupPath));
+    }
+    else {
+        fileGuard.release();
+        VEFS_TRY(corruptedFile.unlink());
+        VEFS_TRY(corruptedFile.close());
+    }
     VEFS_TRY(workingCopy.relink(base, path));
 
     VEFS_TRY(workingCopy.close());
