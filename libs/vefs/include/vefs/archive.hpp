@@ -57,6 +57,16 @@ struct file_query_result
 */
 class archive_handle
 {
+public:
+    /* Size of the cryptograhic key in bytes. */
+    static constexpr size_t key_size = 32U;
+    /**
+     * @brief Type for a storage key, which is used to encrypt/decrypt the
+     * archive.
+    */
+    using storage_key_type = ro_blob<key_size>;
+
+private:
     using sector_device_owner = std::unique_ptr<detail::sector_device>;
     using sector_allocator_owner
             = std::unique_ptr<detail::archive_sector_allocator>;
@@ -134,7 +144,7 @@ public:
     */
     static auto archive(llfio::path_handle const &base,
                         llfio::path_view path,
-                        ro_blob<32> userPRK,
+                        storage_key_type userPRK,
                         crypto::crypto_provider *cryptoProvider
                         = crypto::boringssl_aes_256_gcm_crypto_provider(),
                         creation creationMode = creation::open_existing)
@@ -160,7 +170,7 @@ public:
     */
     static auto validate(llfio::path_handle const &base,
                          llfio::path_view path,
-                         ro_blob<32> userPRK,
+                         storage_key_type userPRK,
                          crypto::crypto_provider *cryptoProvider)
             -> result<void>;
 
@@ -301,11 +311,11 @@ private:
 
     static auto open_existing(llfio::file_handle mfh,
                               crypto::crypto_provider *cryptoProvider,
-                              ro_blob<32> userPRK) noexcept
+                              storage_key_type userPRK) noexcept
             -> result<archive_handle>;
     static auto create_new(llfio::file_handle mfh,
                            crypto::crypto_provider *cryptoProvider,
-                           ro_blob<32> userPRK) noexcept
+                           storage_key_type userPRK) noexcept
             -> result<archive_handle>;
 
     static auto purge_corruption(llfio::file_handle &&file,
@@ -329,7 +339,7 @@ inline auto archive(llfio::file_handle const &file,
 }
 inline auto archive(llfio::path_handle const &base,
                     llfio::path_view path,
-                    ro_blob<32> userPRK,
+                    archive_handle::storage_key_type userPRK,
                     crypto::crypto_provider *cryptoProvider
                     = crypto::boringssl_aes_256_gcm_crypto_provider(),
                     creation creationMode = creation::open_existing)
