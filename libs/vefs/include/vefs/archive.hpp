@@ -32,6 +32,24 @@ enum class file_open_mode
     create = 0b0100,
 };
 
+/**
+ * @brief Allows the user to specify if and how a back up of the VEFS archive
+ * file is created if necessary.
+ */
+enum class backup_mode
+{
+    /**
+     * @brief Do not create a backup.
+     */
+    none,
+    /**
+     * @brief Create a backup file automatically. A random file name is picked
+     * by the implementation. The file is placed next to the current VEFS
+     * archive file.
+     */
+    clone_extents,
+};
+
 std::true_type allow_enum_bitset(file_open_mode &&);
 using file_open_mode_bitset = enum_bitset<file_open_mode>;
 
@@ -140,10 +158,29 @@ public:
                         creation creationMode = creation::open_existing)
             -> result<archive_handle>;
 
+    /**
+     * @brief Delete any files with corrupted sectors.
+     *
+     * Temporarily creates a working copy in the directory of the archive with
+     * \c .tmp. and 16 random characters appended to the filename.
+     *
+     * If \c createBackup is \c true, then a backup of the corrupted file (i.e.
+     * the file \a before corruption was purged) is created with \c .tmp. and
+     * 16 random characters appended to the filename of the original archive
+     * file.
+     *
+     * @param base the LLFIO path handle
+     * @param path the LLFIO path to the file relative to the handle
+     * @param userPRK the key to the encrypted archive
+     * @param cryptoProvider provider for cryptographic operations
+     * @param backupMode selects whether and how to create a backup
+     * @return indicates success or failure of the operation
+    */
     static auto purge_corruption(llfio::path_handle const &base,
                                  llfio::path_view path,
                                  ro_blob<32> userPRK,
-                                 crypto::crypto_provider *cryptoProvider)
+                                 crypto::crypto_provider *cryptoProvider,
+                                 backup_mode backupMode)
             -> result<void>;
 
     /**
