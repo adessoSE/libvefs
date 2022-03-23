@@ -6,7 +6,6 @@
     "dependencies": [
         "benchmark",
         "boost-exception",
-        "boost-filesystem",
         "boost-io",
         "boost-iterator",
         "boost-predef",
