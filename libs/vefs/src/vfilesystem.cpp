@@ -743,26 +743,7 @@ auto vfilesystem::open(const std::string_view filePath,
 
     if (mIndex.find_fn(filePath, [&id](const file_id &elem) { id = elem; }))
     {
-        if (mFiles.update_fn(id,
-                             [&](vfilesystem_entry &e)
-                             {
-                                 if (auto h = e.instance.lock())
-                                 {
-                                     rx = h;
-                                     return;
-                                 }
-                                 rx = vfile::open_existing(
-                                         this, mDeviceExecutor,
-                                         mSectorAllocator, id, mDevice,
-                                         *e.crypto_ctx, e.tree_info);
-                                 if (rx)
-                                 {
-                                     e.instance = rx.assume_value();
-                                 }
-                             }))
-        {
-            return rx;
-        }
+        return open(id);
     }
     if (mode % file_open_mode::create)
     {
@@ -816,6 +797,28 @@ auto vfilesystem::open(const std::string_view filePath,
         }
     }
 
+    return rx;
+}
+
+auto vfilesystem::open(detail::file_id const id) -> result<vfile_handle>
+{
+    result<vfile_handle> rx = archive_errc::no_such_file;
+    mFiles.update_fn(id,
+                     [&](vfilesystem_entry &e)
+                     {
+                         if (auto h = e.instance.lock())
+                         {
+                             rx = h;
+                             return;
+                         }
+                         rx = vfile::open_existing(
+                                 this, mDeviceExecutor, mSectorAllocator, id,
+                                 mDevice, *e.crypto_ctx, e.tree_info);
+                         if (rx)
+                         {
+                             e.instance = rx.assume_value();
+                         }
+                     });
     return rx;
 }
 
@@ -880,6 +883,57 @@ auto vfilesystem::erase(std::string_view filePath) -> result<void>
     {
         return errc::still_in_use;
     }
+}
+
+auto vfilesystem::extract(llfio::path_view sourceFilePath,
+                          llfio::path_view targetBasePath) -> result<void>
+{
+    return extract(sourceFilePath, targetBasePath,
+                   [this, sourceFilePath]() -> result<vfile_handle> {
+                       return open(sourceFilePath.path().string(),
+                                   file_open_mode::read);
+                   });
+}
+
+template <typename OpenFn>
+auto vfilesystem::extract(llfio::path_view sourceFilePath,
+                          llfio::path_view targetBasePath,
+                          OpenFn &&open) -> result<void>
+{
+    if (sourceFilePath.has_parent_path())
+    {
+        targetBasePath = llfio::path_view(
+                targetBasePath.path().string()
+                + sourceFilePath.parent_path().path().string());
+        std::error_code errorCode{};
+        std::filesystem::create_directories(targetBasePath.path(), errorCode);
+        if (errorCode)
+        {
+            return errorCode;
+        }
+    }
+
+    VEFS_TRY(auto targetBasePathHandle, llfio::path(targetBasePath));
+    VEFS_TRY(auto fileHandle,
+             llfio::file(targetBasePathHandle, sourceFilePath.filename(),
+                         llfio::file_handle::mode::write,
+                         llfio::file_handle::creation::always_new));
+
+    VEFS_TRY(auto &&vfile_handle, open());
+    VEFS_TRY(vfile_handle->extract(fileHandle));
+
+    return success();
+}
+
+auto vfilesystem::extractAll(llfio::path_view targetBasePath) -> result<void>
+{
+    for (const auto &indexEntry : mIndex.lock_table())
+    {
+        VEFS_TRY(extract(indexEntry.first, targetBasePath,
+                         [this, &indexEntry]() -> result<vfile_handle>
+                         { return open(indexEntry.second); }));
+    }
+    return success();
 }
 
 auto vfilesystem::query(const std::string_view filePath)
@@ -984,8 +1038,9 @@ auto vfilesystem::commit() -> result<void>
     auto maxExtent = (layout.last_allocated().position() + 1)
                    * detail::sector_device::sector_payload_size;
     return mIndexTree->commit(
-            [this, maxExtent](detail::root_sector_info rootInfo) noexcept
-            -> result<void> { return sync_commit_info(rootInfo, maxExtent); });
+            [this, maxExtent](
+                    detail::root_sector_info rootInfo) noexcept -> result<void>
+            { return sync_commit_info(rootInfo, maxExtent); });
 }
 
 auto vfilesystem::sync_commit_info(detail::root_sector_info rootInfo,

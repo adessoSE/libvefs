@@ -75,6 +75,16 @@ struct file_query_result
 */
 class archive_handle
 {
+public:
+    /* Size of the cryptograhic key in bytes. */
+    static constexpr size_t key_size = 32U;
+    /**
+     * @brief Type for a storage key, which is used to encrypt/decrypt the
+     * archive.
+    */
+    using storage_key_type = ro_blob<key_size>;
+
+private:
     using sector_device_owner = std::unique_ptr<detail::sector_device>;
     using sector_allocator_owner
             = std::unique_ptr<detail::archive_sector_allocator>;
@@ -152,7 +162,7 @@ public:
     */
     static auto archive(llfio::path_handle const &base,
                         llfio::path_view path,
-                        ro_blob<32> userPRK,
+                        storage_key_type userPRK,
                         crypto::crypto_provider *cryptoProvider
                         = crypto::boringssl_aes_256_gcm_crypto_provider(),
                         creation creationMode = creation::open_existing)
@@ -197,7 +207,7 @@ public:
     */
     static auto validate(llfio::path_handle const &base,
                          llfio::path_view path,
-                         ro_blob<32> userPRK,
+                         storage_key_type userPRK,
                          crypto::crypto_provider *cryptoProvider)
             -> result<void>;
 
@@ -298,6 +308,23 @@ public:
      * @return indicates success or failure
     */
     auto commit(const vfile_handle &handle) -> result<void>;
+    /**
+     * Extracts a vfile at the given path as a physical file on the
+     * device in the given path.
+     *
+     * @param sourceFilePath the path to the vfile that should be extracted
+     * @param targetBasePath the path to the output file
+     */
+    auto extract(llfio::path_view sourceFilePath,
+                 llfio::path_view targetBasePath) -> result<void>;
+    /**
+     * Extracts all available vfiles as physical files on the device
+     * in their according paths.
+     *
+     * @param targetBasePath the path to which the content should be extracted
+     * to
+     */
+    auto extractAll(llfio::path_view targetBasePath) -> result<void>;
 
     /**
      * @brief Returns the unencrypted bytes of the personalization area. The
@@ -321,11 +348,11 @@ private:
 
     static auto open_existing(llfio::file_handle mfh,
                               crypto::crypto_provider *cryptoProvider,
-                              ro_blob<32> userPRK) noexcept
+                              storage_key_type userPRK) noexcept
             -> result<archive_handle>;
     static auto create_new(llfio::file_handle mfh,
                            crypto::crypto_provider *cryptoProvider,
-                           ro_blob<32> userPRK) noexcept
+                           storage_key_type userPRK) noexcept
             -> result<archive_handle>;
 
     static auto purge_corruption(llfio::file_handle &&file,
@@ -349,7 +376,7 @@ inline auto archive(llfio::file_handle const &file,
 }
 inline auto archive(llfio::path_handle const &base,
                     llfio::path_view path,
-                    ro_blob<32> userPRK,
+                    archive_handle::storage_key_type userPRK,
                     crypto::crypto_provider *cryptoProvider
                     = crypto::boringssl_aes_256_gcm_crypto_provider(),
                     creation creationMode = creation::open_existing)

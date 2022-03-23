@@ -156,7 +156,7 @@ auto archive_handle::archive(llfio::file_handle const &file,
 
 auto archive_handle::archive(llfio::path_handle const &base,
                              llfio::path_view path,
-                             ro_blob<32> userPRK,
+                             archive_handle::storage_key_type userPRK,
                              crypto::crypto_provider *cryptoProvider,
                              creation creationMode) -> result<archive_handle>
 {
@@ -198,7 +198,7 @@ auto archive_handle::archive(llfio::path_handle const &base,
 
 auto archive_handle::open_existing(llfio::file_handle mfh,
                                    crypto::crypto_provider *cryptoProvider,
-                                   ro_blob<32> userPRK) noexcept
+                                   archive_handle::storage_key_type userPRK) noexcept
         -> result<archive_handle>
 {
     VEFS_TRY(auto &&bundledPrimitives,
@@ -253,7 +253,7 @@ auto archive_handle::open_existing(llfio::file_handle mfh,
 
 auto archive_handle::create_new(llfio::file_handle mfh,
                                 crypto::crypto_provider *cryptoProvider,
-                                ro_blob<32> userPRK) noexcept
+                                archive_handle::storage_key_type userPRK) noexcept
         -> result<archive_handle>
 {
     VEFS_TRY(
@@ -421,7 +421,7 @@ auto archive_handle::purge_corruption(llfio::file_handle &&file,
 
 auto archive_handle::validate(llfio::path_handle const &base,
                               llfio::path_view path,
-                              ro_blob<32> userPRK,
+                              archive_handle::storage_key_type userPRK,
                               crypto::crypto_provider *cryptoProvider)
         -> result<void>
 {
@@ -556,6 +556,16 @@ auto archive_handle::commit(const vfile_handle &handle) -> result<void>
     auto syncrx = handle->commit();
 
     return syncrx;
+}
+
+auto archive_handle::extract(llfio::path_view sourceFilePath, llfio::path_view targetBasePath) -> result<void>
+{
+    return mFilesystem->extract(sourceFilePath, targetBasePath);
+}
+
+auto archive_handle::extractAll(llfio::path_view targetBasePath) -> result<void>
+{
+    return mFilesystem->extractAll(targetBasePath);
 }
 
 auto archive_handle::personalization_area() noexcept
