@@ -155,7 +155,7 @@ if (BUILD_TESTING)
 endif()
 
 add_subdirectory(libs/vefs)
-#add_subdirectory(libs/vefs-cli)
+#add_subdirectory(apps)
 if (benchmark_FOUND)
     add_subdirectory(extras/benchmark)
 endif()

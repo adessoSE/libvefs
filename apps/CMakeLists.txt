@@ -1,6 +1,6 @@
 
 add_executable(vefs-cli
-    src/vefs-cli.cpp
+    vefs.main.cpp
 )
 
 target_link_libraries(vefs-cli
@@ -15,9 +15,4 @@ set_target_properties(vefs-cli PROPERTIES
 
 ##########################################################################
 # install targets
-install(TARGETS vefs-cli EXPORT vefs-targets
-    RUNTIME DESTINATION bin/$<CONFIG>
-    LIBRARY DESTINATION lib/$<CONFIG>
-    ARCHIVE DESTINATION lib/$<CONFIG>
-    INCLUDES DESTINATION include
-)
+install(TARGETS vefs-cli EXPORT vefs-targets)
