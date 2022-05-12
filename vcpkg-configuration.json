@@ -7,7 +7,7 @@
         {
             "kind": "git",
             "repository": "https://github.com/deeplex/vcpkg-registry",
-            "baseline": "e945f6a109a0dd1aaf63e1cefde212718d33e978",
+            "baseline": "1f9029a5928084a16d44c7d65a370ae198a9250a",
             "packages": [
                 "boringssl",
                 "concrete",

@@ -26,10 +26,8 @@ inline bool operator<(sector_id lhs, sector_id rhs) // #CPP20 <=> attacks
 }
 } // namespace vefs::detail
 
-namespace fmt
-{
 template <>
-struct formatter<vefs::detail::sector_id>
+struct fmt::formatter<vefs::detail::sector_id>
 {
     template <typename ParseContext>
     constexpr auto parse(ParseContext &ctx)
@@ -41,10 +39,9 @@ struct formatter<vefs::detail::sector_id>
     auto format(const vefs::detail::sector_id id, FormatContext &ctx)
     {
         using itype = std::underlying_type_t<vefs::detail::sector_id>;
-        return format_to(ctx.out(), "SIDX:{:04x}", static_cast<itype>(id));
+        return fmt::format_to(ctx.out(), "SIDX:{:04x}", static_cast<itype>(id));
     }
 };
-} // namespace fmt
 
 namespace vefs::detail
 {

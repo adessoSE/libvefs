@@ -514,10 +514,8 @@ inline tree_path tree_path::previous() const
 #pragma endregion
 } // namespace vefs::detail
 
-namespace fmt
-{
 template <>
-struct formatter<vefs::detail::tree_position>
+struct fmt::formatter<vefs::detail::tree_position>
 {
     template <typename ParseContext>
     constexpr auto parse(ParseContext &ctx)
@@ -528,11 +526,10 @@ struct formatter<vefs::detail::tree_position>
     template <typename FormatContext>
     auto format(const vefs::detail::tree_position &tp, FormatContext &ctx)
     {
-        return format_to(ctx.out(), "(L{}, P{:#04x})", tp.layer(),
-                         tp.position());
+        return fmt::format_to(ctx.out(), "(L{}, P{:#04x})", tp.layer(),
+                              tp.position());
     }
 };
-} // namespace fmt
 
 namespace vefs::ed
 {

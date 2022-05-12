@@ -81,10 +81,8 @@ struct hash<vefs::detail::file_id>
 };
 } // namespace std
 
-namespace fmt
-{
 template <>
-struct formatter<vefs::detail::file_id>
+struct fmt::formatter<vefs::detail::file_id>
 {
     template <typename ParseContext>
     constexpr auto parse(ParseContext &ctx)
@@ -100,7 +98,7 @@ struct formatter<vefs::detail::file_id>
         constexpr std::size_t limit = id.static_size();
         for (std::size_t i = 0; i < limit; ++i)
         {
-            out = format_to(out, "{:02X}", id.data[i]);
+            out = fmt::format_to(out, "{:02X}", id.data[i]);
             if (i == 3 || i == 5 || i == 7 || i == 9)
             {
                 *out++ = '-';
@@ -109,7 +107,6 @@ struct formatter<vefs::detail::file_id>
         return out;
     }
 };
-} // namespace fmt
 
 namespace vefs::ed
 {
