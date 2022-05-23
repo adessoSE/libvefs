@@ -154,12 +154,64 @@ if (BUILD_TESTING)
     enable_testing()
 endif()
 
-add_subdirectory(libs/vefs)
+add_library(vefs)
+add_library(Vefs::vefs ALIAS vefs)
+
+target_compile_definitions(vefs
+    PUBLIC
+        BOOST_UUID_NO_TYPE_TRAITS=1
+)
+target_include_directories(vefs
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include>
+)
+target_link_libraries(vefs
+    PUBLIC
+        Vefs::compiler_settings
+
+        $<$<PLATFORM_ID:Windows>:advapi32>
+        Boost::boost
+        Boost::system
+        Deeplex::deeppack
+        libb2
+        fmt::fmt
+        llfio::${VEFS_LLFIO_TARGET}
+        outcome::hl
+        unofficial::concurrentqueue::concurrentqueue
+        libcuckoo
+)
+
+if (botan_FOUND)
+    target_link_libraries(vefs PUBLIC botan)
+endif()
+if (boringssl_FOUND)
+    target_link_libraries(vefs PUBLIC boringssl::crypto)
+endif()
+
+if (BUILD_TESTING)
+    add_executable(vefs-tests)
+
+    target_link_libraries(vefs-tests
+        PUBLIC
+            Vefs::vefs
+            Boost::unit_test_framework
+            GTest::gmock
+    )
+    add_test(NAME vefs-tests COMMAND vefs-tests)
+endif()
+
+include(sources.cmake)
+
+install(TARGETS vefs EXPORT vefs-targets COMPONENT core)
+install(DIRECTORY include/ TYPE INCLUDE COMPONENT core)
+
+##########################################################################
+# apps
 #add_subdirectory(apps)
 if (benchmark_FOUND)
     add_subdirectory(extras/benchmark)
 endif()
-
 
 ##########################################################################
 # cmake install

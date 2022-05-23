@@ -1,7 +1,4 @@
 
-add_library(vefs)
-add_library(Vefs::vefs ALIAS vefs)
-
 DEF_SOURCE_GROUP(vefs "core"
     HEADERS
         include/vefs/archive.hpp
@@ -170,7 +167,7 @@ DEF_SOURCE_GROUP(vefs "utils"
 
         include/vefs/utils/unordered_map_mt.hpp
 
-        vefs.natvis
+        include/vefs.natvis
 
     SOURCES
         src/detail/secure_array.codec.hpp
@@ -186,42 +183,8 @@ DEF_SOURCE_GROUP(vefs "external/SpookyV2"
         src/detail/SpookyV2.cpp
 )
 
-target_compile_definitions(vefs
-    PUBLIC
-        BOOST_UUID_NO_TYPE_TRAITS=1
-)
-target_include_directories(vefs
-    PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:include>
-)
-target_link_libraries(vefs
-    PUBLIC
-        Vefs::compiler_settings
-
-        $<$<PLATFORM_ID:Windows>:advapi32>
-        Boost::boost
-        Boost::system
-        Deeplex::deeppack
-        libb2
-        fmt::fmt
-        llfio::${VEFS_LLFIO_TARGET}
-        outcome::hl
-        unofficial::concurrentqueue::concurrentqueue
-        libcuckoo
-)
-
-if (botan_FOUND)
-    target_link_libraries(vefs PUBLIC botan)
-endif()
-if (boringssl_FOUND)
-    target_link_libraries(vefs PUBLIC boringssl::crypto)
-endif()
-
-##########################################################################
-# test target
 if (BUILD_TESTING)
-    add_executable(vefs-tests
+    target_sources(vefs-tests PRIVATE
         tests/vefs-tests.cpp
         tests/boost-unit-test.hpp
         tests/test-utils.hpp
@@ -247,17 +210,4 @@ if (BUILD_TESTING)
         tests/archive_file_id_tests.cpp
         tests/archive-integration-tests.cpp
      )
-    target_link_libraries(vefs-tests
-        PUBLIC
-            Vefs::vefs
-            Boost::unit_test_framework
-            GTest::gmock
-    )
-    add_test(NAME vefs-tests COMMAND vefs-tests)
 endif()
-
-
-##########################################################################
-# install targets
-install(TARGETS vefs EXPORT vefs-targets)
-install(DIRECTORY include/ TYPE INCLUDE COMPONENT core)
