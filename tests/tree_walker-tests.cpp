@@ -1,4 +1,4 @@
-#include "../src/detail/tree_walker.hpp"
+#include "vefs/detail/tree_walker.hpp"
 #include "boost-unit-test.hpp"
 
 #include <limits>

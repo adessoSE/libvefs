@@ -1,8 +1,8 @@
-#include "../src/vfilesystem.hpp"
+#include "vefs/vfilesystem.hpp"
 
 #include "test-utils.hpp"
 
-#include "../src/detail/sector_device.hpp"
+#include "vefs/detail/sector_device.hpp"
 
 
 using namespace vefs;

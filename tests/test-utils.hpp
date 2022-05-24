@@ -6,8 +6,8 @@
 #include <fmt/format.h>
 #include <fmt/ostream.h>
 
-#include "../src/detail/cache_car.hpp"
-#include "../src/detail/file_crypto_ctx.hpp"
+#include "vefs/detail/cache_car.hpp"
+#include "vefs/detail/file_crypto_ctx.hpp"
 #include "libb2_none_blake2b_crypto_provider.hpp"
 #include <vefs/disappointment.hpp>
 #include <vefs/utils/random.hpp>

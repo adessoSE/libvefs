@@ -1,10 +1,10 @@
-#include "../src/detail/sector_tree_mt.hpp"
+#include "vefs/detail/sector_tree_mt.hpp"
 #include "boost-unit-test.hpp"
 
 #include <vefs/platform/thread_pool.hpp>
 
-#include "../src/detail/archive_sector_allocator.hpp"
-#include "../src/detail/sector_device.hpp"
+#include "vefs/detail/archive_sector_allocator.hpp"
+#include "vefs/detail/sector_device.hpp"
 
 #include "test-utils.hpp"
 

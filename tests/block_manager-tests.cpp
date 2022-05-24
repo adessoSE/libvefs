@@ -1,4 +1,4 @@
-#include "../src/detail/block_manager.hpp"
+#include "vefs/detail/block_manager.hpp"
 #include "boost-unit-test.hpp"
 
 #include "test-utils.hpp"

@@ -1,5 +1,5 @@
 
-#include "../src/detail/archive_file_id.hpp"
+#include "vefs/detail/archive_file_id.hpp"
 #include "boost-unit-test.hpp"
 #include "test-utils.hpp"
 

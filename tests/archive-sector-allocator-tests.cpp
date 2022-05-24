@@ -1,4 +1,4 @@
-#include "../src/detail/archive_sector_allocator.hpp"
+#include "vefs/detail/archive_sector_allocator.hpp"
 #include "boost-unit-test.hpp"
 
 #include "test-utils.hpp"

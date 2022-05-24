@@ -2,7 +2,7 @@
 #include <vefs/platform/thread_pool.hpp>
 #include <vefs/utils/random.hpp>
 
-#include "../src/detail/sector_device.hpp"
+#include "vefs/detail/sector_device.hpp"
 
 #include "test-utils.hpp"
 

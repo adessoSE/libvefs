@@ -165,6 +165,8 @@ target_include_directories(vefs
     PUBLIC
         $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
         $<INSTALL_INTERFACE:include>
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
 )
 target_link_libraries(vefs
     PUBLIC
@@ -192,6 +194,10 @@ endif()
 if (BUILD_TESTING)
     add_executable(vefs-tests)
 
+    target_include_directories(vefs-tests
+        PRIVATE
+            ${CMAKE_CURRENT_SOURCE_DIR}/src
+    )
     target_link_libraries(vefs-tests
         PUBLIC
             Vefs::vefs

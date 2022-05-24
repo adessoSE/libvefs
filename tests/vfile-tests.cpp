@@ -1,5 +1,5 @@
-#include "../src/vfile.hpp"
-#include "../src/vfilesystem.hpp"
+#include "vefs/vfile.hpp"
+#include "vefs/vfilesystem.hpp"
 #include "boost-unit-test.hpp"
 #include <vefs/disappointment.hpp>
 

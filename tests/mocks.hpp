@@ -1,6 +1,6 @@
 #pragma once
-#include "../src/crypto/provider.hpp"
-#include "../src/detail/file_crypto_ctx.hpp"
+#include "vefs/crypto/provider.hpp"
+#include "vefs/detail/file_crypto_ctx.hpp"
 #include "gmock/gmock.h"
 
 class crypto_provider_mock : public vefs::crypto::crypto_provider

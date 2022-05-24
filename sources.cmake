@@ -10,50 +10,50 @@ DEF_SOURCE_GROUP(vefs "core"
         # the first added source file determines target language
         # it must therefore be a c++ TU
 
-        src/archive.cpp
-        src/vfile.cpp
-        src/vfile.hpp
-        src/vfilesystem.cpp
-        src/vfilesystem.hpp
+        src/vefs/archive.cpp
+        src/vefs/vfile.cpp
+        src/vefs/vfile.hpp
+        src/vefs/vfilesystem.cpp
+        src/vefs/vfilesystem.hpp
 )
 
 DEF_SOURCE_GROUP(vefs "detail"
     SOURCES
-        src/detail/cache_car.hpp
-        src/detail/cache_clock.hpp
-        src/detail/cache_handle.hpp
-        src/detail/cache_page.hpp
+        src/vefs/detail/cache_car.hpp
+        src/vefs/detail/cache_clock.hpp
+        src/vefs/detail/cache_handle.hpp
+        src/vefs/detail/cache_page.hpp
 
-        src/detail/archive_header.hpp
-        src/detail/archive_header.codec.hpp
-        src/detail/archive_file_id.hpp
-        src/detail/block_manager.hpp
-        src/detail/file_crypto_ctx.cpp
-        src/detail/file_crypto_ctx.hpp
-        src/detail/io_buffer_manager.hpp
-        src/detail/reference_sector_layout.hpp
-        src/detail/root_sector_info.cpp
-        src/detail/root_sector_info.hpp
-        src/detail/sector_device.cpp
-        src/detail/sector_device.hpp
-        src/detail/sector_id.hpp
-        src/detail/sector_tree_mt.hpp
-        src/detail/sector_tree_seq.hpp
-        src/detail/tree_lut.hpp
-        src/detail/tree_walker.cpp
-        src/detail/tree_walker.hpp
+        src/vefs/detail/archive_header.hpp
+        src/vefs/detail/archive_header.codec.hpp
+        src/vefs/detail/archive_file_id.hpp
+        src/vefs/detail/block_manager.hpp
+        src/vefs/detail/file_crypto_ctx.cpp
+        src/vefs/detail/file_crypto_ctx.hpp
+        src/vefs/detail/io_buffer_manager.hpp
+        src/vefs/detail/reference_sector_layout.hpp
+        src/vefs/detail/root_sector_info.cpp
+        src/vefs/detail/root_sector_info.hpp
+        src/vefs/detail/sector_device.cpp
+        src/vefs/detail/sector_device.hpp
+        src/vefs/detail/sector_id.hpp
+        src/vefs/detail/sector_tree_mt.hpp
+        src/vefs/detail/sector_tree_seq.hpp
+        src/vefs/detail/tree_lut.hpp
+        src/vefs/detail/tree_walker.cpp
+        src/vefs/detail/tree_walker.hpp
 
-        src/detail/file_descriptor.hpp
-        src/detail/file_descriptor.codec.hpp
+        src/vefs/detail/file_descriptor.hpp
+        src/vefs/detail/file_descriptor.codec.hpp
 
-        src/detail/archive_sector_allocator.cpp
-        src/detail/archive_sector_allocator.hpp
-        src/detail/archive_tree_allocator.cpp
-        src/detail/archive_tree_allocator.hpp
-        src/detail/cow_tree_allocator_mt.cpp
-        src/detail/cow_tree_allocator_mt.hpp
-        src/detail/preallocated_tree_allocator.cpp
-        src/detail/preallocated_tree_allocator.hpp
+        src/vefs/detail/archive_sector_allocator.cpp
+        src/vefs/detail/archive_sector_allocator.hpp
+        src/vefs/detail/archive_tree_allocator.cpp
+        src/vefs/detail/archive_tree_allocator.hpp
+        src/vefs/detail/cow_tree_allocator_mt.cpp
+        src/vefs/detail/cow_tree_allocator_mt.hpp
+        src/vefs/detail/preallocated_tree_allocator.cpp
+        src/vefs/detail/preallocated_tree_allocator.hpp
 )
 
 DEF_SOURCE_GROUP(vefs "disappointment"
@@ -72,7 +72,7 @@ DEF_SOURCE_GROUP(vefs "disappointment"
         include/vefs/disappointment/std_adapter.hpp
 
     SOURCES
-        src/disappointment.cpp
+        src/vefs/disappointment.cpp
 )
 
 DEF_SOURCE_GROUP(vefs "allocator"
@@ -91,29 +91,29 @@ DEF_SOURCE_GROUP(vefs "allocator"
 
 DEF_SOURCE_GROUP(vefs "crypto"
     SOURCES
-        src/crypto/ct_compare.hpp
+        src/vefs/crypto/ct_compare.hpp
 
-        src/crypto/cbor_box.hpp
-        src/crypto/cbor_box.cpp
+        src/vefs/crypto/cbor_box.hpp
+        src/vefs/crypto/cbor_box.cpp
 
-        src/crypto/blake2.cpp
-        src/crypto/blake2.hpp
-        src/crypto/boringssl_aead.hpp
+        src/vefs/crypto/blake2.cpp
+        src/vefs/crypto/blake2.hpp
+        src/vefs/crypto/boringssl_aead.hpp
 
-        src/crypto/provider.hpp
+        src/vefs/crypto/provider.hpp
 
-        src/crypto/kdf.cpp
-        src/crypto/kdf.hpp
+        src/vefs/crypto/kdf.cpp
+        src/vefs/crypto/kdf.hpp
 
-        src/crypto/counter.cpp
-        src/crypto/counter.hpp
-        src/crypto/counter.codec.hpp
+        src/vefs/crypto/counter.cpp
+        src/vefs/crypto/counter.hpp
+        src/vefs/crypto/counter.codec.hpp
 )
 if (boringssl_FOUND)
     DEF_SOURCE_GROUP(vefs "crypto"
         SOURCES
-            src/crypto/crypto_provider_boringssl.cpp
-            src/crypto/crypto_provider_boringssl.hpp
+            src/vefs/crypto/crypto_provider_boringssl.cpp
+            src/vefs/crypto/crypto_provider_boringssl.hpp
     )
 endif()
 
@@ -124,22 +124,22 @@ DEF_SOURCE_GROUP(vefs "platform"
         include/vefs/platform/thread_pool.hpp
 
     SOURCES
-        src/platform/platform.cpp
-        src/platform/windows-proper.h
+        src/vefs/platform/platform.cpp
+        src/vefs/platform/windows-proper.h
 
-        src/platform/thread_pool.cpp
-        src/platform/thread_pool_gen.hpp
-        src/platform/thread_pool_gen.cpp
+        src/vefs/platform/thread_pool.cpp
+        src/vefs/platform/thread_pool_gen.hpp
+        src/vefs/platform/thread_pool_gen.cpp
 
-        src/platform/secure_memzero.cpp
-        src/platform/sysrandom.cpp
-        src/platform/sysrandom.hpp
+        src/vefs/platform/secure_memzero.cpp
+        src/vefs/platform/sysrandom.cpp
+        src/vefs/platform/sysrandom.hpp
 )
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
     DEF_SOURCE_GROUP(vefs "platform"
         SOURCES
-            src/platform/thread_pool_win32.cpp
-            src/platform/thread_pool_win32.hpp
+            src/vefs/platform/thread_pool_win32.cpp
+            src/vefs/platform/thread_pool_win32.hpp
     )
 endif()
 
@@ -170,8 +170,8 @@ DEF_SOURCE_GROUP(vefs "utils"
         include/vefs.natvis
 
     SOURCES
-        src/detail/secure_array.codec.hpp
-        src/detail/uuid.codec.hpp
+        src/vefs/detail/secure_array.codec.hpp
+        src/vefs/detail/uuid.codec.hpp
 )
 
 DEF_SOURCE_GROUP(vefs "external/SpookyV2"
@@ -180,7 +180,7 @@ DEF_SOURCE_GROUP(vefs "external/SpookyV2"
         include/vefs/utils/hash/detail/SpookyV2_impl.hpp
 
     SOURCES
-        src/detail/SpookyV2.cpp
+        src/vefs/detail/SpookyV2.cpp
 )
 
 if (BUILD_TESTING)

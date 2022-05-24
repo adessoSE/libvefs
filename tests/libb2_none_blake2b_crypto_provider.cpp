@@ -2,9 +2,9 @@
 
 #include <vefs/platform/secure_memzero.hpp>
 
-#include "../src/crypto/blake2.hpp"
-#include "../src/crypto/ct_compare.hpp"
-#include "../src/crypto/provider.hpp"
+#include "vefs/crypto/blake2.hpp"
+#include "vefs/crypto/ct_compare.hpp"
+#include "vefs/crypto/provider.hpp"
 
 #include <vefs/span.hpp>
 #include <vefs/utils/secure_array.hpp>

@@ -5,7 +5,7 @@
 
 #include <gmock/gmock.h>
 
-#include "../src/crypto/provider.hpp"
+#include "vefs/crypto/provider.hpp"
 
 using namespace boost::unit_test;
 

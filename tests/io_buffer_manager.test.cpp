@@ -1,5 +1,5 @@
 
-#include "../src/detail/io_buffer_manager.hpp"
+#include "vefs/detail/io_buffer_manager.hpp"
 #include "boost-unit-test.hpp"
 #include "test-utils.hpp"
 

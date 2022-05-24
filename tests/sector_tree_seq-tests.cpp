@@ -1,4 +1,4 @@
-#include "../src/detail/sector_tree_seq.hpp"
+#include "vefs/detail/sector_tree_seq.hpp"
 
 #include "boost-unit-test.hpp"
 #include "test-utils.hpp"
