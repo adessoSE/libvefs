@@ -24,11 +24,8 @@ set(MSVC_WARNINGS
     /w14906 # string literal cast to 'LPWSTR'
     /w14928 # illegal copy-initialization; more than one user-defined conversion has been implicitly applied
     # with the following exceptions
-    /wd4324 # structure was padded due to alignment specifier
-    /wd4702 # unreachable code | boost\test\utils\named_params.hpp(138)
     /wd4244 # TRANSITION: conversion from 'uint64_t' to 'int', possible loss of data
     /wd4267 # TRANSITION: conversion from 'size_t' to 'int', possible loss of data
-    /D_SILENCE_CXX20_IS_POD_DEPRECATION_WARNING # cuckoo hashmap still uses std::is_pod
 )
 
 set(CLANG_WARNINGS
@@ -54,7 +51,7 @@ set(CLANG_WARNINGS
     -Wno-unknown-pragmas # pragma region is not supported :(
 )
 
-if (WARNINGS_AS_ERRORS)
+if(WARNINGS_AS_ERRORS)
     list(APPEND CLANG_WARNINGS -Werror)
     list(APPEND MSVC_WARNINGS /WX)
 endif()
@@ -65,12 +62,12 @@ set(GCC_WARNINGS
     -Wduplicated-cond # warn if if / else chain has duplicated conditions
     -Wduplicated-branches # warn if if / else branches have duplicated code
     -Wlogical-op # warn about logical operations being used where bitwise were probably wanted
-    #-Wuseless-cast # warn if you perform a cast to the same type
+    -Wuseless-cast # warn if you perform a cast to the same type
 )
 
 # the warning are not added to the library target in order to allow
 # consumers to use a different warning configuration
-if (MSVC)
+if(MSVC)
     add_compile_options(${MSVC_WARNINGS})
 
     if (CMAKE_CXX_COMPILER_ID STREQUAL "Clang") # clang-cl
@@ -80,9 +77,9 @@ if (MSVC)
             -Wredundant-decls
         )
     endif()
-elseif (CMAKE_CXX_COMPILER_ID MATCHES ".*Clang")
+elseif(CMAKE_CXX_COMPILER_ID MATCHES ".*Clang")
     add_compile_options(${CLANG_WARNINGS})
-elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
     add_compile_options(${GCC_WARNINGS})
 else()
     message(AUTHOR_WARNING "No compiler warnings set for '${CMAKE_CXX_COMPILER_ID}' compiler.")

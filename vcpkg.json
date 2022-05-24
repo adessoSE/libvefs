@@ -29,6 +29,7 @@
             "description": "Build the test suite",
             "dependencies": [
                 "boost-test",
+                "catch2",
                 "gtest"
             ]
         }

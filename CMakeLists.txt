@@ -1,4 +1,4 @@
-# Written in 2017 by Henrik Steffen Gaßmann <henrik@gassmann.onl>
+# Written in 2017, 2019 by Henrik Steffen Gaßmann <henrik@gassmann.onl>
 #
 # To the extent possible under law, the author(s) have dedicated all
 # copyright and related and neighboring rights to this software to the
@@ -10,63 +10,56 @@
 #     http://creativecommons.org/publicdomain/zero/1.0/
 #
 ########################################################################
-cmake_minimum_required(VERSION 3.16)
-
-if(CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR)
-    message(FATAL_ERROR "in-source builds are not supported!")
-endif()
+cmake_minimum_required(VERSION 3.20)
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/tools/cmake/")
 
 ########################################################################
 # configure vcpkg from environment vars if possible
+include(VcpkgDefaults)
 
-if(DEFINED ENV{VCPKG_ROOT} AND NOT DEFINED CMAKE_TOOLCHAIN_FILE)
-    set(CMAKE_TOOLCHAIN_FILE "$ENV{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake"
-            CACHE STRING "")
-endif()
-
-if(DEFINED ENV{VCPKG_DEFAULT_TRIPLET} AND NOT DEFINED VCPKG_TARGET_TRIPLET)
-    set(VCPKG_TARGET_TRIPLET "$ENV{VCPKG_DEFAULT_TRIPLET}" CACHE STRING "")
-endif()
-
-if(NOT DEFINED VCPKG_FEATURE_FLAGS)
-    set(VCPKG_FEATURE_FLAGS "registries" CACHE STRING "")
-endif()
-if(NOT DEFINED VCPKG_OVERLAY_TRIPLETS)
-    set(VCPKG_OVERLAY_TRIPLETS "${CMAKE_SOURCE_DIR}/tools/triplets" CACHE STRING "")
-endif()
-
-option(BUILD_TESTING "Add test targets" OFF)
-if (BUILD_TESTING)
+if (BUILD_TESTING OR NOT DEFINED BUILD_TESTING)
     list(APPEND VCPKG_MANIFEST_FEATURES "tests")
 endif()
 
 ########################################################################
-project(vefs VERSION 0.5.0.2 LANGUAGES CXX)
+project(vefs
+    VERSION 0.5.0.2
+    LANGUAGES CXX
+)
+
+include(EnforceOutOfSourceBuilds)
+include(CMakeDependentOption)
+include(CMakePackageConfigHelpers)
+include(FeatureSummary)
+include(GNUInstallDirs)
+
+include(SourceHelpers)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
-set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/tools/cmake/")
 
 
-##########################################################################
+########################################################################
 # options
 
 set(VEFS_LLFIO_TARGET "sl" CACHE STRING "The llfio target to link against, can be 'hl', 'sl' or 'dl'")
 set_property(CACHE VEFS_LLFIO_TARGET PROPERTY STRINGS "hl;sl;dl")
 
-if (BUILD_TESTING)
-    enable_testing()
-endif()
-
-
 ########################################################################
-# cmake modules
-include(CMakePackageConfigHelpers)
-include(GnuInstallDirs)
-include(src-helper)
+# dependencies
 
+find_package(Catch2 CONFIG)
+cmake_dependent_option(BUILD_TESTING "Build the documentation using sphinx" ON Catch2_FOUND OFF)
+set_package_properties(Catch2 PROPERTIES
+    TYPE OPTIONAL
+    PURPOSE "Allows to build the test suite"
+)
 
-##########################################################################
-# library includes
+find_package(Sphinx)
+cmake_dependent_option(BUILD_DOCS "Build the documentation using sphinx" ON Sphinx_FOUND OFF)
+set_package_properties(Sphinx PROPERTIES
+    TYPE OPTIONAL
+    PURPOSE "Allows to build the documentation"
+)
 
 find_package(outcome CONFIG REQUIRED)
 
@@ -112,67 +105,35 @@ endif()
 # warning configuration
 include(CompilerWarnings)
 
-##########################################################################
-# compiler adjustments
-add_library(compiler_settings INTERFACE)
-add_library(Vefs::compiler_settings ALIAS compiler_settings)
 
-if (CMAKE_CXX_EXTENSIONS)
-    set(CMAKE_CXX_EXTENSIONS OFF CACHE STRING "" FORCE)
-endif()
+########################################################################
+# additional compiler options
+set(CMAKE_CXX_EXTENSIONS OFF CACHE STRING "" FORCE)
+
+add_library(compiler_settings INTERFACE)
+add_library(Vefs::vefs_compiler_settings ALIAS compiler_settings)
+set_target_properties(compiler_settings PROPERTIES
+    EXPORT_NAME vefs_compiler_settings
+)
+
 target_compile_features(compiler_settings INTERFACE cxx_std_20)
-if (MSVC)
+if (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
     target_compile_options(compiler_settings INTERFACE
         /utf-8 # all sources are utf-8 encoded
         /Zc:__cplusplus # correctly define the __cplusplus macro
     )
 endif()
-if(MINGW AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    target_compile_options(compiler_settings INTERFACE
-        -municode
-    )
-endif()
-
-if(WIN32)
-    # specify winapi version
-    add_definitions(-D_WIN32_WINNT=0x0601)
-    # force unicode WINAPI symbols
-    add_definitions(-DUNICODE -D_UNICODE)
-endif()
-
-install(TARGETS compiler_settings EXPORT vefs-targets)
 
 
 ########################################################################
-# configure output directories
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin")
-
-
-##########################################################################
-# the actual library project
-if (BUILD_TESTING)
-    enable_testing()
-endif()
-
+# library
 add_library(vefs)
 add_library(Vefs::vefs ALIAS vefs)
 
-target_compile_definitions(vefs
-    PUBLIC
-        BOOST_UUID_NO_TYPE_TRAITS=1
-)
-target_include_directories(vefs
-    PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:include>
-    PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/src
-)
 target_link_libraries(vefs
     PUBLIC
-        Vefs::compiler_settings
+        Vefs::vefs_compiler_settings
 
-        $<$<PLATFORM_ID:Windows>:advapi32>
         Boost::boost
         Boost::system
         Deeplex::deeppack
@@ -184,6 +145,33 @@ target_link_libraries(vefs
         libcuckoo
 )
 
+target_compile_definitions(vefs
+    PUBLIC
+        BOOST_UUID_NO_TYPE_TRAITS=1
+)
+
+target_include_directories(vefs
+    PUBLIC
+        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+        $<INSTALL_INTERFACE:include>
+    PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+)
+
+if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
+    target_link_libraries(vefs
+        PRIVATE
+            advapi32
+    )
+    target_compile_definitions(vefs
+        PRIVATE
+            # specify winapi version to windows 8.1
+            -D_WIN32_WINNT=0x0603
+            # force unicode WINAPI symbols
+            -DUNICODE -D_UNICODE
+    )
+endif()
+
 if (botan_FOUND)
     target_link_libraries(vefs PUBLIC botan)
 endif()
@@ -191,46 +179,57 @@ if (boringssl_FOUND)
     target_link_libraries(vefs PUBLIC boringssl::crypto)
 endif()
 
+
+########################################################################
+# library test project
 if (BUILD_TESTING)
     add_executable(vefs-tests)
+
+    target_link_libraries(vefs-tests PRIVATE
+        Vefs::vefs
+
+        Boost::unit_test_framework
+        GTest::gmock
+    )
 
     target_include_directories(vefs-tests
         PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}/src
     )
-    target_link_libraries(vefs-tests
-        PUBLIC
-            Vefs::vefs
-            Boost::unit_test_framework
-            GTest::gmock
-    )
+
     add_test(NAME vefs-tests COMMAND vefs-tests)
 endif()
 
+########################################################################
+# source files
 include(sources.cmake)
+source_group(TREE src/vefs)
+source_group(TREE include/vefs)
 
-install(TARGETS vefs EXPORT vefs-targets COMPONENT core)
-install(DIRECTORY include/ TYPE INCLUDE COMPONENT core)
 
-##########################################################################
-# apps
-#add_subdirectory(apps)
-if (benchmark_FOUND)
-    add_subdirectory(extras/benchmark)
+########################################################################
+# docs
+if (BUILD_DOCS)
+    add_subdirectory(docs)
 endif()
 
-##########################################################################
+########################################################################
 # cmake install
+install(DIRECTORY include/vefs
+    TYPE INCLUDE
+    FILES_MATCHING
+    REGEX ".*\\.h(pp)?"
+)
+
+install(TARGETS vefs compiler_settings EXPORT vefs-targets)
 install(EXPORT vefs-targets
     NAMESPACE Vefs::
-    DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}"
-    COMPONENT core
+    DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/vefs"
 )
 
 configure_package_config_file(tools/vefs-config.cmake.in
     "${CMAKE_CURRENT_BINARY_DIR}/vefs-config.cmake"
-
-    INSTALL_DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}"
+    INSTALL_DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/vefs"
 )
 write_basic_package_version_file(
     "${CMAKE_CURRENT_BINARY_DIR}/vefs-config-version.cmake"
@@ -240,6 +239,9 @@ write_basic_package_version_file(
 install(FILES
         "${CMAKE_CURRENT_BINARY_DIR}/vefs-config.cmake"
         "${CMAKE_CURRENT_BINARY_DIR}/vefs-config-version.cmake"
-    DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/${PROJECT_NAME}"
-    COMPONENT core
+    DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/vefs"
 )
+
+
+########################################################################
+feature_summary(WHAT PACKAGES_FOUND PACKAGES_NOT_FOUND)

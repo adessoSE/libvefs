@@ -1,186 +1,214 @@
 
-DEF_SOURCE_GROUP(vefs "core"
-    HEADERS
-        include/vefs/archive.hpp
-        include/vefs/archive_fwd.hpp
-        include/vefs/llfio.hpp
-        include/vefs/span.hpp
+dplx_target_sources(vefs # core
+    MODE VERBATIM
+    BASE_DIR vefs
 
-    SOURCES
+    PUBLIC
+        archive.hpp
+        archive_fwd.hpp
+        llfio.hpp
+        span.hpp
+
+    PRIVATE
         # the first added source file determines target language
         # it must therefore be a c++ TU
 
-        src/vefs/archive.cpp
-        src/vefs/vfile.cpp
-        src/vefs/vfile.hpp
-        src/vefs/vfilesystem.cpp
-        src/vefs/vfilesystem.hpp
+        archive.cpp
+        vfile.cpp
+        vfile.hpp
+        vfilesystem.cpp
+        vfilesystem.hpp
 )
 
-DEF_SOURCE_GROUP(vefs "detail"
-    SOURCES
-        src/vefs/detail/cache_car.hpp
-        src/vefs/detail/cache_clock.hpp
-        src/vefs/detail/cache_handle.hpp
-        src/vefs/detail/cache_page.hpp
+dplx_target_sources(vefs # detail
+    MODE VERBATIM
+    BASE_DIR vefs
 
-        src/vefs/detail/archive_header.hpp
-        src/vefs/detail/archive_header.codec.hpp
-        src/vefs/detail/archive_file_id.hpp
-        src/vefs/detail/block_manager.hpp
-        src/vefs/detail/file_crypto_ctx.cpp
-        src/vefs/detail/file_crypto_ctx.hpp
-        src/vefs/detail/io_buffer_manager.hpp
-        src/vefs/detail/reference_sector_layout.hpp
-        src/vefs/detail/root_sector_info.cpp
-        src/vefs/detail/root_sector_info.hpp
-        src/vefs/detail/sector_device.cpp
-        src/vefs/detail/sector_device.hpp
-        src/vefs/detail/sector_id.hpp
-        src/vefs/detail/sector_tree_mt.hpp
-        src/vefs/detail/sector_tree_seq.hpp
-        src/vefs/detail/tree_lut.hpp
-        src/vefs/detail/tree_walker.cpp
-        src/vefs/detail/tree_walker.hpp
+    PRIVATE
+        detail/cache_car.hpp
+        detail/cache_clock.hpp
+        detail/cache_handle.hpp
+        detail/cache_page.hpp
 
-        src/vefs/detail/file_descriptor.hpp
-        src/vefs/detail/file_descriptor.codec.hpp
+        detail/archive_header.hpp
+        detail/archive_header.codec.hpp
+        detail/archive_file_id.hpp
+        detail/block_manager.hpp
+        detail/file_crypto_ctx.cpp
+        detail/file_crypto_ctx.hpp
+        detail/io_buffer_manager.hpp
+        detail/reference_sector_layout.hpp
+        detail/root_sector_info.cpp
+        detail/root_sector_info.hpp
+        detail/sector_device.cpp
+        detail/sector_device.hpp
+        detail/sector_id.hpp
+        detail/sector_tree_mt.hpp
+        detail/sector_tree_seq.hpp
+        detail/tree_lut.hpp
+        detail/tree_walker.cpp
+        detail/tree_walker.hpp
 
-        src/vefs/detail/archive_sector_allocator.cpp
-        src/vefs/detail/archive_sector_allocator.hpp
-        src/vefs/detail/archive_tree_allocator.cpp
-        src/vefs/detail/archive_tree_allocator.hpp
-        src/vefs/detail/cow_tree_allocator_mt.cpp
-        src/vefs/detail/cow_tree_allocator_mt.hpp
-        src/vefs/detail/preallocated_tree_allocator.cpp
-        src/vefs/detail/preallocated_tree_allocator.hpp
+        detail/file_descriptor.hpp
+        detail/file_descriptor.codec.hpp
+
+        detail/archive_sector_allocator.cpp
+        detail/archive_sector_allocator.hpp
+        detail/archive_tree_allocator.cpp
+        detail/archive_tree_allocator.hpp
+        detail/cow_tree_allocator_mt.cpp
+        detail/cow_tree_allocator_mt.hpp
+        detail/preallocated_tree_allocator.cpp
+        detail/preallocated_tree_allocator.hpp
 )
 
-DEF_SOURCE_GROUP(vefs "disappointment"
-    HEADERS
-        include/vefs/exceptions.hpp
+dplx_target_sources(vefs # disappointment
+    MODE VERBATIM
+    BASE_DIR vefs
 
-        include/vefs/disappointment.hpp
-        include/vefs/disappointment/errc.hpp
-        include/vefs/disappointment/error.hpp
-        include/vefs/disappointment/error_detail.hpp
-        include/vefs/disappointment/error_domain.hpp
-        include/vefs/disappointment/error_exception.hpp
-        include/vefs/disappointment/fwd.hpp
-        include/vefs/disappointment/generic_errc.hpp
-        include/vefs/disappointment/llfio_adapter.hpp
-        include/vefs/disappointment/std_adapter.hpp
+    PUBLIC
+        exceptions.hpp
 
-    SOURCES
-        src/vefs/disappointment.cpp
+        disappointment.hpp
+        disappointment/errc.hpp
+        disappointment/error.hpp
+        disappointment/error_detail.hpp
+        disappointment/error_domain.hpp
+        disappointment/error_exception.hpp
+        disappointment/fwd.hpp
+        disappointment/generic_errc.hpp
+        disappointment/llfio_adapter.hpp
+        disappointment/std_adapter.hpp
+
+    PRIVATE
+        disappointment.cpp
 )
 
-DEF_SOURCE_GROUP(vefs "allocator"
-    HEADERS
-        include/vefs/allocator/alignment.hpp
-        include/vefs/allocator/allocation.hpp
-        include/vefs/allocator/multi_pool_mt.hpp
-        include/vefs/allocator/octopus.hpp
-        include/vefs/allocator/pool_mt.hpp
-        include/vefs/allocator/std_adapter.hpp
-        include/vefs/allocator/system.hpp
+dplx_target_sources(vefs # allocator
+    MODE VERBATIM
+    BASE_DIR vefs
 
-        include/vefs/allocator/atomic_ring_counter.hpp
-        include/vefs/allocator/atomic_resource_counter.hpp
+    PUBLIC
+        allocator/alignment.hpp
+        allocator/allocation.hpp
+        allocator/multi_pool_mt.hpp
+        allocator/octopus.hpp
+        allocator/pool_mt.hpp
+        allocator/std_adapter.hpp
+        allocator/system.hpp
+
+        allocator/atomic_ring_counter.hpp
+        allocator/atomic_resource_counter.hpp
 )
 
-DEF_SOURCE_GROUP(vefs "crypto"
-    SOURCES
-        src/vefs/crypto/ct_compare.hpp
+dplx_target_sources(vefs # crypto
+    MODE VERBATIM
+    BASE_DIR vefs
 
-        src/vefs/crypto/cbor_box.hpp
-        src/vefs/crypto/cbor_box.cpp
+    PRIVATE
+        crypto/ct_compare.hpp
 
-        src/vefs/crypto/blake2.cpp
-        src/vefs/crypto/blake2.hpp
-        src/vefs/crypto/boringssl_aead.hpp
+        crypto/cbor_box.hpp
+        crypto/cbor_box.cpp
 
-        src/vefs/crypto/provider.hpp
+        crypto/blake2.cpp
+        crypto/blake2.hpp
+        crypto/boringssl_aead.hpp
 
-        src/vefs/crypto/kdf.cpp
-        src/vefs/crypto/kdf.hpp
+        crypto/provider.hpp
 
-        src/vefs/crypto/counter.cpp
-        src/vefs/crypto/counter.hpp
-        src/vefs/crypto/counter.codec.hpp
+        crypto/kdf.cpp
+        crypto/kdf.hpp
+
+        crypto/counter.cpp
+        crypto/counter.hpp
+        crypto/counter.codec.hpp
 )
 if (boringssl_FOUND)
-    DEF_SOURCE_GROUP(vefs "crypto"
-        SOURCES
-            src/vefs/crypto/crypto_provider_boringssl.cpp
-            src/vefs/crypto/crypto_provider_boringssl.hpp
+    dplx_target_sources(vefs # crypto
+        MODE VERBATIM
+        BASE_DIR vefs
+
+        PRIVATE
+            crypto/crypto_provider_boringssl.cpp
+            crypto/crypto_provider_boringssl.hpp
     )
 endif()
 
-DEF_SOURCE_GROUP(vefs "platform"
-    HEADERS
-        include/vefs/platform/platform.hpp
-        include/vefs/platform/secure_memzero.hpp
-        include/vefs/platform/thread_pool.hpp
+dplx_target_sources(vefs # platform
+    MODE VERBATIM
+    BASE_DIR vefs
 
-    SOURCES
-        src/vefs/platform/platform.cpp
-        src/vefs/platform/windows-proper.h
+    PUBLIC
+        platform/platform.hpp
+        platform/secure_memzero.hpp
+        platform/thread_pool.hpp
 
-        src/vefs/platform/thread_pool.cpp
-        src/vefs/platform/thread_pool_gen.hpp
-        src/vefs/platform/thread_pool_gen.cpp
+    PRIVATE
+        platform/platform.cpp
+        platform/windows-proper.h
 
-        src/vefs/platform/secure_memzero.cpp
-        src/vefs/platform/sysrandom.cpp
-        src/vefs/platform/sysrandom.hpp
+        platform/thread_pool.cpp
+        platform/thread_pool_gen.hpp
+        platform/thread_pool_gen.cpp
+
+        platform/secure_memzero.cpp
+        platform/sysrandom.cpp
+        platform/sysrandom.hpp
 )
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
-    DEF_SOURCE_GROUP(vefs "platform"
-        SOURCES
-            src/vefs/platform/thread_pool_win32.cpp
-            src/vefs/platform/thread_pool_win32.hpp
+    dplx_target_sources(vefs # platform
+        MODE VERBATIM
+        BASE_DIR vefs
+
+        PRIVATE
+            platform/thread_pool_win32.cpp
+            platform/thread_pool_win32.hpp
     )
 endif()
 
-DEF_SOURCE_GROUP(vefs "utils"
-    HEADERS
-        include/vefs/utils/secure_array.hpp
-        include/vefs/utils/secure_allocator.hpp
+dplx_target_sources(vefs # utils
+    MODE VERBATIM
+    BASE_DIR vefs
 
-        include/vefs/utils/misc.hpp
-        include/vefs/utils/ref_ptr.hpp
-        include/vefs/utils/dirt_flag.hpp
-        include/vefs/utils/object_storage.hpp
+    PUBLIC
+        utils/secure_array.hpp
+        utils/secure_allocator.hpp
 
-        include/vefs/utils/uuid.hpp
-        include/vefs/utils/random.hpp
+        utils/misc.hpp
+        utils/ref_ptr.hpp
+        utils/dirt_flag.hpp
+        utils/object_storage.hpp
 
-        include/vefs/utils/binary_codec.hpp
-        include/vefs/utils/bit_scan.hpp
-        include/vefs/utils/bitset_overlay.hpp
-        include/vefs/utils/enum_bitset.hpp
+        utils/uuid.hpp
+        utils/random.hpp
 
-        include/vefs/utils/hash/algorithm_tag.hpp
-        include/vefs/utils/hash/default_weak.hpp
-        include/vefs/utils/hash/detail/std_adaptor.hpp
+        utils/binary_codec.hpp
+        utils/bit_scan.hpp
+        utils/bitset_overlay.hpp
+        utils/enum_bitset.hpp
 
-        include/vefs/utils/unordered_map_mt.hpp
+        utils/hash/algorithm_tag.hpp
+        utils/hash/default_weak.hpp
+        utils/hash/detail/std_adaptor.hpp
 
-        include/vefs.natvis
+        utils/unordered_map_mt.hpp
 
-    SOURCES
-        src/vefs/detail/secure_array.codec.hpp
-        src/vefs/detail/uuid.codec.hpp
+    PRIVATE
+        detail/secure_array.codec.hpp
+        detail/uuid.codec.hpp
 )
 
-DEF_SOURCE_GROUP(vefs "external/SpookyV2"
-    HEADERS
-        include/vefs/utils/hash/detail/spooky.hpp
-        include/vefs/utils/hash/detail/SpookyV2_impl.hpp
+dplx_target_sources(vefs # spooky v2
+    MODE VERBATIM
+    BASE_DIR vefs
 
-    SOURCES
-        src/vefs/detail/SpookyV2.cpp
+    PUBLIC
+        utils/hash/detail/spooky.hpp
+        utils/hash/detail/SpookyV2_impl.hpp
+
+    PRIVATE
+        detail/SpookyV2.cpp
 )
 
 if (BUILD_TESTING)
