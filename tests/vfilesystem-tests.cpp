@@ -4,7 +4,6 @@
 
 #include "vefs/detail/sector_device.hpp"
 
-
 using namespace vefs;
 using namespace vefs::detail;
 
@@ -332,8 +331,7 @@ BOOST_AUTO_TEST_CASE(extract_vfile_to_file)
     std::byte array[4];
     auto buffer = vefs::llfio::span<std::byte>({array});
 
-    llfio::io_handle::buffer_type outBuffers[]
-            = {llfio::io_handle::buffer_type(buffer)};
+    llfio::byte_io_handle::buffer_type outBuffers[] = {buffer};
 
     auto result = fileHandle.read({outBuffers, 0}).value();
 

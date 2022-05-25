@@ -22,6 +22,10 @@
         {
             "name": "llfio",
             "features": [ "cxx20" ]
+        },
+        {
+            "name": "outcome",
+            "features": [ "cxx20" ]
         }
     ],
     "features": {

@@ -7,12 +7,15 @@
         {
             "kind": "git",
             "repository": "https://github.com/deeplex/vcpkg-registry",
-            "baseline": "1f9029a5928084a16d44c7d65a370ae198a9250a",
+            "baseline": "7c973d93aa675a9acf938c047ad76dbfc4b32624",
             "packages": [
                 "boringssl",
                 "concrete",
                 "deeppack",
-                "libb2"
+                "libb2",
+                "llfio",
+                "outcome",
+                "status-code"
             ]
         }
     ]

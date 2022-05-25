@@ -169,7 +169,8 @@ using op_outcome = oc::basic_outcome<R,
                                      detail::outcome_no_value_policy>;
 
 template <typename T, typename... Args>
-requires(!std::is_array_v<T>) auto make_unique_nothrow(Args &&...args) noexcept(
+    requires(!std::is_array_v<T>)
+auto make_unique_nothrow(Args &&...args) noexcept(
         std::is_nothrow_constructible_v<T, decltype(args)...>)
         -> std::unique_ptr<T>
 {
@@ -178,7 +179,8 @@ requires(!std::is_array_v<T>) auto make_unique_nothrow(Args &&...args) noexcept(
 }
 
 template <typename T, typename... Args>
-requires(!std::is_array_v<T>) auto make_unique_rx(Args &&...args) noexcept(
+    requires(!std::is_array_v<T>)
+auto make_unique_rx(Args &&...args) noexcept(
         std::is_nothrow_constructible_v<T, decltype(args)...>)
         -> result<std::unique_ptr<T>>
 {
@@ -203,7 +205,7 @@ auto inject(result<T> rx, InjectFn &&injectFn) -> result<T>
 }
 
 template <typename T, typename InjectFn>
-auto inject(llfio::io_handle::io_result<T> rx, InjectFn &&injectFn)
+auto inject(llfio::byte_io_handle::io_result<T> rx, InjectFn &&injectFn)
         -> llfio::result<T>
 {
     if (rx.has_error())

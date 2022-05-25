@@ -232,7 +232,7 @@ auto sector_device::open_existing(llfio::file_handle fileHandle,
                      sector_size, std::thread::hardware_concurrency() * 2U));
     VEFS_TRY(archive->mMasterSector.resize(sector_size));
     auto const buffer = archive->mMasterSector.as_span();
-    llfio::io_handle::buffer_type masterSectorBuffer[] = {buffer};
+    llfio::byte_io_handle::buffer_type masterSectorBuffer[] = {buffer};
 
     VEFS_TRY(auto &&readBuffers,
              archive->mArchiveFile.read({masterSectorBuffer, 0}));
@@ -372,9 +372,10 @@ auto read_archive_personalization_area(
     std::byte masterSectorMemory[sector_device::static_header_size];
 
     static_assert(1 << 12 == sector_device::personalization_area_size);
-    llfio::io_handle::buffer_type outBuffers[]
-            = {{masterSectorMemory, sizeof(masterSectorMemory)},
-               {out.data(), out.size()}};
+    llfio::byte_io_handle::buffer_type outBuffers[] = {
+            {masterSectorMemory, sizeof(masterSectorMemory)},
+            {        out.data(),                 out.size()}
+    };
 
     VEFS_TRY(auto &&readBuffers, file.read({outBuffers, 0}));
 
@@ -555,7 +556,7 @@ auto sector_device::read_sector(rw_blob<sector_payload_size> contentDest,
                                 sector_id sectorIdx,
                                 ro_blob<16> contentMAC) noexcept -> result<void>
 {
-    using io_buffer = llfio::io_handle::buffer_type;
+    using io_buffer = llfio::byte_io_handle::buffer_type;
 
     constexpr auto sectorIdxLimit
             = std::numeric_limits<std::uint64_t>::max() / sector_size;
@@ -676,10 +677,11 @@ auto vefs::detail::sector_device::update_header(
         root_sector_info freeSectorIndexRoot) -> result<void>
 {
     archive_header assembled{
-            .filesystem_index = {detail::file_id::archive_index.as_uuid(),
+            .filesystem_index = {   detail::file_id::archive_index.as_uuid(),
                                  filesystemIndexCtx, filesystemIndexRoot},
             .free_sector_index = {detail::file_id::free_block_index.as_uuid(),
-                                  freeSectorIndexCtx, freeSectorIndexRoot}};
+                                 freeSectorIndexCtx, freeSectorIndexRoot}
+    };
 
     // fetch a counter value before serialization for header encryption
     auto const ectr = mArchiveSecretCounter.fetch_increment().value();
@@ -727,9 +729,12 @@ auto vefs::detail::sector_device::update_header(
     std::memset(encryptionBuffer.remaining_begin(), 0,
                 encryptionBuffer.remaining_size());
 
-    VEFS_TRY_INJECT(mArchiveFile.write(headerOffset,
-                                       {{writeArea.data(), writeArea.size()}}),
-                    ed::archive_file{"[archive-header]"});
+    VEFS_TRY_INJECT(
+            mArchiveFile.write(headerOffset,
+                               {
+                                       {writeArea.data(), writeArea.size()}
+    }),
+            ed::archive_file{"[archive-header]"});
 
     return oc::success();
 }

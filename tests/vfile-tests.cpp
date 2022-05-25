@@ -1,7 +1,8 @@
 #include "vefs/vfile.hpp"
 #include "vefs/vfilesystem.hpp"
-#include "boost-unit-test.hpp"
+
 #include <vefs/disappointment.hpp>
+#include "boost-unit-test.hpp"
 
 #include "test-utils.hpp"
 
@@ -38,7 +39,8 @@ struct vfile_dependencies_fixture
 
         cryptoCtx = device->create_file_secrets().value();
 
-        fileSystem = vefs::vfilesystem::create_new(*device, sectorAllocator,
+        fileSystem
+                = vefs::vfilesystem::create_new(*device, sectorAllocator,
                                                 workExecutor, filesystemIndex)
                           .value();
 
@@ -156,8 +158,9 @@ BOOST_AUTO_TEST_CASE(extract_to_file)
     // then
     // create read request
     auto resultBuffer = std::make_unique<std::byte[]>(writeBlob.size());
-    llfio::io_handle::buffer_type buffers[1] = {
-        {resultBuffer.get(), writeBlob.size()}};
+    llfio::byte_io_handle::buffer_type buffers[1] = {
+            {resultBuffer.get(), writeBlob.size()}
+    };
     auto result = fileHandle.read({buffers, 0});
 
     BOOST_TEST(result.bytes_transferred() == 4);
