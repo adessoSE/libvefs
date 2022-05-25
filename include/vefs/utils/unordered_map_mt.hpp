@@ -5,7 +5,18 @@
 #include <string>
 #include <string_view>
 
+#include <boost/predef/compiler.h>
+
+#if defined(BOOST_COMP_MSVC_AVAILABLE)
+#pragma warning(push, 3)
+#endif
+
 #include <libcuckoo/cuckoohash_map.hh>
+
+#if defined(BOOST_COMP_MSVC_AVAILABLE)
+#pragma warning(pop)
+#endif
+
 #include <vefs/utils/hash/default_weak.hpp>
 
 namespace vefs::utils
