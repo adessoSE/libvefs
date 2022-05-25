@@ -142,7 +142,7 @@ target_link_libraries(vefs
         llfio::${VEFS_LLFIO_TARGET}
         outcome::hl
         unofficial::concurrentqueue::concurrentqueue
-        libcuckoo
+        libcuckoo::libcuckoo
 )
 
 target_compile_definitions(vefs
