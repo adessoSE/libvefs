@@ -10,10 +10,14 @@
             "name": "base",
             "hidden": true,
             "generator": "Ninja",
-            "binaryDir": "${sourceDir}/out/bin/${presetName}",
+            "binaryDir": "${sourceDir}/build/${presetName}",
             "cacheVariables": {
                 "BUILD_TESTING": true,
-                "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/zinstall/"
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/build/zinstall",
+                "CMAKE_TOOLCHAIN_FILE": {
+                    "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
+                    "type": "FILEPATH"
+                }
             }
         },
         {
@@ -31,8 +35,6 @@
                 "VCPKG_TARGET_TRIPLET": "x64-windows-static"
             },
             "environment": {
-                "VCPKG_VISUAL_STUDIO_PATH_": "C:\\Program Files\\Microsoft Visual Studio\\2022\\Enterprise",
-                "VCPKG_VISUAL_STUDIO_PATH": "C:\\Program Files (x86)\\Microsoft Visual Studio\\2019\\Enterprise"
             },
             "vendor": {
                 "microsoft.com/VisualStudioSettings/CMake/1.0": {
@@ -49,7 +51,6 @@
                 "x64-windows"
             ],
             "cacheVariables": {
-                "CMAKE_CXX_STANDARD": "20",
                 "CMAKE_C_COMPILER": "cl",
                 "CMAKE_CXX_COMPILER": "cl"
             }
@@ -66,18 +67,6 @@
             }
         },
         {
-            "name": "x64-windows-msvc-lto-debug",
-            "displayName": "x64 Windows MSVC LTO Debug",
-            "inherits": [
-                "x64-windows-msvc"
-            ],
-            "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Debug",
-                "CMAKE_DEBUG_POSTFIX": "-Debug",
-                "VCPKG_TARGET_TRIPLET": "x64-windows-ltcg-static"
-            }
-        },
-        {
             "name": "x64-windows-msvc-release",
             "displayName": "x64 Windows MSVC Release",
             "inherits": [
@@ -88,17 +77,17 @@
             }
         },
         {
-            "name": "x64-windows-msvc-lto-release",
-            "displayName": "x64 Windows MSVC LTO Release",
+            "name": "x64-windows-msvc-lto",
+            "displayName": "x64 Windows MSVC Release LTO",
             "inherits": [
                 "x64-windows-msvc"
             ],
             "cacheVariables": {
-                "CMAKE_BUILD_TYPE": "Release",
+                "CMAKE_BUILD_TYPE": "RelWithDebInfo",
                 "CMAKE_INTERPROCEDURAL_OPTIMIZATION": true,
-                "VCPKG_TARGET_TRIPLET": "x64-windows-ltcg-static",
-                "CMAKE_CXX_FLAGS_RELEASE": "/Zi /O2 /Ob3 /DNDEBUG",
-                "CMAKE_EXE_LINKER_FLAGS_RELEASE": "/INCREMENTAL:NO /DEBUG"
+                "VCPKG_TARGET_TRIPLET": "x64-windows-static-lto",
+                "CMAKE_CXX_FLAGS_RELWITHDEBINFO": "/Zi /O2 /Ob3 /DNDEBUG",
+                "CMAKE_EXE_LINKER_FLAGS_RELWITHDEBINFO": "/INCREMENTAL:NO /DEBUG"
             }
         },
         {

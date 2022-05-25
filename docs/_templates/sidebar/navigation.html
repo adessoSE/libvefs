@@ -1,0 +1,17 @@
+<div class="sidebar-tree">{{ furo_navigation_tree }}</div>
+{% if versions %}
+<div class="sidebar-tree">
+    <p class="caption" role="heading">
+        <span class="caption-text">{{ _('Versions:') }}</span>
+    </p>
+    <ul>
+        {%- for item in versions %}
+        <li class="toctree-l1">
+            <a class="reference interal" href="{{ item.url }}"
+                >{{ item.name }}</a
+            >
+        </li>
+        {%- endfor %}
+    </ul>
+</div>
+{% endif %}

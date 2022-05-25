@@ -1,0 +1,8 @@
+
+.sig {
+    /* font-weight: normal; */
+
+    /* override text alignment hack */
+    padding: 0.25rem 0.5rem;
+    text-indent: 0;
+}

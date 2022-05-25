@@ -4,7 +4,7 @@ include:
     file: 'native-build-dep-vars.yml'
 
 variables:
-  VCPKG_VERSION: "2021.05.12"
+  VCPKG_VERSION: "2022.05.10"
   BUILD_PARALLELISM: "6"
 
 
@@ -29,14 +29,10 @@ workflow:
   before_script:
     - $ProgressPreference = "SilentlyContinue"
     - mkdir build
-    - 'git clone --shallow-since=2021-10-29 https://github.com/microsoft/vcpkg.git build/vcpkg'
+    - 'git clone --depth 1 --branch $VCPKG_VERSION https://github.com/microsoft/vcpkg.git build/vcpkg'
     - $env:VCPKG_ROOT="$pwd\build\vcpkg"
     - cd build
     - '& vcpkg\bootstrap-vcpkg -disableMetrics'
-  artifacts: &build_artifacts
-    paths:
-      - build/bin
-    expire_in: 1 week
 
 # test template
 .test: &test
@@ -52,26 +48,30 @@ workflow:
 build:debug:
   <<: *build
   script:
-    - cmake -G "Visual Studio 16 2019"  -A x64 -DVCPKG_TARGET_TRIPLET:STRING="x64-windows-ltcg-static" -DCMAKE_MSVC_RUNTIME_LIBRARY:STRING="MultiThreadedDebug" -DCMAKE_EXE_LINKER_FLAGS_DEBUG:STRING="/debug" -DBUILD_TESTING=ON -DWARNINGS_AS_ERRORS=ON ".."
+    - cmake -G "Visual Studio 16 2019"  -A x64 -DVCPKG_TARGET_TRIPLET:STRING="x64-windows-static-lto" -DCMAKE_MSVC_RUNTIME_LIBRARY:STRING="MultiThreadedDebug" -DCMAKE_EXE_LINKER_FLAGS_DEBUG:STRING="/debug" -DBUILD_TESTING=ON -DWARNINGS_AS_ERRORS=ON ".."
     - cmake --build . -j $BUILD_PARALLELISM
   artifacts:
-    <<: *build_artifacts
+    paths:
+      - build/Debug
+    expire_in: 1 week
     expose_as: debug binaries
 
 build:release:
   <<: *build
   script:
-    - cmake -G "Visual Studio 16 2019"  -A x64 -DVCPKG_TARGET_TRIPLET:STRING="x64-windows-ltcg-static" -DCMAKE_MSVC_RUNTIME_LIBRARY:STRING="MultiThreaded" -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_EXE_LINKER_FLAGS:STRING="/debug" -DCMAKE_BUILD_TYPE="Release" -DBUILD_TESTING=ON -DWARNINGS_AS_ERRORS=ON ".."
+    - cmake -G "Visual Studio 16 2019"  -A x64 -DVCPKG_TARGET_TRIPLET:STRING="x64-windows-static-lto" -DCMAKE_MSVC_RUNTIME_LIBRARY:STRING="MultiThreaded" -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_EXE_LINKER_FLAGS:STRING="/debug" -DCMAKE_BUILD_TYPE="Release" -DBUILD_TESTING=ON -DWARNINGS_AS_ERRORS=ON ".."
     - cmake --build . -j $BUILD_PARALLELISM --config Release
   artifacts:
-    <<: *build_artifacts
+    paths:
+      - build/Release
+    expire_in: 1 week
     expose_as: release binaries
 
 # test jobs
 test:debug:
   <<: *test
   script:
-    - build\bin\Debug\vefs-tests
+    - build\Debug\vefs-tests
   needs: ["build:debug"]
   dependencies:
     - build:debug
@@ -79,7 +79,7 @@ test:debug:
 test:release:
   <<: *test
   script:
-    - build\bin\Release\vefs-tests
+    - build\Release\vefs-tests
   needs: ["build:release"]
   dependencies:
     - build:release
