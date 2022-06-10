@@ -71,7 +71,7 @@ find_package(libb2 REQUIRED CONFIG)
 
 find_package(libcuckoo CONFIG REQUIRED)
 
-find_package(boringssl REQUIRED CONFIG)
+find_package(OpenSSL REQUIRED)
 
 if (BUILD_TESTING)
     find_package(GTest CONFIG REQUIRED)
@@ -97,7 +97,7 @@ find_package(benchmark)
 # fmt library
 find_package(fmt CONFIG REQUIRED)
 
-if (NOT (botan_FOUND OR boringssl_FOUND))
+if (NOT (botan_FOUND OR OpenSSL_FOUND))
     message(WARNING "no crypto provider library (BoringSSL, botan) could be found.")
 endif()
 
@@ -175,8 +175,8 @@ endif()
 if (botan_FOUND)
     target_link_libraries(vefs PUBLIC botan)
 endif()
-if (boringssl_FOUND)
-    target_link_libraries(vefs PUBLIC boringssl::crypto)
+if (OpenSSL_FOUND)
+    target_link_libraries(vefs PUBLIC OpenSSL::Crypto)
 endif()
 
 

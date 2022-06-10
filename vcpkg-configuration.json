@@ -1,7 +1,7 @@
 {
     "default-registry": {
         "kind": "builtin",
-        "baseline": "14e7bb4ae24616ec54ff6b2f6ef4e8659434ea44"
+        "baseline": "58196ee51953b2746396d9d56359ee6002a194f2"
     },
     "registries": [
         {
@@ -9,7 +9,6 @@
             "repository": "https://github.com/deeplex/vcpkg-registry",
             "baseline": "0008e9fad11109df25e6b69df20635993c102926",
             "packages": [
-                "boringssl",
                 "concrete",
                 "deeppack",
                 "libb2",

@@ -124,7 +124,7 @@ dplx_target_sources(vefs # crypto
         crypto/counter.hpp
         crypto/counter.codec.hpp
 )
-if (boringssl_FOUND)
+if (OpenSSL_FOUND)
     dplx_target_sources(vefs # crypto
         MODE VERBATIM
         BASE_DIR vefs
