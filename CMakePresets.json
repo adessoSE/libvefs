@@ -139,6 +139,7 @@
                             ".vs",
                             ".vscode",
                             "out",
+                            "build",
                             "vcpkg_installed"
                         ]
                     },
