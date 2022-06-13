@@ -175,6 +175,8 @@ dplx_target_sources(vefs # utils
         utils/secure_array.hpp
         utils/secure_allocator.hpp
 
+        utils/workaround.h
+
         utils/misc.hpp
         utils/ref_ptr.hpp
         utils/dirt_flag.hpp

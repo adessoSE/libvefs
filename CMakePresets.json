@@ -13,6 +13,8 @@
             "binaryDir": "${sourceDir}/build/${presetName}",
             "cacheVariables": {
                 "BUILD_TESTING": true,
+                "VEFS_DISABLE_WORKAROUNDS": null,
+                "VEFS_FLAG_OUTDATED_WORKAROUNDS": null,
                 "CMAKE_INSTALL_PREFIX": "${sourceDir}/build/zinstall",
                 "CMAKE_TOOLCHAIN_FILE": {
                     "value": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",

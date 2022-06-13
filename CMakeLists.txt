@@ -41,6 +41,9 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 ########################################################################
 # options
 
+option(VEFS_DISABLE_WORKAROUNDS "Disables all code workarounds" OFF)
+option(VEFS_FLAG_OUTDATED_WORKAROUNDS "Raises compiler errors for all workarounds which need to be reevaluated" OFF)
+
 set(VEFS_LLFIO_TARGET "sl" CACHE STRING "The llfio target to link against, can be 'hl', 'sl' or 'dl'")
 set_property(CACHE VEFS_LLFIO_TARGET PROPERTY STRINGS "hl;sl;dl")
 
@@ -148,6 +151,10 @@ target_link_libraries(vefs
 target_compile_definitions(vefs
     PUBLIC
         BOOST_UUID_NO_TYPE_TRAITS=1
+
+    PRIVATE
+        VEFS_DISABLE_WORKAROUNDS=$<BOOL:${VEFS_DISABLE_WORKAROUNDS}>
+        VEFS_FLAG_OUTDATED_WORKAROUNDS=$<BOOL:${VEFS_FLAG_OUTDATED_WORKAROUNDS}>
 )
 
 target_include_directories(vefs
