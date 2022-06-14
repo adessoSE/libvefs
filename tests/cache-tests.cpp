@@ -359,8 +359,8 @@ BOOST_AUTO_TEST_CASE(try_purge_returns_false_if_dead)
 {
     struct non_trivially_destructable_value
     {
-        non_trivially_destructable_value(bool &destructor_called) noexcept
-            : destructor_called{destructor_called}
+        non_trivially_destructable_value(bool &destructorCalled) noexcept
+            : destructor_called{destructorCalled}
         {
         }
         bool &destructor_called;

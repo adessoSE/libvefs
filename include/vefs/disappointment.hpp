@@ -421,4 +421,5 @@ auto collect_system_error() -> std::error_code;
 #define VEFS_TRY(...) OUTCOME_TRY(__VA_ARGS__)
 
 #define VEFS_TRY_INJECT(stmt, injected)                                        \
-    VEFS_TRY(vefs::inject((stmt), [&](auto &e) mutable { e << injected; }))
+    VEFS_TRY(vefs::inject((stmt), [&](auto &_vefsError) mutable                \
+                          { _vefsError << injected; }))

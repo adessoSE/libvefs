@@ -20,12 +20,12 @@ public:
 
     public:
         sector_allocator(archive_tree_allocator &, sector_id current)
-            : current(current)
+            : mCurrent(current)
         {
         }
 
     private:
-        sector_id current;
+        sector_id mCurrent;
     };
 
     enum class leak_on_failure_t
@@ -40,12 +40,12 @@ public:
 
     auto reallocate(sector_allocator &part) noexcept -> result<sector_id>
     {
-        if (part.current != sector_id{})
+        if (part.mCurrent != sector_id{})
         {
-            return part.current;
+            return part.mCurrent;
         }
-        VEFS_TRY(part.current, mSource.alloc_one());
-        return part.current;
+        VEFS_TRY(part.mCurrent, mSource.alloc_one());
+        return part.mCurrent;
     }
 
     auto dealloc_one(const sector_id which) noexcept -> result<void>

@@ -30,10 +30,11 @@ namespace vefs::crypto::detail
 {
 inline std::string read_openssl_errors(std::string str = std::string{})
 {
-    auto printCb = [](const char *msg, size_t msgSize, void *ctx) {
-        auto &str = *reinterpret_cast<std::string *>(ctx);
-        str.append(msg, msgSize);
-        str.push_back('\n');
+    auto printCb = [](const char *msg, size_t msgSize, void *ctx)
+    {
+        auto &cbStr = *reinterpret_cast<std::string *>(ctx);
+        cbStr.append(msg, msgSize);
+        cbStr.push_back('\n');
         return 1;
     };
 

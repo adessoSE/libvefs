@@ -79,10 +79,10 @@ public:
         sector_id mCurrent;
     };
 
-    allocator_stub(sector_device &device)
+    allocator_stub(sector_device &sectorDevice)
         : alloc_sync()
         , alloc_counter(1)
-        , device(device)
+        , device(sectorDevice)
     {
     }
 

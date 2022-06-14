@@ -74,8 +74,10 @@ inline auto error_info::detail() const
 {
     if (auto it = mDetails.find(typeid(ErrorDetail)); it != mDetails.end())
     {
-        return {&static_cast<ErrorDetail *>(it->second.get())->value(),
-                utils::ref_ptr{this, utils::ref_ptr_acquire}};
+        return {
+                &static_cast<ErrorDetail *>(it->second.get())->value(),
+                utils::ref_ptr{this, utils::ref_ptr_acquire}
+        };
     }
     else
     {
@@ -89,7 +91,7 @@ error_info::diagnostic_information(diagnostics_buffer &out,
 {
     fmt::string_view wrappedFormat{detailFormat};
     for (const auto &detail : mDetails)
-    {       
+    {
         fmt::format_to(std::back_inserter(out), "{}", wrappedFormat);
         detail.second->stringify(out);
     }
@@ -262,11 +264,12 @@ inline auto error_info::try_add_detail(ErrorDetail &&detail) noexcept
 }
 
 inline auto error_info::try_add_detail(std::type_index type,
-                                       detail_ptr ptr) noexcept -> vefs::error
+                                       detail_ptr detail) noexcept
+        -> vefs::error
 {
     try
     {
-        if (auto [it, inserted] = mDetails.emplace(type, std::move(ptr));
+        if (auto [it, inserted] = mDetails.emplace(type, std::move(detail));
             !inserted)
         {
             (void)it;

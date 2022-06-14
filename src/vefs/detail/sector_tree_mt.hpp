@@ -880,8 +880,8 @@ inline void sector_tree_mt<TreeAllocator, Executor, MutexType>::notify_dirty(
                     // (indirectly) referencing the first data node will fail
                     // the next test. These reference nodes are managed by the
                     // tree height functions
-                    auto sector = as_span(*h);
-                    if (std::all_of(sector.begin(), sector.end(),
+                    auto sectorData = as_span(*h);
+                    if (std::all_of(sectorData.begin(), sectorData.end(),
                                     [](std::byte b)
                                     { return b == std::byte{}; }))
                     {

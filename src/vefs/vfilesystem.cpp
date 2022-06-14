@@ -751,11 +751,11 @@ auto vfilesystem::open(const std::string_view filePath,
         thread_local utils::xoroshiro128plus fileid_prng = []()
         {
             std::array<std::uint64_t, 2> randomState{};
-            auto rx = detail::random_bytes(
+            auto randomBytesRx = detail::random_bytes(
                     as_writable_bytes(std::span(randomState)));
-            if (!rx)
+            if (!randomBytesRx)
             {
-                throw error_exception{rx.assume_error()};
+                throw error_exception{randomBytesRx.assume_error()};
             }
 
             return utils::xoroshiro128plus{randomState[0], randomState[1]};
@@ -918,8 +918,8 @@ auto vfilesystem::extract(llfio::path_view sourceFilePath,
                          llfio::file_handle::mode::write,
                          llfio::file_handle::creation::always_new));
 
-    VEFS_TRY(auto &&vfile_handle, open());
-    VEFS_TRY(vfile_handle->extract(fileHandle));
+    VEFS_TRY(auto &&vfileHandle, open());
+    VEFS_TRY(vfileHandle->extract(fileHandle));
 
     return success();
 }
