@@ -662,7 +662,7 @@ auto vfilesystem::open_existing(detail::sector_device &device,
 
     VEFS_TRY(self->open_existing_impl());
 
-    return std::move(self);
+    return self;
 }
 
 auto vfilesystem::open_existing_impl() -> result<void>
@@ -710,7 +710,7 @@ auto vfilesystem::create_new(detail::sector_device &device,
 
     VEFS_TRY(self->create_new_impl());
 
-    return std::move(self);
+    return self;
 }
 
 auto vfilesystem::create_new_impl() -> result<void>

@@ -840,13 +840,13 @@ inline auto sector_tree_mt<TreeAllocator, Executor, MutexType>::access(
                 if (entry.assume_error()
                     == archive_errc::sector_reference_out_of_range)
                 {
-                    return std::move(parentBackup);
+                    return parentBackup;
                 }
             }
             return std::move(entry).as_failure();
         }
     }
-    return std::move(base);
+    return base;
 }
 
 template <typename TreeAllocator, typename Executor, typename MutexType>

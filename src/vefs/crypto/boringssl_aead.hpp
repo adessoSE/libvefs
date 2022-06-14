@@ -113,7 +113,7 @@ public:
                              << make_openssl_errinfo();
         }
         ctx.mInitialized = true;
-        return std::move(ctx);
+        return ctx;
     }
     ~boringssl_aead()
     {

@@ -257,7 +257,7 @@ sector_tree_seq<TreeAllocator>::open_lazy(sector_device &device,
 
     VEFS_TRY(sectorTree->init_lazy());
 
-    return std::move(sectorTree);
+    return sectorTree;
 }
 
 template <typename TreeAllocator>
@@ -280,7 +280,7 @@ inline auto sector_tree_seq<TreeAllocator>::open_existing(
 
     VEFS_TRY(sectorTree->init_existing());
 
-    return std::move(sectorTree);
+    return sectorTree;
 }
 
 template <typename TreeAllocator>
@@ -331,7 +331,7 @@ sector_tree_seq<TreeAllocator>::create_new(sector_device &device,
 
     VEFS_TRY(sectorTree->create_new());
 
-    return std::move(sectorTree);
+    return sectorTree;
 }
 
 template <typename TreeAllocator>

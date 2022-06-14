@@ -201,7 +201,7 @@ auto inject(result<T> rx, InjectFn &&injectFn) -> result<T>
     {
         std::forward<InjectFn>(injectFn)(rx.assume_error());
     }
-    return std::move(rx);
+    return rx;
 }
 
 template <typename T, typename InjectFn>
@@ -212,7 +212,7 @@ auto inject(llfio::byte_io_handle::io_result<T> rx, InjectFn &&injectFn)
     {
         std::forward<InjectFn>(injectFn)(rx.assume_error());
     }
-    return std::move(rx);
+    return rx;
 }
 
 template <typename T>

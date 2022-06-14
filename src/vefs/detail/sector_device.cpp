@@ -171,7 +171,7 @@ auto sector_device::create_file_secrets() noexcept
     {
         return errc::not_enough_memory;
     }
-    return std::move(ctx);
+    return ctx;
 }
 
 auto sector_device::create_file_secrets2() noexcept
@@ -312,7 +312,7 @@ auto sector_device::create_new(llfio::file_handle fileHandle,
     VEFS_TRY(self.free_sector_index.crypto_state,
              self.device->create_file_secrets2());
 
-    return std::move(self);
+    return self;
 }
 
 result<void> sector_device::parse_static_archive_header(ro_blob<32> userPRK)
@@ -434,7 +434,7 @@ auto sector_device::parse_archive_header(header_id which)
     archive_header header{};
     VEFS_TRY(dplx::dp::decode(headerStream, header));
 
-    return std::move(header);
+    return header;
 }
 
 auto sector_device::parse_archive_header() -> result<archive_header>
