@@ -1,5 +1,5 @@
-#include "vefs/detail/sector_tree_mt.hpp"
 #include "boost-unit-test.hpp"
+#include "vefs/detail/sector_tree_mt.hpp"
 
 #include <vefs/platform/thread_pool.hpp>
 
@@ -118,7 +118,8 @@ public:
 };
 } // namespace
 
-template class vefs::detail::sector_tree_mt<allocator_stub, thread_pool>;
+template class vefs::detail::
+        sector_tree_mt<allocator_stub, thread_pool, mock_mutex>;
 
 struct sector_tree_mt_dependencies
 {
@@ -178,8 +179,8 @@ BOOST_FIXTURE_TEST_CASE(new_sector_tree_has_id_one, sector_tree_mt_dependencies)
     TEST_RESULT_REQUIRE(createrx);
     auto newTree = std::move(createrx).assume_value();
     root_sector_info newRootInfo;
-    TEST_RESULT_REQUIRE(newTree->commit(
-            [&newRootInfo](root_sector_info rsi) { newRootInfo = rsi; }));
+    TEST_RESULT_REQUIRE(newTree->commit([&newRootInfo](root_sector_info rsi)
+                                        { newRootInfo = rsi; }));
 
     BOOST_TEST(newRootInfo.root.sector == sector_id{1});
     BOOST_TEST(newRootInfo.tree_depth == 0);
@@ -193,8 +194,8 @@ BOOST_FIXTURE_TEST_CASE(check_initial_sector_tree_mac,
     TEST_RESULT_REQUIRE(createrx);
     auto newTree = std::move(createrx).assume_value();
     root_sector_info newRootInfo;
-    TEST_RESULT_REQUIRE(newTree->commit(
-            [&newRootInfo](root_sector_info rsi) { newRootInfo = rsi; }));
+    TEST_RESULT_REQUIRE(newTree->commit([&newRootInfo](root_sector_info rsi)
+                                        { newRootInfo = rsi; }));
 
     auto expectedRootMac = vefs::utils::make_byte_array(
             0xe2, 0x1b, 0x52, 0x74, 0xe1, 0xd5, 0x8b, 0x69, 0x87, 0x36, 0x88,
@@ -215,6 +216,7 @@ BOOST_FIXTURE_TEST_CASE(new_sector_tree_has_node_with_zero_bytes,
     // when
     auto rootAccessRx = tree->access(tree_position{0, 0});
     TEST_RESULT_REQUIRE(rootAccessRx);
+    BOOST_TEST_REQUIRE(rootAccessRx.assume_value().operator bool());
 
     // then
     auto rootSpan = as_span(rootAccessRx.assume_value());
@@ -317,8 +319,10 @@ BOOST_AUTO_TEST_CASE(created_node_can_be_read)
     auto const &createdTreePos = tree_position(1);
     auto createRx = existingTree->access_or_create(createdTreePos);
     TEST_RESULT_REQUIRE(createRx);
-    as_span(write_handle(createRx.assume_value()))[0] = std::byte{0b1010'1010};
-    createRx.assume_value() = read_handle();
+    write_handle writeHandle(std::move(createRx.assume_value()));
+    BOOST_TEST_REQUIRE(writeHandle.operator bool());
+    as_span(writeHandle)[0] = std::byte{0b1010'1010};
+    writeHandle = write_handle();
 
     // when
     TEST_RESULT_REQUIRE(existingTree->commit([](root_sector_info) {}));
