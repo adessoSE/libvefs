@@ -305,7 +305,11 @@ auto sector_device::create_new(llfio::file_handle fileHandle,
 
     VEFS_TRY(archive->write_static_archive_header(userPRK));
 
-    open_info self{std::move(archive)};
+    open_info self{
+            .device = std::move(archive),
+            .filesystem_index = {},
+            .free_sector_index = {},
+    };
     VEFS_TRY(self.filesystem_index.crypto_state,
              self.device->create_file_secrets2());
 
@@ -678,9 +682,11 @@ auto vefs::detail::sector_device::update_header(
 {
     archive_header assembled{
             .filesystem_index = {   detail::file_id::archive_index.as_uuid(),
-                                 filesystemIndexCtx, filesystemIndexRoot},
+                                 filesystemIndexCtx, filesystemIndexRoot,},
             .free_sector_index = {detail::file_id::free_block_index.as_uuid(),
-                                 freeSectorIndexCtx, freeSectorIndexRoot}
+                                 freeSectorIndexCtx, freeSectorIndexRoot,},
+            .archive_secret_counter = { },
+ .journal_counter = {                                 },
     };
 
     // fetch a counter value before serialization for header encryption

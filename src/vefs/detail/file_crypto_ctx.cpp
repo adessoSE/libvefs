@@ -25,7 +25,7 @@ file_crypto_ctx::file_crypto_ctx(zero_init_t)
 
 file_crypto_ctx::file_crypto_ctx(ro_blob<32> secretView,
                                  crypto::counter secretCounter)
-    : mState{.counter = secretCounter}
+    : mState{.secret = {}, .counter = secretCounter}
     , mStateSync()
 {
     vefs::copy(secretView, std::span(mState.secret));
