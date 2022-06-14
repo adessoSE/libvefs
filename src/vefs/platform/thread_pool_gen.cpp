@@ -28,21 +28,20 @@ inline std::string make_anonymous_pool_name()
 }
 } // namespace
 
-thread_pool_gen::thread_pool_gen(int minWorkers,
-                                 [[maybe_unused]] int maxWorkers,
+thread_pool_gen::thread_pool_gen(unsigned minWorkers,
+                                 [[maybe_unused]] unsigned maxWorkers,
                                  std::string_view poolName)
     : mTaskQueue{}
     , mWorkerList{}
     , mThreadPoolName{poolName.size() ? std::string{poolName}
                                       : make_anonymous_pool_name()}
 {
-    assert(minWorkers >= 0);
-    assert(maxWorkers > 0 && maxWorkers >= minWorkers);
+    assert(maxWorkers >= minWorkers);
 
     mWorkerList.reserve(minWorkers);
     try
     {
-        for (int i = 0; i < minWorkers; ++i)
+        for (unsigned i = 0; i < minWorkers; ++i)
         {
             mWorkerList.emplace_back(std::mem_fn(&thread_pool_gen::worker_main),
                                      this,

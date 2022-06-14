@@ -51,7 +51,6 @@ set(CLANG_WARNINGS
     -Wno-unknown-pragmas # pragma region is not supported :(
     -Wno-conversion # TRANSITION
     -Wno-sign-conversion # TRANSITION
-    -Wno-narrowing # TRANSITION
     -Wno-shadow # TRANSITION
 )
 
