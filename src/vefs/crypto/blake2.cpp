@@ -1,5 +1,11 @@
 #include "blake2.hpp"
 
+#include <dplx/predef/compiler.h>
+
+#ifdef DPLX_COMP_GNUC_AVAILABLE
+#pragma GCC diagnostic ignored "-Wnon-virtual-dtor" // blake2_domain
+#endif
+
 namespace vefs::crypto::detail
 {
 result<void> blake2b::init(std::size_t digestSize) noexcept
