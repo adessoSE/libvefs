@@ -1181,7 +1181,8 @@ auto vfilesystem::replace_corrupted_sectors() -> result<void>
             return std::move(openrx).assume_error();
         }
 
-        auto const oldRoot = e.tree_info.root;
+        // variable for debugging purposes
+        [[maybe_unused]] auto const oldRoot = e.tree_info.root;
 
         VEFS_TRY_INJECT(tree->move_to(0U, inspection_tree::access_mode::force),
                         ed::archive_file_id{id});
