@@ -321,33 +321,40 @@ inline void tree_path::init(std::uint64_t pos) noexcept
     {
     case 5:
         mTreePath[4] = calc_waypoint_params(4 - layer, pos);
+        [[fallthrough]];
+
     case 4:
         if constexpr (layer < 4)
         {
             mTreePath[3] = calc_waypoint_params(3 - layer, pos);
         }
+        [[fallthrough]];
 
     case 3:
         if constexpr (layer < 3)
         {
             mTreePath[2] = calc_waypoint_params(2 - layer, pos);
         }
+        [[fallthrough]];
 
     case 2:
         if constexpr (layer < 2)
         {
             mTreePath[1] = calc_waypoint_params(1 - layer, pos);
         }
+        [[fallthrough]];
 
     case 1:
         if constexpr (layer < 1)
         {
             mTreePath[0] = calc_waypoint_params(0, pos);
         }
+        [[fallthrough]];
 
     case 0:
         mTreePath[mTreeDepth].absolute = 0;
         mTreePath[mTreeDepth].offset = 0;
+        break;
     }
 }
 
