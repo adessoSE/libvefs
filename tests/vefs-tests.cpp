@@ -1,11 +1,15 @@
-#include "boost-unit-test.hpp"
 #include <boost/throw_exception.hpp>
+#include "boost-unit-test.hpp"
 
 #include <openssl/err.h>
 
 #include <gmock/gmock.h>
 
 #include "vefs/crypto/provider.hpp"
+
+#if defined BOOST_COMP_GNUC_AVAILABLE
+#pragma GCC diagnostic ignored "-Wmissing-declarations"
+#endif
 
 using namespace boost::unit_test;
 

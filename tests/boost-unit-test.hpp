@@ -3,6 +3,8 @@
 #include <boost/predef.h>
 
 #if defined BOOST_COMP_GNUC_AVAILABLE
+#pragma GCC diagnostic ignored "-Wempty-body"
+#pragma GCC diagnostic ignored "-Wmissing-declarations"
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wall"
 #pragma GCC diagnostic ignored "-Wpedantic"
