@@ -1,10 +1,11 @@
 #include "vefs/detail/cache_car.hpp"
+
 #include "boost-unit-test.hpp"
 
-#include "test-utils.hpp"
 #include <boost/test/tools/interface.hpp>
 #include <boost/test/unit_test_log.hpp>
 #include <boost/test/unit_test_suite.hpp>
+#include "test-utils.hpp"
 
 using namespace vefs;
 using namespace vefs::detail;
@@ -266,10 +267,7 @@ BOOST_AUTO_TEST_CASE(try_access_returns_value_in_cache)
 
     auto result = cx->try_access(0);
 
-    auto cached_result
-            = ((aliasing_ref_ptr<cached_value, cache_page<cached_value>>
-                        *)&result)
-                      ->get();
+    auto cached_result = result.get();
 
     BOOST_TEST(cached_result->val1 == value.val1);
     BOOST_TEST(cached_result->val2 == value.val2);
@@ -316,17 +314,14 @@ BOOST_AUTO_TEST_CASE(second_chance_entry_gets_not_envicted_on_full_cache)
 
     for (std::size_t i = 0; i < max_entries; ++i)
     {
-        (void)cx->access(i, (int)i, 0, nullptr);
+        (void)cx->access(i, static_cast<int>(i), 0, nullptr);
     }
     (void)cx->try_access(0); // second chance
 
     cached_value new_value = {1337, 1338, nullptr};
 
     auto result = cx->access(1337, new_value);
-    auto cached_result
-            = ((aliasing_ref_ptr<cached_value, cache_page<cached_value>>
-                        *)&result)
-                      ->get();
+    auto cached_result = result.get();
 
     BOOST_TEST(cx->try_access(0));
 

@@ -10,8 +10,17 @@
 //   August 5 2012: SpookyV2: d = should be d += in short hash, and remove extra
 //   mix from long hash
 
+#include "vefs/utils/hash/detail/SpookyV2_impl.hpp"
+
 #include <memory.h>
-#include <vefs/utils/hash/detail/SpookyV2_impl.hpp>
+
+#include <dplx/predef/compiler.h>
+
+#ifdef DPLX_COMP_GNUC_AVAILABLE
+#pragma GCC diagnostic ignored "-Wold-style-cast"
+#pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
+#pragma GCC diagnostic ignored "-Wuseless-cast"
+#endif
 
 #define ALLOW_UNALIGNED_READS 1
 
@@ -78,7 +87,7 @@ void SpookyHash::Short(const void *message,
     }
 
     // Handle the last 0..15 bytes, and its length
-    d += ((uint64_t)length) << 56;
+    d += static_cast<uint64_t>(length) << 56;
     switch (remainder)
     {
     case 15:
