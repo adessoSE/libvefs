@@ -3,6 +3,7 @@
 
 #include <random>
 
+#include <vefs/archive_fwd.hpp>
 #include <vefs/utils/secure_array.hpp>
 
 #include "../platform/sysrandom.hpp"
