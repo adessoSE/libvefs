@@ -1,6 +1,6 @@
 #include "vefs/detail/block_manager.hpp"
-#include "boost-unit-test.hpp"
 
+#include "boost-unit-test.hpp"
 #include "test-utils.hpp"
 
 struct block_manager_fixture
@@ -81,7 +81,7 @@ BOOST_AUTO_TEST_CASE(write_zero_to_bitset_does_not_change_anything)
     std::span serializedData{serializedDataStorage};
     vefs::utils::bitset_overlay allocMap{serializedData};
 
-    (void)test_subject.write_to_bitset(allocMap, 0, 0);
+    test_subject.write_to_bitset(allocMap, 0, 0);
 
     auto resultBitset = vefs::utils::make_byte_array(0xFF, 0xFF, 0xFF, 0xFF,
                                                      0xFF, 0xFF, 0xFF, 0xFF);
@@ -102,7 +102,7 @@ BOOST_AUTO_TEST_CASE(write_to_bitset_zeros_all_empty_blocks_indizes)
     std::span serializedData{serializedDataStorage};
     vefs::utils::bitset_overlay allocMap{serializedData};
 
-    (void)test_subject.write_to_bitset(allocMap, 0, 50);
+    test_subject.write_to_bitset(allocMap, 0, 50);
 
     auto resultBitset = vefs::utils::make_byte_array(0x00, 0x00, 0xF0, 0xFF,
                                                      0xFF, 0xFF, 0xFF, 0xFF);
@@ -123,7 +123,7 @@ BOOST_AUTO_TEST_CASE(write_to_bitset_zeros_all_empty_blocks_indizes2)
     std::span serializedData{serializedDataStorage};
     vefs::utils::bitset_overlay allocMap{serializedData};
 
-    (void)test_subject.write_to_bitset(allocMap, 0, 10);
+    test_subject.write_to_bitset(allocMap, 0, 10);
 
     auto resultBitset = vefs::utils::make_byte_array(0x00, 0xF8, 0xFF, 0xFF,
                                                      0xFF, 0xFF, 0xFF, 0xFF);
@@ -143,7 +143,7 @@ BOOST_AUTO_TEST_CASE(write_to_bitset_sets_all_bits_for_used_blocks)
     std::span serializedData{serializedDataStorage};
     vefs::utils::bitset_overlay allocMap{serializedData};
 
-    (void)test_subject.write_to_bitset(allocMap, 0, 50);
+    test_subject.write_to_bitset(allocMap, 0, 50);
 
     auto resultBitset = vefs::utils::make_byte_array(0x00, 0x00, 0xF0, 0x1F,
                                                      0x00, 0xFF, 0x03, 0x00);

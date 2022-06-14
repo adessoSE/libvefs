@@ -305,7 +305,7 @@ private:
             using emit = dplx::dp::item_emitter<dplx::dp::memory_buffer>;
 
             dplx::dp::memory_buffer buffer(
-                    std::span(as_span(handle)).subspan(offset, block_size));
+                    as_span(handle).subspan(offset, block_size));
 
             VEFS_TRY(emit::binary(buffer, size));
 
@@ -362,8 +362,7 @@ private:
 
             mOwner->write_block_header(mCurrentSector);
 
-            return std::span<std::byte>(
-                    as_span(mCurrentSector).subspan(alloc_map_size));
+            return as_span(mCurrentSector).subspan(alloc_map_size);
         }
     };
 
