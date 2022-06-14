@@ -195,7 +195,7 @@ auto archive_sector_allocator::initialize_from(
     for (;;)
     {
         free_block_sector_layout sector{freeSectorTree->writeable_bytes()};
-        for (int i = 0; i < sector.num_entries_per_sector; ++i)
+        for (std::size_t i = 0; i < sector.num_entries_per_sector; ++i)
         {
             auto [startId, numSectors] = sector.read(i);
             if (startId == sector_id{})
