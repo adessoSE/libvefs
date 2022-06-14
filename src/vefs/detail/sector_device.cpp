@@ -560,7 +560,7 @@ auto sector_device::read_sector(rw_blob<sector_payload_size> contentDest,
                                 sector_id sectorIdx,
                                 ro_blob<16> contentMAC) noexcept -> result<void>
 {
-    using io_buffer = llfio::byte_io_handle::buffer_type;
+    using io_buffer = llfio::file_handle::buffer_type;
 
     constexpr auto sectorIdxLimit
             = std::numeric_limits<std::uint64_t>::max() / sector_size;
@@ -584,7 +584,7 @@ auto sector_device::read_sector(rw_blob<sector_payload_size> contentDest,
     };
 
     auto const sectorOffset = to_offset(sectorIdx);
-    llfio::file_handle::buffer_type reqBuffers[] = {ioBuffer};
+    io_buffer reqBuffers[] = {ioBuffer};
 
     if (auto readrx = mArchiveFile.read({reqBuffers, sectorOffset}))
     {
