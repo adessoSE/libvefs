@@ -29,7 +29,7 @@ workflow:
   before_script:
     - $ProgressPreference = "SilentlyContinue"
     - mkdir build
-    - 'git clone --depth 1 --branch $VCPKG_VERSION https://github.com/microsoft/vcpkg.git build/vcpkg'
+    - 'git clone --shallow-since=2022-06-01 https://github.com/microsoft/vcpkg.git build/vcpkg'
     - $env:VCPKG_ROOT="$pwd\build\vcpkg"
     - cd build
     - '& vcpkg\bootstrap-vcpkg -disableMetrics'
