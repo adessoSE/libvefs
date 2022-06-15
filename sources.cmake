@@ -124,7 +124,7 @@ dplx_target_sources(vefs # crypto
         crypto/counter.hpp
         crypto/counter.codec.hpp
 )
-if (boringssl_FOUND)
+if (OpenSSL_FOUND)
     dplx_target_sources(vefs # crypto
         MODE VERBATIM
         BASE_DIR vefs
@@ -174,6 +174,8 @@ dplx_target_sources(vefs # utils
     PUBLIC
         utils/secure_array.hpp
         utils/secure_allocator.hpp
+
+        utils/workaround.h
 
         utils/misc.hpp
         utils/ref_ptr.hpp

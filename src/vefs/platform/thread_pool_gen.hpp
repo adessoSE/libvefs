@@ -18,9 +18,9 @@ class thread_pool_gen : public thread_pool
     using work_item_t = std::unique_ptr<task_t>;
 
 public:
-    explicit thread_pool_gen(int minWorkers
+    explicit thread_pool_gen(unsigned minWorkers
                              = std::thread::hardware_concurrency(),
-                             int maxWorkers
+                             unsigned maxWorkers
                              = std::thread::hardware_concurrency(),
                              std::string_view poolName = {});
     ~thread_pool_gen();

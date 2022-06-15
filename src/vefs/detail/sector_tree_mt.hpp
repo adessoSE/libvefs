@@ -538,7 +538,8 @@ inline auto sector_tree_mt<TreeAllocator, Executor, MutexType>::init_existing()
 
     auto loadrx = mSectorCache.access(
             rootPosition,
-            [this, rootPosition](void *mem) noexcept -> result<sector_type *> {
+            [this, rootPosition](void *mem) noexcept -> result<sector_type *>
+            {
                 auto ptr = new (mem) sector_type(*this, nullptr, rootPosition,
                                                  mRootInfo.root.sector);
 
@@ -571,7 +572,8 @@ inline auto sector_tree_mt<TreeAllocator, Executor, MutexType>::create_new()
     auto loadrx = mSectorCache.access(
             rootPosition,
             [this,
-             rootPosition](void *mem) noexcept -> result<sector_type *, void> {
+             rootPosition](void *mem) noexcept -> result<sector_type *, void>
+            {
                 auto xsec = new (mem)
                         sector_type(*this, nullptr, rootPosition, sector_id{});
 
@@ -728,7 +730,8 @@ sector_tree_mt<TreeAllocator, Executor, MutexType>::commit(CommitFn &&commitFn)
     for (int i = 0; anyDirty && i <= mRootInfo.tree_depth; ++i)
     {
         auto rx = mSectorCache.for_dirty(
-                [this, i](sector_handle node) noexcept -> result<void> {
+                [this, i](sector_handle node) noexcept -> result<void>
+                {
                     if (node->node_position().layer() != i)
                     {
                         return success();
@@ -790,12 +793,11 @@ inline auto sector_tree_mt<TreeAllocator, Executor, MutexType>::access(
         -> result<sector_handle>
 {
     sector_handle base;
-    auto it = std::find_if(std::make_reverse_iterator(pathEnd),
-                           std::make_reverse_iterator(pathBegin),
-                           [this, &base](tree_position position) {
-                               return (base
-                                       = mSectorCache.try_access(position));
-                           })
+    auto it = std::find_if(
+                      std::make_reverse_iterator(pathEnd),
+                      std::make_reverse_iterator(pathBegin),
+                      [this, &base](tree_position position)
+                      { return (base = mSectorCache.try_access(position)); })
                       .base();
 
     // current root is always in cache, i.e. if nothing is hit, it's out of
@@ -840,66 +842,70 @@ inline auto sector_tree_mt<TreeAllocator, Executor, MutexType>::access(
                 if (entry.assume_error()
                     == archive_errc::sector_reference_out_of_range)
                 {
-                    return std::move(parentBackup);
+                    return parentBackup;
                 }
             }
             return std::move(entry).as_failure();
         }
     }
-    return std::move(base);
+    return base;
 }
 
 template <typename TreeAllocator, typename Executor, typename MutexType>
 inline void sector_tree_mt<TreeAllocator, Executor, MutexType>::notify_dirty(
         sector_handle h) noexcept
 {
-    mExecutor.execute([this, h = std::move(h)]() mutable {
-        if (!h || !mCommitSync.try_lock_shared())
-        {
-            return;
-        }
-        std::shared_lock commitLock(mCommitSync, std::adopt_lock);
-
-        std::unique_lock sectorLock{*h};
-        if (!h.is_dirty())
-        {
-            return;
-        }
-
-        if (h->node_position().layer() > 0
-            && h->node_position().position() != 0)
-        {
-            // we automagically deallocate reference nodes which don't
-            // reference anything.
-            // h->node_position().position() != 0 is a shortcut - the first
-            // data node is always allocated, therefore any node
-            // (indirectly) referencing the first data node will fail the
-            // next test. These reference nodes are managed by the tree
-            // height functions
-            auto sector = as_span(*h);
-            if (std::all_of(sector.begin(), sector.end(),
-                            [](std::byte b) { return b == std::byte{}; }))
+    mExecutor.execute(
+            [this, h = std::move(h)]() mutable
             {
-                // empty reference sector
-                auto parent = h->parent();
-                auto position = h->node_position();
-                auto childOffset = position.parent_array_offset();
-                h.mark_clean();
+                if (!h || !mCommitSync.try_lock_shared())
+                {
+                    return;
+                }
+                std::shared_lock commitLock(mCommitSync, std::adopt_lock);
 
-                sectorLock.unlock();
-                h = nullptr;
+                std::unique_lock sectorLock{*h};
+                if (!h.is_dirty())
+                {
+                    return;
+                }
 
-                // #TODO reference node erasure is susceptible to toctou
-                (void)try_erase_child(std::move(parent), position, childOffset);
-                return;
-            }
-        }
+                if (h->node_position().layer() > 0
+                    && h->node_position().position() != 0)
+                {
+                    // we automagically deallocate reference nodes which don't
+                    // reference anything.
+                    // h->node_position().position() != 0 is a shortcut - the
+                    // first data node is always allocated, therefore any node
+                    // (indirectly) referencing the first data node will fail
+                    // the next test. These reference nodes are managed by the
+                    // tree height functions
+                    auto sectorData = as_span(*h);
+                    if (std::all_of(sectorData.begin(), sectorData.end(),
+                                    [](std::byte b)
+                                    { return b == std::byte{}; }))
+                    {
+                        // empty reference sector
+                        auto parent = h->parent();
+                        auto position = h->node_position();
+                        auto childOffset = position.parent_array_offset();
+                        h.mark_clean();
 
-        // sync error is reported via sector policy
-        if (auto syncrx = sync_to_device(h))
-        {
-        }
-    });
+                        sectorLock.unlock();
+                        h = nullptr;
+
+                        // #TODO reference node erasure is susceptible to toctou
+                        (void)try_erase_child(std::move(parent), position,
+                                              childOffset);
+                        return;
+                    }
+                }
+
+                // sync error is reported via sector policy
+                if (auto syncrx = sync_to_device(h))
+                {
+                }
+            });
 }
 
 template <typename TreeAllocator, typename Executor, typename MutexType>
@@ -998,8 +1004,9 @@ sector_tree_mt<TreeAllocator, Executor, MutexType>::increase_tree_depth(
         std::unique_lock oldRootLock{*mRootSector};
         auto createrx = mSectorCache.access(
                 nextRootPos,
-                [this, nextRootPos](
-                        void *mem) noexcept -> result<sector_type *, void> {
+                [this,
+                 nextRootPos](void *mem) noexcept -> result<sector_type *, void>
+                {
                     auto xsec = new (mem) sector_type(*this, nullptr,
                                                       nextRootPos, sector_id{});
                     // zero out the sector content
@@ -1046,7 +1053,8 @@ sector_tree_mt<TreeAllocator, Executor, MutexType>::decrease_tree_depth(
 
     std::for_each(
             victimChildren.rbegin(), victimChildren.rend(),
-            [this](sector_handle &current) {
+            [this](sector_handle &current)
+            {
                 std::unique_lock xguard{*current};
                 auto parent = current->parent();
                 current->parent(nullptr);
@@ -1081,7 +1089,9 @@ sector_tree_mt<TreeAllocator, Executor, MutexType>::access_or_read_child(
         int childParentOffset) noexcept -> result<sector_handle>
 {
     return mSectorCache.access(
-            childPosition, [&](void *mem) noexcept -> result<sector_type *> {
+            childPosition,
+            [&](void *mem) noexcept -> result<sector_type *>
+            {
                 const auto ref = reference_sector_layout{as_span(*parent)}.read(
                         childParentOffset);
 
@@ -1113,7 +1123,9 @@ sector_tree_mt<TreeAllocator, Executor, MutexType>::access_or_create_child(
         int childParentOffset) noexcept -> result<sector_handle>
 {
     return mSectorCache.access(
-            childPosition, [&](void *mem) noexcept -> result<sector_type *> {
+            childPosition,
+            [&](void *mem) noexcept -> result<sector_type *>
+            {
                 auto ref = reference_sector_layout{as_span(*parent)}.read(
                         childParentOffset);
 
@@ -1148,11 +1160,15 @@ inline auto sector_tree_mt<TreeAllocator, Executor, MutexType>::try_erase_child(
         int childParentOffset) noexcept -> result<bool>
 {
     sector_id childSectorId;
-    if (mSectorCache.try_purge(child, [&]() {
-            reference_sector_layout parentLayout{as_span(*parent)};
-            childSectorId = parentLayout.read(childParentOffset).sector;
-            parentLayout.write(childParentOffset, {sector_id::master, {}});
-        }))
+    if (mSectorCache.try_purge(
+                child,
+                [&]()
+                {
+                    reference_sector_layout parentLayout{as_span(*parent)};
+                    childSectorId = parentLayout.read(childParentOffset).sector;
+                    parentLayout.write(childParentOffset,
+                                       {sector_id::master, {}});
+                }))
     {
         if (childSectorId != sector_id::master)
         {
@@ -1259,8 +1275,9 @@ inline auto extract(sector_tree_mt<TreeAllocator, Executor, MutexType> &tree,
         auto chunk = as_span(sector).subspan(std::exchange(offset, 0));
         auto chunkSize = std::min(chunk.size(), endPos - startPos);
 
-        llfio::file_handle::const_buffer_type buffers[1]
-                = {{chunk.data(), chunkSize}};
+        llfio::file_handle::const_buffer_type buffers[1] = {
+                {chunk.data(), chunkSize}
+        };
 
         VEFS_TRY(fileHandle.write({buffers, startPos}));
 

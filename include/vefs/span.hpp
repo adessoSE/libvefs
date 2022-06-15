@@ -18,27 +18,11 @@ namespace vefs
 {
 inline constexpr std::size_t dynamic_extent = std::dynamic_extent;
 
-template <class T, std::size_t X, class U, std::size_t Y>
-constexpr auto copy(std::span<T, X> source, std::span<U, Y> dest)
-{
-    if constexpr (X == dynamic_extent || Y == dynamic_extent)
-    {
-        const auto n = std::min(source.size(), dest.size());
-        std::copy_n(source.begin(), n, dest.begin());
-        return dest.subspan(n);
-    }
-    else
-    {
-        constexpr auto N = std::min(X, Y);
-        std::copy_n(source.begin(), N, dest.begin());
-        return dest.template subspan<N>();
-    }
-}
 template <class T,
           class U = T,
           std::size_t X = std::dynamic_extent,
           std::size_t Y = X>
-requires std::is_assignable_v<U &, T &>
+    requires std::is_assignable_v<U &, T &>
 constexpr auto copy(std::span<T, X> source, std::span<U, Y> dest)
 {
     if constexpr (X == std::dynamic_extent || Y == std::dynamic_extent)
@@ -75,8 +59,8 @@ inline void fill_blob(std::span<std::byte, Extent> target,
 }
 
 template <typename T>
-requires(not std::is_const<T>::value) inline auto rw_blob_cast(T &obj) noexcept
-        -> rw_blob<sizeof(obj)>
+    requires(not std::is_const<T>::value)
+inline auto rw_blob_cast(T &obj) noexcept -> rw_blob<sizeof(obj)>
 {
     return rw_blob<sizeof(obj)>{reinterpret_cast<std::byte *>(&obj),
                                 sizeof(obj)};

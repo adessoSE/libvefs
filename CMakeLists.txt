@@ -41,6 +41,9 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 ########################################################################
 # options
 
+option(VEFS_DISABLE_WORKAROUNDS "Disables all code workarounds" OFF)
+option(VEFS_FLAG_OUTDATED_WORKAROUNDS "Raises compiler errors for all workarounds which need to be reevaluated" OFF)
+
 set(VEFS_LLFIO_TARGET "sl" CACHE STRING "The llfio target to link against, can be 'hl', 'sl' or 'dl'")
 set_property(CACHE VEFS_LLFIO_TARGET PROPERTY STRINGS "hl;sl;dl")
 
@@ -71,7 +74,7 @@ find_package(libb2 REQUIRED CONFIG)
 
 find_package(libcuckoo CONFIG REQUIRED)
 
-find_package(boringssl REQUIRED CONFIG)
+find_package(OpenSSL REQUIRED)
 
 if (BUILD_TESTING)
     find_package(GTest CONFIG REQUIRED)
@@ -97,7 +100,7 @@ find_package(benchmark)
 # fmt library
 find_package(fmt CONFIG REQUIRED)
 
-if (NOT (botan_FOUND OR boringssl_FOUND))
+if (NOT (botan_FOUND OR OpenSSL_FOUND))
     message(WARNING "no crypto provider library (BoringSSL, botan) could be found.")
 endif()
 
@@ -148,6 +151,10 @@ target_link_libraries(vefs
 target_compile_definitions(vefs
     PUBLIC
         BOOST_UUID_NO_TYPE_TRAITS=1
+
+    PRIVATE
+        VEFS_DISABLE_WORKAROUNDS=$<BOOL:${VEFS_DISABLE_WORKAROUNDS}>
+        VEFS_FLAG_OUTDATED_WORKAROUNDS=$<BOOL:${VEFS_FLAG_OUTDATED_WORKAROUNDS}>
 )
 
 target_include_directories(vefs
@@ -175,8 +182,8 @@ endif()
 if (botan_FOUND)
     target_link_libraries(vefs PUBLIC botan)
 endif()
-if (boringssl_FOUND)
-    target_link_libraries(vefs PUBLIC boringssl::crypto)
+if (OpenSSL_FOUND)
+    target_link_libraries(vefs PUBLIC OpenSSL::Crypto)
 endif()
 
 

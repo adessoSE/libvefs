@@ -68,6 +68,14 @@ struct vfilesystem_test_dependencies
                                               workExecutor, filesystemIndex)
                               .value();
     }
+
+    ~vfilesystem_test_dependencies()
+    {
+        if (testSubject)
+        {
+            (void)testSubject->commit();
+        }
+    }
 };
 
 BOOST_FIXTURE_TEST_SUITE(vfilesystem_tests, vfilesystem_test_dependencies)

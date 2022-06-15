@@ -49,6 +49,8 @@ set(CLANG_WARNINGS
     -Wredundant-decls
     # with the following exceptions
     -Wno-unknown-pragmas # pragma region is not supported :(
+    -Wno-conversion # TRANSITION
+    -Wno-sign-conversion # TRANSITION
 )
 
 if(WARNINGS_AS_ERRORS)

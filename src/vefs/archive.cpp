@@ -181,8 +181,7 @@ auto archive_handle::archive(llfio::path_handle const &base,
                                              cryptoProvider, userPRK);
     }
 
-    VEFS_TRY(clonedHandle,
-             (static_cast<llfio::file_handle &>(fileHandle).reopen()));
+    VEFS_TRY(clonedHandle, fileHandle.reopen());
 
     if (auto createRx = archive_handle::create_new(std::move(fileHandle),
                                                    cryptoProvider, userPRK))

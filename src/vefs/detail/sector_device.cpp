@@ -171,7 +171,7 @@ auto sector_device::create_file_secrets() noexcept
     {
         return errc::not_enough_memory;
     }
-    return std::move(ctx);
+    return ctx;
 }
 
 auto sector_device::create_file_secrets2() noexcept
@@ -305,14 +305,18 @@ auto sector_device::create_new(llfio::file_handle fileHandle,
 
     VEFS_TRY(archive->write_static_archive_header(userPRK));
 
-    open_info self{std::move(archive)};
+    open_info self{
+            .device = std::move(archive),
+            .filesystem_index = {},
+            .free_sector_index = {},
+    };
     VEFS_TRY(self.filesystem_index.crypto_state,
              self.device->create_file_secrets2());
 
     VEFS_TRY(self.free_sector_index.crypto_state,
              self.device->create_file_secrets2());
 
-    return std::move(self);
+    return self;
 }
 
 result<void> sector_device::parse_static_archive_header(ro_blob<32> userPRK)
@@ -434,7 +438,7 @@ auto sector_device::parse_archive_header(header_id which)
     archive_header header{};
     VEFS_TRY(dplx::dp::decode(headerStream, header));
 
-    return std::move(header);
+    return header;
 }
 
 auto sector_device::parse_archive_header() -> result<archive_header>
@@ -556,7 +560,7 @@ auto sector_device::read_sector(rw_blob<sector_payload_size> contentDest,
                                 sector_id sectorIdx,
                                 ro_blob<16> contentMAC) noexcept -> result<void>
 {
-    using io_buffer = llfio::byte_io_handle::buffer_type;
+    using io_buffer = llfio::file_handle::buffer_type;
 
     constexpr auto sectorIdxLimit
             = std::numeric_limits<std::uint64_t>::max() / sector_size;
@@ -580,7 +584,7 @@ auto sector_device::read_sector(rw_blob<sector_payload_size> contentDest,
     };
 
     auto const sectorOffset = to_offset(sectorIdx);
-    llfio::file_handle::buffer_type reqBuffers[] = {ioBuffer};
+    io_buffer reqBuffers[] = {ioBuffer};
 
     if (auto readrx = mArchiveFile.read({reqBuffers, sectorOffset}))
     {
@@ -678,9 +682,11 @@ auto vefs::detail::sector_device::update_header(
 {
     archive_header assembled{
             .filesystem_index = {   detail::file_id::archive_index.as_uuid(),
-                                 filesystemIndexCtx, filesystemIndexRoot},
+                                 filesystemIndexCtx, filesystemIndexRoot,},
             .free_sector_index = {detail::file_id::free_block_index.as_uuid(),
-                                 freeSectorIndexCtx, freeSectorIndexRoot}
+                                 freeSectorIndexCtx, freeSectorIndexRoot,},
+            .archive_secret_counter = { },
+ .journal_counter = {                                 },
     };
 
     // fetch a counter value before serialization for header encryption

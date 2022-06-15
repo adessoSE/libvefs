@@ -65,7 +65,7 @@ vefs::result<void> vefs::detail::random_bytes(rw_dynblob buffer) noexcept
     using namespace vefs;
     using namespace std::string_view_literals;
 
-    if (!buffer)
+    if (buffer.empty())
     {
         return error{errc::invalid_argument}
             << ed::error_code_api_origin{"random_bytes"sv};
@@ -74,15 +74,15 @@ vefs::result<void> vefs::detail::random_bytes(rw_dynblob buffer) noexcept
     int urandom = open("/dev/urandom", O_RDONLY);
     if (urandom == -1)
     {
-        return error{ collect_system_error() }
-            << ed::error_code_origin_tag{ "open(\"/dev/urandom\")"sv });
+        return error{collect_system_error()}
+            << ed::error_code_api_origin{"open(\"/dev/urandom\")"sv};
     }
     VEFS_SCOPE_EXIT
     {
         close(urandom);
     };
 
-    while (buffer)
+    while (!buffer.empty())
     {
         constexpr size_t max_portion
                 = static_cast<size_t>(std::numeric_limits<ssize_t>::max());
@@ -91,13 +91,13 @@ vefs::result<void> vefs::detail::random_bytes(rw_dynblob buffer) noexcept
         ssize_t tmp = read(urandom, buffer.data(), portion);
         if (tmp == -1)
         {
-            return error{ collect_system_error() }
-            << ed::error_code_origin_tag{ "read(\"/dev/urandom\")"sv });
+            return error{collect_system_error()}
+                << ed::error_code_api_origin{"read(\"/dev/urandom\")"sv};
         }
         if (tmp == 0)
         {
             return errc::bad
-                << ed::error_code_origin_tag{ "read(\"/dev/urandom\")"sv });
+                << ed::error_code_api_origin{"read(\"/dev/urandom\")"sv};
         }
         buffer = buffer.subspan(static_cast<size_t>(tmp));
     }
@@ -111,13 +111,13 @@ vefs::result<void> vefs::detail::random_bytes(rw_dynblob buffer) noexcept
     using namespace vefs;
     using namespace std::string_view_literals;
 
-    if (!buffer)
+    if (buffer.empty())
     {
         return error{errc::invalid_argument}
             << ed::error_code_api_origin{"random_bytes"sv};
     }
 
-    while (buffer)
+    while (!buffer.empty())
     {
         constexpr size_t max_portion = static_cast<size_t>(33554431);
         const auto portion = std::min(max_portion, buffer.size());

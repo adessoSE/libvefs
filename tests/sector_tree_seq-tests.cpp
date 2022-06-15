@@ -28,10 +28,10 @@ public:
     };
     static constexpr auto leak_on_failure = leak_on_failure_t{};
 
-    allocator_stub(sector_device &device)
+    allocator_stub(sector_device &sectorDevice)
         : alloc_sync()
         , alloc_counter(1)
-        , device(device)
+        , device(sectorDevice)
     {
     }
 

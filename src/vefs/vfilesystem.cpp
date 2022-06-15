@@ -305,7 +305,7 @@ private:
             using emit = dplx::dp::item_emitter<dplx::dp::memory_buffer>;
 
             dplx::dp::memory_buffer buffer(
-                    std::span(as_span(handle)).subspan(offset, block_size));
+                    as_span(handle).subspan(offset, block_size));
 
             VEFS_TRY(emit::binary(buffer, size));
 
@@ -362,8 +362,7 @@ private:
 
             mOwner->write_block_header(mCurrentSector);
 
-            return std::span<std::byte>(
-                    as_span(mCurrentSector).subspan(alloc_map_size));
+            return as_span(mCurrentSector).subspan(alloc_map_size);
         }
     };
 
@@ -662,7 +661,7 @@ auto vfilesystem::open_existing(detail::sector_device &device,
 
     VEFS_TRY(self->open_existing_impl());
 
-    return std::move(self);
+    return self;
 }
 
 auto vfilesystem::open_existing_impl() -> result<void>
@@ -710,7 +709,7 @@ auto vfilesystem::create_new(detail::sector_device &device,
 
     VEFS_TRY(self->create_new_impl());
 
-    return std::move(self);
+    return self;
 }
 
 auto vfilesystem::create_new_impl() -> result<void>
@@ -752,11 +751,11 @@ auto vfilesystem::open(const std::string_view filePath,
         thread_local utils::xoroshiro128plus fileid_prng = []()
         {
             std::array<std::uint64_t, 2> randomState{};
-            auto rx = detail::random_bytes(
+            auto randomBytesRx = detail::random_bytes(
                     as_writable_bytes(std::span(randomState)));
-            if (!rx)
+            if (!randomBytesRx)
             {
-                throw error_exception{rx.assume_error()};
+                throw error_exception{randomBytesRx.assume_error()};
             }
 
             return utils::xoroshiro128plus{randomState[0], randomState[1]};
@@ -919,8 +918,8 @@ auto vfilesystem::extract(llfio::path_view sourceFilePath,
                          llfio::file_handle::mode::write,
                          llfio::file_handle::creation::always_new));
 
-    VEFS_TRY(auto &&vfile_handle, open());
-    VEFS_TRY(vfile_handle->extract(fileHandle));
+    VEFS_TRY(auto &&vfileHandle, open());
+    VEFS_TRY(vfileHandle->extract(fileHandle));
 
     return success();
 }
@@ -1182,7 +1181,8 @@ auto vfilesystem::replace_corrupted_sectors() -> result<void>
             return std::move(openrx).assume_error();
         }
 
-        auto const oldRoot = e.tree_info.root;
+        // variable for debugging purposes
+        [[maybe_unused]] auto const oldRoot = e.tree_info.root;
 
         VEFS_TRY_INJECT(tree->move_to(0U, inspection_tree::access_mode::force),
                         ed::archive_file_id{id});

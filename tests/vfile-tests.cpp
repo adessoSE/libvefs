@@ -25,13 +25,13 @@ struct vfile_dependencies_fixture
     pooled_work_tracker workExecutor;
 
     vfile_dependencies_fixture()
-        : testFile(vefs::llfio::temp_inode().value())
+        : filesystemIndex{}
+        , testFile(vefs::llfio::temp_inode().value())
         , device(sector_device::create_new(testFile.reopen().value(),
                                            test::only_mac_crypto_provider(),
                                            default_user_prk)
                          .value()
                          .device)
-        , filesystemIndex{}
         , sectorAllocator(*device, {})
         , workExecutor(&thread_pool::shared())
     {
@@ -52,6 +52,15 @@ struct vfile_dependencies_fixture
                                       0x53, 0x3d}),
                               *device, *cryptoCtx)
                               .value();
+    }
+
+    ~vfile_dependencies_fixture()
+    {
+        if (testSubject->is_dirty())
+        {
+            (void)testSubject->commit();
+            (void)fileSystem->commit();
+        }
     }
 };
 

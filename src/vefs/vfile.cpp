@@ -43,7 +43,7 @@ try
 
     VEFS_TRY(self->open_existing(device, cryptoCtx, allocator, treeRoot));
 
-    return std::move(self);
+    return self;
 }
 catch (const std::bad_alloc &)
 {
@@ -76,7 +76,7 @@ try
 
     VEFS_TRY(self->create_new(device, allocator, cryptoCtx));
 
-    return std::move(self);
+    return self;
 }
 catch (const std::bad_alloc &)
 {

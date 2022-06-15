@@ -201,7 +201,7 @@ auto inject(result<T> rx, InjectFn &&injectFn) -> result<T>
     {
         std::forward<InjectFn>(injectFn)(rx.assume_error());
     }
-    return std::move(rx);
+    return rx;
 }
 
 template <typename T, typename InjectFn>
@@ -212,7 +212,7 @@ auto inject(llfio::byte_io_handle::io_result<T> rx, InjectFn &&injectFn)
     {
         std::forward<InjectFn>(injectFn)(rx.assume_error());
     }
-    return std::move(rx);
+    return rx;
 }
 
 template <typename T>
@@ -421,4 +421,5 @@ auto collect_system_error() -> std::error_code;
 #define VEFS_TRY(...) OUTCOME_TRY(__VA_ARGS__)
 
 #define VEFS_TRY_INJECT(stmt, injected)                                        \
-    VEFS_TRY(vefs::inject((stmt), [&](auto &e) mutable { e << injected; }))
+    VEFS_TRY(vefs::inject((stmt), [&](auto &_vefsError) mutable                \
+                          { _vefsError << injected; }))

@@ -7,10 +7,12 @@
 #include <semaphore>
 
 #include <dplx/dp/memory_buffer.hpp>
+#include <dplx/predef/compiler.h>
 
 #include <vefs/disappointment.hpp>
 #include <vefs/llfio.hpp>
 #include <vefs/utils/misc.hpp>
+#include <vefs/utils/workaround.h>
 
 namespace vefs
 {
@@ -21,14 +23,18 @@ class io_buffer_manager
     using allocator_traits = std::allocator_traits<allocator>;
     static_assert(allocator_traits::is_always_equal::value);
 
-    using free_buffers_semaphore_type = std::counting_semaphore<
-            std::numeric_limits<std::uint32_t>::max()>;
+    using free_buffers_semaphore_type
+            = std::counting_semaphore<std::numeric_limits<std::int32_t>::max()>;
 
     struct control_head
     {
         free_buffers_semaphore_type free_buffers;
 
-        constexpr explicit control_head(std::uint32_t numBuffers)
+#if VEFS_WORKAROUND_TESTED_AT(DPLX_COMP_GNUC, 12, 1, 0)
+#else
+        constexpr
+#endif
+        explicit control_head(std::uint32_t numBuffers)
             : free_buffers(static_cast<std::ptrdiff_t>(numBuffers))
         {
         }

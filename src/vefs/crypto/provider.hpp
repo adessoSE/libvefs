@@ -8,6 +8,7 @@
 
 namespace vefs::crypto
 {
+
 class crypto_provider
 {
 public:
@@ -52,5 +53,4 @@ static_assert(!std::is_copy_assignable_v<crypto_provider>);
 static_assert(!std::is_move_assignable_v<crypto_provider>);
 static_assert(!std::is_destructible_v<crypto_provider>);
 
-crypto_provider *boringssl_aes_256_gcm_crypto_provider();
 } // namespace vefs::crypto
