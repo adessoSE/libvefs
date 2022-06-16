@@ -6,7 +6,6 @@
     "dependencies": [
         "benchmark",
         "boost-exception",
-        "boost-io",
         "boost-iterator",
         "boost-predef",
         "boost-program-options",
