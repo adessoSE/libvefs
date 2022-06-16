@@ -12,7 +12,6 @@
         "boost-program-options",
         "boost-preprocessor",
         "boost-system",
-        "boost-uuid",
         "boringssl",
         "concurrentqueue",
         "deeppack",
@@ -26,7 +25,8 @@
         {
             "name": "outcome",
             "features": [ "cxx20" ]
-        }
+        },
+        "stduuid"
     ],
     "features": {
         "tests": {

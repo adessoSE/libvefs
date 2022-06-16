@@ -74,6 +74,8 @@ find_package(libb2 REQUIRED CONFIG)
 
 find_package(libcuckoo CONFIG REQUIRED)
 
+find_package(stduuid CONFIG REQUIRED)
+
 find_package(OpenSSL REQUIRED)
 
 if (BUILD_TESTING)
@@ -146,12 +148,10 @@ target_link_libraries(vefs
         outcome::hl
         unofficial::concurrentqueue::concurrentqueue
         libcuckoo::libcuckoo
+        stduuid
 )
 
 target_compile_definitions(vefs
-    PUBLIC
-        BOOST_UUID_NO_TYPE_TRAITS=1
-
     PRIVATE
         VEFS_DISABLE_WORKAROUNDS=$<BOOL:${VEFS_DISABLE_WORKAROUNDS}>
         VEFS_FLAG_OUTDATED_WORKAROUNDS=$<BOOL:${VEFS_FLAG_OUTDATED_WORKAROUNDS}>

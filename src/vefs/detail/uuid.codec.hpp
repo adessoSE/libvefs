@@ -14,43 +14,46 @@ namespace dplx::dp
 {
 
 template <output_stream Stream>
-class basic_encoder<vefs::utils::uuid, Stream>
+class basic_encoder<vefs::uuid, Stream>
 {
+    using emit = item_emitter<Stream>;
+
 public:
-    using value_type = vefs::utils::uuid;
+    using value_type = vefs::uuid;
 
     inline auto operator()(Stream &outStream, value_type value) const
             -> result<void>
     {
-        return encode(outStream, as_bytes(std::span<std::uint8_t>(value.data)));
+        return encode(outStream, value.as_bytes());
     }
 };
 
 template <input_stream Stream>
-class basic_decoder<vefs::utils::uuid, Stream>
+class basic_decoder<vefs::uuid, Stream>
 {
     using parse = item_parser<Stream>;
 
 public:
-    using value_type = vefs::utils::uuid;
+    using value_type = vefs::uuid;
 
     inline auto operator()(Stream &inStream, value_type &value) const
             -> result<void>
     {
-        std::span<std::uint8_t> data(value.data);
-        DPLX_TRY(auto size,
+        std::array<std::uint8_t, 16> data{};
+        DPLX_TRY(auto const size,
                  parse::binary(inStream, data, parse_mode::canonical));
 
-        if (size != value.size())
+        if (size != data.size())
         {
             return errc::tuple_size_mismatch;
         }
+        value = data;
         return oc::success();
     }
 };
 
-constexpr auto tag_invoke(encoded_size_of_fn,
-                          vefs::utils::uuid const &) noexcept -> unsigned
+constexpr auto tag_invoke(encoded_size_of_fn, vefs::uuid const &) noexcept
+        -> unsigned
 {
     // return dp::additional_information_size(vefs::utils::uuid::static_size())
     //     + vefs::utils::uuid::static_size();
