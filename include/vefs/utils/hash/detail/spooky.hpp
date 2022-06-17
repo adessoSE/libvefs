@@ -3,9 +3,9 @@
 #include <cstddef>
 #include <cstdint>
 
+#include <vefs/hash/detail/spooky_v2_impl.hpp>
 #include <vefs/span.hpp>
 #include <vefs/utils/hash/algorithm_tag.hpp>
-#include <vefs/utils/hash/detail/SpookyV2_impl.hpp>
 
 namespace vefs::utils::hash::detail
 {
@@ -22,16 +22,16 @@ public:
     inline void final(std::uint64_t &hash);
 
 private:
-    impl::SpookyHash mState;
+    external::SpookyHash mState;
 };
 
 inline void spooky::compute(vefs::ro_dynblob data, std::uint32_t &hash)
 {
-    hash = impl::SpookyHash::Hash32(data.data(), data.size(), 0);
+    hash = external::SpookyHash::Hash32(data.data(), data.size(), 0);
 }
 inline void spooky::compute(vefs::ro_dynblob data, std::uint64_t &hash)
 {
-    hash = impl::SpookyHash::Hash64(data.data(), data.size(), 0);
+    hash = external::SpookyHash::Hash64(data.data(), data.size(), 0);
 }
 
 inline void spooky::init()

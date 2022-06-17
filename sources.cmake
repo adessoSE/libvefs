@@ -201,16 +201,16 @@ dplx_target_sources(vefs # utils
         detail/uuid.codec.hpp
 )
 
-dplx_target_sources(vefs # spooky v2
+dplx_target_sources(vefs # hash
     MODE VERBATIM
     BASE_DIR vefs
 
     PUBLIC
+        hash/detail/spooky_v2_impl.hpp
         utils/hash/detail/spooky.hpp
-        utils/hash/detail/SpookyV2_impl.hpp
 
     PRIVATE
-        detail/SpookyV2.cpp
+        hash/detail/spooky_v2_impl.cpp
 )
 
 if (BUILD_TESTING)
