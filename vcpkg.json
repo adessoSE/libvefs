@@ -14,7 +14,6 @@
         "boost-mp11",
         "boost-predef",
         "boost-preprocessor",
-        "boost-system",
         "boost-throw-exception",
         "boost-type-traits",
         "boringssl",

@@ -92,7 +92,6 @@ if (BUILD_TESTING)
     set(_VEFS_REQUIRE_UNIT_TEST_FRAMEWORK unit_test_framework)
 endif()
 find_package(Boost 1.70 REQUIRED COMPONENTS
-    system
     #program_options
     ${_VEFS_REQUIRE_UNIT_TEST_FRAMEWORK}
 )
@@ -140,7 +139,6 @@ target_link_libraries(vefs
         Vefs::vefs_compiler_settings
 
         Boost::boost
-        Boost::system
         Deeplex::deeppack
         libb2
         fmt::fmt
