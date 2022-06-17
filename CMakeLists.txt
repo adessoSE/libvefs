@@ -93,7 +93,7 @@ if (BUILD_TESTING)
 endif()
 find_package(Boost 1.70 REQUIRED COMPONENTS
     system
-    program_options
+    #program_options
     ${_VEFS_REQUIRE_UNIT_TEST_FRAMEWORK}
 )
 
