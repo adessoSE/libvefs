@@ -248,5 +248,8 @@ if (BUILD_TESTING)
         tests/tree_walker-tests.cpp
         tests/archive_file_id_tests.cpp
         tests/archive-integration-tests.cpp
+
+        tests/vefs/hash/hash_algorithm.test.cpp
+        tests/vefs/hash/spooky_v2.test.cpp
      )
 endif()
