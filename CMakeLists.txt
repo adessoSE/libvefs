@@ -201,6 +201,7 @@ if (BUILD_TESTING)
     target_include_directories(vefs-tests
         PRIVATE
             ${CMAKE_CURRENT_SOURCE_DIR}/src
+            ${CMAKE_CURRENT_SOURCE_DIR}/tests/test_utils
     )
 
     add_test(NAME vefs-tests COMMAND vefs-tests)

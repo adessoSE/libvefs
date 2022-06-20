@@ -207,20 +207,29 @@ dplx_target_sources(vefs # hash
 
     PUBLIC
         hash/detail/spooky_v2_impl.hpp
+        hash/hash_algorithm.hpp
+        hash/hash-std.hpp
+        hash/spooky_v2.hpp
         utils/hash/detail/spooky.hpp
 
     PRIVATE
         hash/detail/spooky_v2_impl.cpp
+        hash/hash_algorithm.cpp
+        hash/hash-std.cpp
+        hash/spooky_v2.cpp
 )
 
 if (BUILD_TESTING)
     target_sources(vefs-tests PRIVATE
         tests/vefs-tests.cpp
-        tests/boost-unit-test.hpp
-        tests/test-utils.hpp
-        tests/test-utils.cpp
-        tests/libb2_none_blake2b_crypto_provider.cpp
-        tests/libb2_none_blake2b_crypto_provider.hpp
+
+        tests/test_utils/boost-unit-test.hpp
+        tests/test_utils/libb2_none_blake2b_crypto_provider.cpp
+        tests/test_utils/libb2_none_blake2b_crypto_provider.hpp
+        tests/test_utils/mocks.hpp
+        tests/test_utils/test-utils.cpp
+        tests/test_utils/test-utils.hpp
+
         tests/disappointment-tests.cpp
         tests/io_buffer_manager.test.cpp
         tests/allocator-tests.cpp
