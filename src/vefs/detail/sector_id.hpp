@@ -8,7 +8,6 @@
 #include <ostream>
 #include <string>
 
-#include <boost/io/ios_state.hpp>
 #include <fmt/ostream.h>
 
 #include <vefs/disappointment/error_detail.hpp>

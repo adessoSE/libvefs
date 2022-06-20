@@ -2,7 +2,6 @@
 
 #include <boost/container/small_vector.hpp>
 #include <boost/endian/conversion.hpp>
-#include <boost/uuid/random_generator.hpp>
 
 #include <dplx/dp/item_emitter.hpp>
 #include <dplx/dp/memory_buffer.hpp>
@@ -748,22 +747,7 @@ auto vfilesystem::open(const std::string_view filePath,
     {
         VEFS_TRY(auto &&secrets, mDevice.create_file_secrets());
 
-        thread_local utils::xoroshiro128plus fileid_prng = []()
-        {
-            std::array<std::uint64_t, 2> randomState{};
-            auto randomBytesRx = detail::random_bytes(
-                    as_writable_bytes(std::span(randomState)));
-            if (!randomBytesRx)
-            {
-                throw error_exception{randomBytesRx.assume_error()};
-            }
-
-            return utils::xoroshiro128plus{randomState[0], randomState[1]};
-        }();
-        thread_local boost::uuids::basic_random_generator generate_fileid{
-                fileid_prng};
-
-        file_id fid{generate_fileid()};
+        VEFS_TRY(auto const fid, file_id::generate());
         rx = vfile::create_new(this, mDeviceExecutor, mSectorAllocator, fid,
                                mDevice, *secrets);
         if (!rx)

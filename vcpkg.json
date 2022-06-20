@@ -5,15 +5,19 @@
     "homepage": "https://github.com/BurningEnlightenment/libvefs",
     "dependencies": [
         "benchmark",
+        "boost-container",
+        "boost-endian",
         "boost-exception",
-        "boost-io",
+        "boost-integer",
+        "boost-intrusive",
         "boost-iterator",
+        "boost-mp11",
         "boost-predef",
-        "boost-program-options",
         "boost-preprocessor",
-        "boost-system",
-        "boost-uuid",
+        "boost-throw-exception",
+        "boost-type-traits",
         "boringssl",
+        "concrete",
         "concurrentqueue",
         "deeppack",
         "fmt",
@@ -21,14 +25,25 @@
         "libcuckoo",
         {
             "name": "llfio",
-            "features": [ "cxx20" ]
+            "features": [
+                "cxx20"
+            ]
         },
         {
             "name": "outcome",
-            "features": [ "cxx20" ]
-        }
+            "features": [
+                "cxx20"
+            ]
+        },
+        "stduuid"
     ],
     "features": {
+        "cli": {
+            "description": "Build the CLI",
+            "dependencies": [
+                "boost-program-options"
+            ]
+        },
         "tests": {
             "description": "Build the test suite",
             "dependencies": [

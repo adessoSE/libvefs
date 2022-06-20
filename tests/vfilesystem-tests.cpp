@@ -230,13 +230,13 @@ BOOST_AUTO_TEST_CASE(new_file_system_is_dirty)
 
 BOOST_AUTO_TEST_CASE(filesystem_cannot_commit_non_existing_files)
 {
+    file_id const fid(vefs::uuid{
+            {0xc7, 0xa5, 0x3d, 0x7a, 0xa4, 0xf0, 0x40, 0x53, 0xa7, 0xa3, 0x35,
+             0xf3, 0x5c, 0xdf, 0x53, 0x3d}
+    });
     auto file
-            = vefs::vfile::create_new(
-                      testSubject.get(), workExecutor, sectorAllocator,
-                      file_id(vefs::utils::uuid{
-                              0xc7, 0xa5, 0x3d, 0x7a, 0xa4, 0xf0, 0x40, 0x53,
-                              0xa7, 0xa3, 0x35, 0xf3, 0x5c, 0xdf, 0x53, 0x3d}),
-                      *device, *cryptoCtx)
+            = vefs::vfile::create_new(testSubject.get(), workExecutor,
+                                      sectorAllocator, fid, *device, *cryptoCtx)
                       .value();
     auto result = file->commit();
 

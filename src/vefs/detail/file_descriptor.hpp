@@ -20,7 +20,7 @@ namespace vefs::detail
 {
 struct file_descriptor
 {
-    utils::uuid fileId;
+    uuid fileId;
 
     std::array<std::byte, 32> secret;
     crypto::counter secretCounter;
@@ -42,7 +42,7 @@ struct file_descriptor
     auto operator=(file_descriptor &&) noexcept -> file_descriptor & = default;
 
     file_descriptor() noexcept = default;
-    file_descriptor(utils::uuid id,
+    file_descriptor(uuid id,
                     file_crypto_ctx const &ctx,
                     root_sector_info root) noexcept
         : fileId(id)

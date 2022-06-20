@@ -74,6 +74,8 @@ find_package(libb2 REQUIRED CONFIG)
 
 find_package(libcuckoo CONFIG REQUIRED)
 
+find_package(stduuid CONFIG REQUIRED)
+
 find_package(OpenSSL REQUIRED)
 
 if (BUILD_TESTING)
@@ -90,8 +92,7 @@ if (BUILD_TESTING)
     set(_VEFS_REQUIRE_UNIT_TEST_FRAMEWORK unit_test_framework)
 endif()
 find_package(Boost 1.70 REQUIRED COMPONENTS
-    system
-    program_options
+    #program_options
     ${_VEFS_REQUIRE_UNIT_TEST_FRAMEWORK}
 )
 
@@ -138,7 +139,6 @@ target_link_libraries(vefs
         Vefs::vefs_compiler_settings
 
         Boost::boost
-        Boost::system
         Deeplex::deeppack
         libb2
         fmt::fmt
@@ -146,12 +146,10 @@ target_link_libraries(vefs
         outcome::hl
         unofficial::concurrentqueue::concurrentqueue
         libcuckoo::libcuckoo
+        stduuid
 )
 
 target_compile_definitions(vefs
-    PUBLIC
-        BOOST_UUID_NO_TYPE_TRAITS=1
-
     PRIVATE
         VEFS_DISABLE_WORKAROUNDS=$<BOOL:${VEFS_DISABLE_WORKAROUNDS}>
         VEFS_FLAG_OUTDATED_WORKAROUNDS=$<BOOL:${VEFS_FLAG_OUTDATED_WORKAROUNDS}>

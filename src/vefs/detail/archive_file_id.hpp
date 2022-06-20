@@ -1,85 +1,100 @@
 #pragma once
 
 #include <cstddef>
+#include <span>
 
 #include <fmt/format.h>
 
-#include <vefs/disappointment/error_detail.hpp>
+#include <vefs/disappointment.hpp>
+#include <vefs/platform/sysrandom.hpp>
 #include <vefs/span.hpp>
 #include <vefs/utils/hash/default_weak.hpp>
 #include <vefs/utils/uuid.hpp>
 
 namespace vefs::detail
 {
+
 struct file_id
 {
     static const file_id archive_index;
     static const file_id free_block_index;
 
-    file_id() noexcept = default;
-    explicit file_id(utils::uuid rawId) noexcept;
+    constexpr file_id() noexcept = default;
+    explicit constexpr file_id(uuid rawId) noexcept;
     explicit file_id(ro_blob<16> rawData) noexcept;
 
-    auto as_uuid() const noexcept -> utils::uuid;
+    auto as_uuid() const noexcept -> uuid;
 
-    inline friend auto operator==(const file_id &lhs,
-                                  const file_id &rhs) noexcept -> bool
-    {
-        return lhs.mId == rhs.mId;
-    }
+    static auto generate() noexcept -> result<file_id>;
+
+    inline friend auto operator==(file_id const &lhs,
+                                  file_id const &rhs) noexcept -> bool
+            = default;
 
 private:
-    utils::uuid mId;
+    uuid mId;
 };
 
 inline const file_id file_id::archive_index{
-        utils::uuid{0xba, 0x22, 0xb0, 0x33, 0x4b, 0xa8, 0x4e, 0x5b, 0x83, 0x0c,
-                    0xbf, 0x48, 0x94, 0xaf, 0x53, 0xf8}};
+        uuid{{0xba, 0x22, 0xb0, 0x33, 0x4b, 0xa8, 0x4e, 0x5b, 0x83, 0x0c, 0xbf,
+              0x48, 0x94, 0xaf, 0x53, 0xf8}}};
 inline const file_id file_id::free_block_index{
-        utils::uuid{0x33, 0x38, 0xbe, 0x54, 0x6b, 0x02, 0x49, 0x24, 0x9f, 0xcc,
-                    0x56, 0x3d, 0x7e, 0xe6, 0x81, 0xe6}};
+        uuid{{0x33, 0x38, 0xbe, 0x54, 0x6b, 0x02, 0x49, 0x24, 0x9f, 0xcc, 0x56,
+              0x3d, 0x7e, 0xe6, 0x81, 0xe6}}};
 
-inline file_id::file_id(utils::uuid rawId) noexcept
+constexpr file_id::file_id(uuid rawId) noexcept
     : mId(rawId)
 {
 }
 inline file_id::file_id(ro_blob<16> rawData) noexcept
+    : mId(std::span<std::uint8_t, rawData.extent>(
+            reinterpret_cast<std::uint8_t *>(
+                    const_cast<std::byte *>(rawData.data())),
+            rawData.extent))
 {
-    copy(rawData, as_writable_bytes(std::span(mId.data)));
 }
 
-inline auto file_id::as_uuid() const noexcept -> utils::uuid
+inline auto file_id::as_uuid() const noexcept -> uuid
 {
     return mId;
 }
 
-inline auto operator!=(const file_id &lhs, const file_id &rhs) noexcept -> bool
+inline auto file_id::generate() noexcept -> result<file_id>
 {
-    return !(lhs == rhs);
+    std::uint8_t bytes[16] = {};
+    VEFS_TRY(random_bytes(as_writable_bytes(std::span(bytes))));
+
+    // variant must be 10xxxxxx
+    bytes[8] &= 0b0011'1111;
+    bytes[8] |= 0b1000'0000;
+
+    // version must be 0100xxxx
+    bytes[6] &= 0b0000'1111;
+    bytes[6] |= 0b0100'0000;
+
+    return file_id{uuid{bytes}};
 }
 
 template <typename Impl, typename H>
-inline void compute_hash(const file_id &obj,
+inline void compute_hash(file_id const &obj,
                          H &h,
                          utils::hash::algorithm_tag<Impl>) noexcept
 {
     utils::compute_hash(obj.as_uuid(), h, utils::hash::algorithm_tag<Impl>{});
 }
 template <typename Impl>
-inline void compute_hash(const file_id &obj, Impl &state) noexcept
+inline void compute_hash(file_id const &obj, Impl &state) noexcept
 {
     utils::compute_hash(obj.as_uuid(), state);
 }
+
 } // namespace vefs::detail
 
-namespace std
-{
 template <>
-struct hash<vefs::detail::file_id>
+struct std::hash<vefs::detail::file_id>
     : vefs::utils::hash::default_weak_std<vefs::detail::file_id>
 {
 };
-} // namespace std
 
 template <>
 struct fmt::formatter<vefs::detail::file_id>
@@ -91,17 +106,23 @@ struct fmt::formatter<vefs::detail::file_id>
     }
 
     template <typename FormatContext>
-    auto format(const vefs::detail::file_id &fid, FormatContext &ctx)
+    auto format(vefs::detail::file_id const &fid, FormatContext &ctx)
     {
-        auto &&id = fid.as_uuid();
+        using char_type = typename FormatContext::char_type;
+
         auto out = ctx.out();
-        constexpr std::size_t limit = id.static_size();
-        for (std::size_t i = 0; i < limit; ++i)
+        auto const id = fid.as_uuid();
+        auto const bytes = id.as_bytes();
+        auto const data = reinterpret_cast<std::uint8_t const *>(bytes.data());
+
+        for (std::size_t i = 0, limit = bytes.size(); i < limit; ++i)
         {
-            out = fmt::format_to(out, "{:02X}", id.data[i]);
+            using namespace vefs::detail;
+            *out++ = guid_encoding_lut<char_type>[(data[i] >> 4) & 0x0f];
+            *out++ = guid_encoding_lut<char_type>[data[i] & 0x0f];
             if (i == 3 || i == 5 || i == 7 || i == 9)
             {
-                *out++ = '-';
+                *out++ = guid_encoding_lut<char_type>[0x10];
             }
         }
         return out;
@@ -110,9 +131,11 @@ struct fmt::formatter<vefs::detail::file_id>
 
 namespace vefs::ed
 {
+
 enum class archive_file_id_tag
 {
 };
 using archive_file_id
         = error_detail<archive_file_id_tag, vefs::detail::file_id>;
+
 } // namespace vefs::ed
