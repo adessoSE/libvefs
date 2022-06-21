@@ -14,7 +14,6 @@
 #include <boost/iterator/iterator_facade.hpp>
 
 #include <vefs/disappointment/error_detail.hpp>
-#include <vefs/utils/hash/default_weak.hpp>
 
 #include "sector_device.hpp"
 #include "tree_lut.hpp"
@@ -70,12 +69,6 @@ private:
 
 constexpr auto next(tree_position position) noexcept -> tree_position;
 constexpr auto prev(tree_position position) noexcept -> tree_position;
-
-template <typename Impl>
-inline void compute_hash(tree_position const &obj, Impl &state);
-template <typename Impl, typename H>
-inline void
-compute_hash(tree_position const &obj, H &h, utils::hash::algorithm_tag<Impl>);
 
 /**
  * encapsulates the representation of a path through the tree and the
@@ -253,18 +246,6 @@ constexpr auto next(tree_position value) noexcept -> tree_position
 constexpr auto prev(tree_position value) noexcept -> tree_position
 {
     return tree_position(value.position() - 1, value.layer());
-}
-
-template <typename Impl>
-inline void compute_hash(tree_position const &obj, Impl &state)
-{
-    utils::compute_hash(obj.raw(), state);
-}
-template <typename Impl, typename H>
-inline void
-compute_hash(tree_position const &obj, H &h, utils::hash::algorithm_tag<Impl>)
-{
-    utils::compute_hash(obj.raw(), h, utils::hash::algorithm_tag<Impl>{});
 }
 
 #pragma endregion

@@ -6,9 +6,10 @@
 #include <fmt/format.h>
 
 #include <vefs/disappointment.hpp>
+#include <vefs/hash/hash_algorithm.hpp>
+#include <vefs/hash/spooky_v2.hpp>
 #include <vefs/platform/sysrandom.hpp>
 #include <vefs/span.hpp>
-#include <vefs/utils/hash/default_weak.hpp>
 #include <vefs/utils/uuid.hpp>
 
 namespace vefs::detail
@@ -75,24 +76,11 @@ inline auto file_id::generate() noexcept -> result<file_id>
     return file_id{uuid{bytes}};
 }
 
-template <typename Impl, typename H>
-inline void compute_hash(file_id const &obj,
-                         H &h,
-                         utils::hash::algorithm_tag<Impl>) noexcept
-{
-    utils::compute_hash(obj.as_uuid(), h, utils::hash::algorithm_tag<Impl>{});
-}
-template <typename Impl>
-inline void compute_hash(file_id const &obj, Impl &state) noexcept
-{
-    utils::compute_hash(obj.as_uuid(), state);
-}
-
 } // namespace vefs::detail
 
 template <>
 struct std::hash<vefs::detail::file_id>
-    : vefs::utils::hash::default_weak_std<vefs::detail::file_id>
+    : vefs::std_hash_for<vefs::spooky_v2_hash, vefs::detail::file_id>
 {
 };
 

@@ -190,10 +190,6 @@ dplx_target_sources(vefs # utils
         utils/bitset_overlay.hpp
         utils/enum_bitset.hpp
 
-        utils/hash/algorithm_tag.hpp
-        utils/hash/default_weak.hpp
-        utils/hash/detail/std_adaptor.hpp
-
         utils/unordered_map_mt.hpp
 
     PRIVATE
@@ -210,7 +206,6 @@ dplx_target_sources(vefs # hash
         hash/hash_algorithm.hpp
         hash/hash-std.hpp
         hash/spooky_v2.hpp
-        utils/hash/detail/spooky.hpp
 
     PRIVATE
         hash/detail/spooky_v2_impl.cpp
