@@ -62,6 +62,15 @@ dplx_target_sources(vefs # detail
         detail/preallocated_tree_allocator.hpp
 )
 
+dplx_target_sources(vefs # cache
+    MODE VERBATIM
+    BASE_DIR vefs
+
+    PRIVATE
+        cache/spectral_bloom_filter.cpp
+        cache/spectral_bloom_filter.hpp
+)
+
 dplx_target_sources(vefs # disappointment
     MODE VERBATIM
     BASE_DIR vefs
@@ -246,5 +255,7 @@ if (BUILD_TESTING)
 
         tests/vefs/hash/hash_algorithm.test.cpp
         tests/vefs/hash/spooky_v2.test.cpp
+
+        tests/vefs/cache/spectral_bloom_filter.test.cpp
      )
 endif()

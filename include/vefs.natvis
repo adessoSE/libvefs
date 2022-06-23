@@ -38,4 +38,16 @@
             <Item Name="[position]">mLayerPosition &amp; 0x00FFFFFFFFFFFFFF</Item>
         </Expand>
     </Type>
+
+    <Type Name="vefs::spectral_bloom_filter&lt;*,*&gt;">
+        <Expand>
+            <Item Name="[cells]">mNumCells</Item>
+            <Item Name="[buckets]">mNumCells / 16</Item>
+            <Item Name="[samples]">mSamples</Item>
+            <ArrayItems>
+                <Size>mNumCells / 2U</Size>
+                <ValuePointer>(std::byte *)mBuckets</ValuePointer>
+            </ArrayItems>
+        </Expand>
+    </Type>
 </AutoVisualizer>
