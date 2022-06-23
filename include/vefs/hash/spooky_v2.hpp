@@ -2,10 +2,12 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <span>
 
 #include <dplx/cncr/math_supplement.hpp>
 
 #include <vefs/hash/detail/spooky_v2_impl.hpp>
+#include <vefs/hash/hash_algorithm.hpp>
 #include <vefs/span.hpp>
 
 namespace vefs
@@ -43,36 +45,51 @@ public:
         mState.Update(data, byteSize);
     }
 
-    template <dplx::cncr::unsigned_integer H>
-        requires(4 == sizeof(H) || sizeof(H) == 8)
+    template <hash_type H>
     [[nodiscard]] auto final() noexcept -> H
     {
-        std::uint64_t h1{};
-        std::uint64_t h2{};
-        mState.Final(&h1, &h2);
-        return static_cast<H>(h1);
+        hash128_t h;
+        mState.Final(&h.v[0], &h.v[1]);
+        if constexpr (dplx::cncr::unsigned_integer<H>)
+        {
+            return static_cast<H>(h.v[0]);
+        }
+        else
+        {
+            return h;
+        }
     }
 
-    template <dplx::cncr::unsigned_integer H>
-        requires(4 == sizeof(H) || sizeof(H) == 8)
+    template <hash_type H>
     [[nodiscard]] static auto hash(std::byte const *const data,
                                    std::size_t const byteSize) noexcept -> H
     {
-        std::uint64_t h1{};
-        std::uint64_t h2{};
-        external::SpookyHash::Hash128(data, byteSize, &h1, &h2);
-        return static_cast<H>(h1);
+        hash128_t h{};
+        external::SpookyHash::Hash128(data, byteSize, &h.v[0], &h.v[1]);
+        if constexpr (dplx::cncr::unsigned_integer<H>)
+        {
+            return static_cast<H>(h.v[0]);
+        }
+        else
+        {
+            return h;
+        }
     }
-    template <dplx::cncr::unsigned_integer H>
-        requires(4 == sizeof(H) || sizeof(H) == 8)
+    template <hash_type H>
     [[nodiscard]] static auto hash(key_type const key,
                                    std::byte const *const data,
                                    std::size_t const byteSize) noexcept -> H
     {
-        std::uint64_t h1{key.part1};
-        std::uint64_t h2{key.part2};
-        external::SpookyHash::Hash128(data, byteSize, &h1, &h2);
-        return static_cast<H>(h1);
+        hash128_t h = std::bit_cast<hash128_t>(key);
+        external::SpookyHash::Hash128(data, byteSize, &h.v[0], &h.v[1]);
+        if constexpr (dplx::cncr::unsigned_integer<H>)
+        {
+            return static_cast<H>(h.v[0]);
+        }
+        else
+        {
+            return h;
+        }
     }
 };
 

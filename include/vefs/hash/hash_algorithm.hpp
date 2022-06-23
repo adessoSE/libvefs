@@ -1,10 +1,10 @@
 #pragma once
 
-#include <cstdint>
-
 #include <array>
 #include <bit>
 #include <concepts>
+#include <cstddef>
+#include <cstdint>
 #include <span>
 #include <type_traits>
 
@@ -13,6 +13,16 @@
 
 namespace vefs
 {
+
+struct hash128_t
+{
+    std::uint64_t v[2];
+};
+
+template <typename H>
+concept hash_type
+        = dplx::cncr::unsigned_integer<H> &&(4U == sizeof(H) || sizeof(H) == 8U)
+       || std::same_as<H, hash128_t>;
 
 // clang-format off
 template <typename T>
@@ -102,7 +112,7 @@ template <typename T, typename Algorithm>
 concept hashable
         = dplx::cncr::tag_invocable<hash_update_fn, Algorithm &, T const &>;
 
-template <hash_algorithm Algorithm, dplx::cncr::unsigned_integer H>
+template <hash_algorithm Algorithm, hash_type H>
 struct hash_fn
 {
     template <typename T>
@@ -141,7 +151,7 @@ struct hash_fn
         }
     }
 };
-template <keyable_hash_algorithm Algorithm, dplx::cncr::unsigned_integer H>
+template <keyable_hash_algorithm Algorithm, hash_type H>
 struct hash_fn<Algorithm, H>
 {
     template <typename T>
@@ -233,7 +243,7 @@ struct hash_fn<Algorithm, H>
     }
 };
 
-template <hash_algorithm Algorithm, dplx::cncr::unsigned_integer H>
+template <hash_algorithm Algorithm, hash_type H>
 inline constexpr hash_fn<Algorithm, H> hash{};
 
 template <hash_algorithm Algorithm, hashable<Algorithm> T>
