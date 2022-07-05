@@ -5,54 +5,53 @@
 #include <cstddef>
 #include <cstdint>
 #include <limits>
-#include <memory>
 #include <utility>
+#include <vector>
 
-#include <boost/config.hpp>
-
+#include <boost/predef/compiler.h>
 #include <dplx/cncr/math_supplement.hpp>
 
 #include <vefs/hash/hash_algorithm.hpp>
 #include <vefs/hash/spooky_v2.hpp>
 
-namespace vefs
+namespace vefs::detail
 {
 
+/**
+ * @brief A spectral bloom filter (with conservative update) is a frequency
+ *        sketch for objects.
+ *
+ * A spectral bloom filter "is a hash-based data structure to represent a
+ * dynamically changing associative array of counters." [1] This implementation
+ * utilizes a technique known as conservative update [1] which only increments
+ * the minimal counters associated with an object.
+ *
+ * The core methods are @ref observe() and @ref estimate() which add an item to
+ * the data structure and how often it has been observed respectively.
+ * Additionally we implement the reset mechanic detailed in [2].
+ *
+ * @tparam T is the type of the tracked objects. Must be hashable with
+ *           @ref spooky_v2_hash
+ * @tparam Allocator to be used for the hash buckets.
+ *
+ * @see [1]: https://arxiv.org/pdf/2203.15496.pdf
+ * @see [2]: https://arxiv.org/pdf/1512.00727.pdf
+ */
 template <hashable<spooky_v2_hash> T, typename Allocator = std::allocator<void>>
 class spectral_bloom_filter
 {
-    using bucket_type = std::size_t;
-    using allocator_type = std::allocator_traits<
-            Allocator>::template rebind_alloc<bucket_type>;
-
-    using hasher = spooky_v2_hash;
-    using bucket_traits = std::allocator_traits<allocator_type>;
-    static_assert(
-            std::same_as<bucket_type, typename bucket_traits::value_type>);
-
-    bucket_type *mBuckets;
-    std::uint32_t mNumCells;
-    std::uint32_t mSamples;
-    [[no_unique_address]] allocator_type mAllocator;
-
 public:
-    ~spectral_bloom_filter() noexcept
-    {
-        if (mBuckets != nullptr)
-        {
-            bucket_traits::deallocate(mAllocator, mBuckets, num_buckets());
-        }
-    }
-    spectral_bloom_filter() noexcept
-        : mBuckets{}
-        , mNumCells{}
-        , mSamples{}
-        , mAllocator()
-    {
-    }
-
     using value_type = T;
+    using size_type = std::uint32_t;
+    using hasher = spooky_v2_hash;
+    using bucket_type = std::size_t;
 
+    /**
+     * @brief The number of hash functions.
+     *
+     * The current implementation is optimized by taking the 128bit hash output
+     * and splitting it into four 32bit parts.
+     */
     static constexpr unsigned k = 4U;
 
     static constexpr unsigned bits_per_cell = 4U;
@@ -61,98 +60,36 @@ public:
     static constexpr unsigned cell_limit = 1U << bits_per_cell;
     static constexpr unsigned cell_mask = cell_limit - 1U;
     static constexpr unsigned cell_reset_mask = cell_mask >> 1;
+#if defined(BOOST_COMP_GNUC_AVAILABLE)
+#pragma gcc diagnostic push
+#pragma gcc diagnostic ignore "-Wuseless-cast"
+#endif
     static constexpr bucket_type bucket_reset_mask
-            = static_cast<bucket_type>(0x7777'7777'7777'7777ULL);
+            = static_cast<bucket_type>(0x7777'7777'7777'7777U);
     static constexpr bucket_type bucket_oddity_mask
-            = static_cast<bucket_type>(0x1111'1111'1111'1111ULL);
+            = static_cast<bucket_type>(0x1111'1111'1111'1111U);
+#if defined(BOOST_COMP_GNUC_AVAILABLE)
+#pragma gcc diagnostic pop
+#endif
 
-    spectral_bloom_filter(spectral_bloom_filter const &other)
-        : mBuckets{}
-        , mNumCells{other.mNumCells}
-        , mSamples{other.mSamples}
-        , mAllocator(bucket_traits::select_on_container_copy_construction(
-                  other.mAllocator))
-    {
-        if (mNumCells == 0U)
-        {
-            return;
-        }
-        mBuckets = bucket_traits::allocate(mAllocator, num_buckets());
-        if (mBuckets != nullptr)
-        {
-            std::memcpy(mBuckets, other.mBuckets,
-                        num_buckets() * sizeof(bucket_type));
-        }
-    }
-    auto operator=(spectral_bloom_filter const &other)
-            -> spectral_bloom_filter &
-    {
-        if (mBuckets)
-        {
-            bucket_traits::deallocate(mAllocator,
-                                      std::exchange(mBuckets, nullptr),
-                                      num_buckets());
-        }
-        mNumCells = other.mNumCells;
-        mSamples = other.mSamples;
-        if constexpr (bucket_traits::propagate_on_container_copy_assignment::
-                              value)
-        {
-            mAllocator = other.mAllocator;
-        }
+private:
+    using allocator_type = typename std::allocator_traits<
+            Allocator>::template rebind_alloc<bucket_type>;
 
-        if (mNumCells > 0U)
-        {
-            mBuckets = bucket_traits::allocate(mAllocator, num_buckets());
-            if (mBuckets != nullptr)
-            {
-                std::memcpy(mBuckets, other.mBuckets,
-                            num_buckets() * sizeof(bucket_type));
-            }
-        }
+    using container_type = std::vector<bucket_type, allocator_type>;
 
-        return *this;
-    }
+    container_type mBuckets;
 
-    spectral_bloom_filter(spectral_bloom_filter &&other) noexcept
-        : mBuckets{std::exchange(other.mBuckets, nullptr)}
-        , mNumCells{std::exchange(other.mNumCells, 0U)}
-        , mSamples{std::exchange(other.mSamples, 0U)}
-        , mAllocator(std::move(other.mAllocator))
-    {
-    }
-    auto operator=(spectral_bloom_filter &&other) noexcept
-            -> spectral_bloom_filter &
-    {
-        if (mBuckets != nullptr)
-        {
-            bucket_traits::deallocate(mAllocator, mBuckets, mNumCells);
-        }
-        mBuckets = std::exchange(other.mBuckets, nullptr);
-        mNumCells = std::exchange(other.mNumCells, 0U);
-        mSamples = std::exchange(other.mSamples, 0U);
-        if constexpr (bucket_traits::propagate_on_container_move_assignment::
-                              value)
-        {
-            mAllocator = std::move(mAllocator);
-        }
-        return *this;
-    }
+public:
+    constexpr spectral_bloom_filter() noexcept = default;
 
-    explicit spectral_bloom_filter(std::uint32_t numCells,
-                                   Allocator const &allocator = {})
-        : mBuckets{}
-        , mNumCells{dplx::cncr::round_up_p2(numCells, 64U * cells_per_bucket)}
-        , mSamples{}
-        , mAllocator{allocator}
+    explicit spectral_bloom_filter(size_type const numCells,
+                                   allocator_type const &allocator
+                                   = allocator_type())
+        : mBuckets(dplx::cncr::round_up_p2(numCells / cells_per_bucket,
+                                           64U / sizeof(bucket_type)),
+                   allocator)
     {
-        if (mNumCells == 0U || mNumCells < numCells)
-        {
-            mNumCells = 0U;
-            return;
-        }
-        mBuckets = bucket_traits::allocate(mAllocator, num_buckets());
-        std::memset(mBuckets, 0, num_buckets() * sizeof(bucket_type));
     }
 
     friend inline void swap(spectral_bloom_filter &left,
@@ -160,48 +97,45 @@ public:
     {
         using std::swap;
         swap(left.mBuckets, right.mBuckets);
-        swap(left.mNumCells, right.mNumCells);
-        swap(left.mSamples, right.mSamples);
-        swap(left.mAllocator, right.mAllocator);
     }
 
-    auto num_cells() const noexcept -> std::uint32_t
+    /**
+     * @brief returns the number of counters.
+     */
+    auto num_cells() const noexcept -> size_type
     {
-        return mNumCells;
-    }
-    auto samples() const noexcept -> std::uint32_t
-    {
-        return mSamples;
-    }
-    auto max_samples() const noexcept -> std::uint32_t
-    {
-        return mNumCells / 2U;
+        return static_cast<size_type>(mBuckets.size()) * cells_per_bucket;
     }
 
+    /**
+     * @brief Estimates the frequency of the given object.
+     */
     auto estimate(T const &value) const noexcept -> std::uint32_t
     {
         auto const hashes = std::bit_cast<std::array<std::uint32_t, k>>(
                 hash<hasher, hash128_t>(value));
 
-        unsigned estimate = cell_limit;
-        for (unsigned i = 0; i < k; ++i)
+        unsigned estimate = cell_mask;
+        for (auto const h : hashes)
         {
-            auto const cellIndex = hash_to_index(hashes[i]);
+            auto const cellIndex = detail::hash_to_index(h, num_cells());
             auto const cellShift
                     = (cellIndex % cells_per_bucket) * bits_per_cell;
             auto const bucketIndex = cellIndex / cells_per_bucket;
 
-            auto const value = (mBuckets[bucketIndex] >> cellShift) & cell_mask;
+            auto const cell = (mBuckets[bucketIndex] >> cellShift) & cell_mask;
 
-            if (value < estimate)
-            {
-                estimate = value;
-            }
+            estimate = cell < estimate ? cell : estimate;
         }
         return estimate;
     }
 
-    void observe(T const &value) noexcept
+    /**
+     * @brief Add an item to the frequency sketch.
+     * @return true if the item has been added, false if all counters reached
+     *         their max value.
+     */
+    auto observe(T const &value) noexcept -> bool
     {
         auto const hashes = std::bit_cast<std::array<std::uint32_t, k>>(
                 hash<hasher, hash128_t>(value));
@@ -212,9 +146,10 @@ public:
 
         for (unsigned i = 0U; i < k; ++i)
         {
-            auto const index = hash_to_index(hashes[i]);
-            cellShifts[i] = (index % cells_per_bucket) * bits_per_cell;
-            bucketIndices[i] = index / cells_per_bucket;
+            auto const cellIndex
+                    = detail::hash_to_index(hashes[i], num_cells());
+            cellShifts[i] = (cellIndex % cells_per_bucket) * bits_per_cell;
+            bucketIndices[i] = cellIndex / cells_per_bucket;
 
             values[i]
                     = (mBuckets[bucketIndices[i]] >> cellShifts[i]) & cell_mask;
@@ -230,52 +165,36 @@ public:
         }
         if (estimate == cell_mask)
         {
-            return;
+            return false;
         }
 
-        unsigned samples = 0U;
         for (unsigned i = 0U; i < k; ++i)
         {
-            unsigned const isSample = values[i] == estimate;
-            samples += isSample;
-            mBuckets[bucketIndices[i]] += static_cast<bucket_type>(isSample)
+            unsigned const incr = values[i] == estimate;
+            mBuckets[bucketIndices[i]] += static_cast<bucket_type>(incr)
                                        << cellShifts[i];
         }
-
-        mSamples += samples;
-        if (mSamples >= max_samples())
-        {
-            reset();
-        }
+        return true;
     }
 
-private:
-    void reset() noexcept
+    /**
+     * @brief Implements an aging mechanic by halving all counter values.
+     * @return The number of odd counters i.e. the truncation error sum.
+     */
+    auto reset() noexcept -> std::uint32_t
     {
         std::uint32_t truncationCounter = 0U;
-        for (std::uint32_t i = 0, numBuckets = num_buckets(); i < numBuckets;
-             ++i)
+        for (auto &bucket : mBuckets)
         {
             // count the odd numbers which will be truncated and therefore need
             // to be subtracted from the sample size
             truncationCounter += static_cast<std::uint32_t>(
-                    std::popcount(mBuckets[i] & bucket_oddity_mask));
-            mBuckets[i] >>= 1;
-            mBuckets[i] &= bucket_reset_mask;
+                    std::popcount(bucket & bucket_oddity_mask));
+            bucket >>= 1;
+            bucket &= bucket_reset_mask;
         }
-        mSamples = (mSamples - truncationCounter) / 2U;
-    }
-
-    auto num_buckets() const noexcept -> std::uint32_t
-    {
-        return mNumCells / cells_per_bucket;
-    }
-    auto hash_to_index(std::uint32_t hv) const noexcept -> std::uint32_t
-    {
-        // https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction/
-        return static_cast<std::uint32_t>(
-                (static_cast<std::uint64_t>(hv) * mNumCells) >> 32);
+        return truncationCounter;
     }
 };
 
-} // namespace vefs
+} // namespace vefs::detail

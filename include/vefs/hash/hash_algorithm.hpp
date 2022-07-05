@@ -19,10 +19,13 @@ struct hash128_t
     std::uint64_t v[2];
 };
 
+// clang-format off
 template <typename H>
 concept hash_type
-        = dplx::cncr::unsigned_integer<H> &&(4U == sizeof(H) || sizeof(H) == 8U)
-       || std::same_as<H, hash128_t>;
+        = (dplx::cncr::unsigned_integer<H>
+                && (4U == sizeof(H) || sizeof(H) == 8U))
+        || std::same_as<H, hash128_t>;
+// clang-format on
 
 // clang-format off
 template <typename T>
@@ -256,3 +259,16 @@ struct std_hash_for
 };
 
 } // namespace vefs
+
+namespace vefs::detail
+{
+
+constexpr auto hash_to_index(std::uint32_t h, std::uint32_t buckets) noexcept
+        -> std::uint32_t
+{
+    // https://lemire.me/blog/2016/06/27/a-fast-alternative-to-the-modulo-reduction/
+    return static_cast<std::uint32_t>((static_cast<std::uint64_t>(h) * buckets)
+                                      >> 32);
+}
+
+} // namespace vefs::detail

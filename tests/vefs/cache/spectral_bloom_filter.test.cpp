@@ -59,26 +59,19 @@ BOOST_AUTO_TEST_SUITE(spectral_bloom)
 inline constexpr std::uint32_t cells = 1024U;
 inline constexpr std::uint32_t divider = 0x1'0000'0000U / cells;
 
-inline constexpr triv_h
-        triv_h1(1U * divider, 2U * divider, 3U * divider, 4U * divider);
-
-using test_type = vefs::spectral_bloom_filter<int>;
+using test_type = vefs::detail::spectral_bloom_filter<int>;
 static_assert(std::semiregular<test_type>);
 
 BOOST_AUTO_TEST_CASE(default_ctor)
 {
     test_type subject;
     BOOST_TEST(subject.num_cells() == 0U);
-    BOOST_TEST(subject.samples() == 0U);
-    BOOST_TEST(subject.max_samples() == 0U);
 }
 
 BOOST_AUTO_TEST_CASE(allocating_ctor)
 {
     test_type subject(1024U);
     BOOST_TEST(subject.num_cells() == 1024U);
-    BOOST_TEST(subject.samples() == 0U);
-    BOOST_TEST(subject.max_samples() == 512U);
 }
 
 BOOST_AUTO_TEST_CASE(copy_ctor)
@@ -87,14 +80,10 @@ BOOST_AUTO_TEST_CASE(copy_ctor)
     test_type subject(1024U);
     subject.observe(item);
     BOOST_TEST(subject.estimate(item) == 1U);
-    BOOST_TEST(subject.samples() == 4U);
 
     test_type copy(subject);
     BOOST_TEST(copy.num_cells() == subject.num_cells());
-    BOOST_TEST(copy.samples() == subject.samples());
-    BOOST_TEST(copy.max_samples() == subject.max_samples());
     BOOST_TEST(copy.estimate(item) == 1U);
-    BOOST_TEST(copy.samples() == 4U);
     BOOST_TEST(subject.estimate(item) == 1U);
 }
 BOOST_AUTO_TEST_CASE(copy_assigment)
@@ -103,15 +92,11 @@ BOOST_AUTO_TEST_CASE(copy_assigment)
     test_type subject(1024U);
     subject.observe(item);
     BOOST_TEST(subject.estimate(item) == 1U);
-    BOOST_TEST(subject.samples() == 4U);
 
     test_type copy;
     copy = subject;
     BOOST_TEST(copy.num_cells() == subject.num_cells());
-    BOOST_TEST(copy.samples() == subject.samples());
-    BOOST_TEST(copy.max_samples() == subject.max_samples());
     BOOST_TEST(copy.estimate(item) == 1U);
-    BOOST_TEST(copy.samples() == 4U);
     BOOST_TEST(subject.estimate(item) == 1U);
 }
 
@@ -120,39 +105,27 @@ BOOST_AUTO_TEST_CASE(move_ctor)
     constexpr test_type::value_type item = 1;
     test_type subject(1024U);
     BOOST_TEST(subject.num_cells() == 1024U);
-    BOOST_TEST(subject.max_samples() == 512U);
     subject.observe(item);
     BOOST_TEST(subject.estimate(item) == 1U);
-    BOOST_TEST(subject.samples() == 4U);
 
     test_type copy(std::move(subject));
     BOOST_TEST(copy.num_cells() == 1024U);
-    BOOST_TEST(copy.samples() == 4U);
-    BOOST_TEST(copy.max_samples() == 512U);
     BOOST_TEST(copy.estimate(item) == 1U);
     BOOST_TEST(subject.num_cells() == 0U);
-    BOOST_TEST(subject.samples() == 0U);
-    BOOST_TEST(subject.max_samples() == 0U);
 }
 BOOST_AUTO_TEST_CASE(move_assigment)
 {
     constexpr test_type::value_type item = 1;
     test_type subject(1024U);
     BOOST_TEST(subject.num_cells() == 1024U);
-    BOOST_TEST(subject.max_samples() == 512U);
     subject.observe(item);
     BOOST_TEST(subject.estimate(item) == 1U);
-    BOOST_TEST(subject.samples() == 4U);
 
     test_type copy;
     copy = std::move(subject);
     BOOST_TEST(copy.num_cells() == 1024U);
-    BOOST_TEST(copy.samples() == 4U);
-    BOOST_TEST(copy.max_samples() == 512U);
     BOOST_TEST(copy.estimate(item) == 1U);
     BOOST_TEST(subject.num_cells() == 0U);
-    BOOST_TEST(subject.samples() == 0U);
-    BOOST_TEST(subject.max_samples() == 0U);
 }
 
 BOOST_AUTO_TEST_CASE(observe)
@@ -165,7 +138,7 @@ BOOST_AUTO_TEST_CASE(observe)
 
 BOOST_AUTO_TEST_CASE(observe_distinct)
 {
-    vefs::spectral_bloom_filter<triv_h> subject(cells);
+    vefs::detail::spectral_bloom_filter<triv_h> subject(cells);
 
     triv_h v1(1U * divider, 2U * divider, 3U * divider, 4U * divider);
     triv_h v2(5U * divider, 2U * divider, 3U * divider, 4U * divider);
@@ -187,6 +160,10 @@ BOOST_AUTO_TEST_CASE(observe_heavy_hitters)
     for (int i = 0; i < 0xf000; ++i)
     {
         subject.observe(i);
+        if (i % 512 == 0)
+        {
+            subject.reset();
+        }
     }
 
     for (int i = 1; i <= 8; ++i)
