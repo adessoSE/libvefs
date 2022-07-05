@@ -39,6 +39,15 @@
         </Expand>
     </Type>
 
+    <Type Name="vefs::detail::bloom_filter&lt;*,*&gt;">
+        <Expand>
+            <Item Name="[cells]">(mBuckets._Mypair._Myval2._Mylast - mBuckets._Mypair._Myval2._Myfirst) * sizeof(size_t) * 8U</Item>
+            <ArrayItems>
+                <Size>(mBuckets._Mypair._Myval2._Mylast - mBuckets._Mypair._Myval2._Myfirst) * sizeof(size_t)</Size>
+                <ValuePointer>(std::byte *)mBuckets._Mypair._Myval2._Myfirst</ValuePointer>
+            </ArrayItems>
+        </Expand>
+    </Type>
     <Type Name="vefs::detail::spectral_bloom_filter&lt;*,*&gt;">
         <Expand>
             <Item Name="[cells]">(mBuckets._Mypair._Myval2._Mylast - mBuckets._Mypair._Myval2._Myfirst) * sizeof(size_t) * 2U</Item>

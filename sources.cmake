@@ -67,6 +67,8 @@ dplx_target_sources(vefs # cache
     BASE_DIR vefs
 
     PRIVATE
+        cache/bloom_filter.cpp
+        cache/bloom_filter.hpp
         cache/spectral_bloom_filter.cpp
         cache/spectral_bloom_filter.hpp
 )
@@ -256,6 +258,7 @@ if (BUILD_TESTING)
         tests/vefs/hash/hash_algorithm.test.cpp
         tests/vefs/hash/spooky_v2.test.cpp
 
+        tests/vefs/cache/bloom_filter.test.cpp
         tests/vefs/cache/spectral_bloom_filter.test.cpp
      )
 endif()
