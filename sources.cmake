@@ -71,6 +71,9 @@ dplx_target_sources(vefs # cache
         cache/bloom_filter.hpp
         cache/spectral_bloom_filter.cpp
         cache/spectral_bloom_filter.hpp
+
+        cache/cache_page.cpp
+        cache/cache_page.hpp
 )
 
 dplx_target_sources(vefs # disappointment
@@ -259,6 +262,7 @@ if (BUILD_TESTING)
         tests/vefs/hash/spooky_v2.test.cpp
 
         tests/vefs/cache/bloom_filter.test.cpp
+        tests/vefs/cache/cache_page.test.cpp
         tests/vefs/cache/spectral_bloom_filter.test.cpp
      )
 endif()
