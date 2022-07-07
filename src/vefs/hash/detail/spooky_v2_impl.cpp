@@ -16,10 +16,12 @@
 
 #include <dplx/predef/compiler.h>
 
-#ifdef DPLX_COMP_GNUC_AVAILABLE
+#if defined(DPLX_COMP_GNUC_AVAILABLE)
 #pragma GCC diagnostic ignored "-Wold-style-cast"
 #pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
+#if !defined(DPLX_COMP_GNUC_EMULATED)
 #pragma GCC diagnostic ignored "-Wuseless-cast"
+#endif
 #endif
 
 #define ALLOW_UNALIGNED_READS 1
