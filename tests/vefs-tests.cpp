@@ -3,7 +3,16 @@
 
 #include <openssl/err.h>
 
+#if defined(BOOST_COMP_MSVC_AVAILABLE)
+#pragma warning(push, 3)
+#pragma warning(disable : 4702) // unreachable code
+#endif
+
 #include <gmock/gmock.h>
+
+#if defined(BOOST_COMP_MSVC_AVAILABLE)
+#pragma warning(pop)
+#endif
 
 #include "vefs/crypto/provider.hpp"
 
