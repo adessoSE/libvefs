@@ -68,7 +68,7 @@ inline auto rw_blob_cast(T &obj) noexcept -> rw_blob<sizeof(obj)>
 template <typename T>
 inline auto ro_blob_cast(const T &obj) noexcept -> ro_blob<sizeof(T)>
 {
-    return ro_blob<sizeof(T)>{reinterpret_cast<const std::byte *>(&obj),
+    return ro_blob<sizeof(T)>{reinterpret_cast<std::byte const *>(&obj),
                               sizeof(obj)};
 }
 

@@ -42,17 +42,17 @@ public:
                   > blocks_per_sector);
 
 private:
-    static constexpr std::uint64_t block_to_tree_position(const int block)
+    static constexpr std::uint64_t block_to_tree_position(int const block)
     {
         return static_cast<std::uint64_t>(block) / blocks_per_sector;
     }
 
-    static constexpr std::uint64_t block_to_file_position(const int block)
+    static constexpr std::uint64_t block_to_file_position(int const block)
     {
-        const auto wblock = static_cast<std::uint64_t>(block);
+        auto const wblock = static_cast<std::uint64_t>(block);
 
-        const auto treePosition = wblock / blocks_per_sector;
-        const auto treeOffset = wblock % blocks_per_sector;
+        auto const treePosition = wblock / blocks_per_sector;
+        auto const treeOffset = wblock % blocks_per_sector;
 
         return treePosition * sector_payload_size + alloc_map_size
              + treeOffset * block_size;
@@ -473,7 +473,7 @@ public:
         utils::const_bitset_overlay allocMap(
                 as_span(sector).first<alloc_map_size>());
 
-        const auto ptr = (position % sector_payload_size - alloc_map_size)
+        auto const ptr = (position % sector_payload_size - alloc_map_size)
                        / block_size;
         int numBlocks = ptr + utils::div_ceil(size, block_size);
 
@@ -562,7 +562,7 @@ private:
         {
             // try to reuse an existing allocation
 
-            const auto diff = neededBlocks - reserved;
+            auto const diff = neededBlocks - reserved;
             if (diff > 0)
             {
                 if (auto extendrx = mIndexBlocks.extend(
@@ -609,10 +609,10 @@ private:
     {
         assert(sector);
 
-        const auto begin
+        auto const begin
                 = sector.node_position().position() * blocks_per_sector;
 
-        const auto header = as_span(sector).template subspan<0, block_size>();
+        auto const header = as_span(sector).template subspan<0, block_size>();
         utils::bitset_overlay headerOverlay{header};
 
         // force the last two (unused) bits to zero
@@ -739,7 +739,7 @@ auto vfilesystem::open(const std::string_view filePath,
     file_id id;
     result<vfile_handle> rx = archive_errc::no_such_file;
 
-    if (mIndex.find_fn(filePath, [&id](const file_id &elem) { id = elem; }))
+    if (mIndex.find_fn(filePath, [&id](file_id const &elem) { id = elem; }))
     {
         return open(id);
     }
@@ -811,7 +811,7 @@ auto vfilesystem::erase(std::string_view filePath) -> result<void>
     using eraser_tree = detail::sector_tree_seq<detail::archive_tree_allocator>;
 
     file_id id;
-    if (!mIndex.find_fn(filePath, [&id](const file_id &elem) { id = elem; }))
+    if (!mIndex.find_fn(filePath, [&id](file_id const &elem) { id = elem; }))
     {
         return archive_errc::no_such_file;
     }
@@ -836,7 +836,7 @@ auto vfilesystem::erase(std::string_view filePath) -> result<void>
     else if (erased)
     {
         mIndex.erase_fn(filePath,
-                        [id](const file_id &elem) { return id == elem; });
+                        [id](file_id const &elem) { return id == elem; });
         mWriteFlag.mark();
 
         if (victim.index_file_position >= 0)
@@ -910,7 +910,7 @@ auto vfilesystem::extract(llfio::path_view sourceFilePath,
 
 auto vfilesystem::extractAll(llfio::path_view targetBasePath) -> result<void>
 {
-    for (const auto &indexEntry : mIndex.lock_table())
+    for (auto const &indexEntry : mIndex.lock_table())
     {
         VEFS_TRY(extract(indexEntry.first, targetBasePath,
                          [this, &indexEntry]() -> result<vfile_handle>
@@ -925,10 +925,10 @@ auto vfilesystem::query(const std::string_view filePath)
     using detail::file_id;
     file_id id;
     result<file_query_result> rx = archive_errc::no_such_file;
-    if (mIndex.find_fn(filePath, [&](const file_id &e) { id = e; }))
+    if (mIndex.find_fn(filePath, [&](file_id const &e) { id = e; }))
     {
         mFiles.find_fn(id,
-                       [&](const vfilesystem_entry &e)
+                       [&](vfilesystem_entry const &e)
                        {
                            auto maxExtent = e.tree_info.maximum_extent;
                            if (auto h = e.instance.lock())
@@ -976,7 +976,7 @@ auto vfilesystem::commit() -> result<void>
             detail::lut::sector_position_of(mCommittedRoot.maximum_extent - 1)};
     index_tree_layout layout(*mIndexTree, mIndexBlocks, lastAllocated);
 
-    for (const auto &[path, fid] : lockedIndex)
+    for (auto const &[path, fid] : lockedIndex)
     {
         try
         {
@@ -1008,11 +1008,11 @@ auto vfilesystem::commit() -> result<void>
                         }
                     });
         }
-        catch (const error_exception &exc)
+        catch (error_exception const &exc)
         {
             return exc.error();
         }
-        catch (const std::bad_alloc &)
+        catch (std::bad_alloc const &)
         {
             return errc::not_enough_memory;
         }

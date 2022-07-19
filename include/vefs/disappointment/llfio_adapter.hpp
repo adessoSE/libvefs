@@ -11,6 +11,6 @@ namespace vefs::adl::disappointment
 /**
  * converts llfio::error_info to vefs::error
  */
-auto make_error(const llfio::error_info &info,
+auto make_error(llfio::error_info const &info,
                 adl::disappointment::type) noexcept -> error;
 } // namespace vefs::adl::disappointment

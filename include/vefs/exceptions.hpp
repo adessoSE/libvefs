@@ -43,13 +43,13 @@ enum class errinfo_api_function_tag
 {
 };
 using errinfo_api_function
-        = boost::error_info<errinfo_api_function_tag, const char *>;
+        = boost::error_info<errinfo_api_function_tag, char const *>;
 
 enum class errinfo_param_name_tag
 {
 };
 using errinfo_param_name
-        = boost::error_info<errinfo_param_name_tag, const char *>;
+        = boost::error_info<errinfo_param_name_tag, char const *>;
 
 enum class errinfo_param_misuse_description_tag
 {

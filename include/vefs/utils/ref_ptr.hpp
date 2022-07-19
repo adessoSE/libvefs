@@ -28,7 +28,7 @@ public:
     inline ref_ptr(T *ptr, ref_ptr_acquire_tag) noexcept;
     // imports ownership of an already acquired reference
     inline ref_ptr(T *ptr, ref_ptr_import_tag) noexcept;
-    inline ref_ptr(const ref_ptr &other) noexcept;
+    inline ref_ptr(ref_ptr const &other) noexcept;
     inline ref_ptr(ref_ptr &&other) noexcept;
     template <typename U>
     inline ref_ptr(ref_ptr<U> other,
@@ -37,7 +37,7 @@ public:
     inline ~ref_ptr() noexcept;
 
     inline auto operator=(std::nullptr_t) noexcept -> ref_ptr &;
-    inline auto operator=(const ref_ptr &other) noexcept -> ref_ptr &;
+    inline auto operator=(ref_ptr const &other) noexcept -> ref_ptr &;
     inline auto operator=(ref_ptr &&other) noexcept -> ref_ptr &;
 
     inline explicit operator bool() const noexcept;
@@ -114,7 +114,7 @@ inline ref_ptr<T>::ref_ptr(T *ptr, ref_ptr_import_tag) noexcept
 }
 
 template <class T>
-inline ref_ptr<T>::ref_ptr(const ref_ptr &other) noexcept
+inline ref_ptr<T>::ref_ptr(ref_ptr const &other) noexcept
     : ref_ptr{other.mPtr, ref_ptr_acquire}
 {
 }
@@ -156,7 +156,7 @@ inline auto ref_ptr<T>::operator=(std::nullptr_t) noexcept -> ref_ptr<T> &
 }
 
 template <class T>
-inline auto ref_ptr<T>::operator=(const ref_ptr &other) noexcept -> ref_ptr<T> &
+inline auto ref_ptr<T>::operator=(ref_ptr const &other) noexcept -> ref_ptr<T> &
 {
     if (mPtr)
     {
@@ -258,21 +258,21 @@ public:
     ref_ptr(T *ptr, ref_ptr_import_tag) noexcept;
 
     template <typename T>
-    ref_ptr(const ref_ptr<T> &other) noexcept;
+    ref_ptr(ref_ptr<T> const &other) noexcept;
     template <typename T>
     ref_ptr(ref_ptr<T> &&other) noexcept;
 
-    ref_ptr(const ref_ptr &other) noexcept;
+    ref_ptr(ref_ptr const &other) noexcept;
     ref_ptr(ref_ptr &&other) noexcept;
     ~ref_ptr() noexcept;
 
     template <typename T>
-    auto operator=(const ref_ptr<T> &other) noexcept -> ref_ptr &;
+    auto operator=(ref_ptr<T> const &other) noexcept -> ref_ptr &;
     template <typename T>
     auto operator=(ref_ptr<T> &&other) noexcept -> ref_ptr &;
 
     auto operator=(std::nullptr_t) noexcept -> ref_ptr &;
-    auto operator=(const ref_ptr &other) noexcept -> ref_ptr &;
+    auto operator=(ref_ptr const &other) noexcept -> ref_ptr &;
     auto operator=(ref_ptr &&other) noexcept -> ref_ptr &;
 
     explicit operator bool() const noexcept;
@@ -289,17 +289,17 @@ public:
     }
 
 private:
-    ref_ptr(void *h, const detail::ref_ops_vtable *vtable) noexcept;
+    ref_ptr(void *h, detail::ref_ops_vtable const *vtable) noexcept;
 
     void add_reference_impl() noexcept;
     void release_impl() noexcept;
 
-    const detail::ref_ops_vtable *mVTable;
+    detail::ref_ops_vtable const *mVTable;
     void *mHandle;
 };
 
 inline ref_ptr<void>::ref_ptr(void *h,
-                              const detail::ref_ops_vtable *vtable) noexcept
+                              detail::ref_ops_vtable const *vtable) noexcept
     : mVTable{vtable}
     , mHandle{h}
 {
@@ -344,7 +344,7 @@ inline ref_ptr<void>::ref_ptr(T *ptr, ref_ptr_acquire_tag) noexcept
 }
 
 template <class T>
-inline ref_ptr<void>::ref_ptr(const ref_ptr<T> &other) noexcept
+inline ref_ptr<void>::ref_ptr(ref_ptr<T> const &other) noexcept
     : ref_ptr{other.mPtr, ref_ptr_acquire}
 {
 }
@@ -355,7 +355,7 @@ inline ref_ptr<void>::ref_ptr(ref_ptr<T> &&other) noexcept
 {
 }
 
-inline ref_ptr<void>::ref_ptr(const ref_ptr &other) noexcept
+inline ref_ptr<void>::ref_ptr(ref_ptr const &other) noexcept
     : ref_ptr{other.mHandle, other.mVTable}
 {
     if (mHandle)
@@ -390,7 +390,7 @@ inline auto ref_ptr<void>::operator=(std::nullptr_t) noexcept -> ref_ptr &
     return *this;
 }
 
-inline auto ref_ptr<void>::operator=(const ref_ptr &other) noexcept -> ref_ptr &
+inline auto ref_ptr<void>::operator=(ref_ptr const &other) noexcept -> ref_ptr &
 {
     if (mHandle)
     {
@@ -419,7 +419,7 @@ inline auto ref_ptr<void>::operator=(ref_ptr &&other) noexcept -> ref_ptr &
 }
 
 template <typename T>
-inline auto ref_ptr<void>::operator=(const ref_ptr<T> &other) noexcept
+inline auto ref_ptr<void>::operator=(ref_ptr<T> const &other) noexcept
         -> ref_ptr &
 {
     if (mHandle)
@@ -467,7 +467,7 @@ inline auto ref_ptr<void>::release_as() noexcept -> T *
 }
 
 template <typename T>
-inline auto reinterpret_pointer_cast(const ref_ptr<void> &ptr) noexcept
+inline auto reinterpret_pointer_cast(ref_ptr<void> const &ptr) noexcept
         -> ref_ptr<T>
 {
     return {reinterpret_cast<T *>(ptr.raw_handle()), ref_ptr_acquire};
@@ -488,11 +488,11 @@ public:
 
     constexpr aliasing_ref_ptr(T *ptr, ref_ptr<R> ctr) noexcept;
 
-    constexpr aliasing_ref_ptr(const aliasing_ref_ptr &other) noexcept;
+    constexpr aliasing_ref_ptr(aliasing_ref_ptr const &other) noexcept;
     constexpr aliasing_ref_ptr(aliasing_ref_ptr &&other) noexcept;
 
     constexpr auto operator=(std::nullptr_t) noexcept -> aliasing_ref_ptr &;
-    constexpr auto operator=(const aliasing_ref_ptr &other) noexcept
+    constexpr auto operator=(aliasing_ref_ptr const &other) noexcept
             -> aliasing_ref_ptr &;
     constexpr auto operator=(aliasing_ref_ptr &&other) noexcept
             -> aliasing_ref_ptr &;
@@ -503,7 +503,7 @@ public:
     constexpr auto operator->() const noexcept -> T *;
 
     constexpr auto get() const noexcept -> T *;
-    constexpr auto get_handle() const noexcept -> const ref_ptr<R> &;
+    constexpr auto get_handle() const noexcept -> ref_ptr<R> const &;
 
     friend inline void swap(aliasing_ref_ptr &lhs,
                             aliasing_ref_ptr &rhs) noexcept
@@ -541,7 +541,7 @@ constexpr aliasing_ref_ptr<T, R>::aliasing_ref_ptr(T *ptr,
 
 template <typename T, typename R>
 constexpr aliasing_ref_ptr<T, R>::aliasing_ref_ptr(
-        const aliasing_ref_ptr &other) noexcept
+        aliasing_ref_ptr const &other) noexcept
     : mPtr{other.mPtr}
     , mHandle{other.mHandle}
 {
@@ -564,7 +564,7 @@ constexpr auto aliasing_ref_ptr<T, R>::operator=(std::nullptr_t) noexcept
 }
 template <typename T, typename R>
 constexpr auto
-aliasing_ref_ptr<T, R>::operator=(const aliasing_ref_ptr &other) noexcept
+aliasing_ref_ptr<T, R>::operator=(aliasing_ref_ptr const &other) noexcept
         -> aliasing_ref_ptr &
 {
     mPtr = other.mPtr;
@@ -609,7 +609,7 @@ constexpr auto aliasing_ref_ptr<T, R>::get() const noexcept -> T *
 
 template <typename T, typename R>
 constexpr auto aliasing_ref_ptr<T, R>::get_handle() const noexcept
-        -> const ref_ptr<R> &
+        -> ref_ptr<R> const &
 {
     return mHandle;
 }

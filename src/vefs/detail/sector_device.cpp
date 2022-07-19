@@ -100,31 +100,31 @@ constexpr auto file_format_id = utils::make_byte_array(0x82,
                                                        0x1A);
 
 template <std::size_t N>
-inline auto byte_literal(const char (&arr)[N]) noexcept
+inline auto byte_literal(char const (&arr)[N]) noexcept
 {
-    std::span<const char, N> literalMem{arr};
+    std::span<char const, N> literalMem{arr};
     return as_bytes(literalMem.template first<N - 1>());
 }
 
-const auto archive_static_header_kdf_prk
+auto const archive_static_header_kdf_prk
         = byte_literal("vefs/prk/StaticArchiveHeaderPRK");
-const auto archive_static_header_kdf_salt
+auto const archive_static_header_kdf_salt
         = byte_literal("vefs/salt/StaticArchiveHeaderWriteCounter");
-const auto archive_header_kdf_prk = byte_literal("vefs/prk/ArchiveHeaderPRK");
-const auto archive_header_kdf_salt
+auto const archive_header_kdf_prk = byte_literal("vefs/prk/ArchiveHeaderPRK");
+auto const archive_header_kdf_salt
         = byte_literal("vefs/salt/ArchiveSecretCounter");
 
-const auto archive_secret_counter_kdf
+auto const archive_secret_counter_kdf
         = byte_literal("vefs/seed/ArchiveSecretCounter");
-const auto archive_journal_counter_kdf
+auto const archive_journal_counter_kdf
         = byte_literal("vefs/seed/JournalCounter");
 
-const auto sector_kdf_salt = byte_literal("vefs/salt/Sector-Salt");
-const auto sector_kdf_erase = byte_literal("vefs/erase/Sector");
-const auto sector_kdf_prk = byte_literal("vefs/prk/SectorPRK");
+auto const sector_kdf_salt = byte_literal("vefs/salt/Sector-Salt");
+auto const sector_kdf_erase = byte_literal("vefs/erase/Sector");
+auto const sector_kdf_prk = byte_literal("vefs/prk/SectorPRK");
 
-const auto file_kdf_secret = byte_literal("vefs/seed/FileSecret");
-const auto file_kdf_counter = byte_literal("vefs/seed/FileSecretCounter");
+auto const file_kdf_secret = byte_literal("vefs/seed/FileSecret");
+auto const file_kdf_counter = byte_literal("vefs/seed/FileSecretCounter");
 
 #pragma pack(push, 1)
 
@@ -556,7 +556,7 @@ auto sector_device::sync_personalization_area() noexcept -> result<void>
 }
 
 auto sector_device::read_sector(rw_blob<sector_payload_size> contentDest,
-                                const file_crypto_ctx &fileCtx,
+                                file_crypto_ctx const &fileCtx,
                                 sector_id sectorIdx,
                                 ro_blob<16> contentMAC) noexcept -> result<void>
 {

@@ -48,7 +48,7 @@ constexpr atomic_ring_counter<LIMIT>::atomic_ring_counter() noexcept
 template <std::size_t LIMIT>
 inline auto atomic_ring_counter<LIMIT>::fetch_next() noexcept -> std::size_t
 {
-    const auto nxt = mCtr.fetch_add(1, std::memory_order_acquire);
+    auto const nxt = mCtr.fetch_add(1, std::memory_order_acquire);
     if constexpr (limit - 1
                   == static_cast<std::size_t>(
                           std::numeric_limits<value_type>::max()))

@@ -202,7 +202,7 @@ public:
     constexpr blake2_error_domain_type() noexcept = default;
 
     auto name() const noexcept -> std::string_view override;
-    auto message(const error &e, const error_code code) const noexcept
+    auto message(error const &e, const error_code code) const noexcept
             -> std::string_view override;
 };
 constexpr blake2_error_domain_type blake2_error_domain_v{};
@@ -212,13 +212,13 @@ auto blake2_error_domain_type::name() const noexcept -> std::string_view
     using namespace std::string_view_literals;
     return "libb2-error-domain"sv;
 }
-auto blake2_error_domain_type::message(const error &,
+auto blake2_error_domain_type::message(error const &,
                                        const error_code code) const noexcept
         -> std::string_view
 {
     using namespace std::string_view_literals;
 
-    const auto value = static_cast<blake2_errc>(code);
+    auto const value = static_cast<blake2_errc>(code);
     switch (value)
     {
     case blake2_errc::finalization_failed:
@@ -251,7 +251,7 @@ auto blake2_error_domain_type::message(const error &,
 }
 } // namespace
 
-auto blake2_error_domain() noexcept -> const error_domain &
+auto blake2_error_domain() noexcept -> error_domain const &
 {
     return blake2_error_domain_v;
 }

@@ -104,7 +104,7 @@ public:
                 std::lock_guard deallocationLock{mDeallocationSync};
                 mOverwrittenAllocations.push_back(prevAllocation);
             }
-            catch (const std::bad_alloc &)
+            catch (std::bad_alloc const &)
             {
                 on_leak_detected();
             }
@@ -120,7 +120,7 @@ public:
             mOverwrittenAllocations.push_back(which);
             return success();
         }
-        catch (const std::bad_alloc &)
+        catch (std::bad_alloc const &)
         {
             return errc::not_enough_memory;
         }
@@ -138,17 +138,18 @@ public:
         mCommitCounter += 1;
         const std::scoped_lock lock{mBufferSync, mDeallocationSync};
 
-        const auto bufferAmount = std::min(mAllocationBuffer.capacity()
+        auto const bufferAmount = std::min(mAllocationBuffer.capacity()
                                                    - mAllocationBuffer.size(),
                                            mOverwrittenAllocations.size());
-        const auto split
+        auto const split
                 = std::next(mOverwrittenAllocations.begin(), bufferAmount);
 
         std::copy(mOverwrittenAllocations.begin(), split,
                   std::back_inserter(mAllocationBuffer));
 
         std::for_each(split, mOverwrittenAllocations.end(),
-                      [this](sector_id allocation) {
+                      [this](sector_id allocation)
+                      {
                           mSourceAllocator.dealloc_one(
                                   allocation,
                                   source_allocator_type::leak_on_failure);

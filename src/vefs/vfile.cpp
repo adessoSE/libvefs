@@ -45,7 +45,7 @@ try
 
     return self;
 }
-catch (const std::bad_alloc &)
+catch (std::bad_alloc const &)
 {
     return errc::not_enough_memory;
 }
@@ -78,7 +78,7 @@ try
 
     return self;
 }
-catch (const std::bad_alloc &)
+catch (std::bad_alloc const &)
 {
     return errc::not_enough_memory;
 }
@@ -214,9 +214,8 @@ auto vfile::commit() -> result<void>
     mWriteFlag.unmark();
 
     auto commitRx = mFileTree->commit(
-            [this](detail::root_sector_info committedRootInfo) noexcept {
-                return sync_commit_info(committedRootInfo);
-            });
+            [this](detail::root_sector_info committedRootInfo) noexcept
+            { return sync_commit_info(committedRootInfo); });
     if (!commitRx)
     {
         mWriteFlag.mark();

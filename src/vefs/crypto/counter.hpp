@@ -25,7 +25,7 @@ public:
     explicit counter(state ctrState);
     explicit counter(ro_blob<state_size> ctrState);
 
-    const state &value() const noexcept;
+    state const &value() const noexcept;
     auto view() const noexcept -> ro_blob<state_size>;
     void increment();
     counter &operator++();
@@ -46,7 +46,7 @@ inline counter::counter(ro_blob<state_size> ctrState)
     copy(ctrState, as_writable_bytes(as_span(mCtrState)));
 }
 
-inline const counter::state &counter::value() const noexcept
+inline counter::state const &counter::value() const noexcept
 {
     return mCtrState;
 }
@@ -69,13 +69,13 @@ inline counter counter::operator++(int)
     return current;
 }
 
-inline bool operator==(const counter &lhs, const counter &rhs)
+inline bool operator==(counter const &lhs, counter const &rhs)
 {
-    const auto &lhstate = lhs.value();
-    const auto &rhstate = rhs.value();
+    auto const &lhstate = lhs.value();
+    auto const &rhstate = rhs.value();
     return std::equal(lhstate.cbegin(), lhstate.cend(), rhstate.cbegin());
 }
-inline bool operator!=(const counter &lhs, const counter &rhs)
+inline bool operator!=(counter const &lhs, counter const &rhs)
 {
     return !(lhs == rhs);
 }
@@ -108,7 +108,7 @@ struct atomic<vefs::crypto::counter>
         , mAccessMutex()
     {
     }
-    atomic(const atomic &) = delete;
+    atomic(atomic const &) = delete;
 
     static constexpr bool is_lock_free() noexcept
     {
@@ -138,7 +138,7 @@ struct atomic<vefs::crypto::counter>
         std::lock_guard lock{mAccessMutex};
         return mImpl = desired;
     }
-    atomic &operator=(const atomic &) = delete;
+    atomic &operator=(atomic const &) = delete;
 
     value_type exchange(value_type desired,
                         std::memory_order = std::memory_order_seq_cst) noexcept
@@ -148,20 +148,20 @@ struct atomic<vefs::crypto::counter>
         mImpl = desired;
         return old;
     }
-    bool compare_exchange_weak(const value_type &expected,
+    bool compare_exchange_weak(value_type const &expected,
                                value_type desired,
                                std::memory_order
                                = std::memory_order_seq_cst) noexcept
     {
         std::lock_guard lock{mAccessMutex};
-        const auto success = mImpl == expected;
+        auto const success = mImpl == expected;
         if (success)
         {
             mImpl = desired;
         }
         return success;
     }
-    bool compare_exchange_strong(const value_type &expected,
+    bool compare_exchange_strong(value_type const &expected,
                                  value_type desired,
                                  std::memory_order
                                  = std::memory_order_seq_cst) noexcept

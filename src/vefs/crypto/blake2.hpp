@@ -37,7 +37,7 @@ enum class blake2_errc
     state_init_param_failed,
     update_failed,
 };
-auto blake2_error_domain() noexcept -> const error_domain &;
+auto blake2_error_domain() noexcept -> error_domain const &;
 
 inline auto make_error(blake2_errc value,
                        vefs::adl::disappointment::type) noexcept -> error

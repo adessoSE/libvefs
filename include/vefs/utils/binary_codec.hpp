@@ -118,7 +118,7 @@ public:
     {
         return mBuffer.data();
     }
-    auto data() const noexcept -> const std::byte *
+    auto data() const noexcept -> std::byte const *
     {
         return mBuffer.data();
     }

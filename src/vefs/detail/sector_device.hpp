@@ -87,7 +87,7 @@ public:
     ~sector_device() = default;
 
     auto read_sector(rw_blob<sector_payload_size> contentDest,
-                     const file_crypto_ctx &fileCtx,
+                     file_crypto_ctx const &fileCtx,
                      sector_id sectorIdx,
                      ro_blob<16> contentMAC) noexcept -> result<void>;
 
@@ -116,7 +116,7 @@ public:
     ro_blob<64> master_secret_view() const;
     ro_blob<16> session_salt_view() const;
 
-    const crypto::crypto_provider *crypto() const;
+    crypto::crypto_provider const *crypto() const;
     crypto::atomic_counter &master_secret_counter();
 
     auto create_file_secrets() noexcept
@@ -200,7 +200,7 @@ inline ro_blob<16> sector_device::session_salt_view() const
     return as_span(mSessionSalt);
 }
 
-inline const crypto::crypto_provider *sector_device::crypto() const
+inline crypto::crypto_provider const *sector_device::crypto() const
 {
     return mCryptoProvider;
 }

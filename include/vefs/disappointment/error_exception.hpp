@@ -14,7 +14,7 @@ public:
     error_exception() = delete;
     explicit error_exception(vefs::error err) noexcept;
 
-    const char *what() const noexcept override;
+    char const *what() const noexcept override;
 
     auto error() const noexcept -> vefs::error;
 

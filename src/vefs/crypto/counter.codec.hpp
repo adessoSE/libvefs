@@ -78,7 +78,6 @@ public:
     }
 };
 
-
 constexpr auto tag_invoke(encoded_size_of_fn,
                           vefs::crypto::counter const &) noexcept -> unsigned
 {
@@ -86,10 +85,10 @@ constexpr auto tag_invoke(encoded_size_of_fn,
 }
 
 constexpr auto tag_invoke(encoded_size_of_fn,
-                          vefs::crypto::atomic_counter const &) noexcept -> unsigned
+                          vefs::crypto::atomic_counter const &) noexcept
+        -> unsigned
 {
     return 17U;
 }
-
 
 } // namespace dplx::dp

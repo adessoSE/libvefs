@@ -25,9 +25,9 @@ public:
     error_detail_base() = default;
     virtual ~error_detail_base() noexcept = default;
 
-    error_detail_base(const error_detail_base &) = delete;
+    error_detail_base(error_detail_base const &) = delete;
     error_detail_base(error_detail_base &&) = delete;
-    error_detail_base &operator=(const error_detail_base &) = delete;
+    error_detail_base &operator=(error_detail_base const &) = delete;
     error_detail_base &operator=(error_detail_base &&) = delete;
 
     virtual void stringify(format_buffer &out) const noexcept = 0;
@@ -51,7 +51,7 @@ public:
     error_detail(T &&v) noexcept(std::is_nothrow_move_constructible_v<T>);
 
     auto value() noexcept -> value_type &;
-    auto value() const noexcept -> const value_type &;
+    auto value() const noexcept -> value_type const &;
 
 private:
     value_type mValue;
@@ -82,7 +82,7 @@ inline auto error_detail<Tag, T>::value() noexcept -> value_type &
     return mValue;
 }
 template <typename Tag, typename T>
-inline auto error_detail<Tag, T>::value() const noexcept -> const value_type &
+inline auto error_detail<Tag, T>::value() const noexcept -> value_type const &
 {
     return mValue;
 }
@@ -119,7 +119,7 @@ inline void error_detail<Tag, T>::stringify(format_buffer &out) const noexcept
         fmt::format_to(std::back_inserter(out), "{}", mValue);
         return; // success
     }
-    catch (const std::exception &e)
+    catch (std::exception const &e)
     {
         out.resize(valueStart);
         try
@@ -177,7 +177,7 @@ struct formatter<vefs::detail::error_detail_base>
     }
 
     template <typename FormatContext>
-    auto format(const vefs::detail::error_detail_base &detail,
+    auto format(vefs::detail::error_detail_base const &detail,
                 FormatContext &ctx)
     {
         return format_to(ctx.begin(), "{}", detail.stringify());

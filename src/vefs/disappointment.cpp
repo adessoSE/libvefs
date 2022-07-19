@@ -27,7 +27,7 @@ auto error::success_domain::name() const noexcept -> std::string_view
     using namespace std::string_view_literals;
     return "success-domain"sv;
 }
-auto error::success_domain::message(const error &,
+auto error::success_domain::message(error const &,
                                     const error_code code) const noexcept
         -> std::string_view
 {
@@ -35,7 +35,7 @@ auto error::success_domain::message(const error &,
     return code == 0 ? "success"sv : "invalid-success-code"sv;
 }
 const error::success_domain error::success_domain::sInstance;
-auto error::success_domain::instance() noexcept -> const error_domain &
+auto error::success_domain::instance() noexcept -> error_domain const &
 {
     return sInstance;
 }
@@ -65,7 +65,7 @@ auto error::diagnostic_information(error_message_format format) const noexcept
     }
 }
 
-const char *error_exception::what() const noexcept
+char const *error_exception::what() const noexcept
 {
     if (mErrDesc.size() == 0)
     {
@@ -74,7 +74,7 @@ const char *error_exception::what() const noexcept
             mErrDesc = mErr.diagnostic_information(
                     error_message_format::with_diagnostics);
         }
-        catch (const std::bad_alloc &)
+        catch (std::bad_alloc const &)
         {
             return "<error_exception|failed to allocate the diagnostic "
                    "information string>";
@@ -96,7 +96,7 @@ namespace vefs
 class generic_domain_type final : public error_domain
 {
     auto name() const noexcept -> std::string_view override;
-    auto message(const error &, const error_code code) const noexcept
+    auto message(error const &, const error_code code) const noexcept
             -> std::string_view override;
 
 public:
@@ -110,7 +110,7 @@ auto generic_domain_type::name() const noexcept -> std::string_view
     return "generic-domain"sv;
 }
 
-auto generic_domain_type::message(const error &,
+auto generic_domain_type::message(error const &,
                                   const error_code value) const noexcept
         -> std::string_view
 {
@@ -169,7 +169,7 @@ namespace
 constexpr generic_domain_type generic_domain_v{};
 }
 
-auto generic_domain() noexcept -> const error_domain &
+auto generic_domain() noexcept -> error_domain const &
 {
     return generic_domain_v;
 }
@@ -177,7 +177,7 @@ auto generic_domain() noexcept -> const error_domain &
 class archive_domain_type final : public error_domain
 {
     auto name() const noexcept -> std::string_view override;
-    auto message(const error &, const error_code code) const noexcept
+    auto message(error const &, const error_code code) const noexcept
             -> std::string_view override;
 
 public:
@@ -191,7 +191,7 @@ auto archive_domain_type::name() const noexcept -> std::string_view
     return "vefs-archive-domain"sv;
 }
 
-auto archive_domain_type::message(const error &,
+auto archive_domain_type::message(error const &,
                                   const error_code value) const noexcept
         -> std::string_view
 {
@@ -268,7 +268,7 @@ namespace
 constexpr archive_domain_type archive_domain_v{};
 }
 
-auto archive_domain() noexcept -> const error_domain &
+auto archive_domain() noexcept -> error_domain const &
 {
     return archive_domain_v;
 }
@@ -292,18 +292,18 @@ namespace
 class std_adapter_domain final : public error_domain
 {
 public:
-    constexpr std_adapter_domain(const std::error_category *impl) noexcept;
+    constexpr std_adapter_domain(std::error_category const *impl) noexcept;
 
 private:
     auto name() const noexcept -> std::string_view override;
-    auto message(const error &, const error_code code) const noexcept
+    auto message(error const &, const error_code code) const noexcept
             -> std::string_view override;
 
-    const std::error_category *const mImpl;
+    std::error_category const *const mImpl;
 };
 
 constexpr std_adapter_domain::std_adapter_domain(
-        const std::error_category *impl) noexcept
+        std::error_category const *impl) noexcept
     : mImpl{impl}
 {
 }
@@ -313,7 +313,7 @@ auto std_adapter_domain::name() const noexcept -> std::string_view
     return mImpl->name();
 }
 
-auto std_adapter_domain::message(const error &e,
+auto std_adapter_domain::message(error const &e,
                                  const error_code code) const noexcept
         -> std::string_view
 {
@@ -331,7 +331,7 @@ auto std_adapter_domain::message(const error &e,
             msg = mImpl->message(static_cast<int>(code));
             ;
         }
-        catch (const std::bad_alloc &)
+        catch (std::bad_alloc const &)
         {
             return "<std_adapter_domain failed to allocate the message buffer>"sv;
         }
@@ -356,12 +356,12 @@ const std_adapter_domain iostream_cat_adapter{&std::iostream_category()};
 const std_adapter_domain future_cat_adapter{&std::future_category()};
 
 std::mutex nonstandard_category_domain_map_sync{};
-std::unordered_map<const std::error_category *,
+std::unordered_map<std::error_category const *,
                    std::unique_ptr<std_adapter_domain>>
         nonstandard_category_domain_map{8};
 
-auto adapt_domain(const std::error_category &cat) noexcept
-        -> const error_domain &
+auto adapt_domain(std::error_category const &cat) noexcept
+        -> error_domain const &
 {
     if (cat == std::generic_category())
     {
@@ -404,7 +404,7 @@ auto make_error(std::errc ec, adl::disappointment::type) noexcept -> error
     return {static_cast<error_code>(ec), generic_cat_adapter};
 }
 
-auto make_error(const llfio::error_info &info,
+auto make_error(llfio::error_info const &info,
                 adl::disappointment::type) noexcept -> error
 {
     return make_error_code(info);

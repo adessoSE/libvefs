@@ -24,7 +24,7 @@ public:
     {
         seed<Sseq>(init);
     }
-    splitmix64(const splitmix64 &) = default;
+    splitmix64(splitmix64 const &) = default;
 
     inline void seed(std::uint64_t init)
     {
@@ -88,7 +88,7 @@ public:
         : s{s1, s2}
     {
     }
-    xoroshiro128plus(const xoroshiro128plus &) = default;
+    xoroshiro128plus(xoroshiro128plus const &) = default;
 
     inline void seed(std::uint64_t init)
     {

@@ -140,8 +140,10 @@ inline auto pool_allocator_mt<ELEM_SIZE, NUM_ELEMS, BlockAllocator, ALIGNMENT>::
 
     auto blockPos = mAllocMap.reserve_slot();
     auto memory = mBlock.subspan(blockPos * avals::adj_elem_size, size);
-    return std::tuple{memory_allocation{memory.data(), memory.size()},
-                      blockPos};
+    return std::tuple{
+            memory_allocation{memory.data(), memory.size()},
+            blockPos
+    };
 }
 
 template <std::size_t ELEM_SIZE,
@@ -171,7 +173,7 @@ pool_allocator_mt<ELEM_SIZE, NUM_ELEMS, BlockAllocator, ALIGNMENT>::reallocate(
     {
         return errc::not_supported;
     }
-    const auto memspan = memblock.writeable_bytes();
+    auto const memspan = memblock.writeable_bytes();
     return memory_allocation{memspan.data(), size};
 }
 
@@ -186,7 +188,7 @@ pool_allocator_mt<ELEM_SIZE, NUM_ELEMS, BlockAllocator, ALIGNMENT>::deallocate(
     assert(owns(memblock));
 
     auto *const ptr = memblock.writeable_bytes().data();
-    const auto idx = (ptr - mBlock.data()) / avals::adj_elem_size;
+    auto const idx = (ptr - mBlock.data()) / avals::adj_elem_size;
 
     mAllocMap.release_slot(idx);
 
@@ -201,7 +203,7 @@ inline bool
 pool_allocator_mt<ELEM_SIZE, NUM_ELEMS, BlockAllocator, ALIGNMENT>::owns(
         const memory_allocation memblock) const noexcept
 {
-    const auto memspan = memblock.writeable_bytes();
+    auto const memspan = memblock.writeable_bytes();
 
     std::byte *start = memspan.data();
     std::byte *end = memspan.data() + memspan.size();

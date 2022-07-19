@@ -208,11 +208,9 @@ template <typename Primary, typename... Fallbacks>
 inline auto octopus_allocator<Primary, Fallbacks...>::owns(
         const memory_allocation memblock) noexcept -> bool
 {
-    return std::apply(
-            [memblock](auto &...allocs) {
-                return (... || allocs.owns(memblock));
-            },
-            alloc_tuple());
+    return std::apply([memblock](auto &...allocs)
+                      { return (... || allocs.owns(memblock)); },
+                      alloc_tuple());
 }
 
 #if defined BOOST_COMP_MSVC_AVAILABLE

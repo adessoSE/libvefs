@@ -149,8 +149,8 @@ template <std::size_t NUM_ELEMS, typename unit_type>
 inline void
 pool_alloc_map_mt<NUM_ELEMS, unit_type>::release_slot(std::size_t slot) noexcept
 {
-    const auto unitIdx = slot / elems_per_unit;
-    const auto pos = slot % elems_per_unit;
+    auto const unitIdx = slot / elems_per_unit;
+    auto const pos = slot % elems_per_unit;
 
     mAllocMap[unitIdx].fetch_or(bit_at(pos), std::memory_order_release);
 }

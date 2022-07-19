@@ -24,7 +24,7 @@ kdf(rw_dynblob prk, ro_dynblob inputKey, ro_dynblob domain) noexcept;
 
 template <typename... DomainParts>
 result<void>
-kdf(rw_dynblob prk, ro_dynblob inputKey, const DomainParts &...parts)
+kdf(rw_dynblob prk, ro_dynblob inputKey, DomainParts const &...parts)
 {
     std::array<ro_dynblob, sizeof...(DomainParts)> lparts{
             as_bytes(std::span(parts))...};

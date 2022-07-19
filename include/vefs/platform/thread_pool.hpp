@@ -20,10 +20,10 @@ protected:
     virtual ~thread_pool() noexcept = default;
 
 public:
-    thread_pool(const thread_pool &) = delete;
+    thread_pool(thread_pool const &) = delete;
     thread_pool(thread_pool &&) = delete;
 
-    thread_pool &operator=(const thread_pool &) = delete;
+    thread_pool &operator=(thread_pool const &) = delete;
     thread_pool &operator=(thread_pool &&) = delete;
 
     using task_t = std::function<void()>;
@@ -53,9 +53,8 @@ inline void thread_pool::execute(F &&task)
     else
     {
         execute(std::make_unique<task_t>(
-                [btask = std::forward<F>(task)]() mutable {
-                    std::invoke(btask);
-                }));
+                [btask = std::forward<F>(task)]() mutable
+                { std::invoke(btask); }));
     }
 }
 

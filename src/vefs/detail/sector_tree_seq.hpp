@@ -150,20 +150,20 @@ private:
     auto move_to(const tree_path loadPath, const access_mode mode) noexcept
             -> result<void>;
 
-    auto load_next(const int parentRefOffset) noexcept -> result<void>;
-    auto load(const tree_path &newPath,
+    auto load_next(int const parentRefOffset) noexcept -> result<void>;
+    auto load(tree_path const &newPath,
               tree_path::const_iterator &updateIt,
               const tree_path::const_iterator end) noexcept -> result<void>;
 
-    auto create_next(const int parentRefOffset) noexcept -> result<void>;
+    auto create_next(int const parentRefOffset) noexcept -> result<void>;
     auto create(tree_path::const_iterator updateIt,
                 const tree_path::iterator end) noexcept -> result<void>;
 
-    auto compute_update_range(const tree_path &newPath,
-                              const bool forceReload) const noexcept
+    auto compute_update_range(tree_path const &newPath,
+                              bool const forceReload) const noexcept
             -> std::pair<tree_path::const_iterator, tree_path::const_iterator>;
 
-    auto grow_tree(const int desiredDepth) noexcept -> result<void>;
+    auto grow_tree(int const desiredDepth) noexcept -> result<void>;
     auto require_tree_depth(const std::uint64_t leafPosition,
                             const access_mode mode) noexcept -> result<void>;
 
@@ -171,22 +171,22 @@ private:
 
     auto collect_next_layer(utils::bitset_overlay bitset) -> result<void>;
 
-    auto sync_to_device(const int layer) noexcept -> result<void>;
+    auto sync_to_device(int const layer) noexcept -> result<void>;
 
-    auto node(const int treeLayer) noexcept -> node_info &
+    auto node(int const treeLayer) noexcept -> node_info &
     {
         return mNodeInfos[treeLayer].value();
     }
-    auto node_data(const int treeLayer) noexcept -> data_storage_type &
+    auto node_data(int const treeLayer) noexcept -> data_storage_type &
     {
         return mDataBlocks[treeLayer];
     }
-    auto node_data_span(const int treeLayer) noexcept
+    auto node_data_span(int const treeLayer) noexcept
             -> rw_blob<std::tuple_size<data_storage_type>::value>
     {
         return node_data(treeLayer);
     }
-    auto ref_node(const int treeLayer) noexcept -> reference_sector_layout
+    auto ref_node(int const treeLayer) noexcept -> reference_sector_layout
     {
         return reference_sector_layout(node_data_span(treeLayer));
     }
@@ -426,7 +426,7 @@ inline auto sector_tree_seq<TreeAllocator>::commit(Fn &&commitFn) noexcept
 
 template <typename TreeAllocator>
 inline auto
-sector_tree_seq<TreeAllocator>::load_next(const int parentRefOffset) noexcept
+sector_tree_seq<TreeAllocator>::load_next(int const parentRefOffset) noexcept
         -> result<void>
 {
     auto layer = last_loaded_index() - 1;
@@ -554,7 +554,7 @@ sector_tree_seq<TreeAllocator>::erase_leaf(std::uint64_t leafId) noexcept
 
     auto refNode = ref_node(1);
 
-    const auto ref = refNode.read(refOffset);
+    auto const ref = refNode.read(refOffset);
     VEFS_TRY(mDevice.erase_sector(ref.sector));
 
     mTreeAllocator.dealloc_one(ref.sector,
@@ -606,7 +606,7 @@ inline auto sector_tree_seq<TreeAllocator>::compute_update_range(
 
 template <typename TreeAllocator>
 inline auto sector_tree_seq<TreeAllocator>::load(
-        const tree_path &newPath,
+        tree_path const &newPath,
         tree_path::const_iterator &updateIt,
         const tree_path::const_iterator end) noexcept -> result<void>
 {
@@ -616,7 +616,7 @@ inline auto sector_tree_seq<TreeAllocator>::load(
         return success();
     }
 
-    const auto numChanged = updateIt->layer();
+    auto const numChanged = updateIt->layer();
     for (int i = last_loaded_index(); i <= numChanged; ++i)
     {
         VEFS_TRY(sync_to_device(i));
@@ -635,7 +635,7 @@ inline auto sector_tree_seq<TreeAllocator>::load(
 
 template <typename TreeAllocator>
 inline auto
-sector_tree_seq<TreeAllocator>::create_next(const int parentRefOffset) noexcept
+sector_tree_seq<TreeAllocator>::create_next(int const parentRefOffset) noexcept
         -> result<void>
 {
     auto layer = mRootInfo.tree_depth - (mLoaded + 1);
@@ -665,7 +665,7 @@ sector_tree_seq<TreeAllocator>::create(tree_path::const_iterator updateIt,
 
 template <typename TreeAllocator>
 inline auto
-sector_tree_seq<TreeAllocator>::grow_tree(const int desiredDepth) noexcept
+sector_tree_seq<TreeAllocator>::grow_tree(int const desiredDepth) noexcept
         -> result<void>
 {
     for (int depth = mRootInfo.tree_depth + 1; depth <= desiredDepth; ++depth)
@@ -687,7 +687,7 @@ inline auto sector_tree_seq<TreeAllocator>::require_tree_depth(
         const std::uint64_t leafPosition, const access_mode mode) noexcept
         -> result<void>
 {
-    if (const auto requiredDepth = lut::required_tree_depth(leafPosition);
+    if (auto const requiredDepth = lut::required_tree_depth(leafPosition);
         requiredDepth > mRootInfo.tree_depth)
     {
         if (mode == access_mode::read)
@@ -718,8 +718,8 @@ sector_tree_seq<TreeAllocator>::collect_intermediate_nodes() noexcept
         mLoaded -= 1;
 
         auto refs = ref_node(i + 1);
-        const auto nodeRefOffset = mCurrentPath.offset(i);
-        const auto nodeRef = refs.read(nodeRefOffset);
+        auto const nodeRefOffset = mCurrentPath.offset(i);
+        auto const nodeRef = refs.read(nodeRefOffset);
         VEFS_TRY(mDevice.erase_sector(nodeRef.sector));
 
         mTreeAllocator.dealloc_one(nodeRef.sector,
@@ -748,7 +748,7 @@ sector_tree_seq<TreeAllocator>::collect_intermediate_nodes() noexcept
             return success();
         }
 
-        const auto newRootRef = ref_node(i).read(0);
+        auto const newRootRef = ref_node(i).read(0);
         VEFS_TRY(mDevice.erase_sector(mRootInfo.root.sector));
         mTreeAllocator.dealloc_one(mRootInfo.root.sector,
                                    tree_allocator_type::leak_on_failure);

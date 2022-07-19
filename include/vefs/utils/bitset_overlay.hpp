@@ -60,7 +60,7 @@ inline void flip(Unit *begin, std::size_t bitpos)
 }
 
 template <typename Unit>
-inline bool get(const Unit *begin, std::size_t bitpos)
+inline bool get(Unit const *begin, std::size_t bitpos)
 {
     auto [offset, mask] = offset_and_mask_of<Unit>(bitpos);
 
@@ -72,12 +72,12 @@ inline void set_n(Unit *begin, const std::size_t numBits)
 {
     using byte_limits = std::numeric_limits<std::uint8_t>;
 
-    const auto dist = numBits / byte_limits::digits;
+    auto const dist = numBits / byte_limits::digits;
     auto *const pend = reinterpret_cast<std::uint8_t *>(begin) + dist;
 
     std::memset(begin, byte_limits::max(), dist);
 
-    if (const auto remaining = numBits % byte_limits::digits)
+    if (auto const remaining = numBits % byte_limits::digits)
     {
         constexpr std::array<std::uint8_t, 8> lut
                 = {0b0000'0000, 0b0000'0001, 0b0000'0011, 0b0000'0111,
@@ -195,7 +195,7 @@ public:
     using unit_type = unsigned char;
 
     const_bitset_overlay(ro_dynblob data)
-        : mBegin(reinterpret_cast<const unit_type *>(data.data()))
+        : mBegin(reinterpret_cast<unit_type const *>(data.data()))
     {
         assert(data.size() >= sizeof(unit_type));
         assert(data.size() % sizeof(unit_type) == 0);
@@ -215,12 +215,12 @@ public:
         return get(bitpos);
     }
 
-    auto data() const noexcept -> const unit_type *
+    auto data() const noexcept -> unit_type const *
     {
         return mBegin;
     }
 
 private:
-    const unit_type *mBegin;
+    unit_type const *mBegin;
 };
 } // namespace vefs::utils

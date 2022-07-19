@@ -22,8 +22,8 @@ public:
     static constexpr std::size_t size = sizeof(value_type);
 
     object_storage() noexcept = default;
-    object_storage(const object_storage &) = delete;
-    object_storage &operator=(const object_storage &) = delete;
+    object_storage(object_storage const &) = delete;
+    object_storage &operator=(object_storage const &) = delete;
 
     template <typename... Args>
     auto construct(Args &&...args) noexcept(
@@ -45,7 +45,7 @@ public:
     {
         return *pointer();
     }
-    auto value() const noexcept -> const value_type &
+    auto value() const noexcept -> value_type const &
     {
         return *pointer();
     }
@@ -54,10 +54,10 @@ public:
     {
         return std::launder(reinterpret_cast<pointer_type>(mStorage.data()));
     }
-    auto pointer() const noexcept -> const value_type *
+    auto pointer() const noexcept -> value_type const *
     {
         return std::launder(
-                reinterpret_cast<const value_type *>(mStorage.data()));
+                reinterpret_cast<value_type const *>(mStorage.data()));
     }
 
 private:

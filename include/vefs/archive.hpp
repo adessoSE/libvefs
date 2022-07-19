@@ -72,7 +72,7 @@ struct file_query_result
  * An archive is made up of sectors of 2^15 bytes each. The first sector is the
  * master sector which contains the information necessary to decrypt and
  * interpret the other sectors.
-*/
+ */
 class archive_handle
 {
 public:
@@ -81,7 +81,7 @@ public:
     /**
      * @brief Type for a storage key, which is used to encrypt/decrypt the
      * archive.
-    */
+     */
     using storage_key_type = ro_blob<key_size>;
 
 private:
@@ -127,7 +127,7 @@ public:
      * @param sectorAllocator the underlying sector allocator
      * @param workTracker underlying thread pool
      * @param filesystem the underlying virtual filesystem
-    */
+     */
     archive_handle(sector_device_owner sectorDevice,
                    sector_allocator_owner sectorAllocator,
                    work_tracker_owner workTracker,
@@ -142,7 +142,7 @@ public:
      * @param creationMode creation in regards to the file
      * @return the archive or errors that occured while creating the archive
      *         handle
-    */
+     */
     static auto archive(llfio::file_handle const &file,
                         ro_blob<32> userPRK,
                         crypto::crypto_provider *cryptoProvider
@@ -159,7 +159,7 @@ public:
      * @param creationMode creation in regards to the file
      * @return the archive or errors that occured while creating the archive
      *         handle
-    */
+     */
     static auto archive(llfio::path_handle const &base,
                         llfio::path_view path,
                         storage_key_type userPRK,
@@ -185,13 +185,12 @@ public:
      * @param cryptoProvider provider for cryptographic operations
      * @param backupMode selects whether and how to create a backup
      * @return indicates success or failure of the operation
-    */
+     */
     static auto purge_corruption(llfio::path_handle const &base,
                                  llfio::path_view path,
                                  ro_blob<32> userPRK,
                                  crypto::crypto_provider *cryptoProvider,
-                                 backup_mode backupMode)
-            -> result<void>;
+                                 backup_mode backupMode) -> result<void>;
 
     /**
      * @brief Validate that the given file is a legible archive. An archive
@@ -204,7 +203,7 @@ public:
      * @param cryptoProvider provider for cryptographic operations
      * @return indicates success or failure of the validation. In the case of
      *         failure further details are given in the form of errors.
-    */
+     */
     static auto validate(llfio::path_handle const &base,
                          llfio::path_view path,
                          storage_key_type userPRK,
@@ -216,7 +215,7 @@ public:
      * archive file.
      *
      * @return indicates success or failure
-    */
+     */
     auto commit() -> result<void>;
 
     /**
@@ -225,7 +224,7 @@ public:
      * @param filePath the path to the file within the encrypted archive
      * @param mode the filemode used to open the virtual file
      * @return a handle to the virtual file or an error
-    */
+     */
     auto open(const std::string_view filePath, const file_open_mode_bitset mode)
             -> result<vfile_handle>;
 
@@ -235,7 +234,7 @@ public:
      *
      * @param filePath the path to the file within the encrypted archive
      * @return the information about the file or an error
-    */
+     */
     auto query(const std::string_view filePath) -> result<file_query_result>;
 
     /**
@@ -246,68 +245,68 @@ public:
      *
      * @param filePath the path to the file to be deleted
      * @return indicates success or failure
-    */
+     */
     auto erase(std::string_view filePath) -> result<void>;
 
     /**
      * @brief Read some data into a buffer from a virtual file, starting with
      * the given position.
-     * 
+     *
      * @param handle a handle to a virtual file within the encrypted archive
      * @param buffer the buffer into which the bytes of the file are written
      * @param readFilePos the position, in bytes, from where to start reading
      * the file
      * @return indicates success or failure
-    */
-    auto read(const vfile_handle &handle,
+     */
+    auto read(vfile_handle const &handle,
               rw_dynblob buffer,
               std::uint64_t readFilePos) -> result<void>;
 
     /**
      * @brief Write some data into a virtual file from a buffer starting from
      * a position.
-     * 
+     *
      * @param handle a handle to a virtual file within the encrypted archive
      * @param data the buffer with the data to be written
      * @param writeFilePos the position, in bytes, from where to start writing
      * to the file
      * @return indicates success or failure
-    */
-    auto write(const vfile_handle &handle,
+     */
+    auto write(vfile_handle const &handle,
                ro_dynblob data,
                std::uint64_t writeFilePos) -> result<void>;
 
     /**
      * @brief Force the given virtual file into the given size (in bytes) by
      * truncating the end of the file, if necessary.
-     * 
+     *
      * @param handle a handle to a virtual file within the encrypted archive
      * @param maxExtent the maximum number of bytes that the virtual file is to
      * have after the method completes
      * @return indicates success or failure
-    */
-    auto truncate(const vfile_handle &handle, std::uint64_t maxExtent)
+     */
+    auto truncate(vfile_handle const &handle, std::uint64_t maxExtent)
             -> result<void>;
 
     /**
      * @brief Returns the maximum number of bytes that can be stored in the
      * given virtual file.
-     * 
+     *
      * @param handle a handle to a virtual file within the encrypted archive
      * @return the maximum number of bytes or result that indicates how and why
      * the method failed
-    */
-    auto maximum_extent_of(const vfile_handle &handle) -> result<std::uint64_t>;
+     */
+    auto maximum_extent_of(vfile_handle const &handle) -> result<std::uint64_t>;
 
     /**
      * @brief Commit and pending write opertions for a virtual file into the
      * underlying archive file. Changes (like from write) are only persisted
      * once this method has been called.
-     * 
+     *
      * @param handle a handle to a virtual file within the encrypted archive
      * @return indicates success or failure
-    */
-    auto commit(const vfile_handle &handle) -> result<void>;
+     */
+    auto commit(vfile_handle const &handle) -> result<void>;
     /**
      * Extracts a vfile at the given path as a physical file on the
      * device in the given path.
@@ -330,17 +329,17 @@ public:
      * @brief Returns the unencrypted bytes of the personalization area. The
      * bytes within the returned span can be modified, but must be synced to the
      * underlying archive file via ::sync_personalization_area().
-     * 
+     *
      * @return the personalization area
-    */
+     */
     auto personalization_area() noexcept -> std::span<std::byte, 1 << 12>;
 
     /**
      * @brief Synchronize any changes to the personalization area to the
      * underlying archive file.
-     * 
+     *
      * @return indicates success or failure
-    */
+     */
     auto sync_personalization_area() noexcept -> result<void>;
 
 private:

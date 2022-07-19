@@ -52,7 +52,7 @@ struct formatter<vefs::ed::file_span>
     }
 
     template <typename FormatContext>
-    auto format(const vefs::ed::file_span &fspan, FormatContext &ctx)
+    auto format(vefs::ed::file_span const &fspan, FormatContext &ctx)
     {
         using namespace std::string_view_literals;
         return fmt::format_to(ctx.out(), "[{},{})"sv, fspan.begin, fspan.end);
@@ -282,7 +282,7 @@ inline auto collect_disappointment(Fn &&fn, Args &&...args) noexcept
             return result_type{collect_disappointment_no_catch(
                     std::forward<Fn>(fn), std::forward<Args>(args)...)};
         }
-        catch (const std::bad_alloc &)
+        catch (std::bad_alloc const &)
         {
             return result_type{failure(errc::not_enough_memory)};
         }
@@ -309,7 +309,7 @@ inline auto collect_disappointment(Fn &&fn, Args &&...args) noexcept
                 std::invoke(std::forward<Fn>(fn), std::forward<Args>(args)...);
                 return op_outcome<void>(success());
             }
-            catch (const std::bad_alloc &)
+            catch (std::bad_alloc const &)
             {
                 return op_outcome<void>(failure(errc::not_enough_memory));
             }
@@ -338,7 +338,7 @@ inline auto collect_disappointment(Fn &&fn, Args &&...args) noexcept
                 return outcome_type(std::invoke(std::forward<Fn>(fn),
                                                 std::forward<Args>(args)...));
             }
-            catch (const std::bad_alloc &)
+            catch (std::bad_alloc const &)
             {
                 return outcome_type(failure(errc::not_enough_memory));
             }
@@ -363,7 +363,7 @@ inline auto collect_disappointment(Fn &&fn, Args &&...args) noexcept
                 return outcome_type(success(std::invoke(
                         std::forward<Fn>(fn), std::forward<Args>(args)...)));
             }
-            catch (const std::bad_alloc &)
+            catch (std::bad_alloc const &)
             {
                 return outcome_type(failure(errc::not_enough_memory));
             }

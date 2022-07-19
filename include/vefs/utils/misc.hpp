@@ -82,7 +82,7 @@ constexpr auto mod(T k, U n) -> std::common_type_t<T, U>
     {
         assert(n > 0);
 
-        const auto r = k % n;
+        auto const r = k % n;
         return r < 0 ? k + n : k;
     }
 }

@@ -14,7 +14,8 @@ using set_native_thread_name_fn = HRESULT (*)(HANDLE hThread, PCWSTR name);
 
 set_native_thread_name_fn set_native_thread_name()
 {
-    static set_native_thread_name_fn fn = []() -> set_native_thread_name_fn {
+    static set_native_thread_name_fn fn = []() -> set_native_thread_name_fn
+    {
         set_native_thread_name_fn dfn = nullptr;
         if (auto dll = LoadLibraryW(L"Kernel32.dll"))
         {
@@ -27,9 +28,9 @@ set_native_thread_name_fn set_native_thread_name()
     return fn;
 }
 
-using set_thread_name_fn = void (*)(const std::string &name);
+using set_thread_name_fn = void (*)(std::string const &name);
 
-void set_current_thread_name_spicey(const std::string &name)
+void set_current_thread_name_spicey(std::string const &name)
 {
     auto wsize = MultiByteToWideChar(CP_UTF8, 0, name.c_str(), -1, nullptr, 0);
     assert(wsize > 0);
@@ -46,7 +47,7 @@ void set_current_thread_name_spicey(const std::string &name)
 
 #pragma pack(push, 8)
 
-void set_current_thread_name_legacy(const std::string &name)
+void set_current_thread_name_legacy(std::string const &name)
 {
     // adapted from
     // https://docs.microsoft.com/en-us/visualstudio/debugger/how-to-set-a-thread-name-in-native-code
@@ -81,7 +82,7 @@ void set_current_thread_name_legacy(const std::string &name)
 
 } // namespace
 
-void set_current_thread_name(const std::string &name)
+void set_current_thread_name(std::string const &name)
 {
     static set_thread_name_fn impl = set_native_thread_name()
                                            ? &set_current_thread_name_spicey
@@ -97,9 +98,9 @@ void set_current_thread_name(const std::string &name)
 
 namespace vefs::utils
 {
-void set_current_thread_name(const std::string &name)
+void set_current_thread_name(std::string const &name)
 {
-    const auto id = pthread_self();
+    auto const id = pthread_self();
     pthread_setname_np(id, name.c_str());
 }
 } // namespace vefs::utils
@@ -110,7 +111,7 @@ void set_current_thread_name(const std::string &name)
 
 namespace vefs::utils
 {
-void set_current_thread_name(const std::string &name)
+void set_current_thread_name(std::string const &name)
 {
     pthread_setname_np(name.c_str());
 }
@@ -120,7 +121,7 @@ void set_current_thread_name(const std::string &name)
 
 namespace vefs::utils
 {
-void set_current_thread_name(const std::string &name)
+void set_current_thread_name(std::string const &name)
 {
 }
 } // namespace vefs::utils

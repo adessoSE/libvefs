@@ -38,26 +38,26 @@ inline void compute_hash(const T &obj, Impl &state)
 
 template <typename T, typename Impl, typename H>
 inline void
-compute_hash(const std::shared_ptr<T> &obj, H &h, hash::algorithm_tag<Impl>)
+compute_hash(std::shared_ptr<T> const &obj, H &h, hash::algorithm_tag<Impl>)
 {
     compute_hash(obj.get(), h, hash::algorithm_tag<Impl>{});
 }
 
 template <typename T, typename Impl>
-inline void compute_hash(const std::shared_ptr<T> &obj, Impl &state)
+inline void compute_hash(std::shared_ptr<T> const &obj, Impl &state)
 {
     compute_hash(obj.get(), state);
 }
 
 template <typename T, typename Impl, typename H>
 inline void
-compute_hash(const std::unique_ptr<T> &obj, H &h, hash::algorithm_tag<Impl>)
+compute_hash(std::unique_ptr<T> const &obj, H &h, hash::algorithm_tag<Impl>)
 {
     compute_hash(*obj, h, hash::algorithm_tag<Impl>{});
 }
 
 template <typename T, typename Impl>
-inline void compute_hash(const std::unique_ptr<T> &obj, Impl &state)
+inline void compute_hash(std::unique_ptr<T> const &obj, Impl &state)
 {
     compute_hash(*obj, state);
 }
@@ -76,13 +76,13 @@ inline void compute_hash(std::basic_string_view<T> obj, Impl &state)
 }
 
 template <typename Impl, typename H>
-inline void compute_hash(const vefs::uuid &obj, H &h, hash::algorithm_tag<Impl>)
+inline void compute_hash(vefs::uuid const &obj, H &h, hash::algorithm_tag<Impl>)
 {
     Impl::compute(obj.as_bytes(), h);
 }
 
 template <typename Impl>
-inline void compute_hash(const vefs::uuid &obj, Impl &state)
+inline void compute_hash(vefs::uuid const &obj, Impl &state)
 {
     state.update(obj.as_bytes());
 }

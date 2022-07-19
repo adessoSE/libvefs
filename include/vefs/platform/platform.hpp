@@ -21,7 +21,7 @@
 
 #include <intrin.h>
 #define VEFS_PREFETCH_NTA(ptr)                                                 \
-    _mm_prefetch(reinterpret_cast<const char *>(ptr), _MM_HINT_NTA)
+    _mm_prefetch(reinterpret_cast<char const *>(ptr), _MM_HINT_NTA)
 
 #elif defined BOOST_ARCH_ARM_AVAILABLE
 
@@ -43,7 +43,7 @@
 
 namespace vefs::utils
 {
-void set_current_thread_name(const std::string &name);
+void set_current_thread_name(std::string const &name);
 }
 
 namespace vefs::detail

@@ -33,7 +33,7 @@ vefs::result<void> vefs::detail::random_bytes(rw_dynblob buffer) noexcept
     {
         using c_type = std::common_type_t<ULONG, std::size_t>;
         constexpr auto max_portion = std::numeric_limits<ULONG>::max();
-        const auto portion = static_cast<ULONG>(
+        auto const portion = static_cast<ULONG>(
                 std::min<c_type>(max_portion, buffer.size()));
 
         if (!RtlGenRandom(buffer.data(), portion))
@@ -86,7 +86,7 @@ vefs::result<void> vefs::detail::random_bytes(rw_dynblob buffer) noexcept
     {
         constexpr size_t max_portion
                 = static_cast<size_t>(std::numeric_limits<ssize_t>::max());
-        const auto portion = std::min(max_portion, buffer.size());
+        auto const portion = std::min(max_portion, buffer.size());
 
         ssize_t tmp = read(urandom, buffer.data(), portion);
         if (tmp == -1)
@@ -120,7 +120,7 @@ vefs::result<void> vefs::detail::random_bytes(rw_dynblob buffer) noexcept
     while (!buffer.empty())
     {
         constexpr size_t max_portion = static_cast<size_t>(33554431);
-        const auto portion = std::min(max_portion, buffer.size());
+        auto const portion = std::min(max_portion, buffer.size());
 
         ssize_t tmp = getrandom(static_cast<void *>(buffer.data()), portion, 0);
         if (tmp == -1)

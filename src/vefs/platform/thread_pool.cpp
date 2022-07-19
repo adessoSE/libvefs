@@ -53,9 +53,8 @@ void pooled_work_tracker::wait()
 {
 #if __cpp_lib_atomic_wait < 201907L
     std::unique_lock lock{mSync};
-    mOnDecr.wait(lock, [this]() {
-        return mWorkCtr.load(std::memory_order_acquire) == 0;
-    });
+    mOnDecr.wait(lock, [this]()
+                 { return mWorkCtr.load(std::memory_order_acquire) == 0; });
 #else
     auto currentValue = mWorkCtr.load(std::memory_order::acquire);
     while (currentValue > 0)
@@ -83,21 +82,23 @@ void pooled_work_tracker::execute(std::unique_ptr<task_t> task)
         }
     };
 
-    mPool->execute([this, xtask = std::move(*task)]() mutable {
-        VEFS_SCOPE_EXIT
-        {
-            if (0 == mWorkCtr.fetch_sub(1, std::memory_order::acq_rel))
+    mPool->execute(
+            [this, xtask = std::move(*task)]() mutable
             {
+                VEFS_SCOPE_EXIT
+                {
+                    if (0 == mWorkCtr.fetch_sub(1, std::memory_order::acq_rel))
+                    {
 #if __cpp_lib_atomic_wait < 201907L
-                mOnDecr.notify_all();
+                        mOnDecr.notify_all();
 #else
-                mWorkCtr.notify_all();
+                        mWorkCtr.notify_all();
 #endif
-            }
-        };
+                    }
+                };
 
-        xtask();
-    });
+                xtask();
+            });
 }
 
 } // namespace vefs::detail
