@@ -137,7 +137,7 @@ struct block_range_key_accessor final
     using range_type = id_range<IdType>;
     using type = typename range_type::id_type;
 
-    inline auto operator()(const range_type &self) -> type
+    inline auto operator()(range_type const &self) -> type
     {
         return self.id();
     }
@@ -354,7 +354,7 @@ template <typename IdType>
 inline auto id_range<IdType>::pop_front(std::span<id_type> ids) noexcept
         -> std::size_t
 {
-    const auto num = std::min(ids.size(), size());
+    auto const num = std::min(ids.size(), size());
 
     // std::iota would have been the go to solution if id_type weren't an
     // enum
@@ -410,7 +410,7 @@ inline auto id_range<IdType>::is_successor_of(id_type id) const noexcept -> bool
 template <typename IdType>
 inline auto id_range<IdType>::contains(id_type id) const noexcept -> bool
 {
-    const auto idValue = static_cast<underlying_type>(id);
+    auto const idValue = static_cast<underlying_type>(id);
     return static_cast<underlying_type>(mFirstId) <= idValue
         && static_cast<underlying_type>(mLastId) >= idValue;
 }
@@ -458,16 +458,16 @@ block_manager<IdType>::alloc_multiple(std::span<id_type> ids) noexcept
 {
     auto remaining = ids;
 
-    const auto blocksBegin = mFreeBlocks.begin();
+    auto const blocksBegin = mFreeBlocks.begin();
     auto blockIt = blocksBegin;
 
-    for (const auto blocksEnd = mFreeBlocks.end();
+    for (auto const blocksEnd = mFreeBlocks.end();
          !remaining.empty() && blockIt != blocksEnd; ++blockIt)
     {
-        const auto served = blockIt->pop_front(remaining);
+        auto const served = blockIt->pop_front(remaining);
         remaining = remaining.subspan(served);
     }
-    if (const auto lastUsed = std::prev(blockIt); !lastUsed->empty())
+    if (auto const lastUsed = std::prev(blockIt); !lastUsed->empty())
     {
         blockIt = lastUsed;
     }
@@ -509,8 +509,8 @@ inline auto block_manager<IdType>::extend(const id_type begin,
     }
 
     auto succIt = mFreeBlocks.upper_bound(begin);
-    const auto blocksBegin = mFreeBlocks.begin();
-    const auto blocksEnd = mFreeBlocks.end();
+    auto const blocksBegin = mFreeBlocks.begin();
+    auto const blocksEnd = mFreeBlocks.end();
 
     // valid & adjacent
     bool canUseSucc = succIt != blocksEnd && succIt->is_successor_of(end);
@@ -527,7 +527,7 @@ inline auto block_manager<IdType>::extend(const id_type begin,
     auto precIt = succIt;
     if (precIt != blocksBegin && (--precIt)->is_predecessor_of(begin))
     {
-        const auto remaining = canUseSucc ? num - succIt->size() : num;
+        auto const remaining = canUseSucc ? num - succIt->size() : num;
         if (precIt->size() >= remaining)
         {
             auto first = precIt->pop_back(remaining);
@@ -563,10 +563,10 @@ inline auto block_manager<IdType>::dealloc_contiguous(
         return success();
     }
 
-    const auto last = range_type::advance(first, num - 1);
-    const auto blocksBegin = mFreeBlocks.begin();
-    const auto succIt = mFreeBlocks.upper_bound(first);
-    const auto blocksEnd = mFreeBlocks.end();
+    auto const last = range_type::advance(first, num - 1);
+    auto const blocksBegin = mFreeBlocks.begin();
+    auto const succIt = mFreeBlocks.upper_bound(first);
+    auto const blocksEnd = mFreeBlocks.end();
 
     bool inserted = false;
     if (succIt != blocksEnd)
@@ -604,7 +604,7 @@ inline auto block_manager<IdType>::dealloc_contiguous(
         mFreeBlocks.insert_before(succIt, *node);
         return success();
     }
-    catch (const std::bad_alloc &)
+    catch (std::bad_alloc const &)
     {
         return errc::not_enough_memory;
     }
@@ -622,7 +622,7 @@ block_manager<IdType>::write_to_bitset(bitset_overlay data,
     }
 
     data.set_n(num);
-    const auto last = range_type::advance(begin, num - 1);
+    auto const last = range_type::advance(begin, num - 1);
 
     auto blockIt = mFreeBlocks.lower_bound(begin);
     if (blockIt == mFreeBlocks.end())
@@ -685,22 +685,24 @@ inline auto block_manager<IdType>::parse_bitset(const const_bitset_overlay data,
 template <typename IdType>
 void block_manager<IdType>::clear() noexcept
 {
-    mFreeBlocks.clear_and_dispose([this](range_type *p) {
-        allocator_traits::destroy(mAllocator, p);
-        allocator_traits::deallocate(mAllocator, p, 1);
-    });
+    mFreeBlocks.clear_and_dispose(
+            [this](range_type *p)
+            {
+                allocator_traits::destroy(mAllocator, p);
+                allocator_traits::deallocate(mAllocator, p, 1);
+            });
 }
 
 template <typename IdType>
 inline auto block_manager<IdType>::merge_from(block_manager &other) noexcept
         -> result<void>
 {
-    const auto &otherBlocks = other.mFreeBlocks;
-    for (const auto &block : otherBlocks)
+    auto const &otherBlocks = other.mFreeBlocks;
+    for (auto const &block : otherBlocks)
     {
         auto first = block.first();
         auto num = block.size();
-        const auto last = block.last();
+        auto const last = block.last();
 
         do
         {
@@ -752,8 +754,8 @@ template <typename IdType>
 inline auto block_manager<IdType>::merge_disjunct(block_manager &other) noexcept
         -> result<void>
 {
-    const auto &otherBlocks = other.mFreeBlocks;
-    for (const auto &block : otherBlocks)
+    auto const &otherBlocks = other.mFreeBlocks;
+    for (auto const &block : otherBlocks)
     {
         auto first = block.first();
         auto num = block.size();
@@ -785,10 +787,13 @@ template <typename IdType>
 inline void
 block_manager<IdType>::dispose(typename block_set::const_iterator cit) noexcept
 {
-    mFreeBlocks.erase_and_dispose(cit, [this](range_type *p) {
-        allocator_traits::destroy(mAllocator, p);
-        allocator_traits::deallocate(mAllocator, p, 1);
-    });
+    mFreeBlocks.erase_and_dispose(cit,
+                                  [this](range_type *p)
+                                  {
+                                      allocator_traits::destroy(mAllocator, p);
+                                      allocator_traits::deallocate(mAllocator,
+                                                                   p, 1);
+                                  });
 }
 
 template <typename IdType>
@@ -796,10 +801,13 @@ inline void
 block_manager<IdType>::dispose(typename block_set::const_iterator cbegin,
                                typename block_set::const_iterator cend) noexcept
 {
-    mFreeBlocks.erase_and_dispose(cbegin, cend, [this](range_type *p) {
-        allocator_traits::destroy(mAllocator, p);
-        allocator_traits::deallocate(mAllocator, p, 1);
-    });
+    mFreeBlocks.erase_and_dispose(cbegin, cend,
+                                  [this](range_type *p)
+                                  {
+                                      allocator_traits::destroy(mAllocator, p);
+                                      allocator_traits::deallocate(mAllocator,
+                                                                   p, 1);
+                                  });
 }
 #pragma endregion
 } // namespace vefs::utils

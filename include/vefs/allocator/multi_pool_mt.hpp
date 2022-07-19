@@ -316,8 +316,10 @@ auto multi_pool_allocator_mt<ELEM_SIZE,
     auto blockPos = mAllocMaps[i].reserve_slot();
     auto memory = block(i).subspan(blockPos * avals::adj_elem_size, size);
 
-    return std::tuple{memory_allocation{memory.data(), memory.size()},
-                      blockPos};
+    return std::tuple{
+            memory_allocation{memory.data(), memory.size()},
+            blockPos
+    };
 }
 
 template <std::size_t ELEM_SIZE,

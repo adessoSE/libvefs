@@ -38,7 +38,7 @@ public:
     {
         copy(other, as_span(*this));
     }
-    secure_array(const secure_array &) noexcept = default;
+    secure_array(secure_array const &) noexcept = default;
     secure_array(secure_array &&other) noexcept
         : base_type(other)
     {
@@ -49,7 +49,7 @@ public:
         secure_memzero(as_writable_bytes(span_type{*this}));
     }
 
-    secure_array &operator=(const secure_array &) noexcept = default;
+    secure_array &operator=(secure_array const &) noexcept = default;
     secure_array &operator=(secure_array &&other) noexcept
     {
         static_cast<base_type &>(*this) = static_cast<base_type &>(other);

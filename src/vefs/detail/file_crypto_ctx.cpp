@@ -7,9 +7,9 @@ namespace vefs::detail
 namespace
 {
 template <std::size_t N>
-constexpr auto byte_literal(const char8_t (&arr)[N]) noexcept
+constexpr auto byte_literal(char8_t const (&arr)[N]) noexcept
 {
-    return std::span<const char8_t, N>(arr).template first<N - 1>();
+    return std::span<char8_t const, N>(arr).template first<N - 1>();
 }
 
 constexpr auto sector_kdf_salt = byte_literal(u8"vefs/salt/Sector-Salt");
@@ -63,7 +63,7 @@ auto file_crypto_ctx::unseal_sector(rw_blob<(1 << 15) - (1 << 5)> data,
         -> result<void>
 {
     // #TODO constant extraction
-    const auto salt = ciphertext.first<32>();
+    auto const salt = ciphertext.first<32>();
 
     utils::secure_byte_array<44> sectorKeyNonce;
     VEFS_TRY(crypto::kdf(as_span(sectorKeyNonce), as_span(mState.secret),

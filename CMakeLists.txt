@@ -36,6 +36,7 @@ include(GNUInstallDirs)
 include(SourceHelpers)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
+enable_testing()
 
 
 ########################################################################

@@ -20,5 +20,5 @@ enum class errc : error_code
     no_more_data,
     resource_exhausted,
 };
-auto generic_domain() noexcept -> const error_domain &;
+auto generic_domain() noexcept -> error_domain const &;
 } // namespace vefs

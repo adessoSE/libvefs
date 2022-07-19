@@ -68,7 +68,7 @@ private:
          * retrieves a handle to the parent
          * the handle will be empty if this is the root sector
          */
-        inline auto parent() const noexcept -> const handle_type &;
+        inline auto parent() const noexcept -> handle_type const &;
         /**
          * updates the parent sector reference
          */
@@ -86,7 +86,7 @@ private:
         {
             return node.mBlockData;
         }
-        inline friend auto as_span(const sector &node) noexcept
+        inline friend auto as_span(sector const &node) noexcept
                 -> ro_blob<sector_device::sector_payload_size>
         {
             return node.mBlockData;
@@ -350,7 +350,7 @@ inline sector_tree_mt<TreeAllocator, Executor, MutexType>::read_handle::
 }
 template <typename TreeAllocator, typename Executor, typename MutexType>
 inline sector_tree_mt<TreeAllocator, Executor, MutexType>::read_handle::
-        read_handle(const write_handle &writeHandle) noexcept
+        read_handle(write_handle const &writeHandle) noexcept
     : mSector(writeHandle.mSector)
 {
 }
@@ -431,7 +431,7 @@ inline sector_tree_mt<TreeAllocator, Executor, MutexType>::write_handle::
 }
 template <typename TreeAllocator, typename Executor, typename MutexType>
 inline sector_tree_mt<TreeAllocator, Executor, MutexType>::write_handle::
-        write_handle(const read_handle &writeHandle) noexcept
+        write_handle(read_handle const &writeHandle) noexcept
     : mSector(writeHandle.mSector)
 {
 }
@@ -670,7 +670,7 @@ sector_tree_mt<TreeAllocator, Executor, MutexType>::access_or_create(
               end = sectorPath.end();
          it != end; ++it)
     {
-        const auto nodePos = *it;
+        auto const nodePos = *it;
 
         if (auto rx = access_or_create_child(std::move(mountPoint), nodePos,
                                              it.array_offset()))
@@ -933,7 +933,7 @@ inline auto sector_tree_mt<TreeAllocator, Executor, MutexType>::sync_to_device(
     if (auto &&parent = h->parent())
     {
         sector &parentSector = *parent;
-        const auto offset = h->node_position().parent_array_offset();
+        auto const offset = h->node_position().parent_array_offset();
         reference_sector_layout parentLayout{as_span(parentSector)};
 
         std::shared_lock parentLock{parentSector};
@@ -972,7 +972,7 @@ sector_tree_mt<TreeAllocator, Executor, MutexType>::adjust_tree_depth(
 template <typename TreeAllocator, typename Executor, typename MutexType>
 inline auto
 sector_tree_mt<TreeAllocator, Executor, MutexType>::increase_tree_depth(
-        const int targetDepth) noexcept -> result<void>
+        int const targetDepth) noexcept -> result<void>
 {
     using boost::container::static_vector;
 
@@ -1155,7 +1155,7 @@ sector_tree_mt<TreeAllocator, Executor, MutexType>::access_or_create_child(
 
 template <typename TreeAllocator, typename Executor, typename MutexType>
 inline auto sector_tree_mt<TreeAllocator, Executor, MutexType>::try_erase_child(
-        const sector_handle &parent,
+        sector_handle const &parent,
         tree_position child,
         int childParentOffset) noexcept -> result<bool>
 {

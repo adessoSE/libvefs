@@ -25,16 +25,9 @@
         "libcuckoo",
         {
             "name": "llfio",
-            "features": [
-                "cxx20"
-            ]
+            "version>=": "2.0-20220525"
         },
-        {
-            "name": "outcome",
-            "features": [
-                "cxx20"
-            ]
-        },
+        "outcome",
         "stduuid"
     ],
     "features": {

@@ -1,0 +1,105 @@
+name: C++ CI
+on:
+    push:
+        branches:
+            - master
+            - releases/v*
+    pull_request:
+
+jobs:
+  build-and-test:
+    name: Test ${{ matrix.os }}-${{ matrix.compiler }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-22.04, windows-2022]
+        compiler: [gcc, clang, msvc]
+        exclude:
+          - os: windows-2022
+            compiler: gcc
+          - os: ubuntu-22.04
+            compiler: msvc
+        include:
+          - os: ubuntu-22.04
+            triplet: x64-linux
+          - os: windows-2022
+            triplet: x64-windows
+
+    env:
+      CTEST_OUTPUT_ON_FAILURE: "1"
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: lukka/get-cmake@v3.22.2
+
+      - name: Initialize vcpkg
+        uses: lukka/run-vcpkg@v10
+        with:
+          vcpkgDirectory: ${{ github.workspace }}/build/vcpkg
+          vcpkgGitCommitId: 8b62d95a81afcb9efe74bebeb62f04c1e0e2a003
+          appendedCacheKey: r01
+
+      - if: matrix.os == 'windows-2022'
+        name: Add MSVC to PATH
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          arch: x64
+
+      - name: Build ${{ matrix.triplet }}-${{ matrix.compiler }} preset
+        uses: lukka/run-cmake@v10
+        with:
+          configurePreset: ${{ matrix.triplet }}-${{ matrix.compiler }}
+          buildPreset: ${{ matrix.triplet }}-${{ matrix.compiler }}
+          testPreset: ${{ matrix.triplet }}-${{ matrix.compiler }}
+
+
+      - name: Build ${{ matrix.triplet }}-${{ matrix.compiler }}-release preset
+        uses: lukka/run-cmake@v10
+        with:
+          configurePreset: ${{ matrix.triplet }}-${{ matrix.compiler }}
+          buildPreset: ${{ matrix.triplet }}-${{ matrix.compiler }}-release
+          testPreset: ${{ matrix.triplet }}-${{ matrix.compiler }}-release
+
+  check-format:
+    name: clang-tidy & clang-format
+    runs-on: ubuntu-22.04
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-python@v3
+      - name: Install the linter driver python package
+        run: python3 -m pip install git+https://github.com/cpp-linter/cpp-linter-action@v1
+
+      - uses: lukka/get-cmake@v3.22.2
+
+      - name: Initialize vcpkg
+        uses: lukka/run-vcpkg@v10
+        with:
+          vcpkgDirectory: ${{ github.workspace }}/build/vcpkg
+          vcpkgGitCommitId: 8b62d95a81afcb9efe74bebeb62f04c1e0e2a003
+          appendedCacheKey: r01
+
+      - name: Configure x64-linux-clang preset
+        uses: lukka/run-cmake@v10
+        env:
+          CMAKE_EXPORT_COMPILE_COMMANDS: '1'
+        with:
+          configurePreset: x64-linux-clang
+
+      - name: Lint with clang-format and clang-tidy
+        id: linter
+        run: |
+          cpp-linter \
+          --version=14 \
+          --style=file \
+          --tidy-checks='' \
+          --files-changed-only=false \
+          --ignore='build|external' \
+          --database=${{ github.event.repository.name }}/build/x64-linux-clang
+
+      # - name: Fail if issues have been raised
+      #   if: steps.linter.outputs.checks-failed > 0
+      #   run: exit 1

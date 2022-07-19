@@ -122,7 +122,7 @@ public:
      * Tries to access the element. If it doesn't exist it returns a nullptr
      * handle.
      */
-    [[nodiscard]] inline auto try_access(const key_type &key) -> handle;
+    [[nodiscard]] inline auto try_access(key_type const &key) -> handle;
 
     /**
      * \param key the cache entry to look up / construct
@@ -130,7 +130,7 @@ public:
      * or outcome type
      */
     template <typename Ctor>
-    inline auto access(const key_type &key, Ctor &&ctor) noexcept ->
+    inline auto access(key_type const &key, Ctor &&ctor) noexcept ->
             typename std::invoke_result_t<Ctor,
                                           void *>::template rebind<handle>;
     /**
@@ -141,7 +141,7 @@ public:
      */
     template <typename Ctor>
     inline auto
-    access(const key_type &key, Ctor &&ctor, bool &inserted) noexcept ->
+    access(key_type const &key, Ctor &&ctor, bool &inserted) noexcept ->
             typename std::invoke_result_t<Ctor,
                                           void *>::template rebind<handle>;
 
@@ -154,7 +154,7 @@ public:
      * in an outcome.
      */
     template <typename... Args>
-    inline auto access(const key_type &key, Args &&...ctorArgs) noexcept
+    inline auto access(key_type const &key, Args &&...ctorArgs) noexcept
             -> std::conditional_t<
                     std::is_nothrow_constructible_v<value_type, Args...>,
                     handle,
@@ -182,15 +182,15 @@ public:
 
     inline bool try_purge(handle &whom) noexcept;
     template <typename DisposeFn>
-    inline bool try_purge(const key_type &whom, DisposeFn &&dispose) noexcept;
+    inline bool try_purge(key_type const &whom, DisposeFn &&dispose) noexcept;
 
 private:
-    inline auto try_purge(const key_type &key, history_list &history) noexcept
+    inline auto try_purge(key_type const &key, history_list &history) noexcept
             -> std::optional<key_type>;
     [[nodiscard]] inline auto
-    try_await_init(const key_type &key, std::unique_lock<std::mutex> initGuard)
+    try_await_init(key_type const &key, std::unique_lock<std::mutex> initGuard)
             -> handle;
-    auto acquire_page(const key_type &key) noexcept -> page_index;
+    auto acquire_page(key_type const &key) noexcept -> page_index;
     auto replace() noexcept -> page_index;
 
     key_index_map mKeyIndexMap;
@@ -280,7 +280,7 @@ inline void cache_car<Key, T, CacheSize, Hash, KeyEqual>::purge_all() noexcept
     mFrequencyHistory.clear();
 
     bool finished;
-    const auto pageSpan = pages();
+    auto const pageSpan = pages();
     do
     {
         finished = true;
@@ -335,9 +335,8 @@ cache_car<Key, T, CacheSize, Hash, KeyEqual>::try_purge(handle &whom) noexcept
     {
         mFrequencyClock.purge(where);
     }
-    mKeyIndexMap.erase_fn(std::move(mIndexKeyMap[where]), [](auto stored) {
-        return (stored & invalid_page_index_bit) == 0;
-    });
+    mKeyIndexMap.erase_fn(std::move(mIndexKeyMap[where]), [](auto stored)
+                          { return (stored & invalid_page_index_bit) == 0; });
 
     return true;
 }
@@ -349,14 +348,15 @@ template <typename Key,
           typename KeyEqual>
 template <typename DisposeFn>
 inline bool cache_car<Key, T, CacheSize, Hash, KeyEqual>::try_purge(
-        const key_type &whom, DisposeFn &&dispose) noexcept
+        key_type const &whom, DisposeFn &&dispose) noexcept
 {
     {
         page_index idx;
         std::lock_guard replacmentGuard{mReplacementSync};
         auto alive = !mKeyIndexMap.uprase_fn(
                 whom,
-                [this, &idx](auto &stored) {
+                [this, &idx](auto &stored)
+                {
                     if (stored & invalid_page_index_bit
                         || !page(stored).try_purge(false))
                     {
@@ -396,13 +396,15 @@ inline bool cache_car<Key, T, CacheSize, Hash, KeyEqual>::try_purge(
     std::invoke(dispose);
 
     // release access and inform anyone who waited
-    mKeyIndexMap.erase_fn(whom, [this](auto stored) {
-        if (stored != invalid_page_index_bit)
-        {
-            mInitializationNotifier.notify_all();
-        }
-        return true;
-    });
+    mKeyIndexMap.erase_fn(whom,
+                          [this](auto stored)
+                          {
+                              if (stored != invalid_page_index_bit)
+                              {
+                                  mInitializationNotifier.notify_all();
+                              }
+                              return true;
+                          });
 
     return true;
 }
@@ -413,11 +415,11 @@ template <typename Key,
           typename Hash,
           typename KeyEqual>
 inline auto cache_car<Key, T, CacheSize, Hash, KeyEqual>::try_purge(
-        const key_type &key, history_list &history) noexcept
+        key_type const &key, history_list &history) noexcept
         -> std::optional<key_type>
 {
     std::optional<key_type> recycled{std::nullopt};
-    if (const auto it = std::find(history.begin(), history.end(), key);
+    if (auto const it = std::find(history.begin(), history.end(), key);
         it != history.end())
     {
         recycled.emplace(std::move(*it));
@@ -432,9 +434,9 @@ template <typename Key,
           typename Hash,
           typename KeyEqual>
 inline auto cache_car<Key, T, CacheSize, Hash, KeyEqual>::try_await_init(
-        const key_type &key, std::unique_lock<std::mutex> initGuard) -> handle
+        key_type const &key, std::unique_lock<std::mutex> initGuard) -> handle
 {
-    const auto p = pages();
+    auto const p = pages();
     handle h = {};
 
     // await initialization
@@ -447,17 +449,19 @@ inline auto cache_car<Key, T, CacheSize, Hash, KeyEqual>::try_await_init(
         // erased
         initGuard.unlock();
 
-        mKeyIndexMap.find_fn(key, [&](const page_index &stored) {
-            if (stored & invalid_page_index_bit)
-            {
-                initGuard.lock();
-            }
-            else
-            {
-                // hit
-                h = p[stored].try_acquire();
-            }
-        });
+        mKeyIndexMap.find_fn(key,
+                             [&](page_index const &stored)
+                             {
+                                 if (stored & invalid_page_index_bit)
+                                 {
+                                     initGuard.lock();
+                                 }
+                                 else
+                                 {
+                                     // hit
+                                     h = p[stored].try_acquire();
+                                 }
+                             });
     }
 
     return h;
@@ -469,38 +473,43 @@ template <typename Key,
           typename Hash,
           typename KeyEqual>
 inline auto
-cache_car<Key, T, CacheSize, Hash, KeyEqual>::try_access(const key_type &key)
+cache_car<Key, T, CacheSize, Hash, KeyEqual>::try_access(key_type const &key)
         -> handle
 {
     handle h = {};
     std::unique_lock initGuard{mInitalizationSync, std::defer_lock};
 
     bool isInitializing = false;
-    mKeyIndexMap.find_fn(key, [&](const page_index &stored) {
-        isInitializing = stored & invalid_page_index_bit;
-        if (!isInitializing)
-        {
-            // hit
-            h = page(stored).try_acquire();
-        }
-    });
+    mKeyIndexMap.find_fn(key,
+                         [&](page_index const &stored)
+                         {
+                             isInitializing = stored & invalid_page_index_bit;
+                             if (!isInitializing)
+                             {
+                                 // hit
+                                 h = page(stored).try_acquire();
+                             }
+                         });
     if (h)
     {
         return h;
     }
 
-    mKeyIndexMap.update_fn(key, [&](page_index &stored) {
-        if (stored & invalid_page_index_bit)
-        {
-            stored += 1; // make the initializer aware that we are waiting
-            initGuard.lock();
-        }
-        else
-        {
-            // hit
-            h = page(stored).try_acquire();
-        }
-    });
+    mKeyIndexMap.update_fn(key,
+                           [&](page_index &stored)
+                           {
+                               if (stored & invalid_page_index_bit)
+                               {
+                                   stored += 1; // make the initializer aware
+                                                // that we are waiting
+                                   initGuard.lock();
+                               }
+                               else
+                               {
+                                   // hit
+                                   h = page(stored).try_acquire();
+                               }
+                           });
 
     if (isInitializing)
     {
@@ -516,7 +525,7 @@ template <typename Key,
           typename KeyEqual>
 template <typename Ctor>
 inline auto
-cache_car<Key, T, CacheSize, Hash, KeyEqual>::access(const key_type &key,
+cache_car<Key, T, CacheSize, Hash, KeyEqual>::access(key_type const &key,
                                                      Ctor &&ctor) noexcept ->
         typename std::invoke_result_t<Ctor, void *>::template rebind<handle>
 {
@@ -531,7 +540,7 @@ template <typename Key,
           typename KeyEqual>
 template <typename Ctor>
 inline auto cache_car<Key, T, CacheSize, Hash, KeyEqual>::access(
-        const key_type &key, Ctor &&ctor, bool &inserted) noexcept ->
+        key_type const &key, Ctor &&ctor, bool &inserted) noexcept ->
         typename std::invoke_result_t<Ctor, void *>::template rebind<handle>
 {
     static_assert(std::is_nothrow_invocable_v<Ctor, void *>,
@@ -551,7 +560,8 @@ inline auto cache_car<Key, T, CacheSize, Hash, KeyEqual>::access(
 
         inserted = mKeyIndexMap.uprase_fn(
                 key,
-                [&](page_index &stored) {
+                [&](page_index &stored)
+                {
                     if (!(stored & invalid_page_index_bit))
                     {
                         h = page(stored).try_acquire();
@@ -587,13 +597,15 @@ inline auto cache_car<Key, T, CacheSize, Hash, KeyEqual>::access(
             // the next clock replacement cycle
 
             std::unique_lock initGuard{mInitalizationSync, std::defer_lock};
-            mKeyIndexMap.erase_fn(key, [&](const page_index &stored) {
-                if (stored != invalid_page_index_bit)
-                {
-                    initGuard.lock();
-                }
-                return true;
-            });
+            mKeyIndexMap.erase_fn(key,
+                                  [&](page_index const &stored)
+                                  {
+                                      if (stored != invalid_page_index_bit)
+                                      {
+                                          initGuard.lock();
+                                      }
+                                      return true;
+                                  });
 
             if (initGuard.owns_lock())
             {
@@ -607,14 +619,16 @@ inline auto cache_car<Key, T, CacheSize, Hash, KeyEqual>::access(
 
     {
         std::unique_lock initGuard{mInitalizationSync, std::defer_lock};
-        mKeyIndexMap.update_fn(key, [&](page_index &stored) {
-            if (stored != invalid_page_index_bit)
-            {
-                // someone is awaiting initilization
-                initGuard.lock();
-            }
-            stored = candidate;
-        });
+        mKeyIndexMap.update_fn(key,
+                               [&](page_index &stored)
+                               {
+                                   if (stored != invalid_page_index_bit)
+                                   {
+                                       // someone is awaiting initilization
+                                       initGuard.lock();
+                                   }
+                                   stored = candidate;
+                               });
         if (initGuard.owns_lock())
         {
             initGuard.unlock();
@@ -632,7 +646,7 @@ template <typename Key,
           typename KeyEqual>
 template <typename... Args>
 inline auto cache_car<Key, T, CacheSize, Hash, KeyEqual>::access(
-        const key_type &key, Args &&...ctorArgs) noexcept
+        key_type const &key, Args &&...ctorArgs) noexcept
         -> std::conditional_t<
                 std::is_nothrow_constructible_v<value_type, Args...>,
                 handle,
@@ -649,20 +663,23 @@ inline auto cache_car<Key, T, CacheSize, Hash, KeyEqual>::access(
     }
     else
     {
-        return access(key, [&](void *p) noexcept -> op_outcome<value_type *> {
-            try
-            {
-                return new (p) value_type(std::forward<Args>(ctorArgs)...);
-            }
-            catch (const std::bad_alloc &)
-            {
-                return failure(errc::not_enough_memory);
-            }
-            catch (...)
-            {
-                return failure(std::current_exception());
-            }
-        });
+        return access(key,
+                      [&](void *p) noexcept -> op_outcome<value_type *>
+                      {
+                          try
+                          {
+                              return new (p) value_type(
+                                      std::forward<Args>(ctorArgs)...);
+                          }
+                          catch (const std::bad_alloc &)
+                          {
+                              return failure(errc::not_enough_memory);
+                          }
+                          catch (...)
+                          {
+                              return failure(std::current_exception());
+                          }
+                      });
     }
 }
 
@@ -674,10 +691,12 @@ template <typename Key,
 inline auto cache_car<Key, T, CacheSize, Hash, KeyEqual>::for_dirty() noexcept
         -> result<bool>
 {
-    return for_dirty([this](handle h) noexcept -> result<void> {
-        mNotifyDirty(std::move(h));
-        return success();
-    });
+    return for_dirty(
+            [this](handle h) noexcept -> result<void>
+            {
+                mNotifyDirty(std::move(h));
+                return success();
+            });
 }
 template <typename Key,
           typename T,
@@ -709,21 +728,21 @@ template <typename Key,
           typename Hash,
           typename KeyEqual>
 inline auto cache_car<Key, T, CacheSize, Hash, KeyEqual>::acquire_page(
-        const key_type &key) noexcept -> page_index
+        key_type const &key) noexcept -> page_index
 {
     page_index candidate = {};
     std::lock_guard guard{mReplacementSync};
 
     auto recycled = try_purge(key, mRecencyHistory);
-    const bool hasRecencyEntry{recycled};
+    bool const hasRecencyEntry{recycled};
     if (!hasRecencyEntry)
     {
         recycled = try_purge(key, mFrequencyHistory);
     }
-    const bool hasFrequencyEntry = !hasRecencyEntry && recycled;
-    const bool isNew = !hasRecencyEntry && !hasFrequencyEntry;
+    bool const hasFrequencyEntry = !hasRecencyEntry && recycled;
+    bool const isNew = !hasRecencyEntry && !hasFrequencyEntry;
 
-    if (const auto num_entries = mRecencyClock.size() + mFrequencyClock.size();
+    if (auto const num_entries = mRecencyClock.size() + mFrequencyClock.size();
         num_entries == max_entries)
     {
         candidate = replace();
@@ -755,7 +774,7 @@ inline auto cache_car<Key, T, CacheSize, Hash, KeyEqual>::acquire_page(
             candidate = static_cast<page_index>(
                     std::distance(xpages.begin(), which));
         }
-        [[maybe_unused]] const auto rprx = page(candidate).try_start_replace();
+        [[maybe_unused]] auto const rprx = page(candidate).try_start_replace();
         assert(rprx == cache_replacement_result::was_dead);
     }
 
@@ -768,13 +787,13 @@ inline auto cache_car<Key, T, CacheSize, Hash, KeyEqual>::acquire_page(
         // we need a signed type, because the !hasRecency part might underflow
         using signed_type =
                 typename boost::int_max_value_t<max_entries * 2>::fast;
-        const auto recencySize
+        auto const recencySize
                 = static_cast<signed_type>(mRecencyHistory.size());
-        const auto frequencySize
+        auto const frequencySize
                 = static_cast<signed_type>(mFrequencyHistory.size());
-        const auto currentTarget
+        auto const currentTarget
                 = static_cast<signed_type>(mRecencyClock.size_target());
-        const auto sizeTarget
+        auto const sizeTarget
                 = hasRecencyEntry
                         ? std::min<signed_type>(
                                 currentTarget

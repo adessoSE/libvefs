@@ -37,7 +37,7 @@ public:
     //
     // SpookyHash: hash a single message in one call, produce 128-bit output
     //
-    static void Hash128(const void *message, // message to hash
+    static void Hash128(void const *message, // message to hash
                         size_t length,       // length of message in bytes
                         uint64_t *hash1,  // in/out: in seed 1, out hash value 1
                         uint64_t *hash2); // in/out: in seed 2, out hash value 2
@@ -45,7 +45,7 @@ public:
     //
     // Hash64: hash a single message in one call, return 64-bit output
     //
-    static uint64_t Hash64(const void *message, // message to hash
+    static uint64_t Hash64(void const *message, // message to hash
                            size_t length,       // length of message in bytes
                            uint64_t seed)       // seed
     {
@@ -57,7 +57,7 @@ public:
     //
     // Hash32: hash a single message in one call, produce 32-bit output
     //
-    static uint32_t Hash32(const void *message, // message to hash
+    static uint32_t Hash32(void const *message, // message to hash
                            size_t length,       // length of message in bytes
                            uint32_t seed)       // seed
     {
@@ -75,7 +75,7 @@ public:
     //
     // Update: add a piece of a message to a SpookyHash state
     //
-    void Update(const void *message, // message fragment
+    void Update(void const *message, // message fragment
                 size_t length);      // length of message fragment in bytes
 
     //
@@ -110,7 +110,7 @@ public:
     //   When run forward or backwards one Mix
     // I tried 3 pairs of each; they all differed by at least 212 bits.
     //
-    static inline void Mix(const uint64_t *data,
+    static inline void Mix(uint64_t const *data,
                            uint64_t &s0,
                            uint64_t &s1,
                            uint64_t &s2,
@@ -253,7 +253,7 @@ public:
         h0 = Rot64(h0, 54);
     }
 
-    static inline void End(const uint64_t *data,
+    static inline void End(uint64_t const *data,
                            uint64_t &h0,
                            uint64_t &h1,
                            uint64_t &h2,
@@ -398,7 +398,7 @@ private:
     // held to the same quality bar.
     //
     static void
-    Short(const void
+    Short(void const
                   *message, // message (array of bytes, not necessarily aligned)
           size_t length,    // length of message (in bytes)
           uint64_t *hash1,  // in/out: in the seed, out the hash value

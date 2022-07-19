@@ -38,9 +38,9 @@ public:
     {
     }
 
-    inline auto read(const int which) const noexcept -> free_block_range
+    inline auto read(int const which) const noexcept -> free_block_range
     {
-        const auto baseOffset
+        auto const baseOffset
                 = static_cast<std::size_t>(which) * serialized_block_range_size;
 
         free_block_range deserialized;
@@ -50,9 +50,9 @@ public:
 
         return deserialized;
     }
-    inline void write(const int which, const free_block_range range) noexcept
+    inline void write(int const which, const free_block_range range) noexcept
     {
-        const auto baseOffset
+        auto const baseOffset
                 = static_cast<std::size_t>(which) * serialized_block_range_size;
 
         mCodec.write(range.start_id, baseOffset);
@@ -183,7 +183,7 @@ auto archive_sector_allocator::initialize_from(
              file_tree::open_existing(mSectorDevice, mFileCtx, rootInfo,
                                       idContainer));
 
-    const auto lastSectorPos = (rootInfo.maximum_extent - 1)
+    auto const lastSectorPos = (rootInfo.maximum_extent - 1)
                              / sector_device::sector_payload_size;
     if (lastSectorPos != 0)
     {
@@ -212,7 +212,7 @@ auto archive_sector_allocator::initialize_from(
             VEFS_TRY(mSectorManager.dealloc_contiguous(startId, numSectors));
         }
 
-        if (const auto currentLeaf = freeSectorTree->position().position())
+        if (auto const currentLeaf = freeSectorTree->position().position())
         {
             VEFS_TRY(freeSectorTree->erase_leaf(currentLeaf));
             for (auto id : idContainer)
@@ -264,7 +264,7 @@ static auto preallocate_serialization_storage(
         }
         idContainer.resize(numStorageSectors, boost::container::default_init);
     }
-    catch (const std::bad_alloc &)
+    catch (std::bad_alloc const &)
     {
         return errc::not_enough_memory;
     }
@@ -338,7 +338,8 @@ auto archive_sector_allocator::finalize(
     for (;;)
     {
         VEFS_TRY(freeSectorTree->commit(
-                [&](root_sector_info rootInfo) noexcept -> result<void> {
+                [&](root_sector_info rootInfo) noexcept -> result<void>
+                {
                     if (!idContainer.empty())
                     {
                         return success();

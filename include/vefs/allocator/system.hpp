@@ -63,7 +63,9 @@ system_allocator<ALIGNMENT>::allocate(const std::size_t size) noexcept
     {
         return errc::not_enough_memory;
     }
-    return {memory_allocation{ptr, size}};
+    return {
+            memory_allocation{ptr, size}
+    };
 }
 
 template <std::size_t ALIGNMENT>
@@ -93,7 +95,9 @@ system_allocator<ALIGNMENT>::reallocate(const memory_allocation memblock,
     {
         return errc::not_enough_memory;
     }
-    return {memory_allocation{ptr, newSize}};
+    return {
+            memory_allocation{ptr, newSize}
+    };
 }
 
 template <std::size_t ALIGNMENT>
@@ -146,7 +150,9 @@ system_allocator<ALIGNMENT>::allocate(const std::size_t size) noexcept
             return errc::not_enough_memory;
         }
     }
-    return {memory_allocation{ptr, size}};
+    return {
+            memory_allocation{ptr, size}
+    };
 }
 
 template <std::size_t ALIGNMENT>
@@ -176,7 +182,9 @@ system_allocator<ALIGNMENT>::reallocate(const memory_allocation memblock,
     {
         return errc::not_enough_memory;
     }
-    return {memory_allocation{ptr, newSize}};
+    return {
+            memory_allocation{ptr, newSize}
+    };
 }
 
 template <std::size_t ALIGNMENT>

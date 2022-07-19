@@ -324,7 +324,9 @@ inline bool cache_page<T>::try_add_reference() noexcept
 template <typename T>
 inline auto cache_page<T>::make_handle() noexcept -> cache_handle<T>
 {
-    return {std::launder(reinterpret_cast<T *>(&mValueHolder)),
-            {this, utils::ref_ptr_import}};
+    return {
+            std::launder(reinterpret_cast<T *>(&mValueHolder)),
+            {this, utils::ref_ptr_import}
+    };
 }
 } // namespace vefs::detail

@@ -30,7 +30,7 @@ namespace vefs::crypto::detail
 {
 inline std::string read_openssl_errors(std::string str = std::string{})
 {
-    auto printCb = [](const char *msg, size_t msgSize, void *ctx)
+    auto printCb = [](char const *msg, size_t msgSize, void *ctx)
     {
         auto &cbStr = *reinterpret_cast<std::string *>(ctx);
         cbStr.append(msg, msgSize);
@@ -70,14 +70,14 @@ class boringssl_aead final
     boringssl_aead() = default;
 
 public:
-    boringssl_aead(const boringssl_aead &) = delete;
+    boringssl_aead(boringssl_aead const &) = delete;
     boringssl_aead(boringssl_aead &&other) noexcept
         : mCtx{other.mCtx}
         , mInitialized{other.mInitialized}
     {
         memset(&other.mCtx, 0, sizeof(other.mCtx));
     }
-    boringssl_aead &operator=(const boringssl_aead &) = delete;
+    boringssl_aead &operator=(boringssl_aead const &) = delete;
     boringssl_aead &operator=(boringssl_aead &&other) noexcept
     {
         if (mInitialized)
@@ -106,7 +106,7 @@ public:
 
         boringssl_aead ctx;
         if (!EVP_AEAD_CTX_init(&ctx.mCtx, algorithm,
-                               reinterpret_cast<const uint8_t *>(key.data()),
+                               reinterpret_cast<uint8_t const *>(key.data()),
                                key.size(), EVP_AEAD_DEFAULT_TAG_LENGTH,
                                nullptr))
         {
@@ -174,12 +174,12 @@ public:
                     &mCtx, reinterpret_cast<uint8_t *>(out.data()),
                     reinterpret_cast<uint8_t *>(outTag.data()), &outTagLen,
                     outTag.size(),
-                    reinterpret_cast<const uint8_t *>(nonce.data()),
+                    reinterpret_cast<uint8_t const *>(nonce.data()),
                     nonce.size(),
-                    reinterpret_cast<const uint8_t *>(plain.data()),
+                    reinterpret_cast<uint8_t const *>(plain.data()),
                     plain.size(), nullptr,
                     0, // extra_in, extra_in_len
-                    reinterpret_cast<const uint8_t *>(ad.data()), ad.size()))
+                    reinterpret_cast<uint8_t const *>(ad.data()), ad.size()))
         {
             // #TODO appropriately wrap the boringssl packed error
             return error{errc::bad}
@@ -233,13 +233,13 @@ public:
         ERR_clear_error();
         if (!EVP_AEAD_CTX_open_gather(
                     &mCtx, reinterpret_cast<uint8_t *>(out.data()),
-                    reinterpret_cast<const uint8_t *>(nonce.data()),
+                    reinterpret_cast<uint8_t const *>(nonce.data()),
                     nonce.size(),
-                    reinterpret_cast<const uint8_t *>(ciphertext.data()),
+                    reinterpret_cast<uint8_t const *>(ciphertext.data()),
                     ciphertext.size(),
-                    reinterpret_cast<const uint8_t *>(authTag.data()),
+                    reinterpret_cast<uint8_t const *>(authTag.data()),
                     authTag.size(),
-                    reinterpret_cast<const uint8_t *>(ad.data()), ad.size()))
+                    reinterpret_cast<uint8_t const *>(ad.data()), ad.size()))
         {
             auto ec = ERR_peek_last_error();
             if (!ec
@@ -258,11 +258,11 @@ public:
         return outcome::success();
     }
 
-    friend std::size_t max_overhead(const boringssl_aead &ctx)
+    friend std::size_t max_overhead(boringssl_aead const &ctx)
     {
         return EVP_AEAD_max_overhead(EVP_AEAD_CTX_aead(&ctx.mCtx));
     }
-    friend std::size_t nonce_size(const boringssl_aead &ctx)
+    friend std::size_t nonce_size(boringssl_aead const &ctx)
     {
         return EVP_AEAD_nonce_length(EVP_AEAD_CTX_aead(&ctx.mCtx));
     }

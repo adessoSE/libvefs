@@ -22,7 +22,7 @@ public:
 
     inline auto read(int which) const noexcept -> sector_reference
     {
-        const auto baseOffset
+        auto const baseOffset
                 = static_cast<std::size_t>(which) * serialized_reference_size;
 
         sector_reference deserialized;
@@ -35,7 +35,7 @@ public:
 
     inline void write(int which, sector_reference reference) noexcept
     {
-        const auto baseOffset
+        auto const baseOffset
                 = static_cast<std::size_t>(which) * serialized_reference_size;
 
         mCodec.write(reference.sector, baseOffset);

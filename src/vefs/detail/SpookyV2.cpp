@@ -30,7 +30,7 @@ namespace vefs::utils::hash::detail::impl
 // short hash ... it could be used on any message,
 // but it's used by Spooky just for short messages.
 //
-void SpookyHash::Short(const void *message,
+void SpookyHash::Short(void const *message,
                        size_t length,
                        uint64_t *hash1,
                        uint64_t *hash2)
@@ -38,13 +38,13 @@ void SpookyHash::Short(const void *message,
     uint64_t buf[2 * sc_numVars];
     union
     {
-        const uint8_t *p8;
+        uint8_t const *p8;
         uint32_t *p32;
         uint64_t *p64;
         size_t i;
     } u;
 
-    u.p8 = (const uint8_t *)message;
+    u.p8 = (uint8_t const *)message;
 
     if constexpr (!ALLOW_UNALIGNED_READS)
     {
@@ -63,7 +63,7 @@ void SpookyHash::Short(const void *message,
 
     if (length > 15)
     {
-        const uint64_t *end = u.p64 + (length / 32) * 4;
+        uint64_t const *end = u.p64 + (length / 32) * 4;
 
         // handle all complete sets of 32 bytes
         for (; u.p64 < end; u.p64 += 4)
@@ -135,7 +135,7 @@ void SpookyHash::Short(const void *message,
 }
 
 // do the whole hash in one call
-void SpookyHash::Hash128(const void *message,
+void SpookyHash::Hash128(void const *message,
                          size_t length,
                          uint64_t *hash1,
                          uint64_t *hash2)
@@ -151,7 +151,7 @@ void SpookyHash::Hash128(const void *message,
     uint64_t *end;
     union
     {
-        const uint8_t *p8;
+        uint8_t const *p8;
         uint64_t *p64;
         size_t i;
     } u;
@@ -161,7 +161,7 @@ void SpookyHash::Hash128(const void *message,
     h1 = h4 = h7 = h10 = *hash2;
     h2 = h5 = h8 = h11 = sc_const;
 
-    u.p8 = (const uint8_t *)message;
+    u.p8 = (uint8_t const *)message;
     end = u.p64 + (length / sc_blockSize) * sc_numVars;
 
     // handle all whole sc_blockSize blocks of bytes
@@ -195,7 +195,7 @@ void SpookyHash::Hash128(const void *message,
     }
 
     // handle the last partial block of sc_blockSize bytes
-    remainder = (length - ((const uint8_t *)end - (const uint8_t *)message));
+    remainder = (length - ((uint8_t const *)end - (uint8_t const *)message));
     memcpy(buf, end, remainder);
     memset(((uint8_t *)buf) + remainder, 0, sc_blockSize - remainder);
     ((uint8_t *)buf)[sc_blockSize - 1] = static_cast<uint8_t>(remainder);
@@ -216,18 +216,18 @@ void SpookyHash::Init(uint64_t seed1, uint64_t seed2)
 }
 
 // add a message fragment to the state
-void SpookyHash::Update(const void *message, size_t length)
+void SpookyHash::Update(void const *message, size_t length)
 {
     uint64_t h0, h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11;
     size_t newLength = length + m_remainder;
     uint8_t remainder;
     union
     {
-        const uint8_t *p8;
+        uint8_t const *p8;
         uint64_t *p64;
         size_t i;
     } u;
-    const uint64_t *end;
+    uint64_t const *end;
 
     // Is this message fragment too short?  If it is, stuff it away.
     if (newLength < sc_bufSize)
@@ -271,17 +271,17 @@ void SpookyHash::Update(const void *message, size_t length)
         Mix(u.p64, h0, h1, h2, h3, h4, h5, h6, h7, h8, h9, h10, h11);
         Mix(&u.p64[sc_numVars], h0, h1, h2, h3, h4, h5, h6, h7, h8, h9, h10,
             h11);
-        u.p8 = ((const uint8_t *)message) + prefix;
+        u.p8 = ((uint8_t const *)message) + prefix;
         length -= prefix;
     }
     else
     {
-        u.p8 = (const uint8_t *)message;
+        u.p8 = (uint8_t const *)message;
     }
 
     // handle all whole blocks of sc_blockSize bytes
     end = u.p64 + (length / sc_blockSize) * sc_numVars;
-    remainder = (uint8_t)(length - ((const uint8_t *)end - u.p8));
+    remainder = (uint8_t)(length - ((uint8_t const *)end - u.p8));
     if constexpr (ALLOW_UNALIGNED_READS)
     {
         while (u.p64 < end)
@@ -342,7 +342,7 @@ void SpookyHash::Final(uint64_t *hash1, uint64_t *hash2)
         return;
     }
 
-    const uint64_t *data = (const uint64_t *)m_data;
+    uint64_t const *data = (uint64_t const *)m_data;
     uint8_t remainder = m_remainder;
 
     uint64_t h0 = m_state[0];

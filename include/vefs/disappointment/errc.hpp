@@ -26,7 +26,7 @@ enum class archive_errc : error_code
     archive_file_already_existed,
     archive_file_did_not_exist,
 };
-const error_domain &archive_domain() noexcept;
+error_domain const &archive_domain() noexcept;
 
 inline auto make_error(archive_errc errc, adl::disappointment::type) noexcept
         -> error

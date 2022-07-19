@@ -127,7 +127,7 @@ inline void cache_clock<ClockSize>::clear() noexcept
 template <std::uintmax_t ClockSize>
 inline bool cache_clock<ClockSize>::purge(std::size_t value) noexcept
 {
-    const auto it = std::find(mEntries.begin(), mEntries.end(),
+    auto const it = std::find(mEntries.begin(), mEntries.end(),
                               static_cast<entry_index>(value));
     if (it == mEntries.end())
     {

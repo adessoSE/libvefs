@@ -1,7 +1,19 @@
 #pragma once
 #include "vefs/crypto/provider.hpp"
 #include "vefs/detail/file_crypto_ctx.hpp"
+
+#include <boost/predef/compiler.h>
+
+#if defined(BOOST_COMP_MSVC_AVAILABLE)
+#pragma warning(push, 3)
+#pragma warning(disable : 4702) // unreachable code
+#endif
+
 #include "gmock/gmock.h"
+
+#if defined(BOOST_COMP_MSVC_AVAILABLE)
+#pragma warning(pop)
+#endif
 
 class crypto_provider_mock : public vefs::crypto::crypto_provider
 {

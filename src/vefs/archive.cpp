@@ -191,9 +191,10 @@ auto archive_handle::archive(llfio::path_handle const &base,
     }
 }
 
-auto archive_handle::open_existing(llfio::file_handle mfh,
-                                   crypto::crypto_provider *cryptoProvider,
-                                   archive_handle::storage_key_type userPRK) noexcept
+auto archive_handle::open_existing(
+        llfio::file_handle mfh,
+        crypto::crypto_provider *cryptoProvider,
+        archive_handle::storage_key_type userPRK) noexcept
         -> result<archive_handle>
 {
     VEFS_TRY(auto &&bundledPrimitives,
@@ -246,9 +247,10 @@ auto archive_handle::open_existing(llfio::file_handle mfh,
             std::move(filesystem));
 }
 
-auto archive_handle::create_new(llfio::file_handle mfh,
-                                crypto::crypto_provider *cryptoProvider,
-                                archive_handle::storage_key_type userPRK) noexcept
+auto archive_handle::create_new(
+        llfio::file_handle mfh,
+        crypto::crypto_provider *cryptoProvider,
+        archive_handle::storage_key_type userPRK) noexcept
         -> result<archive_handle>
 {
     VEFS_TRY(
@@ -289,8 +291,7 @@ auto archive_handle::purge_corruption(llfio::path_handle const &base,
                                       llfio::path_view path,
                                       ro_blob<32> userPRK,
                                       crypto::crypto_provider *cryptoProvider,
-                                      backup_mode backupMode)
-        -> result<void>
+                                      backup_mode backupMode) -> result<void>
 {
     using namespace std::string_view_literals;
 
@@ -334,7 +335,8 @@ auto archive_handle::purge_corruption(llfio::path_handle const &base,
     {
         VEFS_TRY(corruptedFile.relink(base, backupPath));
     }
-    else {
+    else
+    {
         fileGuard.release();
         VEFS_TRY(corruptedFile.unlink());
         VEFS_TRY(corruptedFile.close());
@@ -475,7 +477,7 @@ auto archive_handle::erase(std::string_view filePath) -> result<void>
     return mFilesystem->erase(filePath);
 }
 
-auto archive_handle::read(const vfile_handle &handle,
+auto archive_handle::read(vfile_handle const &handle,
                           rw_dynblob buffer,
                           std::uint64_t readFilePos) -> result<void>
 {
@@ -491,12 +493,13 @@ auto archive_handle::read(const vfile_handle &handle,
     if (readrx.has_error())
     {
         readrx.assume_error() << ed::archive_file_read_area{
-                ed::file_span{readFilePos, readFilePos + buffer.size()}};
+                ed::file_span{readFilePos, readFilePos + buffer.size()}
+        };
     }
     return readrx;
 }
 
-auto archive_handle::write(const vfile_handle &handle,
+auto archive_handle::write(vfile_handle const &handle,
                            ro_dynblob data,
                            std::uint64_t writeFilePos) -> result<void>
 {
@@ -513,12 +516,13 @@ auto archive_handle::write(const vfile_handle &handle,
     if (writerx.has_error())
     {
         writerx.assume_error() << ed::archive_file_write_area{
-                ed::file_span{writeFilePos, writeFilePos + data.size()}};
+                ed::file_span{writeFilePos, writeFilePos + data.size()}
+        };
     }
     return writerx;
 }
 
-auto archive_handle::truncate(const vfile_handle &handle,
+auto archive_handle::truncate(vfile_handle const &handle,
                               std::uint64_t maxExtent) -> result<void>
 {
     if (!handle)
@@ -531,7 +535,7 @@ auto archive_handle::truncate(const vfile_handle &handle,
     return resizerx;
 }
 
-auto archive_handle::maximum_extent_of(const vfile_handle &handle)
+auto archive_handle::maximum_extent_of(vfile_handle const &handle)
         -> result<std::uint64_t>
 {
     if (!handle)
@@ -541,7 +545,7 @@ auto archive_handle::maximum_extent_of(const vfile_handle &handle)
     return handle->maximum_extent();
 }
 
-auto archive_handle::commit(const vfile_handle &handle) -> result<void>
+auto archive_handle::commit(vfile_handle const &handle) -> result<void>
 {
     if (!handle)
     {
@@ -553,7 +557,8 @@ auto archive_handle::commit(const vfile_handle &handle) -> result<void>
     return syncrx;
 }
 
-auto archive_handle::extract(llfio::path_view sourceFilePath, llfio::path_view targetBasePath) -> result<void>
+auto archive_handle::extract(llfio::path_view sourceFilePath,
+                             llfio::path_view targetBasePath) -> result<void>
 {
     return mFilesystem->extract(sourceFilePath, targetBasePath);
 }

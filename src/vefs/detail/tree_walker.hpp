@@ -72,10 +72,10 @@ constexpr auto next(tree_position position) noexcept -> tree_position;
 constexpr auto prev(tree_position position) noexcept -> tree_position;
 
 template <typename Impl>
-inline void compute_hash(const tree_position &obj, Impl &state);
+inline void compute_hash(tree_position const &obj, Impl &state);
 template <typename Impl, typename H>
 inline void
-compute_hash(const tree_position &obj, H &h, utils::hash::algorithm_tag<Impl>);
+compute_hash(tree_position const &obj, H &h, utils::hash::algorithm_tag<Impl>);
 
 /**
  * encapsulates the representation of a path through the tree and the
@@ -152,19 +152,19 @@ class tree_path::iterator
 
 public:
     iterator();
-    iterator(const tree_path &path);
-    iterator(const tree_path &path, int layer);
+    iterator(tree_path const &path);
+    iterator(tree_path const &path, int layer);
 
     int array_offset();
 
 private:
-    bool equal(const iterator &other) const;
+    bool equal(iterator const &other) const;
 
     tree_position dereference() const;
     void increment();
     void decrement();
 
-    const tree_path *mOwner;
+    tree_path const *mOwner;
     int mLayer;
 };
 } // namespace vefs::detail
@@ -256,13 +256,13 @@ constexpr auto prev(tree_position value) noexcept -> tree_position
 }
 
 template <typename Impl>
-inline void compute_hash(const tree_position &obj, Impl &state)
+inline void compute_hash(tree_position const &obj, Impl &state)
 {
     utils::compute_hash(obj.raw(), state);
 }
 template <typename Impl, typename H>
 inline void
-compute_hash(const tree_position &obj, H &h, utils::hash::algorithm_tag<Impl>)
+compute_hash(tree_position const &obj, H &h, utils::hash::algorithm_tag<Impl>)
 {
     utils::compute_hash(obj.raw(), h, utils::hash::algorithm_tag<Impl>{});
 }
@@ -298,8 +298,8 @@ BOOST_FORCEINLINE auto tree_path::calc_waypoint_params(int layer,
                                                        std::uint64_t pos)
         -> waypoint
 {
-    const auto absolute = pos / lut::ref_width[layer];
-    const int offset = absolute % lut::references_per_sector;
+    auto const absolute = pos / lut::ref_width[layer];
+    int const offset = absolute % lut::references_per_sector;
     return {absolute, offset};
 }
 
@@ -429,12 +429,12 @@ inline tree_path::iterator::iterator()
     , mLayer(-1)
 {
 }
-inline tree_path::iterator::iterator(const tree_path &path, int layer)
+inline tree_path::iterator::iterator(tree_path const &path, int layer)
     : mOwner(&path)
     , mLayer(layer)
 {
 }
-inline tree_path::iterator::iterator(const tree_path &path)
+inline tree_path::iterator::iterator(tree_path const &path)
     : iterator(path, path.mTreeDepth)
 {
 }
@@ -459,7 +459,7 @@ inline void tree_path::iterator::decrement()
     mLayer += 1;
 }
 
-inline bool tree_path::iterator::equal(const iterator &other) const
+inline bool tree_path::iterator::equal(iterator const &other) const
 {
     if (mLayer < 0)
     {
@@ -531,7 +531,7 @@ struct fmt::formatter<vefs::detail::tree_position>
     }
 
     template <typename FormatContext>
-    auto format(const vefs::detail::tree_position &tp, FormatContext &ctx)
+    auto format(vefs::detail::tree_position const &tp, FormatContext &ctx)
     {
         return fmt::format_to(ctx.out(), "(L{}, P{:#04x})", tp.layer(),
                               tp.position());

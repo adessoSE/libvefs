@@ -15,9 +15,9 @@ public:
     using rebind = secure_allocator<U>;
 
     secure_allocator() noexcept = default;
-    secure_allocator(const secure_allocator &) noexcept = default;
+    secure_allocator(secure_allocator const &) noexcept = default;
     template <typename U>
-    secure_allocator(const secure_allocator<U> &) noexcept
+    secure_allocator(secure_allocator<U> const &) noexcept
     {
     }
 

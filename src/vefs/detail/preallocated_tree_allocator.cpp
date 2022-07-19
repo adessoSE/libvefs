@@ -39,7 +39,7 @@ auto preallocated_tree_allocator::dealloc_one(const sector_id which) noexcept
         mIds.push_back(which);
         return success();
     }
-    catch (const std::bad_alloc &)
+    catch (std::bad_alloc const &)
     {
         return errc::not_enough_memory;
     }

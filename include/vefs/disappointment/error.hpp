@@ -34,7 +34,7 @@ public:
     using diagnostics_buffer = detail::error_detail_base::format_buffer;
 
     error_info() noexcept;
-    error_info(const error_info &) = delete;
+    error_info(error_info const &) = delete;
 
     error_info &operator=(error_info &) = delete;
 
@@ -90,7 +90,7 @@ error_info::diagnostic_information(diagnostics_buffer &out,
                                    std::string_view detailFormat) const
 {
     fmt::string_view wrappedFormat{detailFormat};
-    for (const auto &detail : mDetails)
+    for (auto const &detail : mDetails)
     {
         fmt::format_to(std::back_inserter(out), "{}", wrappedFormat);
         detail.second->stringify(out);
@@ -114,19 +114,19 @@ class error final
     class success_domain final : public error_domain
     {
         auto name() const noexcept -> std::string_view override;
-        auto message(const error &e, const error_code code) const noexcept
+        auto message(error const &e, const error_code code) const noexcept
                 -> std::string_view override;
 
         static const success_domain sInstance;
 
     public:
-        static auto instance() noexcept -> const error_domain &;
+        static auto instance() noexcept -> error_domain const &;
     };
 
 public:
     error() noexcept;
     error(error_code code,
-          const error_domain &domain,
+          error_domain const &domain,
           error_info::ptr info = {}) noexcept;
     template <typename T, std::enable_if_t<is_error_compatible_v<T>, int> = 0>
     error(T code) noexcept(noexcept(make_error(code,
@@ -135,16 +135,16 @@ public:
     {
     }
 
-    error(const error &other) noexcept;
+    error(error const &other) noexcept;
     error(error &&other) noexcept;
-    auto operator=(const error &other) noexcept -> error &;
+    auto operator=(error const &other) noexcept -> error &;
     auto operator=(error &&other) noexcept -> error &;
 
     auto code() const noexcept -> error_code;
-    auto domain() const noexcept -> const error_domain &;
+    auto domain() const noexcept -> error_domain const &;
 
     bool has_info() const noexcept;
-    auto info() const noexcept -> const error_info::ptr &;
+    auto info() const noexcept -> error_info::ptr const &;
     auto ensure_allocated() const noexcept -> error;
 
     template <typename T>
@@ -154,12 +154,12 @@ public:
             -> std::string;
 
     explicit operator bool() const noexcept;
-    friend bool operator==(const error &lhs, const error &rhs) noexcept;
+    friend bool operator==(error const &lhs, error const &rhs) noexcept;
 
 private:
     error_code mValue;
     mutable error_info::ptr mInfo;
-    const error_domain *mDomain;
+    error_domain const *mDomain;
 };
 
 template <typename T>
@@ -181,7 +181,7 @@ inline error::error() noexcept
 {
 }
 inline error::error(error_code code,
-                    const error_domain &domain,
+                    error_domain const &domain,
                     error_info::ptr info) noexcept
     : mValue{code}
     , mInfo{std::move(info)}
@@ -190,7 +190,7 @@ inline error::error(error_code code,
 {
 }
 
-inline error::error(const error &other) noexcept
+inline error::error(error const &other) noexcept
     : mValue{other.mValue}
     , mInfo{other.mInfo}
     , mDomain{other.mDomain}
@@ -204,7 +204,7 @@ inline error::error(error &&other) noexcept
 {
 }
 
-inline error &error::operator=(const error &other) noexcept
+inline error &error::operator=(error const &other) noexcept
 {
     mDomain = other.mDomain;
     mValue = other.mValue;
@@ -226,7 +226,7 @@ inline auto error_info::try_add_detail(ErrorDetail &&detail) noexcept
 {
     static_assert(
             std::is_convertible_v<std::add_pointer_t<ErrorDetail>,
-                                  const vefs::detail::error_detail_base *>,
+                                  vefs::detail::error_detail_base const *>,
             "The detail type must derive from "
             "vefs::detail::error_detail_base.");
     using obj_type = std::remove_cv_t<std::remove_reference_t<ErrorDetail>>;
@@ -245,7 +245,7 @@ inline auto error_info::try_add_detail(ErrorDetail &&detail) noexcept
             heapDetail.reset(new (std::nothrow) obj_type(
                     std::forward<ErrorDetail>(detail)));
         }
-        catch (const std::bad_alloc &)
+        catch (std::bad_alloc const &)
         {
             // fall through to !heapDetail
         }
@@ -276,12 +276,12 @@ inline auto error_info::try_add_detail(std::type_index type,
             return errc::key_already_exists;
         }
     }
-    catch (const std::bad_alloc &)
+    catch (std::bad_alloc const &)
     {
         ++mInsertionFailures;
         return errc::not_enough_memory;
     }
-    catch (const std::exception &)
+    catch (std::exception const &)
     {
         ++mInsertionFailures;
         return errc::bad;
@@ -294,7 +294,7 @@ inline auto error::code() const noexcept -> error_code
     return mValue;
 }
 
-inline auto error::domain() const noexcept -> const error_domain &
+inline auto error::domain() const noexcept -> error_domain const &
 {
     return mDomain ? *mDomain : success_domain::instance();
 }
@@ -304,7 +304,7 @@ inline bool error::has_info() const noexcept
     return mInfo.operator bool();
 }
 
-inline auto error::info() const noexcept -> const error_info::ptr &
+inline auto error::info() const noexcept -> error_info::ptr const &
 {
     return mInfo;
 }
@@ -342,11 +342,11 @@ inline error::operator bool() const noexcept
     return mDomain != nullptr;
 }
 
-inline bool operator==(const error &lhs, const error &rhs) noexcept
+inline bool operator==(error const &lhs, error const &rhs) noexcept
 {
     return lhs.mDomain == rhs.mDomain && lhs.code() == rhs.code();
 }
-inline bool operator!=(const error &lhs, const error &rhs) noexcept
+inline bool operator!=(error const &lhs, error const &rhs) noexcept
 {
     return !(lhs == rhs);
 }
@@ -395,7 +395,7 @@ public:
 
         while (xit != xend)
         {
-            const auto val = *xit;
+            auto const val = *xit;
             switch (state)
             {
             case 0: // start-state
@@ -452,7 +452,7 @@ public:
     }
 
     template <typename FormatContext>
-    auto format(const vefs::error &info, FormatContext &ctx)
+    auto format(vefs::error const &info, FormatContext &ctx)
     {
         auto str = info.diagnostic_information(error_format);
         return std::copy(str.cbegin(), str.cend(), ctx.out());
@@ -465,7 +465,7 @@ public:
 
 namespace vefs
 {
-inline auto operator<<(std::ostream &s, const error &e) -> std::ostream &
+inline auto operator<<(std::ostream &s, error const &e) -> std::ostream &
 {
     s << fmt::format(FMT_STRING("{}"), e);
     return s;

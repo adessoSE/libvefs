@@ -46,7 +46,7 @@ public:
     {
         assert(mAllocator);
     }
-    inline alloc_std_adaptor(const alloc_std_adaptor &other)
+    inline alloc_std_adaptor(alloc_std_adaptor const &other)
         : alloc_std_adaptor{other.mAllocator}
     {
     }
@@ -55,7 +55,7 @@ public:
     {
     }
     template <typename U>
-    inline alloc_std_adaptor(const alloc_std_adaptor<U, impl_t> &other)
+    inline alloc_std_adaptor(alloc_std_adaptor<U, impl_t> const &other)
         : alloc_std_adaptor{other.mAllocator}
     {
     }
@@ -65,7 +65,7 @@ public:
     {
     }
 
-    inline alloc_std_adaptor &operator=(const alloc_std_adaptor &other)
+    inline alloc_std_adaptor &operator=(alloc_std_adaptor const &other)
     {
         mAllocator = other.mAllocator;
         return *this;
@@ -77,7 +77,7 @@ public:
     }
     template <typename U>
     inline alloc_std_adaptor &
-    operator=(const alloc_std_adaptor<U, impl_t> &other)
+    operator=(alloc_std_adaptor<U, impl_t> const &other)
     {
         mAllocator = other.mAllocator;
         return *this;
@@ -126,7 +126,7 @@ public:
 
     template <typename U>
     inline bool
-    operator==(const alloc_std_adaptor<U, Allocator> &rhs) const noexcept
+    operator==(alloc_std_adaptor<U, Allocator> const &rhs) const noexcept
     {
         return mAllocator == rhs.mAllocator;
     }
@@ -136,8 +136,8 @@ private:
 };
 
 template <typename T, typename U, typename Allocator>
-inline bool operator!=(const alloc_std_adaptor<T, Allocator> &lhs,
-                       const alloc_std_adaptor<U, Allocator> &rhs) noexcept
+inline bool operator!=(alloc_std_adaptor<T, Allocator> const &lhs,
+                       alloc_std_adaptor<U, Allocator> const &rhs) noexcept
 {
     return !(lhs == rhs);
 }

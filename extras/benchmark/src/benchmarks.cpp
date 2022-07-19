@@ -15,14 +15,14 @@ static void countnaive(benchmark::State &state)
         state.PauseTiming();
         std::array<std::byte, 64> mem;
         vefs::fill_blob(std::span(mem), std::byte{0b0101'0101});
-        //generator.fill(mem);
+        // generator.fill(mem);
         state.ResumeTiming();
 
         std::size_t r = 0;
 
         int start = -1;
-        std::size_t num =
-            mem.size() * std::numeric_limits<unsigned char>::digits;
+        std::size_t num
+                = mem.size() * std::numeric_limits<unsigned char>::digits;
         const_bitset_overlay data(mem);
         for (std::size_t i = 0; i < num; ++i)
         {
@@ -56,7 +56,7 @@ static void countspecial(benchmark::State &state)
     {
         state.PauseTiming();
         std::array<std::byte, 64> mem;
-        //generator.fill(mem);
+        // generator.fill(mem);
         vefs::fill_blob(std::span(mem), std::byte{0b0101'0101});
         state.ResumeTiming();
 
@@ -71,7 +71,7 @@ static void countspecial(benchmark::State &state)
             int j = 1;
             for (;;)
             {
-                const int zc = countr_zero(val);
+                int const zc = countr_zero(val);
                 r += zc;
                 j += zc;
                 if (j < std::numeric_limits<std::size_t>::digits)
@@ -80,7 +80,7 @@ static void countspecial(benchmark::State &state)
                 }
                 val >>= zc;
 
-                const int oc = countr_one(val);
+                int const oc = countr_one(val);
                 j += oc;
                 if (j < std::numeric_limits<std::size_t>::digits)
                 {
