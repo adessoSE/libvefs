@@ -39,6 +39,19 @@
         </Expand>
     </Type>
 
+    <Type Name="vefs::detail::cache_ng::cache_page_state&lt;*&gt;">
+        <DisplayString Condition="(mValue._Storage._Value &amp; 0x30000) == 0x30000">{{ locked; ref_ctr={(unsigned short)mValue._Storage._Value}; key={mKey}}}</DisplayString>
+        <DisplayString Condition="(mValue._Storage._Value &amp; 0x10000) != 0">{{ dirty; ref_ctr={(unsigned short)mValue._Storage._Value}; key={mKey}}}</DisplayString>
+        <DisplayString Condition="(mValue._Storage._Value &amp; 0x20000) != 0">{{ dead; ref_ctr={(unsigned short)mValue._Storage._Value}; key={mKey}}}</DisplayString>
+        <DisplayString>{{ clean; ref_ctr={(unsigned short)mValue._Storage._Value}; key={mKey}}}</DisplayString>
+        <Expand>
+            <Item Name="[key]">mKey</Item>
+            <Item Name="[reference count]">(unsigned short)mValue._Storage._Value</Item>
+            <Item Name="[state]">(unsigned short)(mValue._Storage._Value &gt;&gt; 16 &amp; 0x3)</Item>
+            <Item Name="[generation]">(unsigned short)(mValue._Storage._Value &gt;&gt; 18)</Item>
+        </Expand>
+    </Type>
+
     <Type Name="vefs::detail::bloom_filter&lt;*,*&gt;">
         <Expand>
             <Item Name="[cells]">(mBuckets._Mypair._Myval2._Mylast - mBuckets._Mypair._Myval2._Myfirst) * sizeof(size_t) * 8U</Item>

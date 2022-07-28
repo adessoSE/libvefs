@@ -20,26 +20,30 @@ namespace cache_ng
 
 /**
  * @brief Indicates whether a cache page replacement succeeded or why it failed.
+ *
+ * The enum values have been chosen in a way which is compatible with the dirt
+ * and tombstone flags of the page state The fifth bit indicates success which
+ * has been chosen in order to allow eyeballing the internal state in hex form.
  */
 enum class [[nodiscard]] cache_replacement_result{
         /**
          * @brief failed; the page is currently used
          */
-        pinned = 0,
+        pinned = 0b0'0000,
         /**
          * @brief succeeded; the page is unoccupied
          */
-        dead,
+        dead = 0b1'0010,
         /**
          * @brief succeeded; the page is occupied and clean
          */
-        clean,
+        clean = 0b1'0000,
         /**
          * @brief succeeded; the page is occupied and dirty/modified
          *
          * This indicates that changes need to be synchronized.
          */
-        dirty,
+        dirty = 0b1'0001,
 };
 
 #if defined(DPLX_COMP_MSVC_AVAILABLE)
@@ -78,20 +82,21 @@ enum class [[nodiscard]] cache_replacement_result{
 template <typename Key>
 class alignas(32) cache_page_state
 {
+public:
     using state_type = std::uint32_t;
-    using state_traits = std::numeric_limits<state_type>;
     using key_type = Key;
 
+private:
     /**
-     *   tombstone   generation
+     *   generation   dirty
      *   v              v
-     * [ 1bit | 1bit | 14bit | 16bit ]
-     *          ^               ^
-     *        dirty          ref ctr
+     * [ 14bit | 1bit | 1bit | 16bit ]
+     *           ^             ^
+     *       tombstone      ref ctr
      */
-    mutable std::atomic<state_type> mPageState;
+    mutable std::atomic<state_type> mValue;
 
-    alignas(key_type) std::byte mKeyStorage[sizeof(key_type)];
+    key_type mKey;
 
     static constexpr state_type one = 1;
 
@@ -99,23 +104,27 @@ class alignas(32) cache_page_state
     static constexpr int ref_ctr_digits = 16;
     static constexpr state_type ref_ctr_mask = ((one << ref_ctr_digits) - 1U)
                                             << ref_ctr_offset;
+    static constexpr state_type ref_ctr_one = one << ref_ctr_offset;
 
-    static constexpr int generation_offset = ref_ctr_offset + ref_ctr_digits;
+    static constexpr state_type dirt_flag = one
+                                         << (ref_ctr_offset + ref_ctr_digits);
+    static constexpr state_type tombstone_flag = dirt_flag << 1;
+    // this serves as an exclusive lock
+    static constexpr state_type dirty_tombstone = dirt_flag | tombstone_flag;
+
+    static constexpr int generation_offset
+            = ref_ctr_offset + ref_ctr_digits + 1 + 1;
     static constexpr int generation_digits = 14;
     static constexpr state_type generation_mask
             = ((one << generation_digits) - 1U) << generation_offset;
-
-    static constexpr state_type dirt_flag
-            = one << (generation_offset + generation_digits);
-    static constexpr state_type tombstone_flag = dirt_flag << 1;
-    static constexpr state_type dirty_tombstone = dirt_flag | tombstone_flag;
+    static constexpr state_type generation_one = one << generation_offset;
 
 public:
     ~cache_page_state() noexcept
     {
         if constexpr (!std::is_trivially_destructible_v<key_type>)
         {
-            if ((mPageState.load(std::memory_order::acquire) & tombstone_flag)
+            if ((mValue.load(std::memory_order::acquire) & tombstone_flag)
                 != 0U)
             {
                 std::destroy_at(&key());
@@ -123,38 +132,78 @@ public:
         }
     }
     cache_page_state() noexcept
-        : mPageState(tombstone_flag)
+        : mValue(tombstone_flag)
+        , mKey{}
     {
     }
 
-    auto key() const noexcept -> key_type const &
+    static constexpr state_type invalid_generation = one;
+
+    [[nodiscard]] auto key() const noexcept -> key_type const &
     {
-        return *std::launder(reinterpret_cast<key_type const *>(mKeyStorage));
+        return mKey;
     }
 
-    auto is_dead() const noexcept -> bool
+    [[nodiscard]] auto is_dead() const noexcept -> bool
     {
-        state_type state = mPageState.load(std::memory_order::acquire);
+        auto const state = mValue.load(std::memory_order::acquire);
         return (state & dirty_tombstone) == tombstone_flag;
     }
-    auto is_dirty() const noexcept -> bool
+    [[nodiscard]] auto is_dirty() const noexcept -> bool
     {
-        return (mPageState.load(std::memory_order::acquire) & dirt_flag) != 0U;
+        return (mValue.load(std::memory_order::acquire) & dirt_flag) != 0U;
     }
-    auto is_pinned() const noexcept -> bool
+    [[nodiscard]] auto is_pinned() const noexcept -> bool
     {
-        return (mPageState.load(std::memory_order::acquire) & ref_ctr_mask)
-            != 0U;
+        return (mValue.load(std::memory_order::acquire) & ref_ctr_mask) != 0U;
     }
     void mark_dirty() noexcept
     {
-        mPageState.fetch_or(dirt_flag, std::memory_order::release);
+        mValue.fetch_or(dirt_flag, std::memory_order::release);
     }
     void mark_clean() noexcept
     {
-        mPageState.fetch_and(~dirt_flag, std::memory_order::release);
+        mValue.fetch_and(~dirt_flag, std::memory_order::release);
     }
 
+    [[nodiscard]] auto contains(state_type const expectedGeneration,
+                                key_type const &expectedKey) const noexcept
+            -> bool
+    {
+        auto const state = mValue.load(std::memory_order::acquire);
+        return (state & (tombstone_flag | generation_mask))
+                    == (expectedGeneration & generation_mask)
+            && expectedKey == key();
+    }
+
+    /**
+     * @brief Tries to acquire a page of unknown state.
+     *
+     * It ensures that the page contains the data associated with the given
+     * generation and key. If successful the page is pinned. This method fails
+     * if the page is currently being replaced.
+     *
+     * @return true if the page was alive and the generation and key match
+     */
+    [[nodiscard]] auto try_acquire(key_type const &expectedKey,
+                                   state_type const expectedGeneration) noexcept
+            -> bool
+    {
+        using enum std::memory_order;
+        assert((expectedGeneration & generation_mask) == expectedGeneration);
+
+        auto const state = mValue.fetch_add(ref_ctr_one, acq_rel);
+        // we include the tombstone flag
+        // => the condition is true if this is dead or locked
+        // => we only access mKey if it isn't being written to
+        if ((state & (generation_mask | tombstone_flag)) != expectedGeneration
+            || expectedKey != mKey)
+        {
+            mValue.fetch_sub(one, relaxed);
+            return false;
+        }
+        return true;
+    }
     /**
      * @brief Tries to acquire a page of unknown state.
      *
@@ -164,48 +213,60 @@ public:
      *
      * @return true if the page was alive and the generation and key match
      */
-    auto try_acquire(state_type const expectedGeneration,
-                     key_type const &expectedKey) noexcept -> bool
+    [[nodiscard]] auto
+    try_acquire_wait(key_type const &expectedKey,
+                     state_type const expectedGeneration) noexcept -> bool
     {
         using enum std::memory_order;
         assert((expectedGeneration & generation_mask) == expectedGeneration);
 
-        state_type state = mPageState.fetch_add(one, acq_rel);
-        if ((state & dirty_tombstone) == dirty_tombstone)
+        auto state = mValue.fetch_add(ref_ctr_one, acq_rel);
+        for (;;)
         {
-            if ((state & generation_mask) != expectedGeneration)
+            if ((state & dirty_tombstone) == dirty_tombstone)
             {
-                return false;
+                auto const currentGeneration = state & generation_mask;
+                // we check whether the generation matches. If it doesn't we can
+                // fail _early_ without waiting
+                if (currentGeneration != expectedGeneration
+                    && currentGeneration + generation_one != expectedGeneration)
+                {
+                    break;
+                }
+                mValue.wait(state, acquire);
+                state = mValue.load(relaxed);
             }
-            mPageState.wait(state, acq_rel);
-            return try_acquire(expectedGeneration, expectedKey);
+            else if ((state & (generation_mask | tombstone_flag))
+                             != expectedGeneration
+                     || expectedKey != mKey)
+            {
+                break;
+            }
+            else
+            {
+                return true;
+            }
         }
-        if ((state & tombstone_flag) != 0U)
-        {
-            return false;
-        }
-        if ((state & generation_mask) != expectedGeneration
-            || expectedKey != key())
-        {
-            mPageState.fetch_sub(one, release);
-            return false;
-        }
-        return true;
+
+        mValue.fetch_sub(ref_ctr_one, relaxed);
+        return false;
     }
     void add_reference() const noexcept
     {
-        mPageState.fetch_add(one << ref_ctr_offset, std::memory_order::relaxed);
+        mValue.fetch_add(ref_ctr_one, std::memory_order::relaxed);
     }
     void release() const noexcept
     {
-        mPageState.fetch_sub(one << ref_ctr_offset, std::memory_order::release);
+        mValue.fetch_sub(ref_ctr_one, std::memory_order::release);
     }
 
-    auto try_start_replace() noexcept -> cache_replacement_result
+    [[nodiscard]] auto try_start_replace(state_type &nextGeneration) noexcept
+            -> cache_replacement_result
     {
         using enum std::memory_order;
         using enum cache_replacement_result;
-        state_type state = mPageState.load(acquire);
+
+        auto state = mValue.load(acquire);
         state_type next;
         do
         {
@@ -215,30 +276,18 @@ public:
                 return pinned;
             }
 
-            if ((state & dirt_flag) == 0U)
-            {
-                // not dirty <=> no write back necessary
-                // => we can immediately update the generation
-                next = dirty_tombstone | increment_generation(state);
-            }
-            else
-            {
+            // not dirty <=> no write back necessary
+            // => we can immediately update the generation
+            // note that we don't care about generation overflow as it will
+            // wrap around as intended
+            static_assert(generation_one == (dirt_flag << 2));
+            next = (state + ((~state & dirt_flag) << 2)) | dirty_tombstone
+                 | ref_ctr_one;
+        } while (!mValue.compare_exchange_weak(state, next, acq_rel, acquire));
 
-                // note that this preserves generation and dirt
-                next = tombstone_flag | state;
-            }
-        } while (!mPageState.compare_exchange_weak(state, next, acq_rel,
-                                                   acquire));
-
-        if ((state & tombstone_flag) != 0U)
-        {
-            return dead;
-        }
-        if constexpr (!std::is_trivially_destructible_v<key_type>)
-        {
-            std::destroy_at(&key());
-        }
-        return (state & dirt_flag) != 0U ? dirty : clean;
+        nextGeneration = (state + generation_one) & generation_mask;
+        return static_cast<cache_replacement_result>(
+                0b1'0000U | ((state & dirty_tombstone) >> ref_ctr_digits));
     }
     /**
      * @brief Updates the generation counter after @ref try_start_replace
@@ -246,11 +295,16 @@ public:
      */
     void update_generation() noexcept
     {
-        state_type const state = mPageState.load(std::memory_order::acquire);
-        mPageState.store(increment_generation(state),
-                         std::memory_order::release);
+        using enum std::memory_order;
 
-        mPageState.notify_all();
+        // note that we don't care about generation overflow as it will wrap
+        // around as intended
+        auto state = mValue.fetch_add(generation_one, release);
+
+        if ((state & ref_ctr_mask) > 1U)
+        {
+            mValue.notify_all();
+        }
     }
     /**
      * @brief Finishes a replacement and stores the key alongside the state.
@@ -258,37 +312,76 @@ public:
      * @return the generation id of the current page state for usage with
      *         @ref try_acquire.
      */
-    auto finish_replace(key_type nextKey) noexcept -> state_type
+    void finish_replace(key_type nextKey) noexcept
     {
-        new (static_cast<void *>(mKeyStorage)) key_type(std::move(nextKey));
+        using enum std::memory_order;
 
-        state_type state = mPageState.load(std::memory_order::relaxed);
-        state &= generation_mask;
-        state |= one;
-        mPageState.store(state, std::memory_order::release);
+        mKey = std::move(nextKey);
+        auto const state = mValue.fetch_and(~dirty_tombstone, release);
 
-        mPageState.notify_all();
-        return state & generation_mask;
+        if ((state & ref_ctr_mask) > 1U)
+        {
+            mValue.notify_all();
+        }
     }
     /**
      * @brief Aborts a replacement after which the page is marked dead.
      */
     void cancel_replace() noexcept
     {
-        mPageState.fetch_and(tombstone_flag | generation_mask,
-                             std::memory_order::release);
+        mKey = key_type{};
 
-        mPageState.notify_all();
+        auto const state = mValue.fetch_sub(dirt_flag | ref_ctr_one,
+                                            std::memory_order::release);
+
+        if ((state & ref_ctr_mask) > 1U)
+        {
+            mValue.notify_all();
+        }
     }
 
-private:
-    static auto increment_generation(state_type const state) noexcept
-            -> state_type
+    auto try_start_purge() noexcept -> bool
     {
-        state_type current = state & generation_mask;
-        state_type next
-                = (current + (one << generation_offset)) & generation_mask;
-        return (state & ~generation_mask) | next;
+        using enum std::memory_order;
+
+        auto state = mValue.load(acquire);
+        state_type next;
+        do
+        {
+            if ((state & ref_ctr_mask) != (ref_ctr_one))
+            {
+                return false;
+            }
+
+            next = state | dirty_tombstone;
+        } while (mValue.compare_exchange_weak(state, next, acq_rel, acquire));
+
+        return true;
+    }
+    void purge_cancel() noexcept
+    {
+        // we cannot recover the dirt state, therefore err on the side of
+        // caution and mark the page dirty
+        auto const state = mValue.fetch_sub(tombstone_flag | ref_ctr_one,
+                                            std::memory_order::release);
+
+        if ((state & ref_ctr_mask) > 1U)
+        {
+            mValue.notify_all();
+        }
+    }
+    void purge_finish() noexcept
+    {
+        mKey = key_type{};
+
+        auto const state
+                = mValue.fetch_add(generation_one - (dirt_flag | ref_ctr_one),
+                                   std::memory_order::release);
+
+        if ((state & ref_ctr_mask) > 1U)
+        {
+            mValue.notify_all();
+        }
     }
 };
 
@@ -324,3 +417,130 @@ struct dplx::cncr::reference_counted_traits<
               vefs::detail::cache_ng::cache_page_state<Key>>
 {
 };
+
+namespace vefs::detail::cache_ng
+{
+
+template <typename Key, typename Value>
+class cache_handle;
+
+template <typename Key, typename V1, typename V2>
+    requires std::same_as<std::remove_const_t<V1>, std::remove_const_t<V2>>
+inline auto operator==(cache_handle<Key, V1> const &lhs,
+                       cache_handle<Key, V2> const &rhs) noexcept -> bool;
+
+template <typename Key, typename Value>
+class cache_handle final
+    : private dplx::cncr::intrusive_ptr<Value, cache_page_state<Key>>
+{
+    using base_type = dplx::cncr::intrusive_ptr<Value, cache_page_state<Key>>;
+
+    template <typename K, typename V1, typename V2>
+        requires std::same_as<std::remove_const_t<V1>, std::remove_const_t<V2>>
+    friend auto operator==(cache_handle<K, V1> const &lhs,
+                           cache_handle<K, V2> const &rhs) noexcept -> bool;
+
+public:
+    ~cache_handle() noexcept
+    {
+        if (this->operator bool())
+        {
+            base_type::get_handle()->mark_dirty();
+        }
+    }
+    cache_handle() noexcept = default;
+
+    cache_handle(cache_handle const &) noexcept = default;
+    auto operator=(cache_handle const &) noexcept -> cache_handle & = default;
+
+    cache_handle(cache_handle &&) noexcept = default;
+    auto operator=(cache_handle &&) noexcept -> cache_handle & = default;
+
+    using base_type::base_type;
+    using base_type::operator bool;
+    using base_type::operator*;
+    using base_type::operator->;
+    using base_type::get;
+
+    friend inline auto operator==(cache_handle const &lhs,
+                                  std::nullptr_t) noexcept -> bool
+    {
+        return not lhs;
+    }
+
+    /**
+     * Checks whether the referenced cache_page is marked as dirty.
+     */
+    auto is_dirty() const noexcept -> bool
+    {
+        return base_type::get_handle()->is_dirty();
+    }
+
+    friend inline void swap(cache_handle &lhs, cache_handle &rhs) noexcept
+    {
+        swap(static_cast<base_type &>(lhs), static_cast<base_type &>(rhs));
+    }
+};
+
+template <typename Key, typename Value>
+class cache_handle<Key, Value const> final
+    : private dplx::cncr::intrusive_ptr<Value const, cache_page_state<Key>>
+{
+    using base_type
+            = dplx::cncr::intrusive_ptr<Value const, cache_page_state<Key>>;
+
+    template <typename K, typename V1, typename V2>
+        requires std::same_as<std::remove_const_t<V1>, std::remove_const_t<V2>>
+    friend auto operator==(cache_handle<K, V1> const &lhs,
+                           cache_handle<K, V2> const &rhs) noexcept -> bool;
+
+public:
+    cache_handle() noexcept = default;
+
+    using base_type::base_type;
+    using base_type::operator bool;
+    using base_type::operator*;
+    using base_type::operator->;
+    using base_type::get;
+
+    friend inline auto operator==(cache_handle const &lhs,
+                                  std::nullptr_t) noexcept -> bool
+    {
+        return not lhs;
+    }
+
+    /**
+     * Checks whether the referenced cache_page is marked as dirty.
+     */
+    auto is_dirty() const noexcept -> bool
+    {
+        return base_type::get_handle()->is_dirty();
+    }
+    /**
+     * Clears the dirty bit of the referenced cache_page.
+     */
+    void mark_clean() const noexcept
+    {
+        base_type::get_handle()->mark_clean();
+    }
+    auto as_writable() const noexcept -> cache_handle<Key, Value>
+    {
+        return cache_handle<Key, Value>{base_type::get_handle(),
+                                        const_cast<Value *>(get())};
+    }
+
+    friend inline void swap(cache_handle &lhs, cache_handle &rhs) noexcept
+    {
+        swap(static_cast<base_type &>(lhs), static_cast<base_type &>(rhs));
+    }
+};
+
+template <typename Key, typename V1, typename V2>
+    requires std::same_as<std::remove_const_t<V1>, std::remove_const_t<V2>>
+inline auto operator==(cache_handle<Key, V1> const &lhs,
+                       cache_handle<Key, V2> const &rhs) noexcept -> bool
+{
+    return lhs.get() == rhs.get() && lhs.get_handle() == rhs.get_handle();
+}
+
+} // namespace vefs::detail::cache_ng

@@ -31,13 +31,15 @@ BOOST_AUTO_TEST_CASE(dead_on_construction)
 
 BOOST_AUTO_TEST_CASE(initialize_dead)
 {
+    test_page_state::state_type gen;
     test_page_state subject;
 
     BOOST_TEST_REQUIRE(
-            (subject.try_start_replace() == cache_replacement_result::dead));
+            (subject.try_start_replace(gen) == cache_replacement_result::dead));
     BOOST_TEST(!subject.is_dead());
     BOOST_TEST(subject.is_dirty());
-    BOOST_TEST(subject.finish_replace(0xacdcU) == 0x0001'0000U);
+    BOOST_TEST(gen == 0x0004'0000U);
+    subject.finish_replace(0xacdcU);
     BOOST_TEST(!subject.is_dead());
     BOOST_TEST(!subject.is_dirty());
     BOOST_TEST(subject.is_pinned());
@@ -46,17 +48,20 @@ BOOST_AUTO_TEST_CASE(initialize_dead)
 
 BOOST_AUTO_TEST_CASE(replace_clean)
 {
+    test_page_state::state_type gen;
     test_page_state subject;
     BOOST_TEST_REQUIRE(
-            (subject.try_start_replace() == cache_replacement_result::dead));
-    BOOST_TEST_REQUIRE(subject.finish_replace(0xacdcU) == 0x0001'0000U);
+            (subject.try_start_replace(gen) == cache_replacement_result::dead));
+    BOOST_TEST_REQUIRE(gen == 0x0004'0000U);
+    subject.finish_replace(0xacdcU);
     subject.release();
 
-    BOOST_TEST_REQUIRE(
-            (subject.try_start_replace() == cache_replacement_result::clean));
+    BOOST_TEST_REQUIRE((subject.try_start_replace(gen)
+                        == cache_replacement_result::clean));
     BOOST_TEST(!subject.is_dead());
     BOOST_TEST(subject.is_dirty());
-    BOOST_TEST(subject.finish_replace(0xacddU) == 0x0002'0000U);
+    BOOST_TEST(gen == 0x0008'0000U);
+    subject.finish_replace(0xacddU);
     BOOST_TEST(!subject.is_dead());
     BOOST_TEST(!subject.is_dirty());
     BOOST_TEST(subject.is_pinned());
@@ -65,20 +70,22 @@ BOOST_AUTO_TEST_CASE(replace_clean)
 
 BOOST_AUTO_TEST_CASE(replace_dirty)
 {
+    test_page_state::state_type gen;
     test_page_state subject;
     BOOST_TEST_REQUIRE(
-            (subject.try_start_replace() == cache_replacement_result::dead));
-    BOOST_TEST_REQUIRE(subject.finish_replace(0xacdcU) == 0x0001'0000U);
+            (subject.try_start_replace(gen) == cache_replacement_result::dead));
+    BOOST_TEST_REQUIRE(gen == 0x0004'0000U);
+    subject.finish_replace(0xacdcU);
     subject.mark_dirty();
     subject.release();
 
-    BOOST_TEST_REQUIRE(
-            (subject.try_start_replace() == cache_replacement_result::dirty));
+    BOOST_TEST_REQUIRE((subject.try_start_replace(gen)
+                        == cache_replacement_result::dirty));
     BOOST_TEST(!subject.is_dead());
     BOOST_TEST(subject.is_dirty());
-    subject.mark_clean();
+    BOOST_TEST(gen == 0x0008'0000U);
     subject.update_generation();
-    BOOST_TEST(subject.finish_replace(0xacddU) == 0x0002'0000U);
+    subject.finish_replace(0xacddU);
     BOOST_TEST(!subject.is_dead());
     BOOST_TEST(!subject.is_dirty());
     BOOST_TEST(subject.is_pinned());
@@ -87,13 +94,16 @@ BOOST_AUTO_TEST_CASE(replace_dirty)
 
 BOOST_AUTO_TEST_CASE(prevent_pinned_replacement)
 {
+    test_page_state::state_type gen;
     test_page_state subject;
     BOOST_TEST_REQUIRE(
-            (subject.try_start_replace() == cache_replacement_result::dead));
-    BOOST_TEST_REQUIRE(subject.finish_replace(0xacdcU) == 0x0001'0000U);
+            (subject.try_start_replace(gen) == cache_replacement_result::dead));
+    BOOST_TEST_REQUIRE(gen == 0x0004'0000U);
+    subject.finish_replace(0xacdcU);
 
-    BOOST_TEST_REQUIRE(
-            (subject.try_start_replace() == cache_replacement_result::pinned));
+    BOOST_TEST_REQUIRE((subject.try_start_replace(gen)
+                        == cache_replacement_result::pinned));
+    BOOST_TEST(gen == 0x0004'0000U);
     BOOST_TEST(!subject.is_dead());
     BOOST_TEST(!subject.is_dirty());
     BOOST_TEST(subject.key() == 0xacdcU);
@@ -101,24 +111,29 @@ BOOST_AUTO_TEST_CASE(prevent_pinned_replacement)
 
 BOOST_AUTO_TEST_CASE(cancel_replacement)
 {
+    test_page_state::state_type gen;
     test_page_state subject;
     BOOST_TEST_REQUIRE(
-            (subject.try_start_replace() == cache_replacement_result::dead));
-    BOOST_TEST_REQUIRE(subject.finish_replace(0xacdcU) == 0x0001'0000U);
+            (subject.try_start_replace(gen) == cache_replacement_result::dead));
+    BOOST_TEST_REQUIRE(gen == 0x0004'0000U);
+    subject.finish_replace(0xacdcU);
     subject.release();
 
-    BOOST_TEST_REQUIRE(
-            (subject.try_start_replace() == cache_replacement_result::clean));
+    BOOST_TEST_REQUIRE((subject.try_start_replace(gen)
+                        == cache_replacement_result::clean));
+    BOOST_TEST(gen == 0x0008'0000U);
     subject.cancel_replace();
     BOOST_TEST(subject.is_dead());
 }
 
 BOOST_AUTO_TEST_CASE(can_be_managed_with_intrusive_ptr)
 {
+    test_page_state::state_type gen;
     test_page_state subject;
     BOOST_TEST_REQUIRE(
-            (subject.try_start_replace() == cache_replacement_result::dead));
-    BOOST_TEST_REQUIRE(subject.finish_replace(0xacdcU) == 0x0001'0000U);
+            (subject.try_start_replace(gen) == cache_replacement_result::dead));
+    BOOST_TEST_REQUIRE(gen == 0x0004'0000U);
+    subject.finish_replace(0xacdcU);
 
     {
         page_state_ptr ptr = dplx::cncr::intrusive_ptr_acquire(&subject);
