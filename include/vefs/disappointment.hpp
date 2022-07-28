@@ -1,5 +1,6 @@
 #pragma once
 
+#include <concepts>
 #include <string_view>
 #include <system_error>
 #include <variant>
@@ -214,6 +215,27 @@ auto inject(llfio::byte_io_handle::io_result<T> rx, InjectFn &&injectFn)
     }
     return rx;
 }
+
+template <typename T>
+concept tryable = requires(T &&t)
+{
+    {
+        oc::try_operation_has_value(t)
+        } -> std::same_as<bool>;
+    {
+        oc::try_operation_return_as(static_cast<T &&>(t))
+        } -> std::convertible_to<result<void>>;
+    oc::try_operation_extract_value(static_cast<T &&>(t));
+};
+
+template <tryable T>
+using result_value_t
+        = std::remove_cvref_t<decltype(oc::try_operation_extract_value(
+                std::declval<T &&>()))>;
+
+template <typename T, typename R>
+concept tryable_result
+        = tryable<T> && std::convertible_to<result_value_t<T>, R>;
 
 template <typename T>
 struct can_result_contain_failure;

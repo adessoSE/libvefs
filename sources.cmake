@@ -71,7 +71,9 @@ dplx_target_sources(vefs # cache
         cache/bloom_filter.hpp
         cache/spectral_bloom_filter.cpp
         cache/spectral_bloom_filter.hpp
-
+        
+        cache/cache_mt.cpp
+        cache/cache_mt.hpp
         cache/cache_page.cpp
         cache/cache_page.hpp
         cache/eviction_policy.cpp
@@ -266,6 +268,7 @@ if (BUILD_TESTING)
         tests/vefs/hash/spooky_v2.test.cpp
 
         tests/vefs/cache/bloom_filter.test.cpp
+        tests/vefs/cache/cache_mt.test.cpp
         tests/vefs/cache/cache_page.test.cpp
         tests/vefs/cache/eviction_policy.test.cpp
         tests/vefs/cache/lru_policy.test.cpp

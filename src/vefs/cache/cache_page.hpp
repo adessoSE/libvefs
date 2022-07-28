@@ -176,6 +176,32 @@ public:
             && expectedKey == key();
     }
 
+    auto try_acquire_wait() noexcept -> bool
+    {
+        using enum std::memory_order;
+
+        auto state = mValue.fetch_add(ref_ctr_one, acq_rel);
+        for (;;)
+        {
+            if ((state & dirty_tombstone) == dirty_tombstone)
+            {
+                mValue.wait(state, acquire);
+                state = mValue.load(relaxed);
+            }
+            else if ((state & tombstone_flag) != 0U)
+            {
+                break;
+            }
+            else
+            {
+                return true;
+            }
+        }
+
+        mValue.fetch_sub(ref_ctr_one, relaxed);
+        return false;
+    }
+
     /**
      * @brief Tries to acquire a page of unknown state.
      *
@@ -430,7 +456,7 @@ inline auto operator==(cache_handle<Key, V1> const &lhs,
                        cache_handle<Key, V2> const &rhs) noexcept -> bool;
 
 template <typename Key, typename Value>
-class cache_handle final
+class cache_handle
     : private dplx::cncr::intrusive_ptr<Value, cache_page_state<Key>>
 {
     using base_type = dplx::cncr::intrusive_ptr<Value, cache_page_state<Key>>;
@@ -462,6 +488,11 @@ public:
     using base_type::operator->;
     using base_type::get;
 
+    auto key() const noexcept -> Key const &
+    {
+        return base_type::get_handle()->key();
+    }
+
     friend inline auto operator==(cache_handle const &lhs,
                                   std::nullptr_t) noexcept -> bool
     {
@@ -483,7 +514,7 @@ public:
 };
 
 template <typename Key, typename Value>
-class cache_handle<Key, Value const> final
+class cache_handle<Key, Value const>
     : private dplx::cncr::intrusive_ptr<Value const, cache_page_state<Key>>
 {
     using base_type
@@ -502,6 +533,11 @@ public:
     using base_type::operator*;
     using base_type::operator->;
     using base_type::get;
+
+    auto key() const noexcept -> Key const &
+    {
+        return base_type::get_handle()->key();
+    }
 
     friend inline auto operator==(cache_handle const &lhs,
                                   std::nullptr_t) noexcept -> bool
@@ -523,7 +559,13 @@ public:
     {
         base_type::get_handle()->mark_clean();
     }
-    auto as_writable() const noexcept -> cache_handle<Key, Value>
+    auto as_writable() &&noexcept -> cache_handle<Key, Value>
+    {
+        auto *const alias = const_cast<Value *>(get());
+        return cache_handle<Key, Value>{
+                static_cast<base_type &&>(*this).get_handle(), alias};
+    }
+    auto as_writable() const &noexcept -> cache_handle<Key, Value>
     {
         return cache_handle<Key, Value>{base_type::get_handle(),
                                         const_cast<Value *>(get())};
