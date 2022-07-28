@@ -89,11 +89,7 @@ public:
 
         auto operator++() noexcept -> replacement_iterator &
         {
-            auto const end = mOwner->mLRU.end();
-            do
-            {
-                ++mHand;
-            } while (mHand != end && operator*().is_pinned());
+            ++mHand;
             return *this;
         }
         auto operator++(int) noexcept -> replacement_iterator
@@ -142,12 +138,15 @@ public:
         return true;
     }
 
-    auto try_evict(replacement_iterator &&which) noexcept
+    auto try_evict(replacement_iterator &&which,
+                   index_type &where,
+                   page_state::state_type &generation) noexcept
             -> cache_replacement_result
     {
-        auto const rx = which->try_start_replace();
+        auto const rx = which->try_start_replace(generation);
         if (rx != cache_replacement_result::pinned)
         {
+            where = *which.mHand;
             mLRU.erase(which.mHand);
         }
         return rx;

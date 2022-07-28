@@ -44,10 +44,11 @@ struct with_elements : fixture
     with_elements()
         : fixture()
     {
+        test_policy::page_state::state_type gen;
         for (std::uint16_t i = 0U; i < 4; ++i)
         {
-            (void)pages[i].try_start_replace();
-            (void)pages[i].finish_replace(i);
+            (void)pages[i].try_start_replace(gen);
+            pages[i].finish_replace(i);
             pages[i].release();
             subject.insert(i, i);
         }
@@ -65,12 +66,13 @@ BOOST_AUTO_TEST_CASE(ctor_with_pages)
 
 BOOST_AUTO_TEST_CASE(insert_one)
 {
+    test_policy::page_state::state_type gen;
     test_key key = 0xdeadbeef;
     test_index idx = 1U;
 
-    BOOST_TEST_REQUIRE(
-            (pages[idx].try_start_replace() == cache_replacement_result::dead));
-    (void)pages[idx].finish_replace(key);
+    BOOST_TEST_REQUIRE((pages[idx].try_start_replace(gen)
+                        == cache_replacement_result::dead));
+    pages[idx].finish_replace(key);
 
     subject.insert(key, idx);
 

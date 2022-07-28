@@ -24,6 +24,8 @@ concept eviction_policy
         &&  requires(T &&policy,
                      typename T::key_type const &key,
                      typename T::index_type idx,
+                     typename T::index_type &indexOut,
+                     typename T::page_state::state_type &generationOut,
                      typename T::replacement_iterator rit)
 {
     typename T::replacement_iterator;
@@ -39,7 +41,7 @@ concept eviction_policy
     { policy.on_access(key, idx) }
         -> std::same_as<bool>;
 
-    { policy.try_evict(std::move(rit)) }
+    { policy.try_evict(std::move(rit), indexOut, generationOut) }
         -> std::same_as<cache_ng::cache_replacement_result>;
     { policy.on_purge(key, idx) }
         -> std::same_as<bool>;
