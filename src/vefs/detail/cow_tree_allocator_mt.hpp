@@ -112,6 +112,23 @@ public:
         return allocation;
     }
 
+    auto dealloc(sector_allocator &part) noexcept -> result<void>
+    {
+        if (part.allocation_commit >= 0)
+        {
+            VEFS_TRY(dealloc_one(part.current_allocation));
+            part = {*this, sector_id{}};
+        }
+        return oc::success();
+    }
+    void dealloc(sector_allocator &part, leak_on_failure_t) noexcept
+    {
+        if (part.allocation_commit >= 0)
+        {
+            dealloc_one(part.current_allocation, leak_on_failure);
+        }
+        part = {*this, sector_id{}};
+    }
     auto dealloc_one(const sector_id which) noexcept -> result<void>
     {
         try

@@ -62,6 +62,26 @@ dplx_target_sources(vefs # detail
         detail/preallocated_tree_allocator.hpp
 )
 
+dplx_target_sources(vefs # cache
+    MODE VERBATIM
+    BASE_DIR vefs
+
+    PRIVATE
+        cache/bloom_filter.cpp
+        cache/bloom_filter.hpp
+        cache/spectral_bloom_filter.cpp
+        cache/spectral_bloom_filter.hpp
+        
+        cache/cache_mt.cpp
+        cache/cache_mt.hpp
+        cache/cache_page.cpp
+        cache/cache_page.hpp
+        cache/eviction_policy.cpp
+        cache/eviction_policy.hpp
+        cache/lru_policy.cpp
+        cache/lru_policy.hpp
+)
+
 dplx_target_sources(vefs # disappointment
     MODE VERBATIM
     BASE_DIR vefs
@@ -190,10 +210,6 @@ dplx_target_sources(vefs # utils
         utils/bitset_overlay.hpp
         utils/enum_bitset.hpp
 
-        utils/hash/algorithm_tag.hpp
-        utils/hash/default_weak.hpp
-        utils/hash/detail/std_adaptor.hpp
-
         utils/unordered_map_mt.hpp
 
     PRIVATE
@@ -201,26 +217,34 @@ dplx_target_sources(vefs # utils
         detail/uuid.codec.hpp
 )
 
-dplx_target_sources(vefs # spooky v2
+dplx_target_sources(vefs # hash
     MODE VERBATIM
     BASE_DIR vefs
 
     PUBLIC
-        utils/hash/detail/spooky.hpp
-        utils/hash/detail/SpookyV2_impl.hpp
+        hash/detail/spooky_v2_impl.hpp
+        hash/hash_algorithm.hpp
+        hash/hash-std.hpp
+        hash/spooky_v2.hpp
 
     PRIVATE
-        detail/SpookyV2.cpp
+        hash/detail/spooky_v2_impl.cpp
+        hash/hash_algorithm.cpp
+        hash/hash-std.cpp
+        hash/spooky_v2.cpp
 )
 
 if (BUILD_TESTING)
     target_sources(vefs-tests PRIVATE
         tests/vefs-tests.cpp
-        tests/boost-unit-test.hpp
-        tests/test-utils.hpp
-        tests/test-utils.cpp
-        tests/libb2_none_blake2b_crypto_provider.cpp
-        tests/libb2_none_blake2b_crypto_provider.hpp
+
+        tests/test_utils/boost-unit-test.hpp
+        tests/test_utils/libb2_none_blake2b_crypto_provider.cpp
+        tests/test_utils/libb2_none_blake2b_crypto_provider.hpp
+        tests/test_utils/mocks.hpp
+        tests/test_utils/test-utils.cpp
+        tests/test_utils/test-utils.hpp
+
         tests/disappointment-tests.cpp
         tests/io_buffer_manager.test.cpp
         tests/allocator-tests.cpp
@@ -239,5 +263,15 @@ if (BUILD_TESTING)
         tests/tree_walker-tests.cpp
         tests/archive_file_id_tests.cpp
         tests/archive-integration-tests.cpp
+
+        tests/vefs/hash/hash_algorithm.test.cpp
+        tests/vefs/hash/spooky_v2.test.cpp
+
+        tests/vefs/cache/bloom_filter.test.cpp
+        tests/vefs/cache/cache_mt.test.cpp
+        tests/vefs/cache/cache_page.test.cpp
+        tests/vefs/cache/eviction_policy.test.cpp
+        tests/vefs/cache/lru_policy.test.cpp
+        tests/vefs/cache/spectral_bloom_filter.test.cpp
      )
 endif()

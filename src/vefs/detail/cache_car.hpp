@@ -31,7 +31,7 @@ namespace vefs::detail
 template <typename Key,
           typename T,
           unsigned int CacheSize,
-          typename Hash = utils::hash::default_weak_std<Key>,
+          typename Hash = std_hash_for<spooky_v2_hash, Key>,
           typename KeyEqual = std::equal_to<>>
 class cache_car
 {

@@ -14,7 +14,6 @@
 #include <boost/iterator/iterator_facade.hpp>
 
 #include <vefs/disappointment/error_detail.hpp>
-#include <vefs/utils/hash/default_weak.hpp>
 
 #include "sector_device.hpp"
 #include "tree_lut.hpp"
@@ -71,12 +70,6 @@ private:
 constexpr auto next(tree_position position) noexcept -> tree_position;
 constexpr auto prev(tree_position position) noexcept -> tree_position;
 
-template <typename Impl>
-inline void compute_hash(tree_position const &obj, Impl &state);
-template <typename Impl, typename H>
-inline void
-compute_hash(tree_position const &obj, H &h, utils::hash::algorithm_tag<Impl>);
-
 /**
  * encapsulates the representation of a path through the tree and the
  * calculation of the path from root through the tree to a target position
@@ -122,6 +115,8 @@ public:
 
     inline tree_path next() const;
     inline tree_path previous() const;
+
+    inline auto required_depth() const noexcept -> int;
 
 private:
     inline tree_path(int treeDepth, std::uint64_t pos, int layer = 0) noexcept;
@@ -253,18 +248,6 @@ constexpr auto next(tree_position value) noexcept -> tree_position
 constexpr auto prev(tree_position value) noexcept -> tree_position
 {
     return tree_position(value.position() - 1, value.layer());
-}
-
-template <typename Impl>
-inline void compute_hash(tree_position const &obj, Impl &state)
-{
-    utils::compute_hash(obj.raw(), state);
-}
-template <typename Impl, typename H>
-inline void
-compute_hash(tree_position const &obj, H &h, utils::hash::algorithm_tag<Impl>)
-{
-    utils::compute_hash(obj.raw(), h, utils::hash::algorithm_tag<Impl>{});
 }
 
 #pragma endregion
@@ -516,6 +499,16 @@ inline tree_path tree_path::next() const
 inline tree_path tree_path::previous() const
 {
     return tree_path(mTreeDepth, position(mTargetLayer) - 1, mTargetLayer);
+}
+
+inline auto tree_path::required_depth() const noexcept -> int
+{
+    int i = 0;
+    while (mTreePath[i].absolute != 0U)
+    {
+        i += 1;
+    }
+    return i;
 }
 
 #pragma endregion

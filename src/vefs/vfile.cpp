@@ -56,8 +56,7 @@ auto vfile::open_existing(detail::sector_device &device,
                           detail::root_sector_info treeRoot) -> result<void>
 {
     VEFS_TRY(mFileTree,
-             tree_type::open_existing(device, cryptoCtx, mWorkTracker, treeRoot,
-                                      allocator));
+             tree_type::open_existing(device, cryptoCtx, treeRoot, allocator));
 
     return success();
 }
@@ -87,8 +86,7 @@ auto vfile::create_new(detail::sector_device &device,
                        detail::archive_sector_allocator &allocator,
                        detail::file_crypto_ctx &cryptoCtx) -> result<void>
 {
-    VEFS_TRY(mFileTree,
-             tree_type::create_new(device, cryptoCtx, mWorkTracker, allocator));
+    VEFS_TRY(mFileTree, tree_type::create_new(device, cryptoCtx, allocator));
 
     mWriteFlag.mark();
     return success();

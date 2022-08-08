@@ -7,6 +7,7 @@
 
 namespace vefs::detail
 {
+
 /**
  * Allocator for a single sector tree. Uses the \ref archive_sector_allocator
  * internally to allocate/deallocate sectors from the archive.
@@ -48,11 +49,27 @@ public:
         return part.mCurrent;
     }
 
+    auto dealloc(sector_allocator &part) noexcept -> result<void>
+    {
+        if (part.mCurrent != sector_id{})
+        {
+            VEFS_TRY(mSource.dealloc_one(part.mCurrent));
+            part.mCurrent = sector_id{};
+        }
+        return oc::success();
+    }
+    void dealloc(sector_allocator &part, leak_on_failure_t) noexcept
+    {
+        if (part.mCurrent != sector_id{})
+        {
+            mSource.dealloc_one(std::exchange(part.mCurrent, sector_id{}),
+                                archive_sector_allocator::leak_on_failure);
+        }
+    }
     auto dealloc_one(const sector_id which) noexcept -> result<void>
     {
         return mSource.dealloc_one(which);
     }
-
     void dealloc_one(const sector_id which, leak_on_failure_t) noexcept
     {
         mSource.dealloc_one(which, archive_sector_allocator::leak_on_failure);
@@ -71,4 +88,5 @@ public:
 private:
     archive_sector_allocator &mSource;
 };
+
 } // namespace vefs::detail

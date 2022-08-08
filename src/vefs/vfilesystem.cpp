@@ -329,7 +329,8 @@ private:
                      owner.mIndexTree.access(
                              detail::tree_position(firstPosition)));
 
-            tree_type::write_handle writeHandle(std::move(firstSector));
+            tree_type::write_handle writeHandle
+                    = std::move(firstSector).as_writable();
             owner.write_block_header(writeHandle);
             VEFS_TRY(auto &&prefixSize,
                      write_byte_stream_prefix(writeHandle, inSectorOffset,
@@ -355,8 +356,8 @@ private:
             else
                 DPLX_ATTR_LIKELY
                 {
-                    mCurrentSector = tree_type::write_handle(
-                            std::move(accessRx).assume_value());
+                    mCurrentSector
+                            = std::move(accessRx).assume_value().as_writable();
                 }
 
             mOwner->write_block_header(mCurrentSector);
@@ -532,7 +533,7 @@ public:
             VEFS_TRY(auto &&sector, mIndexTree.access(detail::tree_position(
                                             block_to_tree_position(startPos))));
 
-            write_block_header(tree_type::write_handle{sector});
+            write_block_header(sector.as_writable());
 
             startPos += blocks_per_sector;
             numBlocks -= blocks_per_sector;
@@ -665,9 +666,8 @@ auto vfilesystem::open_existing(detail::sector_device &device,
 
 auto vfilesystem::open_existing_impl() -> result<void>
 {
-    if (auto openTreeRx
-        = tree_type::open_existing(mDevice, mCryptoCtx, mDeviceExecutor,
-                                   mCommittedRoot, mSectorAllocator))
+    if (auto openTreeRx = tree_type::open_existing(
+                mDevice, mCryptoCtx, mCommittedRoot, mSectorAllocator))
     {
         mIndexTree = std::move(openTreeRx).assume_value();
     }
@@ -713,8 +713,8 @@ auto vfilesystem::create_new(detail::sector_device &device,
 
 auto vfilesystem::create_new_impl() -> result<void>
 {
-    if (auto createTreeRx = tree_type::create_new(
-                mDevice, mCryptoCtx, mDeviceExecutor, mSectorAllocator))
+    if (auto createTreeRx
+        = tree_type::create_new(mDevice, mCryptoCtx, mSectorAllocator))
     {
         mIndexTree = std::move(createTreeRx).assume_value();
     }

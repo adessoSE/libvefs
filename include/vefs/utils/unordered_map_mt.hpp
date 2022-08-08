@@ -17,13 +17,15 @@
 #pragma warning(pop)
 #endif
 
-#include <vefs/utils/hash/default_weak.hpp>
+#include <vefs/hash/hash-std.hpp>
+#include <vefs/hash/hash_algorithm.hpp>
+#include <vefs/hash/spooky_v2.hpp>
 
 namespace vefs::utils
 {
 template <typename Key,
           typename T,
-          typename Hash = hash::default_weak_std<Key>,
+          typename Hash = std_hash_for<spooky_v2_hash, Key>,
           typename KeyEqual = std::equal_to<>,
           typename Allocator = std::allocator<std::pair<const Key, T>>,
           std::size_t SLOT_PER_BUCKET = libcuckoo::DEFAULT_SLOT_PER_BUCKET>
@@ -36,7 +38,7 @@ template <typename T,
 using unordered_string_map_mt = libcuckoo::cuckoohash_map<
         std::string,
         T,
-        utils::hash::default_weak_std<std::string_view>,
+        std_hash_for<spooky_v2_hash, std::string_view>,
         std::equal_to<>,
         Allocator,
         SLOT_PER_BUCKET>;

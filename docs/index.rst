@@ -4,10 +4,11 @@
 ==================================
 
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+    :maxdepth: 2
+    :caption: Contents:
 
-   workflow/releasing.rst
+    utilities/index
+    workflow/releasing
 
 
 --------------------

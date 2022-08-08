@@ -13,58 +13,14 @@ using namespace vefs::detail;
 
 namespace
 {
-class mock_mutex
-{
-public:
-    void lock()
-    {
-        BOOST_TEST(mLockCounter == mUnlockCounter);
-        mLockCounter++;
-    }
-
-    bool try_lock()
-    {
-        if (mLockCounter == mUnlockCounter)
-        {
-            mLockCounter += 1;
-            return true;
-        }
-        return false;
-    }
-
-    void unlock()
-    {
-        BOOST_TEST(mLockCounter - 1 == mUnlockCounter);
-        mUnlockCounter++;
-    }
-
-    static int lock_counter()
-    {
-        return mLockCounter;
-    }
-
-    static int unlock_counter()
-    {
-        return mUnlockCounter;
-    }
-
-    static void reset()
-    {
-        mLockCounter = 0;
-        mUnlockCounter = 0;
-    }
-
-private:
-    static int mLockCounter;
-    static int mUnlockCounter;
-};
-
-int mock_mutex::mLockCounter = 0;
-int mock_mutex::mUnlockCounter = 0;
 
 class allocator_stub
 {
 public:
+    std::mutex alloc_sync;
+    uint64_t alloc_counter;
+    sector_device &device;
+
     struct sector_allocator
     {
         friend class allocator_stub;
@@ -78,6 +34,11 @@ public:
     private:
         sector_id mCurrent;
     };
+
+    enum class leak_on_failure_t
+    {
+    };
+    static constexpr auto leak_on_failure = leak_on_failure_t{};
 
     allocator_stub(sector_device &sectorDevice)
         : alloc_sync()
@@ -98,32 +59,38 @@ public:
         return allocated;
     }
 
+    auto dealloc(sector_allocator &) noexcept -> result<void>
+    {
+        return oc::success();
+    }
+    void dealloc(sector_allocator &, leak_on_failure_t) noexcept
+    {
+    }
     auto dealloc_one(sector_id const) noexcept -> result<void>
     {
-        return success();
+        return oc::success();
+    }
+    void dealloc_one(sector_id const, leak_on_failure_t) noexcept
+    {
     }
 
     auto on_commit() noexcept -> result<void>
     {
-        return success();
+        return oc::success();
     }
 
     void on_leak_detected() noexcept
     {
     }
-
-    std::mutex alloc_sync;
-    uint64_t alloc_counter;
-    sector_device &device;
 };
+
 } // namespace
 
-template class vefs::detail::
-        sector_tree_mt<allocator_stub, thread_pool, mock_mutex>;
+template class vefs::detail::sector_tree_mt<allocator_stub>;
 
 struct sector_tree_mt_dependencies
 {
-    using tree_type = sector_tree_mt<allocator_stub, thread_pool, mock_mutex>;
+    using tree_type = sector_tree_mt<allocator_stub>;
     using read_handle = tree_type::read_handle;
     using write_handle = tree_type::write_handle;
 
@@ -132,7 +99,6 @@ struct sector_tree_mt_dependencies
     vefs::llfio::file_handle testFile;
     std::unique_ptr<sector_device> device;
 
-    pooled_work_tracker workExecutor;
     file_crypto_ctx fileCryptoContext;
     root_sector_info rootSectorInfo;
 
@@ -144,11 +110,9 @@ struct sector_tree_mt_dependencies
                          default_user_prk)
                          .value()
                          .device)
-        , workExecutor(&thread_pool::shared()) // #TODO create test thread pool
         , fileCryptoContext(file_crypto_ctx::zero_init)
         , rootSectorInfo()
     {
-        mock_mutex::reset();
     }
 };
 
@@ -160,9 +124,9 @@ struct sector_tree_mt_fixture : sector_tree_mt_dependencies
         : sector_tree_mt_dependencies()
         , existingTree()
     {
-        existingTree = tree_type::create_new(*device, fileCryptoContext,
-                                             workExecutor, *device)
-                               .value();
+        existingTree
+                = tree_type::create_new(*device, fileCryptoContext, *device)
+                          .value();
 
         existingTree
                 ->commit([this](root_sector_info ri) { rootSectorInfo = ri; })
@@ -174,8 +138,7 @@ BOOST_FIXTURE_TEST_SUITE(sector_tree_mt_tests, sector_tree_mt_fixture)
 
 BOOST_FIXTURE_TEST_CASE(new_sector_tree_has_id_one, sector_tree_mt_dependencies)
 {
-    auto createrx = tree_type::create_new(*device, fileCryptoContext,
-                                          workExecutor, *device);
+    auto createrx = tree_type::create_new(*device, fileCryptoContext, *device);
     TEST_RESULT_REQUIRE(createrx);
     auto newTree = std::move(createrx).assume_value();
     root_sector_info newRootInfo;
@@ -189,8 +152,7 @@ BOOST_FIXTURE_TEST_CASE(new_sector_tree_has_id_one, sector_tree_mt_dependencies)
 BOOST_FIXTURE_TEST_CASE(check_initial_sector_tree_mac,
                         sector_tree_mt_dependencies)
 {
-    auto createrx = tree_type::create_new(*device, fileCryptoContext,
-                                          workExecutor, *device);
+    auto createrx = tree_type::create_new(*device, fileCryptoContext, *device);
     TEST_RESULT_REQUIRE(createrx);
     auto newTree = std::move(createrx).assume_value();
     root_sector_info newRootInfo;
@@ -207,8 +169,7 @@ BOOST_FIXTURE_TEST_CASE(new_sector_tree_has_node_with_zero_bytes,
                         sector_tree_mt_dependencies)
 {
     // given
-    auto createrx = tree_type::create_new(*device, fileCryptoContext,
-                                          workExecutor, *device);
+    auto createrx = tree_type::create_new(*device, fileCryptoContext, *device);
     TEST_RESULT_REQUIRE(createrx);
     auto tree = std::move(createrx).assume_value();
     TEST_RESULT_REQUIRE(tree->commit([](root_sector_info) {}));
@@ -242,8 +203,8 @@ BOOST_AUTO_TEST_CASE(open_existing_tree_creates_existing_tree)
     existingTree.reset();
 
     // when
-    auto openrx = tree_type::open_existing(
-            *device, fileCryptoContext, workExecutor, rootSectorInfo, *device);
+    auto openrx = tree_type::open_existing(*device, fileCryptoContext,
+                                           rootSectorInfo, *device);
     TEST_RESULT_REQUIRE(openrx);
     auto createdTree = std::move(openrx).assume_value();
 
@@ -261,7 +222,7 @@ BOOST_AUTO_TEST_CASE(creation_of_a_new_node_changes_mac)
     // given
     auto createRx = existingTree->access_or_create(tree_position(1));
     TEST_RESULT_REQUIRE(createRx);
-    as_span(write_handle(createRx.assume_value()))[0] = std::byte{0b1010'1010};
+    as_span(createRx.assume_value().as_writable())[0] = std::byte{0b1010'1010};
     createRx.assume_value() = read_handle();
 
     root_sector_info newRootInfo;
@@ -275,51 +236,13 @@ BOOST_AUTO_TEST_CASE(creation_of_a_new_node_changes_mac)
     BOOST_TEST(newRootInfo.root.mac == expectedRootMac);
 }
 
-BOOST_FIXTURE_TEST_CASE(creation_of_a_new_node_locks,
-                        sector_tree_mt_dependencies)
-{
-    // given
-    auto testSubject
-            = sector_tree_mt<allocator_stub, thread_pool,
-                             mock_mutex>::create_new(*device, fileCryptoContext,
-                                                     workExecutor, *device)
-                      .value();
-    // when
-    TEST_RESULT_REQUIRE(testSubject->access_or_create(tree_position(1)));
-    TEST_RESULT_REQUIRE(testSubject->commit([](root_sector_info) {}));
-
-    // then
-    auto lockCount = mock_mutex::lock_counter();
-    auto unlockCounter = mock_mutex::unlock_counter();
-    BOOST_TEST(lockCount == 2);
-    BOOST_TEST(unlockCounter == lockCount);
-}
-
-BOOST_FIXTURE_TEST_CASE(commit_locks, sector_tree_mt_dependencies)
-{
-    // given
-    auto testSubject
-            = sector_tree_mt<allocator_stub, thread_pool,
-                             mock_mutex>::create_new(*device, fileCryptoContext,
-                                                     workExecutor, *device)
-                      .value();
-    // when
-    TEST_RESULT_REQUIRE(testSubject->commit([](root_sector_info) {}));
-
-    // then
-    auto lockCount = mock_mutex::lock_counter();
-    auto unlockCounter = mock_mutex::unlock_counter();
-    BOOST_TEST(lockCount == 1);
-    BOOST_TEST(unlockCounter == lockCount);
-}
-
 BOOST_AUTO_TEST_CASE(created_node_can_be_read)
 {
     // given
     auto const &createdTreePos = tree_position(1);
     auto createRx = existingTree->access_or_create(createdTreePos);
     TEST_RESULT_REQUIRE(createRx);
-    write_handle writeHandle(std::move(createRx.assume_value()));
+    write_handle writeHandle = createRx.assume_value().as_writable();
     BOOST_TEST_REQUIRE(writeHandle.operator bool());
     as_span(writeHandle)[0] = std::byte{0b1010'1010};
     writeHandle = write_handle();

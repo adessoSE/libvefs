@@ -7,7 +7,15 @@
 #include <thread>
 #include <type_traits>
 
+#include <dplx/predef/compiler.h>
+#if defined(DPLX_COMP_MSVC_AVAILABLE)
+#pragma warning(push, 3)
+#pragma warning(disable : 4702) // unreachable code
+#endif
 #include <concurrentqueue/blockingconcurrentqueue.h>
+#if defined(DPLX_COMP_MSVC_AVAILABLE)
+#pragma warning(pop)
+#endif
 #include <vefs/platform/thread_pool.hpp>
 
 namespace vefs::detail

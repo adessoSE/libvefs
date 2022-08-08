@@ -10,22 +10,25 @@
 //   August 5 2012: SpookyV2: d = should be d += in short hash, and remove extra
 //   mix from long hash
 
-#include "vefs/utils/hash/detail/SpookyV2_impl.hpp"
+#include "vefs/hash/detail/spooky_v2_impl.hpp"
 
 #include <memory.h>
 
 #include <dplx/predef/compiler.h>
 
-#ifdef DPLX_COMP_GNUC_AVAILABLE
+#if defined(DPLX_COMP_GNUC_AVAILABLE)
 #pragma GCC diagnostic ignored "-Wold-style-cast"
 #pragma GCC diagnostic ignored "-Wimplicit-fallthrough"
+#if !defined(DPLX_COMP_GNUC_EMULATED)
 #pragma GCC diagnostic ignored "-Wuseless-cast"
+#endif
 #endif
 
 #define ALLOW_UNALIGNED_READS 1
 
-namespace vefs::utils::hash::detail::impl
+namespace vefs::external
 {
+
 //
 // short hash ... it could be used on any message,
 // but it's used by Spooky just for short messages.
@@ -377,4 +380,5 @@ void SpookyHash::Final(uint64_t *hash1, uint64_t *hash2)
     *hash1 = h0;
     *hash2 = h1;
 }
-} // namespace vefs::utils::hash::detail::impl
+
+} // namespace vefs::external
