@@ -21,8 +21,7 @@ class vfilesystem;
 class vfile
 {
     using tree_type = detail::sector_tree_mt<
-            detail::cow_tree_allocator_mt<detail::archive_sector_allocator>,
-            detail::thread_pool>;
+            detail::cow_tree_allocator_mt<detail::archive_sector_allocator>>;
 
     struct inacessible_ctor
     {

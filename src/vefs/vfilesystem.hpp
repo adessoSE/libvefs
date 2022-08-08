@@ -44,8 +44,7 @@ class vfilesystem final
     using files_t = utils::unordered_map_mt<detail::file_id, vfilesystem_entry>;
 
     using tree_type = detail::sector_tree_mt<
-            detail::cow_tree_allocator_mt<detail::archive_sector_allocator>,
-            detail::thread_pool>;
+            detail::cow_tree_allocator_mt<detail::archive_sector_allocator>>;
     using block_manager = utils::block_manager<int>;
 
     class index_tree_layout;

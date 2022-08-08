@@ -32,6 +32,20 @@ public:
 
         return deserialized;
     }
+    static auto read(ro_blob<sector_device::sector_payload_size> sectorContent,
+                     int which) noexcept -> sector_reference
+    {
+        auto const baseOffset
+                = static_cast<std::size_t>(which) * serialized_reference_size;
+
+        sector_reference deserialized;
+        deserialized.sector
+                = ::vefs::load_primitive<sector_id>(sectorContent, baseOffset);
+        ::vefs::copy(sectorContent.subspan(baseOffset + 16U, 16U),
+                     std::span(deserialized.mac));
+
+        return deserialized;
+    }
 
     inline void write(int which, sector_reference reference) noexcept
     {
@@ -42,6 +56,19 @@ public:
         mCodec.write<std::uint64_t>(0, baseOffset + 8);
         copy(std::span(reference.mac),
              mCodec.as_writeable_bytes().subspan(baseOffset + 16, 16));
+    }
+    static void write(rw_blob<sector_device::sector_payload_size> sectorContent,
+                      int which,
+                      sector_reference reference) noexcept
+    {
+        auto const baseOffset
+                = static_cast<std::size_t>(which) * serialized_reference_size;
+
+        ::vefs::store_primitive(sectorContent, reference.sector, baseOffset);
+        ::vefs::store_primitive<std::uint64_t>(sectorContent, 0U,
+                                               baseOffset + 8U);
+        ::vefs::copy(std::span(reference.mac),
+                     sectorContent.subspan(baseOffset + 16U, 16U));
     }
 
 private:

@@ -116,6 +116,8 @@ public:
     inline tree_path next() const;
     inline tree_path previous() const;
 
+    inline auto required_depth() const noexcept -> int;
+
 private:
     inline tree_path(int treeDepth, std::uint64_t pos, int layer = 0) noexcept;
     inline tree_path(int treeDepth, int targetLayer) noexcept;
@@ -497,6 +499,16 @@ inline tree_path tree_path::next() const
 inline tree_path tree_path::previous() const
 {
     return tree_path(mTreeDepth, position(mTargetLayer) - 1, mTargetLayer);
+}
+
+inline auto tree_path::required_depth() const noexcept -> int
+{
+    int i = 0;
+    while (mTreePath[i].absolute != 0U)
+    {
+        i += 1;
+    }
+    return i;
 }
 
 #pragma endregion

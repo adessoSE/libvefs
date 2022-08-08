@@ -3,16 +3,19 @@
 #include <atomic>
 #include <memory>
 #include <mutex>
+#include <ranges>
 #include <shared_mutex>
 #include <thread>
-#include <tuple>
 
 #include <boost/container/static_vector.hpp>
 
+#include <dplx/cncr/misc.hpp>
+
+#include <vefs/cache/cache_mt.hpp>
+#include <vefs/cache/lru_policy.hpp>
 #include <vefs/llfio.hpp>
 #include <vefs/platform/platform.hpp>
 
-#include "cache_car.hpp"
 #include "file_crypto_ctx.hpp"
 #include "reference_sector_layout.hpp"
 #include "root_sector_info.hpp"
@@ -20,6 +23,307 @@
 
 namespace vefs::detail
 {
+
+template <typename TreeAllocator>
+class sector_mt
+{
+    using tree_allocator = TreeAllocator;
+    using node_allocation = typename TreeAllocator::sector_allocator;
+
+public:
+    using handle = cache_ng::cache_handle<tree_position, sector_mt const>;
+    using writable_handle = cache_ng::cache_handle<tree_position, sector_mt>;
+    using content_span = ro_blob<sector_device::sector_payload_size>;
+    using writable_content_span = rw_blob<sector_device::sector_payload_size>;
+
+private:
+    handle mParent;
+    node_allocation mNodeAllocation;
+
+    mutable std::shared_mutex mSectorSync;
+
+    std::array<std::byte, sector_device::sector_payload_size> mContent;
+
+public:
+    sector_mt(handle parent,
+              tree_allocator &treeAllocator,
+              sector_id current) noexcept
+        : mParent(std::move(parent))
+        , mNodeAllocation(treeAllocator, current)
+        , mSectorSync()
+    {
+    }
+
+    /**
+     * retrieves a handle to the parent
+     * the handle will be empty if this is the root sector
+     */
+    auto parent() const noexcept -> handle const &
+    {
+        return mParent;
+    }
+    /**
+     * updates the parent sector reference
+     */
+    void parent(handle newParent) noexcept
+    {
+        mParent = std::move(newParent);
+    }
+
+    void lock() const noexcept
+    {
+        mSectorSync.lock();
+    }
+    auto try_lock() const noexcept -> bool
+    {
+        return mSectorSync.try_lock();
+    }
+    void unlock() const noexcept
+    {
+        mSectorSync.unlock();
+    }
+    void lock_shared() const noexcept
+    {
+        mSectorSync.lock_shared();
+    }
+    auto try_lock_shared() const noexcept -> bool
+    {
+        return mSectorSync.try_lock_shared();
+    }
+    void unlock_shared() const noexcept
+    {
+        mSectorSync.unlock_shared();
+    }
+
+    auto num_referenced() const noexcept -> int
+    {
+        constexpr int limit = reference_sector_layout::references_per_sector;
+        int counter = 0;
+        for (int i = 0; i < limit; ++i)
+        {
+            if (reference_sector_layout::read(mContent, i).sector
+                != sector_id{})
+            {
+                counter += 1;
+            }
+        }
+        return counter;
+    }
+
+    auto content() noexcept -> writable_content_span
+    {
+        return mContent;
+    }
+    auto content() const noexcept -> content_span
+    {
+        return mContent;
+    }
+
+    auto allocation() noexcept -> node_allocation &
+    {
+        return mNodeAllocation;
+    }
+    auto allocation() const noexcept -> node_allocation const &
+    {
+        return mNodeAllocation;
+    }
+};
+
+template <typename TreeAllocator>
+class sector_cache_traits
+{
+    sector_device &mDevice;
+    file_crypto_ctx &mCryptoCtx;
+    root_sector_info &mRootInfo;
+    TreeAllocator &mTreeAllocator;
+    std::mutex &mRootSync;
+
+public:
+    struct initializer_type
+    {
+        sector_device &device;
+        file_crypto_ctx &cryptoCtx;
+        root_sector_info &rootInfo;
+        TreeAllocator &treeAllocator;
+        std::mutex &rootSync;
+    };
+    explicit sector_cache_traits(initializer_type const &init)
+        : mDevice(init.device)
+        , mCryptoCtx(init.cryptoCtx)
+        , mRootInfo(init.rootInfo)
+        , mTreeAllocator(init.treeAllocator)
+        , mRootSync(init.rootSync)
+    {
+    }
+
+private:
+    using handle = typename sector_mt<TreeAllocator>::handle;
+    using writable_handle = typename sector_mt<TreeAllocator>::writable_handle;
+    using tree_allocator = TreeAllocator;
+
+public:
+    using key_type = tree_position;
+    using value_type = sector_mt<TreeAllocator>;
+
+    using allocator_type = std::allocator<void>;
+    using eviction = cache_ng::least_recently_used_policy<key_type,
+                                                          unsigned short,
+                                                          allocator_type>;
+
+    struct load_context
+    {
+        mutable handle parent;
+        int refOffset;
+        bool create;
+    };
+    auto load(load_context const &ctx,
+              [[maybe_unused]] key_type const nodePosition,
+              utils::object_storage<value_type> &storage) noexcept
+            -> result<std::pair<value_type *, bool>>
+    {
+        if (!ctx.parent)
+        {
+            return load_root(storage, ctx.create);
+        }
+
+        auto const ref = reference_sector_layout::read(ctx.parent->content(),
+                                                       ctx.refOffset);
+
+        if (ref.sector == sector_id::master && !ctx.create)
+        {
+            return archive_errc::sector_reference_out_of_range;
+        }
+
+        auto *page = &storage.construct(std::move(ctx.parent), mTreeAllocator,
+                                        ref.sector);
+
+        if (ref.sector == sector_id::master)
+        {
+            ::vefs::fill_blob(page->content(), std::byte{});
+        }
+        else
+        {
+            auto readResult = mDevice.read_sector(page->content(), mCryptoCtx,
+                                                  ref.sector, ref.mac);
+            if (readResult.has_failure())
+            {
+                ctx.parent = std::move(page->parent());
+                storage.destroy();
+
+                readResult.assume_error() << ed::sector_idx{ref.sector};
+                return std::move(readResult).as_failure();
+            }
+        }
+        return std::pair{page, ref.sector == sector_id::master};
+    }
+
+private:
+    auto load_root(utils::object_storage<value_type> &storage,
+                   bool create) noexcept
+            -> result<std::pair<value_type *, bool>>
+    {
+        auto *rootPage = &storage.construct(nullptr, mTreeAllocator,
+                                            create ? sector_id{}
+                                                   : mRootInfo.root.sector);
+        if (create)
+        {
+            ::vefs::fill_blob(rootPage->content(), std::byte{});
+            reference_sector_layout::write(rootPage->content(), 0,
+                                           mRootInfo.root);
+        }
+        else
+        {
+            VEFS_TRY(mDevice.read_sector(rootPage->content(), mCryptoCtx,
+                                         mRootInfo.root.sector,
+                                         mRootInfo.root.mac));
+        }
+
+        return std::pair{rootPage, create};
+    }
+
+public:
+    auto sync(key_type const nodePosition, value_type &node) noexcept
+            -> result<void>
+    {
+        auto const referenceOffset = nodePosition.parent_array_offset();
+
+        std::lock_guard sectorLock{node};
+
+        auto const parent = node.parent();
+        auto const content = node.content();
+        if ((nodePosition.position() == 0U && nodePosition.layer() > 0
+             && node.num_referenced() <= 1)
+            || (nodePosition.position() != 0U && nodePosition.layer() > 0
+                && node.num_referenced() == 0))
+        {
+            if (parent == nullptr)
+            {
+                std::lock_guard rootLock{mRootSync};
+                mRootInfo.root = {};
+            }
+            else
+            {
+                writable_handle writableParent = parent.as_writable();
+                auto const parentContent = writableParent->content();
+
+                std::shared_lock parentLock{*writableParent};
+                reference_sector_layout::write(parentContent, referenceOffset,
+                                               {sector_id{}, {}});
+            }
+
+            mTreeAllocator.dealloc(node.allocation(),
+                                   tree_allocator::leak_on_failure);
+            return oc::success();
+        }
+
+        sector_reference updated{};
+        VEFS_TRY(updated.sector, mTreeAllocator.reallocate(node.allocation()));
+
+        VEFS_TRY_INJECT(mDevice.write_sector(updated.mac, mCryptoCtx,
+                                             updated.sector, node.content()),
+                        ed::sector_tree_position{nodePosition});
+
+        if (parent == nullptr)
+        {
+            std::lock_guard rootLock{mRootSync};
+            mRootInfo.root = updated;
+        }
+        else
+        {
+            writable_handle writableParent = parent.as_writable();
+            std::shared_lock parentLock{*writableParent};
+
+            auto const parentContent = writableParent->content();
+            reference_sector_layout::write(parentContent, referenceOffset,
+                                           updated);
+        }
+        return oc::success();
+    }
+
+    struct purge_context
+    {
+        int refOffset;
+        bool ownsLock;
+    };
+    auto purge(purge_context const &ctx,
+               [[maybe_unused]] key_type nodePosition,
+               value_type &node) noexcept -> result<void>
+    {
+        if (auto writableParent = node.parent().as_writable())
+        {
+            reference_sector_layout::write(writableParent->content(),
+                                           ctx.refOffset, {});
+        }
+        mTreeAllocator.dealloc(node.allocation(),
+                               tree_allocator::leak_on_failure);
+        if (ctx.ownsLock)
+        {
+            node.unlock();
+        }
+        return oc::success();
+    }
+};
+
 /**
  * Thread-safe implementation of a tree of (file-)sectors used to read and write
  * sectors of a single vfile through a cache.
@@ -39,1174 +343,527 @@ namespace vefs::detail
  * five layers (one data sector layer and four reference sector layers). See
  * tree_lut.hpp for further details on limits on sector trees.
  */
-template <typename TreeAllocator,
-          typename Executor,
-          typename MutexType = std::mutex>
+template <typename TreeAllocator>
 class sector_tree_mt
 {
 public:
-    using tree_allocator_type = TreeAllocator;
-    using node_allocator_type = typename tree_allocator_type::sector_allocator;
-    using executor_type = Executor;
+    using tree_allocator = TreeAllocator;
 
 private:
-    class sector
-    {
-        friend class sector_tree_mt;
+    using sector = sector_mt<TreeAllocator>;
+    using traits = sector_cache_traits<TreeAllocator>;
+    using sector_cache = cache_ng::cache_mt<traits>;
+    using sector_handle = typename sector_cache::handle;
 
-    public:
-        using handle_type = cache_handle<sector>;
+    root_sector_info mRootInfo;
 
-        sector(sector_tree_mt &tree,
-               handle_type parent,
-               tree_position nodePosition,
-               sector_id current) noexcept;
-
-        auto node_position() const noexcept -> tree_position;
-
-        /**
-         * retrieves a handle to the parent
-         * the handle will be empty if this is the root sector
-         */
-        inline auto parent() const noexcept -> handle_type const &;
-        /**
-         * updates the parent sector reference
-         */
-        inline void parent(handle_type newParent) noexcept;
-
-        inline void lock();
-        inline auto try_lock() -> bool;
-        inline void unlock();
-        inline void lock_shared();
-        inline auto try_lock_shared() -> bool;
-        inline void unlock_shared();
-
-        inline friend auto as_span(sector &node) noexcept
-                -> rw_blob<sector_device::sector_payload_size>
-        {
-            return node.mBlockData;
-        }
-        inline friend auto as_span(sector const &node) noexcept
-                -> ro_blob<sector_device::sector_payload_size>
-        {
-            return node.mBlockData;
-        }
-
-    private:
-        tree_position mNodePosition;
-        sector_tree_mt &mTree;
-        handle_type mParent;
-        node_allocator_type mNodeAllocator;
-
-        std::shared_mutex mSectorSync;
-
-        std::array<std::byte, sector_device::sector_payload_size> mBlockData;
-    };
-
-    using sector_handle = cache_handle<sector>;
-
-public:
-    class write_handle;
-
-    class read_handle
-    {
-        friend class write_handle;
-
-    public:
-        read_handle() noexcept = default;
-        read_handle(sector_handle node) noexcept;
-        read_handle(write_handle const &writeHandle) noexcept;
-        read_handle(write_handle &&writeHandle) noexcept;
-
-        explicit operator bool() const noexcept;
-
-        inline void lock();
-        inline auto try_lock() -> bool;
-        inline void unlock();
-        inline void lock_shared();
-        inline auto try_lock_shared() -> bool;
-        inline void unlock_shared();
-
-        inline auto node_position() noexcept -> tree_position;
-
-        inline friend auto as_span(read_handle const &node) noexcept
-                -> ro_blob<sector_device::sector_payload_size>
-        {
-            return as_span(*node.mSector);
-        }
-
-    private:
-        sector_handle mSector;
-    };
-
-    class write_handle
-    {
-        friend class read_handle;
-
-    public:
-        write_handle() noexcept = default;
-        write_handle(sector_handle node) noexcept;
-        explicit write_handle(read_handle const &readHandle) noexcept;
-        explicit write_handle(read_handle &&readHandle) noexcept;
-
-        ~write_handle();
-
-        explicit operator bool() const noexcept;
-
-        inline void lock();
-        inline auto try_lock() -> bool;
-        inline void unlock();
-        inline void lock_shared();
-        inline auto try_lock_shared() -> bool;
-        inline void unlock_shared();
-
-        inline auto node_position() noexcept -> tree_position;
-
-        inline friend auto as_span(write_handle const &node) noexcept
-                -> rw_blob<sector_device::sector_payload_size>
-        {
-            return as_span(*node.mSector);
-        }
-
-    private:
-        sector_handle mSector;
-    };
+    tree_allocator mTreeAllocator;
+    std::mutex mRootSync;
+    sector_cache mSectorCache;
+    sector_handle mRootSector; // needs to be destructed before mSectorCache
 
 private:
     using sector_type = sector;
-    using sector_cache
-            = cache_car<tree_position, sector_type, 1 << 10>; // 1024 cached
-                                                              // pages
 
     template <typename... AllocatorCtorArgs>
     sector_tree_mt(sector_device &device,
                    file_crypto_ctx &cryptoCtx,
-                   executor_type &executor,
                    root_sector_info rootInfo,
-                   AllocatorCtorArgs &&...args);
+                   AllocatorCtorArgs &&...allocatorCtorArgs)
+        : mRootInfo(rootInfo)
+        , mTreeAllocator(std::forward<AllocatorCtorArgs>(allocatorCtorArgs)...)
+        , mRootSync()
+        , mSectorCache(1024U,
+                       {
+                               .device = device,
+                               .cryptoCtx = cryptoCtx,
+                               .rootInfo = mRootInfo,
+                               .treeAllocator = mTreeAllocator,
+                               .rootSync = mRootSync,
+                       })
+        , mRootSector()
+    {
+    }
 
-    auto init_existing() -> result<void>;
-    auto create_new() -> result<void>;
+    auto initialize(bool createNew) noexcept -> result<void>
+    {
+        tree_position const rootPosition(0U, mRootInfo.tree_depth);
+        if (mRootInfo.tree_depth == 0)
+        {
+            typename traits::load_context rootLoadCtx{
+                    .parent = {},
+                    .refOffset = 0,
+                    .create = true,
+            };
+            VEFS_TRY(mRootSector, mSectorCache.pin_or_load(
+                                          rootLoadCtx, tree_position{0U, 1}));
+            if (!createNew)
+            {
+                auto const writableRoot = mRootSector.as_writable();
+                reference_sector_layout::write(writableRoot->content(), 0,
+                                               mRootInfo.root);
+            }
+            rootLoadCtx = typename traits::load_context{
+                    .parent = mRootSector,
+                    .refOffset = 0,
+                    .create = createNew,
+            };
+            VEFS_TRY(mSectorCache.pin_or_load(rootLoadCtx, rootPosition));
+        }
+        else
+        {
+            typename traits::load_context rootLoadCtx{
+                    .parent = {},
+                    .refOffset = 0,
+                    .create = false,
+            };
+            VEFS_TRY(mRootSector,
+                     mSectorCache.pin_or_load(rootLoadCtx, rootPosition));
+
+            if (mRootInfo.tree_depth > 1)
+            {
+                tree_path const anchorPath{
+                        rootPosition.layer(), tree_position{0U, 1}
+                };
+                VEFS_TRY(mRootSector,
+                         access<false>(anchorPath.begin(), anchorPath.end()));
+            }
+        }
+
+        return oc::success();
+    }
 
 public:
     template <typename... AllocatorCtorArgs>
     static auto open_existing(sector_device &device,
                               file_crypto_ctx &cryptoCtx,
-                              executor_type &executor,
                               root_sector_info rootInfo,
                               AllocatorCtorArgs &&...args)
-            -> result<std::unique_ptr<sector_tree_mt>>;
+            -> result<std::unique_ptr<sector_tree_mt>>
+    {
+        std::unique_ptr<sector_tree_mt> tree;
+        try
+        {
+            tree.reset(new sector_tree_mt(
+                    device, cryptoCtx, rootInfo,
+                    std::forward<AllocatorCtorArgs>(args)...));
+        }
+        catch (std::bad_alloc const &)
+        {
+            return errc::not_enough_memory;
+        }
+
+        VEFS_TRY(tree->initialize(false));
+        return oc::success(std::move(tree));
+    }
 
     template <typename... AllocatorCtorArgs>
     static auto create_new(sector_device &device,
                            file_crypto_ctx &cryptoCtx,
-                           executor_type &executor,
                            AllocatorCtorArgs &&...args)
-            -> result<std::unique_ptr<sector_tree_mt>>;
+            -> result<std::unique_ptr<sector_tree_mt>>
+    {
+        std::unique_ptr<sector_tree_mt> tree;
+        try
+        {
+            tree.reset(new sector_tree_mt(
+                    device, cryptoCtx, {},
+                    std::forward<AllocatorCtorArgs>(args)...));
+        }
+        catch (std::bad_alloc const &)
+        {
+            return errc::not_enough_memory;
+        }
+
+        VEFS_TRY(tree->initialize(true));
+        return oc::success(std::move(tree));
+    }
+
+    class write_handle final : cache_ng::cache_handle<tree_position, sector>
+    {
+        using base_type = cache_ng::cache_handle<tree_position, sector>;
+
+    public:
+        write_handle() noexcept = default;
+
+        explicit write_handle(base_type &&base) noexcept
+            : base_type(std::move(base))
+        {
+        }
+
+        using base_type::base_type;
+        using base_type::operator bool;
+        using base_type::operator*;
+        using base_type::operator->;
+        using base_type::get;
+
+        auto node_position() const noexcept -> tree_position
+        {
+            return base_type::key();
+        }
+
+        friend inline auto as_span(write_handle const &self) noexcept
+                -> rw_blob<sector_device::sector_payload_size>
+        {
+            return self->content();
+        }
+    };
+
+    class read_handle final
+        : cache_ng::cache_handle<tree_position, sector const>
+    {
+        using base_type = cache_ng::cache_handle<tree_position, sector const>;
+
+    public:
+        read_handle() noexcept = default;
+
+        explicit read_handle(base_type &&base) noexcept
+            : base_type(std::move(base))
+        {
+        }
+
+        using base_type::base_type;
+        using base_type::operator bool;
+        using base_type::operator*;
+        using base_type::operator->;
+        using base_type::get;
+
+        auto as_writable() &&noexcept -> write_handle
+        {
+            return write_handle(static_cast<base_type &&>(*this).as_writable());
+        }
+        auto as_writable() const &noexcept -> write_handle
+        {
+            return write_handle(base_type::as_writable());
+        }
+
+        auto node_position() const noexcept -> tree_position
+        {
+            return base_type::key();
+        }
+
+        friend inline auto as_span(read_handle const &self) noexcept
+                -> ro_blob<sector_device::sector_payload_size>
+        {
+            return self->content();
+        }
+    };
 
     /**
      * Tries to access from or load into cache the sector at the given node
      * position. Fails if the sector is not allocated.
      */
-    auto access(tree_position node) -> result<read_handle>;
+    auto access(tree_position nodePosition) -> result<read_handle>
+    {
+        tree_path const accessPath(nodePosition);
+        VEFS_TRY(auto &&node,
+                 access<false>(accessPath.begin(), accessPath.end()));
+        return read_handle(std::move(node));
+    }
     /**
      * Tries to access the sector at the given node position and creates
      * said sector if it doesn't exist.
      */
-    auto access_or_create(tree_position node) -> result<read_handle>;
+    auto access_or_create(tree_position node) -> result<read_handle>
+    {
+        using boost::container::static_vector;
+
+        tree_path const sectorPath{node};
+        VEFS_TRY(sector_handle mountPoint,
+                 access<true>(sectorPath.begin(), sectorPath.end()));
+        if (mountPoint.key() == node)
+        {
+            return read_handle(std::move(mountPoint));
+        }
+
+        for (auto it
+             = tree_path::iterator(sectorPath, mountPoint.key().layer() - 1),
+             end = sectorPath.end();
+             it != end; ++it)
+        {
+            typename traits::load_context childLoadContext{
+                    .parent = std::move(mountPoint),
+                    .refOffset = it.array_offset(),
+                    .create = true,
+            };
+            VEFS_TRY(mountPoint,
+                     mSectorCache.pin_or_load(childLoadContext, *it));
+        }
+        return read_handle(std::move(mountPoint));
+    }
     /**
      * Erase a leaf node at the given position.
      */
-    auto erase_leaf(std::uint64_t leafId) -> result<void>;
+    auto erase_leaf(std::uint64_t leafId) -> result<void>
+    {
+        if (leafId == 0U)
+        {
+            return errc::not_supported;
+        }
+
+        tree_position const leafPos(leafId, 0);
+        tree_path const leafPath(5, leafPos);
+
+        sector_handle leaf;
+        if (auto accessrx = access<false>(leafPath.cbegin(), leafPath.cend());
+            accessrx.has_value())
+        {
+            leaf = std::move(accessrx).assume_value();
+        }
+        else if (accessrx.assume_error()
+                 == archive_errc::sector_reference_out_of_range)
+        {
+            // leaf not allocated
+            return success();
+        }
+        else
+        {
+            return std::move(accessrx).as_failure();
+        }
+
+        typename traits::purge_context purgeContext{
+                .refOffset = leafPath.offset(0),
+                .ownsLock = false,
+        };
+        return mSectorCache.purge(purgeContext, std::move(leaf));
+    }
+
+    struct anchor_commit_lock
+    {
+        sector_handle handle;
+        std::unique_lock<sector const> lock;
+
+        explicit anchor_commit_lock(sector_handle h)
+            : handle(std::move(h))
+            , lock(*handle, std::adopt_lock)
+        {
+        }
+    };
 
     /**
      * Forces all cached information to be written to disc.
      */
     template <typename CommitFn>
-    auto commit(CommitFn &&commitFn) -> result<void>;
+    auto commit(CommitFn &&commitFn) -> result<void>
+    {
+        using boost::container::static_vector;
+
+        bool anyDirty = true;
+        for (int i = 0; anyDirty && i <= lut::max_tree_depth; ++i)
+        {
+            VEFS_TRY(anyDirty, mSectorCache.sync_all());
+        }
+
+        static_vector<anchor_commit_lock, lut::max_tree_depth> anchors;
+        for (sector_handle it = mRootSector; it; it = it->parent())
+        {
+            std::unique_lock anchorLock{*it};
+            // TODO: this can (and should) be done without a retry loop
+            while (it.is_dirty())
+            {
+                anchorLock.unlock();
+                VEFS_TRY(mSectorCache.sync(it));
+                anchorLock.lock();
+            }
+            anchors.emplace_back(it);
+            anchorLock.release();
+        }
+        sector_handle actualRoot = nullptr;
+        for (anchor_commit_lock &it : std::ranges::reverse_view(anchors))
+        {
+            if (it.handle->num_referenced() > 1)
+            {
+                actualRoot = it.handle;
+                break;
+            }
+        }
+        if (actualRoot == nullptr)
+        {
+            mRootInfo.root
+                    = reference_sector_layout::read(mRootSector->content(), 0);
+            mRootInfo.tree_depth = 0;
+        }
+        else
+        {
+            if (auto const parent = actualRoot->parent())
+            {
+                mRootInfo.root
+                        = reference_sector_layout::read(parent->content(), 0);
+            }
+            mRootInfo.tree_depth = actualRoot.key().layer();
+        }
+
+        // try to shrink the tree height to fit
+        for (size_t i = anchors.size() - 1U;
+             i != 0U && anchors[i].handle.key().layer() > mRootInfo.tree_depth;
+             --i)
+        {
+            typename traits::purge_context purgeContext{
+                    .refOffset = 0,
+                    .ownsLock = true,
+            };
+            anchors[i - 1U].handle.as_writable()->parent(sector_handle{});
+            if (auto purgeRx = mSectorCache.purge(purgeContext,
+                                                  std::move(anchors[i].handle));
+                purgeRx.has_value())
+            {
+                anchors[i].lock.release();
+            }
+            else
+            {
+                anchors[i - 1U].handle.as_writable()->parent(anchors[i].handle);
+                anchors[i - 1U].handle.mark_clean();
+                break;
+            }
+        }
+
+        using invoke_result_type
+                = std::invoke_result_t<CommitFn, root_sector_info>;
+        if constexpr (std::is_void_v<invoke_result_type>)
+        {
+            std::invoke(std::forward<CommitFn>(commitFn), (mRootInfo));
+        }
+        else
+        {
+            VEFS_TRY(
+                    std::invoke(std::forward<CommitFn>(commitFn), (mRootInfo)));
+        }
+
+        VEFS_TRY(mTreeAllocator.on_commit());
+
+        return success();
+    }
 
 private:
     template <bool ReturnParentIfNotAllocated>
-    auto access(tree_path::const_iterator pathBegin,
-                tree_path::const_iterator pathEnd) -> result<sector_handle>;
-
-    void notify_dirty(sector_handle h) noexcept;
-    auto sync_to_device(sector_handle h) noexcept -> result<void>;
-
-    auto adjust_tree_depth(int targetDepth) noexcept -> result<void>;
-    auto increase_tree_depth(int targetDepth) noexcept -> result<void>;
-    auto decrease_tree_depth(int targetDepth) noexcept -> result<void>;
-
-    auto access_or_read_child(sector_handle parent,
-                              tree_position childPosition,
-                              int childParentOffset) noexcept
-            -> result<sector_handle>;
-    auto access_or_create_child(sector_handle parent,
-                                tree_position childPosition,
-                                int childParentOffset) noexcept
-            -> result<sector_handle>;
-    auto try_erase_child(sector_handle const &parent,
-                         tree_position child,
-                         int childParentOffset) noexcept -> result<bool>;
-    auto erase_child(sector_handle parent,
-                     tree_position child,
-                     int childParentOffset) noexcept -> result<void>;
-
-    sector_device &mDevice;
-    file_crypto_ctx &mCryptoCtx;
-    executor_type &mExecutor;
-
-    MutexType mTreeDepthSync;
-    root_sector_info mRootInfo;
-
-    tree_allocator_type mTreeAllocator;
-    sector_cache mSectorCache;
-    sector_handle mRootSector; // needs to be destructed before mSectorCache
-    std::shared_mutex mCommitSync;
-};
-
-#pragma region sector implementation
-
-template <typename TreeAllocator, typename Executor, typename MutexType>
-inline sector_tree_mt<TreeAllocator, Executor, MutexType>::sector::sector(
-        sector_tree_mt &tree,
-        handle_type parent,
-        tree_position nodePosition,
-        sector_id current) noexcept
-    : mNodePosition(nodePosition)
-    , mTree(tree)
-    , mParent(std::move(parent))
-    , mNodeAllocator(mTree.mTreeAllocator, current)
-    , mSectorSync()
-{
-}
-
-template <typename TreeAllocator, typename Executor, typename MutexType>
-inline auto
-sector_tree_mt<TreeAllocator, Executor, MutexType>::sector::node_position()
-        const noexcept -> tree_position
-{
-    return mNodePosition;
-}
-
-template <typename TreeAllocator, typename Executor, typename MutexType>
-inline auto sector_tree_mt<TreeAllocator, Executor, MutexType>::sector::parent()
-        const noexcept -> handle_type const &
-{
-    return mParent;
-}
-template <typename TreeAllocator, typename Executor, typename MutexType>
-inline void sector_tree_mt<TreeAllocator, Executor, MutexType>::sector::parent(
-        handle_type newParent) noexcept
-{
-    mParent = std::move(newParent);
-}
-
-template <typename TreeAllocator, typename Executor, typename MutexType>
-inline void sector_tree_mt<TreeAllocator, Executor, MutexType>::sector::lock()
-{
-    mSectorSync.lock();
-}
-template <typename TreeAllocator, typename Executor, typename MutexType>
-inline auto
-sector_tree_mt<TreeAllocator, Executor, MutexType>::sector::try_lock() -> bool
-{
-    return mSectorSync.try_lock();
-}
-template <typename TreeAllocator, typename Executor, typename MutexType>
-inline void sector_tree_mt<TreeAllocator, Executor, MutexType>::sector::unlock()
-{
-    mSectorSync.unlock();
-}
-template <typename TreeAllocator, typename Executor, typename MutexType>
-inline void
-sector_tree_mt<TreeAllocator, Executor, MutexType>::sector::lock_shared()
-{
-    mSectorSync.lock_shared();
-}
-template <typename TreeAllocator, typename Executor, typename MutexType>
-inline auto
-sector_tree_mt<TreeAllocator, Executor, MutexType>::sector::try_lock_shared()
-        -> bool
-{
-    return mSectorSync.try_lock_shared();
-}
-template <typename TreeAllocator, typename Executor, typename MutexType>
-inline void
-sector_tree_mt<TreeAllocator, Executor, MutexType>::sector::unlock_shared()
-{
-    mSectorSync.unlock_shared();
-}
-
-#pragma endregion
-
-#pragma region read_handle implementation
-
-template <typename TreeAllocator, typename Executor, typename MutexType>
-inline sector_tree_mt<TreeAllocator, Executor, MutexType>::read_handle::
-        read_handle(sector_handle node) noexcept
-    : mSector(std::move(node))
-{
-}
-template <typename TreeAllocator, typename Executor, typename MutexType>
-inline sector_tree_mt<TreeAllocator, Executor, MutexType>::read_handle::
-        read_handle(write_handle const &writeHandle) noexcept
-    : mSector(writeHandle.mSector)
-{
-}
-template <typename TreeAllocator, typename Executor, typename MutexType>
-inline sector_tree_mt<TreeAllocator, Executor, MutexType>::read_handle::
-        read_handle(write_handle &&writeHandle) noexcept
-    : mSector(std::exchange(writeHandle.mSector, nullptr))
-{
-    if (mSector)
+    auto access(tree_path::const_iterator const pathBegin,
+                tree_path::const_iterator const pathEnd)
+            -> result<sector_handle>
     {
-        mSector.mark_dirty();
-    }
-}
+        sector_handle base;
+        auto it = std::find_if(
+                          std::make_reverse_iterator(pathEnd),
+                          std::make_reverse_iterator(pathBegin),
+                          [this, &base](tree_position position)
+                          { return (base = mSectorCache.try_pin(position)); })
+                          .base();
 
-template <typename TreeAllocator, typename Executor, typename MutexType>
-sector_tree_mt<TreeAllocator, Executor, MutexType>::read_handle::operator bool()
-        const noexcept
-{
-    return mSector.operator bool();
-}
-
-template <typename TreeAllocator, typename Executor, typename MutexType>
-inline auto sector_tree_mt<TreeAllocator, Executor, MutexType>::read_handle::
-        node_position() noexcept -> tree_position
-{
-    return mSector->node_position();
-}
-
-template <typename TreeAllocator, typename Executor, typename MutexType>
-void sector_tree_mt<TreeAllocator, Executor, MutexType>::read_handle::lock()
-{
-    mSector->lock_shared();
-}
-
-template <typename TreeAllocator, typename Executor, typename MutexType>
-auto sector_tree_mt<TreeAllocator, Executor, MutexType>::read_handle::try_lock()
-        -> bool
-{
-    return mSector->try_lock_shared();
-}
-
-template <typename TreeAllocator, typename Executor, typename MutexType>
-void sector_tree_mt<TreeAllocator, Executor, MutexType>::read_handle::unlock()
-{
-    mSector->unlock_shared();
-}
-
-template <typename TreeAllocator, typename Executor, typename MutexType>
-void sector_tree_mt<TreeAllocator, Executor, MutexType>::read_handle::
-        lock_shared()
-{
-    mSector->lock_shared();
-}
-
-template <typename TreeAllocator, typename Executor, typename MutexType>
-auto sector_tree_mt<TreeAllocator, Executor, MutexType>::read_handle::
-        try_lock_shared() -> bool
-{
-    return mSector->try_lock_shared();
-}
-
-template <typename TreeAllocator, typename Executor, typename MutexType>
-void sector_tree_mt<TreeAllocator, Executor, MutexType>::read_handle::
-        unlock_shared()
-{
-    mSector->unlock_shared();
-}
-
-#pragma endregion
-
-#pragma region write_handle implementation
-
-template <typename TreeAllocator, typename Executor, typename MutexType>
-inline sector_tree_mt<TreeAllocator, Executor, MutexType>::write_handle::
-        write_handle(sector_handle node) noexcept
-    : mSector(std::move(node))
-{
-}
-template <typename TreeAllocator, typename Executor, typename MutexType>
-inline sector_tree_mt<TreeAllocator, Executor, MutexType>::write_handle::
-        write_handle(read_handle const &writeHandle) noexcept
-    : mSector(writeHandle.mSector)
-{
-}
-
-template <typename TreeAllocator, typename Executor, typename MutexType>
-inline sector_tree_mt<TreeAllocator, Executor, MutexType>::write_handle::
-        write_handle(read_handle &&readHandle) noexcept
-    : mSector(std::exchange(readHandle.mSector, nullptr))
-{
-}
-
-template <typename TreeAllocator, typename Executor, typename MutexType>
-sector_tree_mt<TreeAllocator, Executor, MutexType>::write_handle::
-operator bool() const noexcept
-{
-    return mSector.operator bool();
-}
-
-template <typename TreeAllocator, typename Executor, typename MutexType>
-inline auto sector_tree_mt<TreeAllocator, Executor, MutexType>::write_handle::
-        node_position() noexcept -> tree_position
-{
-    return mSector->node_position();
-}
-
-template <typename TreeAllocator, typename Executor, typename MutexType>
-void sector_tree_mt<TreeAllocator, Executor, MutexType>::write_handle::lock()
-{
-    mSector->lock();
-}
-
-template <typename TreeAllocator, typename Executor, typename MutexType>
-auto sector_tree_mt<TreeAllocator, Executor, MutexType>::write_handle::
-        try_lock() -> bool
-{
-    return mSector->try_lock();
-}
-
-template <typename TreeAllocator, typename Executor, typename MutexType>
-void sector_tree_mt<TreeAllocator, Executor, MutexType>::write_handle::unlock()
-{
-    mSector->unlock();
-}
-
-template <typename TreeAllocator, typename Executor, typename MutexType>
-void sector_tree_mt<TreeAllocator, Executor, MutexType>::write_handle::
-        lock_shared()
-{
-    mSector->lock_shared();
-}
-
-template <typename TreeAllocator, typename Executor, typename MutexType>
-auto sector_tree_mt<TreeAllocator, Executor, MutexType>::write_handle::
-        try_lock_shared() -> bool
-{
-    return mSector->try_lock_shared();
-}
-
-template <typename TreeAllocator, typename Executor, typename MutexType>
-void sector_tree_mt<TreeAllocator, Executor, MutexType>::write_handle::
-        unlock_shared()
-{
-    mSector->unlock_shared();
-}
-
-template <typename TreeAllocator, typename Executor, typename MutexType>
-inline sector_tree_mt<TreeAllocator, Executor, MutexType>::write_handle::
-        ~write_handle()
-{
-    if (mSector)
-    {
-        mSector.mark_dirty();
-    }
-}
-
-#pragma endregion
-
-#pragma region sector_tree_mt implementation
-
-template <typename TreeAllocator, typename Executor, typename MutexType>
-template <typename... AllocatorCtorArgs>
-inline sector_tree_mt<TreeAllocator, Executor, MutexType>::sector_tree_mt(
-        sector_device &device,
-        file_crypto_ctx &cryptoCtx,
-        executor_type &executor,
-        root_sector_info rootInfo,
-        AllocatorCtorArgs &&...allocatorCtorArgs)
-    : mDevice(device)
-    , mCryptoCtx(cryptoCtx)
-    , mExecutor(executor)
-    , mTreeDepthSync()
-    , mRootInfo(rootInfo)
-    , mTreeAllocator(std::forward<AllocatorCtorArgs>(allocatorCtorArgs)...)
-    , mSectorCache([this](sector_handle h) { notify_dirty(std::move(h)); })
-    , mRootSector()
-{
-}
-
-template <typename TreeAllocator, typename Executor, typename MutexType>
-inline auto sector_tree_mt<TreeAllocator, Executor, MutexType>::init_existing()
-        -> result<void>
-{
-    tree_position rootPosition(0, mRootInfo.tree_depth);
-
-    auto loadrx = mSectorCache.access(
-            rootPosition,
-            [this, rootPosition](void *mem) noexcept -> result<sector_type *>
-            {
-                auto ptr = new (mem) sector_type(*this, nullptr, rootPosition,
-                                                 mRootInfo.root.sector);
-
-                if (auto readrx = mDevice.read_sector(as_span(*ptr), mCryptoCtx,
-                                                      mRootInfo.root.sector,
-                                                      mRootInfo.root.mac);
-                    readrx.has_failure())
-                {
-                    std::destroy_at(ptr);
-                    return std::move(readrx).as_failure();
-                }
-                return ptr;
-            });
-    if (loadrx.has_failure())
-    {
-        return std::move(loadrx).as_failure();
-    }
-
-    mRootSector = std::move(loadrx).assume_value();
-
-    return success();
-}
-
-template <typename TreeAllocator, typename Executor, typename MutexType>
-inline auto sector_tree_mt<TreeAllocator, Executor, MutexType>::create_new()
-        -> result<void>
-{
-    tree_position rootPosition{0, 0};
-
-    auto loadrx = mSectorCache.access(
-            rootPosition,
-            [this,
-             rootPosition](void *mem) noexcept -> result<sector_type *, void>
-            {
-                auto xsec = new (mem)
-                        sector_type(*this, nullptr, rootPosition, sector_id{});
-
-                auto const content = as_span(*xsec);
-                std::memset(content.data(), 0, content.size());
-
-                return xsec;
-            });
-    mRootSector = std::move(loadrx).assume_value();
-    mRootSector.mark_dirty();
-
-    return success();
-}
-
-template <typename TreeAllocator, typename Executor, typename MutexType>
-template <typename... AllocatorCtorArgs>
-inline auto sector_tree_mt<TreeAllocator, Executor, MutexType>::open_existing(
-        sector_device &device,
-        file_crypto_ctx &cryptoCtx,
-        executor_type &executor,
-        root_sector_info rootInfo,
-        AllocatorCtorArgs &&...args) -> result<std::unique_ptr<sector_tree_mt>>
-{
-    std::unique_ptr<sector_tree_mt> tree(new (std::nothrow) sector_tree_mt(
-            device, cryptoCtx, executor, rootInfo,
-            std::forward<AllocatorCtorArgs>(args)...));
-    if (!tree)
-    {
-        return errc::not_enough_memory;
-    }
-
-    VEFS_TRY(tree->init_existing());
-    return success(std::move(tree));
-}
-
-template <typename TreeAllocator, typename Executor, typename MutexType>
-template <typename... AllocatorCtorArgs>
-inline auto sector_tree_mt<TreeAllocator, Executor, MutexType>::create_new(
-        sector_device &device,
-        file_crypto_ctx &cryptoCtx,
-        executor_type &executor,
-        AllocatorCtorArgs &&...args) -> result<std::unique_ptr<sector_tree_mt>>
-{
-    std::unique_ptr<sector_tree_mt> tree(new (std::nothrow) sector_tree_mt(
-            device, cryptoCtx, executor, {},
-            std::forward<AllocatorCtorArgs>(args)...));
-    if (!tree)
-    {
-        return errc::not_enough_memory;
-    }
-
-    VEFS_TRY(tree->create_new());
-    return success(std::move(tree));
-}
-
-template <typename TreeAllocator, typename Executor, typename MutexType>
-inline auto sector_tree_mt<TreeAllocator, Executor, MutexType>::access(
-        tree_position nodePosition) -> result<read_handle>
-{
-    const tree_path accessPath(nodePosition);
-    VEFS_TRY(auto &&node, access<false>(accessPath.begin(), accessPath.end()));
-    return read_handle(std::move(node));
-}
-
-template <typename TreeAllocator, typename Executor, typename MutexType>
-inline auto
-sector_tree_mt<TreeAllocator, Executor, MutexType>::access_or_create(
-        tree_position node) -> result<read_handle>
-{
-    using boost::container::static_vector;
-
-    tree_path sectorPath{node};
-    int requiredDepth = 0;
-    for (; sectorPath.position(requiredDepth) != 0; ++requiredDepth)
-    {
-    }
-    {
-        std::lock_guard treeDepthLock{mTreeDepthSync};
-        if (mRootInfo.tree_depth < requiredDepth)
-        {
-            VEFS_TRY(increase_tree_depth(requiredDepth));
-        }
-    }
-
-    VEFS_TRY(auto &&mountPoint,
-             access<true>(sectorPath.begin(), sectorPath.end()));
-    if (mountPoint->node_position() == node)
-    {
-        return read_handle(std::move(mountPoint));
-    }
-
-    for (auto it = tree_path::iterator(sectorPath,
-                                       mountPoint->node_position().layer() - 1),
-              end = sectorPath.end();
-         it != end; ++it)
-    {
-        auto const nodePos = *it;
-
-        if (auto rx = access_or_create_child(std::move(mountPoint), nodePos,
-                                             it.array_offset()))
-        {
-            mountPoint = std::move(rx).assume_value();
-            mountPoint.mark_dirty();
-        }
-        else
-        {
-            return std::move(rx).as_failure();
-        }
-    }
-    return read_handle(std::move(mountPoint));
-}
-
-template <typename TreeAllocator, typename Executor, typename MutexType>
-inline auto sector_tree_mt<TreeAllocator, Executor, MutexType>::erase_leaf(
-        std::uint64_t leafId) -> result<void>
-{
-    if (leafId == 0)
-    {
-        return errc::not_supported;
-    }
-
-    const tree_position leafPos(leafId, 0);
-    const tree_path leafPath(5, leafPos);
-
-    sector_handle leafParent;
-    if (auto accessrx
-        = access<false>(leafPath.cbegin(), std::prev(leafPath.cend())))
-    {
-        leafParent = std::move(accessrx).assume_value();
-    }
-    else if (accessrx.assume_error()
-             == archive_errc::sector_reference_out_of_range)
-    {
-        // leaf parent not allocated => child not allocated
-        return success();
-    }
-    else
-    {
-        return std::move(accessrx).as_failure();
-    }
-
-    return erase_child(std::move(leafParent), leafPos, leafPath.offset(0));
-}
-
-template <typename TreeAllocator, typename Executor, typename MutexType>
-template <typename CommitFn>
-inline auto
-sector_tree_mt<TreeAllocator, Executor, MutexType>::commit(CommitFn &&commitFn)
-        -> result<void>
-{
-    std::scoped_lock depthLock{mCommitSync, mTreeDepthSync};
-
-    bool anyDirty = true;
-    for (int i = 0; anyDirty && i <= mRootInfo.tree_depth; ++i)
-    {
-        auto rx = mSectorCache.for_dirty(
-                [this, i](sector_handle node) noexcept -> result<void>
-                {
-                    if (node->node_position().layer() != i)
-                    {
-                        return success();
-                    }
-                    std::lock_guard nodeLock{*node};
-                    return sync_to_device(std::move(node));
-                });
-
-        if (rx)
-        {
-            anyDirty = rx.assume_value();
-        }
-        else
-        {
-            return std::move(rx).as_failure();
-        }
-    }
-
-    if (mRootInfo.tree_depth > 0)
-    {
-        // #TODO shrink tree height to fit
-
-        // sector at position 0 is mandatory
-        constexpr auto serialized_reference_size
-                = reference_sector_layout::serialized_reference_size;
-        auto rootData
-                = as_span(*mRootSector).subspan(serialized_reference_size);
-
-        // if no sector is referenced we shrink our tree
-        bool noSectorReferenced
-                = std::all_of(rootData.begin(), rootData.end(),
-                              [](std::byte v) { return v == std::byte{}; });
-        if (noSectorReferenced)
-        {
-            VEFS_TRY(decrease_tree_depth(mRootInfo.tree_depth - 1));
-            VEFS_TRY(sync_to_device(mRootSector));
-        }
-    }
-
-    using invoke_result_type = std::invoke_result_t<CommitFn, root_sector_info>;
-    if constexpr (std::is_void_v<invoke_result_type>)
-    {
-        std::invoke(std::forward<CommitFn>(commitFn), (mRootInfo));
-    }
-    else
-    {
-        VEFS_TRY(std::invoke(std::forward<CommitFn>(commitFn), (mRootInfo)));
-    }
-
-    VEFS_TRY(mTreeAllocator.on_commit());
-
-    return success();
-}
-
-template <typename TreeAllocator, typename Executor, typename MutexType>
-template <bool ReturnParentIfNotAllocated>
-inline auto sector_tree_mt<TreeAllocator, Executor, MutexType>::access(
-        tree_path::const_iterator pathBegin, tree_path::const_iterator pathEnd)
-        -> result<sector_handle>
-{
-    sector_handle base;
-    auto it = std::find_if(
-                      std::make_reverse_iterator(pathEnd),
-                      std::make_reverse_iterator(pathBegin),
-                      [this, &base](tree_position position)
-                      { return (base = mSectorCache.try_access(position)); })
-                      .base();
-
-    // current root is always in cache, i.e. if nothing is hit, it's out of
-    // range
-    if (!base)
-    {
-        return archive_errc::sector_reference_out_of_range;
-    }
-
-    if (it != pathEnd)
-    {
-        // next sector is unlikely to be in the page cache,
-        // therefore it is even more unlikely that its reference
-        // resides in the CPU cache
-        // however this only holds for the first reference load,
-        // because afterwards the freshly decrypted sector content
-        // will still reside in cache
-        VEFS_PREFETCH_NTA(
-                as_span(*base).data()
-                + it.array_offset()
-                          * reference_sector_layout::serialized_reference_size);
-    }
-    for (; it != pathEnd; ++it)
-    {
-        // we only need to increment the cache ref ctr twice in case we need
-        // it for the not allocated case
-        [[maybe_unused]] sector_handle parentBackup;
-        if constexpr (ReturnParentIfNotAllocated)
-        {
-            parentBackup = base;
-        }
-
-        if (auto entry
-            = access_or_read_child(std::move(base), *it, it.array_offset()))
-        {
-            base = std::move(entry).assume_value();
-        }
-        else
+        // current root is always in cache, i.e. if nothing is hit, it's out of
+        // range
+        if (!base)
         {
             if constexpr (ReturnParentIfNotAllocated)
             {
-                if (entry.assume_error()
-                    == archive_errc::sector_reference_out_of_range)
+                return get_anchor_sector(pathBegin->layer());
+            }
+            else
+            {
+                return archive_errc::sector_reference_out_of_range;
+            }
+        }
+
+        if (it != pathEnd)
+        {
+            // next sector is unlikely to be in the page cache,
+            // therefore it is even more unlikely that its reference
+            // resides in the CPU cache
+            // however this only holds for the first reference load,
+            // because afterwards the freshly decrypted sector content
+            // will still reside in cache
+            VEFS_PREFETCH_NTA(base->content().data()
+                              + it.array_offset()
+                                        * reference_sector_layout::
+                                                serialized_reference_size);
+        }
+        for (; it != pathEnd; ++it)
+        {
+            typename traits::load_context childLoadContext{
+                    .parent = std::move(base),
+                    .refOffset = it.array_offset(),
+                    .create = false,
+            };
+            if (auto entry = mSectorCache.pin_or_load(childLoadContext, *it);
+                entry.has_value())
+            {
+                base = std::move(entry).assume_value();
+            }
+            else
+            {
+                if constexpr (ReturnParentIfNotAllocated)
                 {
-                    return parentBackup;
+                    if (entry.assume_error()
+                        == archive_errc::sector_reference_out_of_range)
+                    {
+                        return std::move(childLoadContext.parent);
+                    }
+                }
+                return std::move(entry).as_failure();
+            }
+        }
+        return base;
+    }
+    auto get_anchor_sector(int anchorDepth) -> result<sector_handle>
+    {
+        sector_handle anchor = mSectorCache.try_pin(tree_position{0U, 1});
+        sector_handle parent;
+        for (int i = 1; i < anchorDepth; ++i, anchor = std::move(parent))
+        {
+            tree_position nextRootPos(0u, i + 1);
+
+            {
+                std::shared_lock sharedAnchorLock{*anchor};
+
+                parent = anchor->parent();
+                if (parent != nullptr)
+                {
+                    continue;
                 }
             }
-            return std::move(entry).as_failure();
+
+            std::unique_lock uniqueAnchorLock{*anchor};
+
+            // no TOCTOU for you!
+            // since we cannot upgrade our shared lock, we need to recheck
+            // in order to ensure correctness while racing
+            parent = anchor->parent();
+            if (parent != nullptr)
+            {
+                continue;
+            }
+
+            typename traits::load_context rootLoadContext{
+                    .parent = {},
+                    .refOffset = 0,
+                    .create = true,
+            };
+            VEFS_TRY(parent,
+                     mSectorCache.pin_or_load(rootLoadContext, nextRootPos));
+
+            auto const writableAnchor = anchor.as_writable();
+            writableAnchor->parent(parent);
         }
-    }
-    return base;
-}
-
-template <typename TreeAllocator, typename Executor, typename MutexType>
-inline void sector_tree_mt<TreeAllocator, Executor, MutexType>::notify_dirty(
-        sector_handle h) noexcept
-{
-    mExecutor.execute(
-            [this, h = std::move(h)]() mutable
-            {
-                if (!h || !mCommitSync.try_lock_shared())
-                {
-                    return;
-                }
-                std::shared_lock commitLock(mCommitSync, std::adopt_lock);
-
-                std::unique_lock sectorLock{*h};
-                if (!h.is_dirty())
-                {
-                    return;
-                }
-
-                if (h->node_position().layer() > 0
-                    && h->node_position().position() != 0)
-                {
-                    // we automagically deallocate reference nodes which don't
-                    // reference anything.
-                    // h->node_position().position() != 0 is a shortcut - the
-                    // first data node is always allocated, therefore any node
-                    // (indirectly) referencing the first data node will fail
-                    // the next test. These reference nodes are managed by the
-                    // tree height functions
-                    auto sectorData = as_span(*h);
-                    if (std::all_of(sectorData.begin(), sectorData.end(),
-                                    [](std::byte b)
-                                    { return b == std::byte{}; }))
-                    {
-                        // empty reference sector
-                        auto parent = h->parent();
-                        auto position = h->node_position();
-                        auto childOffset = position.parent_array_offset();
-                        h.mark_clean();
-
-                        sectorLock.unlock();
-                        h = nullptr;
-
-                        // #TODO reference node erasure is susceptible to toctou
-                        (void)try_erase_child(std::move(parent), position,
-                                              childOffset);
-                        return;
-                    }
-                }
-
-                // sync error is reported via sector policy
-                if (auto syncrx = sync_to_device(h))
-                {
-                }
-            });
-}
-
-template <typename TreeAllocator, typename Executor, typename MutexType>
-inline auto sector_tree_mt<TreeAllocator, Executor, MutexType>::sync_to_device(
-        sector_handle h) noexcept -> result<void>
-{
-    if (!h.is_dirty())
-    {
-        return success();
+        return anchor;
     }
 
-    VEFS_TRY(auto &&writePosition,
-             mTreeAllocator.reallocate(h->mNodeAllocator));
-
-    sector_reference updated{writePosition, {}};
-    if (result<void> writerx = mDevice.write_sector(
-                updated.mac, mCryptoCtx, updated.sector, as_span(*h));
-        writerx.has_failure())
+    static auto countReferenced(sector *page) noexcept -> int
     {
-        // #TODO properly report failure with next commit
-        // policy.sync_failed(writerx, writePosition);
-        return std::move(writerx).as_failure();
-    }
-
-    if (auto &&parent = h->parent())
-    {
-        sector &parentSector = *parent;
-        auto const offset = h->node_position().parent_array_offset();
-        reference_sector_layout parentLayout{as_span(parentSector)};
-
-        std::shared_lock parentLock{parentSector};
-
-        parentLayout.write(offset, updated);
-
-        parent.mark_dirty();
-    }
-    else
-    {
-        mRootInfo.root = updated;
-    }
-    h.mark_clean();
-    return success();
-}
-
-template <typename TreeAllocator, typename Executor, typename MutexType>
-inline auto
-sector_tree_mt<TreeAllocator, Executor, MutexType>::adjust_tree_depth(
-        int targetDepth) noexcept -> result<void>
-{
-    // usefulness of this method still needs to be determined
-    std::lock_guard treeDepthLock{mTreeDepthSync};
-
-    if (mRootInfo.tree_depth < targetDepth)
-    {
-        return increase_tree_depth(targetDepth);
-    }
-    else if (mRootInfo.tree_depth > targetDepth)
-    {
-        return decrease_tree_depth(targetDepth);
-    }
-    return success();
-}
-
-template <typename TreeAllocator, typename Executor, typename MutexType>
-inline auto
-sector_tree_mt<TreeAllocator, Executor, MutexType>::increase_tree_depth(
-        int const targetDepth) noexcept -> result<void>
-{
-    using boost::container::static_vector;
-
-    // const int depthDifference = targetDepth - mRootInfo.tree_depth;
-
-    // static_vector<sector_id, lut::max_tree_depth + 1> allocatedSectors;
-    // utils::scope_guard allocationRollbackGuard = [this,
-    //                                              &allocatedSectors]() {
-    //    for (auto it = allocatedSectors.begin(),
-    //              end = allocatedSectors.end();
-    //         it != end; ++it)
-    //    {
-    //        (void)mTreeAllocator.dealloc_one(*it);
-    //    }
-    //};
-
-    //// we allocate the required disc space before making any changes,
-    //// because it is the only thing that can fail
-    // allocatedSectors.resize(depthDifference);
-    // VEFS_TRY(mTreeAllocator.alloc_multiple(allocatedSectors));
-
-    // we grow bottom to top in order to not disturb any ongoing access
-    for (int i = mRootInfo.tree_depth; i < targetDepth; ++i)
-    {
-        // auto sectorId = allocatedSectors.back();
-        // allocatedSectors.pop_back();
-        tree_position nextRootPos(0u, i + 1);
-
-        std::unique_lock oldRootLock{*mRootSector};
-        auto createrx = mSectorCache.access(
-                nextRootPos,
-                [this,
-                 nextRootPos](void *mem) noexcept -> result<sector_type *, void>
-                {
-                    auto xsec = new (mem) sector_type(*this, nullptr,
-                                                      nextRootPos, sector_id{});
-                    // zero out the sector content
-                    auto content = as_span(*xsec);
-                    reference_sector_layout{content}.write(0, mRootInfo.root);
-                    fill_blob(content.template subspan<
-                              reference_sector_layout::
-                                      serialized_reference_size>());
-
-                    return xsec;
-                });
-        auto root = std::move(createrx).assume_value();
-        root.mark_dirty();
-
-        mRootSector->parent(root);
-        mRootInfo.root = {};
-        oldRootLock.unlock();
-        mRootSector = std::move(root);
-    }
-    mRootInfo.tree_depth = targetDepth;
-    return success();
-}
-
-template <typename TreeAllocator, typename Executor, typename MutexType>
-inline auto
-sector_tree_mt<TreeAllocator, Executor, MutexType>::decrease_tree_depth(
-        int targetDepth) noexcept -> result<void>
-{
-    using boost::container::static_vector;
-
-    const tree_path accessPath(tree_position(0, targetDepth));
-    VEFS_TRY(auto &&newRoot,
-             access<false>(accessPath.begin(), accessPath.end()));
-
-    static_vector<sector_handle, lut::max_tree_depth + 1> victimChildren;
-
-    for (sector_handle child = newRoot, parent = newRoot->parent(); parent;
-         parent = child->parent())
-    {
-        victimChildren.emplace_back(std::move(child));
-        child = std::move(parent);
-    }
-    mRootSector = nullptr;
-
-    std::for_each(
-            victimChildren.rbegin(), victimChildren.rend(),
-            [this](sector_handle &current)
-            {
-                std::unique_lock xguard{*current};
-                auto parent = current->parent();
-                current->parent(nullptr);
-                auto sectorId = mRootInfo.root.sector;
-                for (;;)
-                {
-                    mRootInfo.root
-                            = reference_sector_layout{as_span(*parent)}.read(0);
-                    mSectorCache.try_purge(parent);
-                    xguard.unlock();
-                    if (!parent)
-                    {
-                        break;
-                    }
-                    std::this_thread::yield();
-                    xguard.lock();
-                }
-                (void)mTreeAllocator.dealloc_one(sectorId);
-                current = nullptr;
-            });
-
-    mRootSector = std::move(newRoot);
-    mRootInfo.tree_depth = targetDepth;
-    return success();
-}
-
-template <typename TreeAllocator, typename Executor, typename MutexType>
-inline auto
-sector_tree_mt<TreeAllocator, Executor, MutexType>::access_or_read_child(
-        sector_handle parent,
-        tree_position childPosition,
-        int childParentOffset) noexcept -> result<sector_handle>
-{
-    return mSectorCache.access(
-            childPosition,
-            [&](void *mem) noexcept -> result<sector_type *>
-            {
-                const auto ref = reference_sector_layout{as_span(*parent)}.read(
-                        childParentOffset);
-
-                if (ref.sector == sector_id::master)
-                {
-                    return archive_errc::sector_reference_out_of_range;
-                }
-
-                auto xsec = new (mem) sector_type(*this, std::move(parent),
-                                                  childPosition, ref.sector);
-
-                if (auto readResult = mDevice.read_sector(
-                            as_span(*xsec), mCryptoCtx, ref.sector, ref.mac);
-                    readResult.has_failure())
-                {
-                    std::destroy_at(xsec);
-                    readResult.assume_error() << ed::sector_idx{ref.sector};
-                    return std::move(readResult).as_failure();
-                }
-                return xsec;
-            });
-}
-
-template <typename TreeAllocator, typename Executor, typename MutexType>
-inline auto
-sector_tree_mt<TreeAllocator, Executor, MutexType>::access_or_create_child(
-        sector_handle parent,
-        tree_position childPosition,
-        int childParentOffset) noexcept -> result<sector_handle>
-{
-    return mSectorCache.access(
-            childPosition,
-            [&](void *mem) noexcept -> result<sector_type *>
-            {
-                auto ref = reference_sector_layout{as_span(*parent)}.read(
-                        childParentOffset);
-
-                auto xsec = new (mem) sector_type(*this, std::move(parent),
-                                                  childPosition, ref.sector);
-
-                if (ref.sector != sector_id::master)
-                {
-                    if (auto readResult
-                        = mDevice.read_sector(as_span(*xsec), mCryptoCtx,
-                                              ref.sector, ref.mac);
-                        readResult.has_failure())
-                    {
-                        std::destroy_at(xsec);
-                        readResult.assume_error() << ed::sector_idx{ref.sector};
-                        return std::move(readResult).as_failure();
-                    }
-                }
-                else
-                {
-                    auto const content = as_span(*xsec);
-                    std::memset(content.data(), 0, content.size());
-                }
-                return xsec;
-            });
-}
-
-template <typename TreeAllocator, typename Executor, typename MutexType>
-inline auto sector_tree_mt<TreeAllocator, Executor, MutexType>::try_erase_child(
-        sector_handle const &parent,
-        tree_position child,
-        int childParentOffset) noexcept -> result<bool>
-{
-    sector_id childSectorId;
-    if (mSectorCache.try_purge(
-                child,
-                [&]()
-                {
-                    reference_sector_layout parentLayout{as_span(*parent)};
-                    childSectorId = parentLayout.read(childParentOffset).sector;
-                    parentLayout.write(childParentOffset,
-                                       {sector_id::master, {}});
-                }))
-    {
-        if (childSectorId != sector_id::master)
+        auto const content = page->content();
+        int numReferenced = 0;
+        for (int i = 0; i < static_cast<int>(
+                                reference_sector_layout::references_per_sector);
+             ++i)
         {
-            (void)mTreeAllocator.dealloc_one(childSectorId);
-            VEFS_TRY(mDevice.erase_sector(childSectorId));
+            if (reference_sector_layout::read(content, i).sector != sector_id{})
+            {
+                numReferenced += 1;
+            }
         }
-        return true;
+        return numReferenced;
     }
-    return false;
-}
+};
 
-template <typename TreeAllocator, typename Executor, typename MutexType>
-inline auto sector_tree_mt<TreeAllocator, Executor, MutexType>::erase_child(
-        sector_handle parent,
-        tree_position child,
-        int childParentOffset) noexcept -> result<void>
-{
-    for (;;)
-    {
-        VEFS_TRY(auto &&erased,
-                 try_erase_child(parent, child, childParentOffset));
-        if (erased)
-        {
-            return success();
-        }
-
-        std::this_thread::yield();
-        if (auto h = mSectorCache.try_access(child))
-        {
-            h.mark_clean();
-        }
-    }
-}
-
-#pragma endregion
-
-template <typename TreeAllocator, typename Executor, typename MutexType>
-inline auto read(sector_tree_mt<TreeAllocator, Executor, MutexType> &tree,
+template <typename TreeAllocator>
+inline auto read(sector_tree_mt<TreeAllocator> &tree,
                  rw_dynblob buffer,
                  std::uint64_t readPos) -> result<void>
 {
@@ -1218,16 +875,16 @@ inline auto read(sector_tree_mt<TreeAllocator, Executor, MutexType> &tree,
         VEFS_TRY(auto &&sector, tree.access(std::exchange(
                                         it, tree_position{it.position() + 1})));
 
-        auto chunk = as_span(sector).subspan(std::exchange(offset, 0));
+        auto chunk = sector->content().subspan(std::exchange(offset, 0));
 
         auto chunked = std::min(chunk.size(), buffer.size());
-        copy(chunk, std::exchange(buffer, buffer.subspan(chunked)));
+        ::vefs::copy(chunk, std::exchange(buffer, buffer.subspan(chunked)));
     }
-    return success();
+    return oc::success();
 }
 
-template <typename TreeAllocator, typename Executor, typename MutexType>
-inline auto write(sector_tree_mt<TreeAllocator, Executor, MutexType> &tree,
+template <typename TreeAllocator>
+inline auto write(sector_tree_mt<TreeAllocator> &tree,
                   ro_dynblob data,
                   std::uint64_t writePos) -> result<void>
 {
@@ -1235,9 +892,6 @@ inline auto write(sector_tree_mt<TreeAllocator, Executor, MutexType> &tree,
     {
         return outcome::success();
     }
-
-    using write_handle = typename sector_tree_mt<TreeAllocator, Executor,
-                                                 MutexType>::write_handle;
 
     tree_position it{lut::sector_position_of(writePos)};
     auto offset = writePos % sector_device::sector_payload_size;
@@ -1248,18 +902,19 @@ inline auto write(sector_tree_mt<TreeAllocator, Executor, MutexType> &tree,
         VEFS_TRY(auto &&sector, tree.access_or_create(std::exchange(
                                         it, tree_position{it.position() + 1})));
 
-        write_handle writableSector{std::move(sector)};
+        auto const writableSector = std::move(sector).as_writable();
 
-        auto buffer = as_span(writableSector).subspan(std::exchange(offset, 0));
-        auto chunked = std::min(data.size(), buffer.size());
-        copy(std::exchange(data, data.subspan(chunked)), buffer);
+        auto const buffer
+                = writableSector->content().subspan(std::exchange(offset, 0));
+        auto const chunked = std::min(data.size(), buffer.size());
+        ::vefs::copy(std::exchange(data, data.subspan(chunked)), buffer);
     }
 
-    return success();
+    return oc::success();
 }
 
-template <typename TreeAllocator, typename Executor, typename MutexType>
-inline auto extract(sector_tree_mt<TreeAllocator, Executor, MutexType> &tree,
+template <typename TreeAllocator>
+inline auto extract(sector_tree_mt<TreeAllocator> &tree,
                     llfio::file_handle &fileHandle,
                     std::uint64_t startPos,
                     std::uint64_t endPos) -> result<void>
@@ -1284,7 +939,7 @@ inline auto extract(sector_tree_mt<TreeAllocator, Executor, MutexType> &tree,
         startPos += chunkSize;
     }
 
-    return success();
+    return oc::success();
 }
 
 } // namespace vefs::detail
