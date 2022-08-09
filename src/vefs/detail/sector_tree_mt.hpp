@@ -251,10 +251,8 @@ public:
 
         auto const parent = node.parent();
         auto const content = node.content();
-        if ((nodePosition.position() == 0U && nodePosition.layer() > 0
-             && node.num_referenced() <= 1)
-            || (nodePosition.position() != 0U && nodePosition.layer() > 0
-                && node.num_referenced() == 0))
+        if (nodePosition.position() != 0U && nodePosition.layer() > 0
+            && node.num_referenced() == 0)
         {
             if (parent == nullptr)
             {
@@ -363,8 +361,6 @@ private:
     sector_handle mRootSector; // needs to be destructed before mSectorCache
 
 private:
-    using sector_type = sector;
-
     template <typename... AllocatorCtorArgs>
     sector_tree_mt(sector_device &device,
                    file_crypto_ctx &cryptoCtx,
@@ -567,8 +563,13 @@ public:
     auto access_or_create(tree_position node) -> result<read_handle>
     {
         using boost::container::static_vector;
+        if (node.layer() != 0) [[unlikely]]
+        {
+            return errc::invalid_argument;
+        }
 
-        tree_path const sectorPath{node};
+        tree_path const sectorPath{lut::required_tree_depth(node.position()),
+                                   node};
         VEFS_TRY(sector_handle mountPoint,
                  access<true>(sectorPath.begin(), sectorPath.end()));
         if (mountPoint.key() == node)
@@ -654,7 +655,7 @@ public:
             VEFS_TRY(anyDirty, mSectorCache.sync_all());
         }
 
-        static_vector<anchor_commit_lock, lut::max_tree_depth> anchors;
+        static_vector<anchor_commit_lock, lut::max_tree_depth + 1> anchors;
         for (sector_handle it = mRootSector; it; it = it->parent())
         {
             std::unique_lock anchorLock{*it};
@@ -711,10 +712,21 @@ public:
             }
             else
             {
+                mTreeAllocator.dealloc(
+                        anchors[i].handle.as_writable()->allocation(),
+                        tree_allocator::leak_on_failure);
+                anchors[i].handle.mark_clean();
+
                 anchors[i - 1U].handle.as_writable()->parent(anchors[i].handle);
                 anchors[i - 1U].handle.mark_clean();
                 break;
             }
+        }
+        if (mRootSector.key().layer() > mRootInfo.tree_depth)
+        {
+            mTreeAllocator.dealloc(mRootSector.as_writable()->allocation(),
+                                   tree_allocator::leak_on_failure);
+            mRootSector.mark_clean();
         }
 
         using invoke_result_type

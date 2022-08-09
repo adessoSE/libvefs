@@ -67,7 +67,10 @@ public:
     }
     ~cow_tree_allocator_mt()
     {
-        assert(mOverwrittenAllocations.empty());
+        if (!mOverwrittenAllocations.empty())
+        {
+            on_leak_detected();
+        }
         for (auto allocation : mAllocationBuffer)
         {
             mSourceAllocator.dealloc_one(
