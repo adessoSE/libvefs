@@ -1,6 +1,8 @@
 #include "boost-unit-test.hpp"
 #include "vefs/detail/sector_tree_mt.hpp"
 
+#include <dplx/cncr/misc.hpp>
+
 #include <vefs/platform/thread_pool.hpp>
 
 #include "vefs/detail/archive_sector_allocator.hpp"
@@ -145,7 +147,7 @@ BOOST_FIXTURE_TEST_CASE(new_sector_tree_has_id_one, sector_tree_mt_dependencies)
     TEST_RESULT_REQUIRE(newTree->commit([&newRootInfo](root_sector_info rsi)
                                         { newRootInfo = rsi; }));
 
-    BOOST_TEST(newRootInfo.root.sector == sector_id{1});
+    BOOST_TEST(newRootInfo.root.sector == sector_id{2});
     BOOST_TEST(newRootInfo.tree_depth == 0);
 }
 
@@ -159,9 +161,10 @@ BOOST_FIXTURE_TEST_CASE(check_initial_sector_tree_mac,
     TEST_RESULT_REQUIRE(newTree->commit([&newRootInfo](root_sector_info rsi)
                                         { newRootInfo = rsi; }));
 
-    auto expectedRootMac = vefs::utils::make_byte_array(
-            0xe2, 0x1b, 0x52, 0x74, 0xe1, 0xd5, 0x8b, 0x69, 0x87, 0x36, 0x88,
-            0x3f, 0x34, 0x4e, 0x5e, 0x2b);
+    auto expectedRootMac = dplx::cncr::make_byte_array<16>(
+            {0xe8, 0xfc, 0xa8, 0xd7, 0x5c, 0xd8, 0x51, 0xe1, 0xd6, 0xe3, 0x9e,
+             0x2c, 0xec, 0x88, 0x20, 0x69},
+            0x00);
     BOOST_TEST(newRootInfo.root.mac == expectedRootMac);
 }
 
@@ -230,9 +233,10 @@ BOOST_AUTO_TEST_CASE(creation_of_a_new_node_changes_mac)
             [&newRootInfo](root_sector_info cri) { newRootInfo = cri; }));
 
     // then
-    auto expectedRootMac = vefs::utils::make_byte_array(
-            0xc2, 0xaa, 0x29, 0x03, 0x00, 0x60, 0xb8, 0x4e, 0x3f, 0xc3, 0x57,
-            0x2e, 0xed, 0x2d, 0x0d, 0xb5);
+    auto expectedRootMac = dplx::cncr::make_byte_array<16>(
+            {0x64, 0x01, 0xe4, 0xe0, 0x55, 0x19, 0x6d, 0x56, 0x10, 0x17, 0x47,
+             0x60, 0xc5, 0x41, 0xfb, 0x19},
+            0);
     BOOST_TEST(newRootInfo.root.mac == expectedRootMac);
 }
 
@@ -261,8 +265,7 @@ BOOST_AUTO_TEST_CASE(created_node_can_be_read)
 BOOST_AUTO_TEST_CASE(creation_of_a_new_node_expands_to_two_sectors)
 {
     // given
-    auto createRx = existingTree->access_or_create(tree_position(1));
-    TEST_RESULT_REQUIRE(createRx);
+    TEST_RESULT_REQUIRE(existingTree->access_or_create(tree_position(1)));
 
     // when
     root_sector_info newRootInfo;
@@ -270,8 +273,23 @@ BOOST_AUTO_TEST_CASE(creation_of_a_new_node_expands_to_two_sectors)
             [&newRootInfo](root_sector_info rsi) { newRootInfo = rsi; }));
 
     // then
-    BOOST_TEST(newRootInfo.root.sector == sector_id{3});
+    BOOST_TEST(newRootInfo.root.sector == sector_id{5});
     BOOST_TEST(newRootInfo.tree_depth == 1);
+}
+
+BOOST_AUTO_TEST_CASE(creation_of_a_far_node_expands_to_n_sectors)
+{
+    // given
+    TEST_RESULT_REQUIRE(existingTree->access_or_create(tree_position(1023)));
+
+    // when
+    root_sector_info newRootInfo;
+    TEST_RESULT_REQUIRE(existingTree->commit(
+            [&newRootInfo](root_sector_info rsi) { newRootInfo = rsi; }));
+
+    // then
+    BOOST_TEST(newRootInfo.root.sector == sector_id{9});
+    BOOST_TEST(newRootInfo.tree_depth == 2);
 }
 
 BOOST_AUTO_TEST_CASE(erase_leaf_lets_tree_shrink)
@@ -287,7 +305,7 @@ BOOST_AUTO_TEST_CASE(erase_leaf_lets_tree_shrink)
             [&newRootInfo](root_sector_info rsi) { newRootInfo = rsi; }));
 
     // then
-    BOOST_TEST(newRootInfo.root.sector == sector_id{1});
+    BOOST_TEST(newRootInfo.root.sector == sector_id{2});
     BOOST_TEST(newRootInfo.tree_depth == 0);
 }
 
@@ -304,7 +322,7 @@ BOOST_AUTO_TEST_CASE(erase_leaf_does_not_let_tree_shrink_if_not_possible)
             [&newRootInfo](root_sector_info rsi) { newRootInfo = rsi; }));
 
     // then
-    BOOST_TEST(newRootInfo.root.sector == sector_id{3});
+    BOOST_TEST(newRootInfo.root.sector == sector_id{5});
     BOOST_TEST(newRootInfo.tree_depth == 1);
 }
 
@@ -327,9 +345,10 @@ BOOST_AUTO_TEST_CASE(erase_leaf_for_not_existing_leaf_does_not_do_anything)
     root_sector_info newRootInfo;
     TEST_RESULT_REQUIRE(existingTree->commit(
             [&newRootInfo](root_sector_info cri) { newRootInfo = cri; }));
-    auto expectedRootMac = vefs::utils::make_byte_array(
-            0xe2, 0x1b, 0x52, 0x74, 0xe1, 0xd5, 0x8b, 0x69, 0x87, 0x36, 0x88,
-            0x3f, 0x34, 0x4e, 0x5e, 0x2b);
+    auto expectedRootMac = dplx::cncr::make_byte_array<16>(
+            {0xe8, 0xfc, 0xa8, 0xd7, 0x5c, 0xd8, 0x51, 0xe1, 0xd6, 0xe3, 0x9e,
+             0x2c, 0xec, 0x88, 0x20, 0x69},
+            0x00);
 
     BOOST_TEST(newRootInfo.root.mac == expectedRootMac);
     BOOST_TEST(newRootInfo.tree_depth == 0);
@@ -338,20 +357,21 @@ BOOST_AUTO_TEST_CASE(erase_leaf_for_not_existing_leaf_does_not_do_anything)
 BOOST_AUTO_TEST_CASE(erase_leaf_changes_mac)
 {
     // given
-    TEST_RESULT_REQUIRE(existingTree->access_or_create(tree_position(1)));
-    TEST_RESULT_REQUIRE(existingTree->commit([](root_sector_info) {}));
+    TEST_RESULT_REQUIRE(existingTree->access_or_create(
+            tree_position(0x00ff'ffff'ffff'ffffU)));
+    root_sector_info preRootInfo;
+    TEST_RESULT_REQUIRE(existingTree->commit(
+            [&preRootInfo](root_sector_info cri) { preRootInfo = cri; }));
 
     // when
-    TEST_RESULT_REQUIRE(existingTree->erase_leaf(1));
+    TEST_RESULT_REQUIRE(existingTree->erase_leaf(0x00ff'ffff'ffff'ffffU));
     root_sector_info newRootInfo;
     TEST_RESULT_REQUIRE(existingTree->commit(
             [&newRootInfo](root_sector_info cri) { newRootInfo = cri; }));
 
     // then
-    auto expectedRootMac = vefs::utils::make_byte_array(
-            0xe2, 0x1b, 0x52, 0x74, 0xe1, 0xd5, 0x8b, 0x69, 0x87, 0x36, 0x88,
-            0x3f, 0x34, 0x4e, 0x5e, 0x2b);
-    BOOST_TEST(newRootInfo.root.mac == expectedRootMac);
+    BOOST_TEST(newRootInfo.root.mac != preRootInfo.root.mac);
+    BOOST_TEST(newRootInfo.tree_depth != preRootInfo.tree_depth);
 }
 
 BOOST_AUTO_TEST_SUITE_END()

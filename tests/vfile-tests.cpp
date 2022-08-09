@@ -44,13 +44,10 @@ struct vfile_dependencies_fixture
                                                 workExecutor, filesystemIndex)
                           .value();
 
-        file_id const fid(vefs::uuid{
-                {0xc7, 0xa5, 0x3d, 0x7a, 0xa4, 0xf0, 0x40, 0x53, 0xa7, 0xa3,
-                 0x35, 0xf3, 0x5c, 0xdf, 0x53, 0x3d}
-        });
-        testSubject = vefs::vfile::create_new(fileSystem.get(), workExecutor,
-                                              sectorAllocator, fid, *device,
-                                              *cryptoCtx)
+        testSubject = fileSystem
+                              ->open("test-file",
+                                     vefs::file_open_mode::create
+                                             | vefs::file_open_mode::readwrite)
                               .value();
     }
 

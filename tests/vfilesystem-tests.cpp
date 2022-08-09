@@ -109,7 +109,6 @@ BOOST_AUTO_TEST_CASE(recover_sectors_does_shrinks_size)
     TEST_RESULT_REQUIRE(sectorAllocator.alloc_one());
     TEST_RESULT_REQUIRE(sectorAllocator.alloc_one());
     TEST_RESULT_REQUIRE(sectorAllocator.alloc_one());
-    TEST_RESULT_REQUIRE(sectorAllocator.alloc_one());
     BOOST_TEST(9 == device->size());
     TEST_RESULT_REQUIRE(sectorAllocator.alloc_one());
     BOOST_TEST(13 == device->size());
@@ -129,7 +128,6 @@ BOOST_AUTO_TEST_CASE(create_file_allocs_sectors)
 
     BOOST_TEST(9 == device->size());
     TEST_RESULT_REQUIRE(testSubject->commit());
-    TEST_RESULT_REQUIRE(sectorAllocator.alloc_one());
     TEST_RESULT_REQUIRE(sectorAllocator.alloc_one());
     BOOST_TEST(9 == device->size());
     TEST_RESULT_REQUIRE(sectorAllocator.alloc_one());
