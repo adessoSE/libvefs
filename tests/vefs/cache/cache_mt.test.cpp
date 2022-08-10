@@ -5,10 +5,9 @@
 #include "boost-unit-test.hpp"
 #include "test-utils.hpp"
 
-// using namespace vefs::detail;
-using namespace vefs::detail::cache_ng;
+using namespace vefs::detail;
 
-namespace vefs_tests::cache_ng
+namespace vefs_tests
 {
 
 struct immovable_value_type
@@ -66,7 +65,7 @@ struct ex_traits
     {
     };
     using allocator_type = std::allocator<void>;
-    using eviction = vefs::detail::cache_ng::
+    using eviction = vefs::detail::
             least_recently_used_policy<key_type, std::uint32_t, allocator_type>;
 
     ex_stats *stats;
@@ -101,16 +100,16 @@ struct ex_traits
         return vefs::success();
     }
 };
-static_assert(vefs::detail::cache_ng::cache_traits<ex_traits>);
+static_assert(vefs::detail::cache_traits<ex_traits>);
 
-} // namespace vefs_tests::cache_ng
+} // namespace vefs_tests
 
-template class vefs::detail::cache_ng::cache_mt<
-        vefs_tests::cache_ng::ex_traits>;
+template class vefs::detail::cache_mt<
+        vefs_tests::ex_traits>;
 
-template class vefs::detail::cache_ng::cache_handle<uint64_t, uint32_t>;
+template class vefs::detail::cache_handle<uint64_t, uint32_t>;
 static_assert(std::regular<cache_handle<uint64_t, uint32_t>>);
-template class vefs::detail::cache_ng::cache_handle<uint64_t, uint32_t const>;
+template class vefs::detail::cache_handle<uint64_t, uint32_t const>;
 static_assert(std::regular<cache_handle<uint64_t, uint32_t const>>);
 
 namespace vefs_tests

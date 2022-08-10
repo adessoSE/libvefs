@@ -39,7 +39,7 @@
         </Expand>
     </Type>
 
-    <Type Name="vefs::detail::cache_ng::cache_page_state&lt;*&gt;">
+    <Type Name="vefs::detail::cache_page_state&lt;*&gt;">
         <DisplayString Condition="(mValue._Storage._Value &amp; 0x30000) == 0x30000">{{ locked; ref_ctr={(unsigned short)mValue._Storage._Value}; key={mKey}}}</DisplayString>
         <DisplayString Condition="(mValue._Storage._Value &amp; 0x10000) != 0">{{ dirty; ref_ctr={(unsigned short)mValue._Storage._Value}; key={mKey}}}</DisplayString>
         <DisplayString Condition="(mValue._Storage._Value &amp; 0x20000) != 0">{{ dead; ref_ctr={(unsigned short)mValue._Storage._Value}; key={mKey}}}</DisplayString>

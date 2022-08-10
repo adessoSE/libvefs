@@ -8,7 +8,7 @@
 
 #include <vefs/cache/cache_page.hpp>
 
-namespace vefs::detail::cache_ng
+namespace vefs::detail
 {
 
 template <typename KeyType,
@@ -166,4 +166,4 @@ public:
     }
 };
 
-} // namespace vefs::detail::cache_ng
+} // namespace vefs::detail

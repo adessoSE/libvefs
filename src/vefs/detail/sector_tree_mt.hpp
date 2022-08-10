@@ -31,8 +31,8 @@ class sector_mt
     using node_allocation = typename TreeAllocator::sector_allocator;
 
 public:
-    using handle = cache_ng::cache_handle<tree_position, sector_mt const>;
-    using writable_handle = cache_ng::cache_handle<tree_position, sector_mt>;
+    using handle = cache_handle<tree_position, sector_mt const>;
+    using writable_handle = cache_handle<tree_position, sector_mt>;
     using content_span = ro_blob<sector_device::sector_payload_size>;
     using writable_content_span = rw_blob<sector_device::sector_payload_size>;
 
@@ -166,7 +166,7 @@ public:
     using value_type = sector_mt<TreeAllocator>;
 
     using allocator_type = std::allocator<void>;
-    using eviction = cache_ng::least_recently_used_policy<key_type,
+    using eviction = least_recently_used_policy<key_type,
                                                           unsigned short,
                                                           allocator_type>;
 
@@ -350,7 +350,7 @@ public:
 private:
     using sector = sector_mt<TreeAllocator>;
     using traits = sector_cache_traits<TreeAllocator>;
-    using sector_cache = cache_ng::cache_mt<traits>;
+    using sector_cache = cache_mt<traits>;
     using sector_handle = typename sector_cache::handle;
 
     root_sector_info mRootInfo;
@@ -475,9 +475,9 @@ public:
         return oc::success(std::move(tree));
     }
 
-    class write_handle final : cache_ng::cache_handle<tree_position, sector>
+    class write_handle final : cache_handle<tree_position, sector>
     {
-        using base_type = cache_ng::cache_handle<tree_position, sector>;
+        using base_type = cache_handle<tree_position, sector>;
 
     public:
         write_handle() noexcept = default;
@@ -506,9 +506,9 @@ public:
     };
 
     class read_handle final
-        : cache_ng::cache_handle<tree_position, sector const>
+        : cache_handle<tree_position, sector const>
     {
-        using base_type = cache_ng::cache_handle<tree_position, sector const>;
+        using base_type = cache_handle<tree_position, sector const>;
 
     public:
         read_handle() noexcept = default;

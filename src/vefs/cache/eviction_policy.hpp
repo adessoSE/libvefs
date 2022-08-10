@@ -13,7 +13,7 @@ template <typename T>
 concept eviction_policy
         = std::same_as<
                 typename T::page_state,
-                cache_ng::cache_page_state<typename T::key_type>
+                cache_page_state<typename T::key_type>
             >
         && std::forward_iterator<typename T::replacement_iterator>
         && std::same_as<
@@ -31,7 +31,7 @@ concept eviction_policy
     typename T::replacement_iterator;
 
     { policy.begin(key) }
-        -> std::same_as<typename T::replacement_iterator>;           
+        -> std::same_as<typename T::replacement_iterator>;
     { policy.end() }
         -> std::same_as<typename T::replacement_iterator>;
 
@@ -42,7 +42,7 @@ concept eviction_policy
         -> std::same_as<bool>;
 
     { policy.try_evict(std::move(rit), indexOut, generationOut) }
-        -> std::same_as<cache_ng::cache_replacement_result>;
+        -> std::same_as<cache_replacement_result>;
     { policy.on_purge(key, idx) }
         -> std::same_as<bool>;
 };

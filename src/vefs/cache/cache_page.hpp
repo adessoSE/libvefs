@@ -15,9 +15,6 @@
 namespace vefs::detail
 {
 
-namespace cache_ng
-{
-
 /**
  * @brief Indicates whether a cache page replacement succeeded or why it failed.
  *
@@ -415,36 +412,34 @@ public:
 #pragma warning(pop)
 #endif
 
-} // namespace cache_ng
-
 } // namespace vefs::detail
 
 template <typename Key>
 struct dplx::cncr::reference_counted_traits<
-        vefs::detail::cache_ng::cache_page_state<Key>>
+        vefs::detail::cache_page_state<Key>>
 {
     using counter_type = void;
 
     static void add_reference(
-            vefs::detail::cache_ng::cache_page_state<Key> const &v) noexcept
+            vefs::detail::cache_page_state<Key> const &v) noexcept
     {
         v.add_reference();
     }
     static void
-    release(vefs::detail::cache_ng::cache_page_state<Key> const &v) noexcept
+    release(vefs::detail::cache_page_state<Key> const &v) noexcept
     {
         v.release();
     }
 };
 template <typename Key>
 struct dplx::cncr::reference_counted_traits<
-        vefs::detail::cache_ng::cache_page_state<Key> const>
+        vefs::detail::cache_page_state<Key> const>
     : dplx::cncr::reference_counted_traits<
-              vefs::detail::cache_ng::cache_page_state<Key>>
+              vefs::detail::cache_page_state<Key>>
 {
 };
 
-namespace vefs::detail::cache_ng
+namespace vefs::detail
 {
 
 template <typename Key, typename Value>
@@ -585,4 +580,4 @@ inline auto operator==(cache_handle<Key, V1> const &lhs,
     return lhs.get() == rhs.get() && lhs.get_handle() == rhs.get_handle();
 }
 
-} // namespace vefs::detail::cache_ng
+} // namespace vefs::detail

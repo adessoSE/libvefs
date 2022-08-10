@@ -30,7 +30,7 @@
 #include <vefs/utils/object_storage.hpp>
 #include <vefs/utils/unordered_map_mt.hpp>
 
-namespace vefs::detail::cache_ng
+namespace vefs::detail
 {
 
 // clang-format off
@@ -578,4 +578,4 @@ private:
     }
 };
 
-} // namespace vefs::detail::cache_ng
+} // namespace vefs::detail

@@ -5,9 +5,8 @@
 #include "boost-unit-test.hpp"
 
 using namespace vefs::detail;
-using namespace vefs::detail::cache_ng;
 
-template class vefs::detail::cache_ng::least_recently_used_policy<uint64_t,
+template class vefs::detail::least_recently_used_policy<uint64_t,
                                                                   uint16_t>;
 
 static_assert(eviction_policy<least_recently_used_policy<uint64_t, uint16_t>>);
