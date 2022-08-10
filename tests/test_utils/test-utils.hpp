@@ -1,16 +1,15 @@
 #pragma once
-#include "boost-unit-test.hpp"
 #include <ostream>
 #include <string_view>
+#include "boost-unit-test.hpp"
 
 #include <fmt/format.h>
 #include <fmt/ostream.h>
 
-#include "vefs/detail/cache_car.hpp"
-#include "vefs/detail/file_crypto_ctx.hpp"
-#include "libb2_none_blake2b_crypto_provider.hpp"
 #include <vefs/disappointment.hpp>
 #include <vefs/utils/random.hpp>
+#include "libb2_none_blake2b_crypto_provider.hpp"
+#include "vefs/detail/file_crypto_ctx.hpp"
 
 struct test_rng : vefs::utils::xoroshiro128plus
 {
@@ -26,7 +25,7 @@ struct test_rng : vefs::utils::xoroshiro128plus
 
 namespace vefs
 {
-inline std::ostream &operator<<(std::ostream &s, const error_domain &domain)
+inline std::ostream &operator<<(std::ostream &s, error_domain const &domain)
 {
     using namespace fmt::literals;
     fmt::print(s, "[error_domain|{}]", domain.name());
@@ -34,7 +33,7 @@ inline std::ostream &operator<<(std::ostream &s, const error_domain &domain)
 }
 
 template <typename T>
-inline auto check_result(const result<T> &rx)
+inline auto check_result(result<T> const &rx)
         -> boost::test_tools::predicate_result
 {
     if (!rx)
@@ -50,44 +49,6 @@ inline auto check_result(const result<T> &rx)
 #define TEST_RESULT(...) BOOST_TEST((::vefs::check_result((__VA_ARGS__))))
 #define TEST_RESULT_REQUIRE(...)                                               \
     BOOST_TEST_REQUIRE((::vefs::check_result((__VA_ARGS__))))
-
-namespace fmt
-{
-template <typename T>
-struct formatter<vefs::detail::cache_handle<T>>
-{
-    template <typename ParseContext>
-    constexpr auto parse(ParseContext &ctx)
-    {
-        return ctx.begin();
-    }
-
-    template <typename FormatContext>
-    auto format(const vefs::detail::cache_handle<T> &h, FormatContext &ctx)
-    {
-        using namespace std::string_view_literals;
-        if (h)
-        {
-            return fmt::format_to(ctx.out(), "{}"sv, *h);
-        }
-        else
-        {
-            return fmt::format_to(ctx.out(), "[nullptr cache_handle]"sv);
-        }
-    }
-};
-} // namespace fmt
-
-namespace vefs::detail
-{
-template <typename T>
-inline auto boost_test_print_type(std::ostream &s, const cache_handle<T> &h)
-        -> std::ostream &
-{
-    fmt::print(s, FMT_STRING("{}"), h);
-    return s;
-}
-} // namespace vefs::detail
 
 namespace std
 {

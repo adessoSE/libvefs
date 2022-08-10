@@ -25,11 +25,6 @@ dplx_target_sources(vefs # detail
     BASE_DIR vefs
 
     PRIVATE
-        detail/cache_car.hpp
-        detail/cache_clock.hpp
-        detail/cache_handle.hpp
-        detail/cache_page.hpp
-
         detail/archive_header.hpp
         detail/archive_header.codec.hpp
         detail/archive_file_id.hpp
@@ -248,8 +243,6 @@ if (BUILD_TESTING)
         tests/disappointment-tests.cpp
         tests/io_buffer_manager.test.cpp
         tests/allocator-tests.cpp
-        tests/cache-tests.cpp
-        tests/cache_clock-tests.cpp
         tests/sector_device-tests.cpp
         tests/sector_tree_mt-tests.cpp
         tests/sector_tree_seq-tests.cpp
