@@ -380,8 +380,8 @@ public:
     {
         // this simply is peak engineering 😏
 
-        detail::file_descriptor descriptor;
-        vfilesystem_entry entry;
+        detail::file_descriptor descriptor{};
+        vfilesystem_entry entry{};
         tree_stream_position entryPosition{{}, 0};
         VEFS_TRY(entryPosition.sector,
                  mIndexTree.access(detail::tree_position(0)));
