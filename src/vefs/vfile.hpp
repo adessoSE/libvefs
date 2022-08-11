@@ -14,8 +14,13 @@
 #include "detail/root_sector_info.hpp"
 #include "detail/sector_tree_mt.hpp"
 
+extern template class vefs::detail::sector_tree_mt<
+        vefs::detail::cow_tree_allocator_mt<
+                vefs::detail::archive_sector_allocator>>;
+
 namespace vefs
 {
+
 class vfilesystem;
 
 class vfile

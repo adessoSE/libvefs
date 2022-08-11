@@ -75,6 +75,8 @@ dplx_target_sources(vefs # cache
         cache/eviction_policy.hpp
         cache/lru_policy.cpp
         cache/lru_policy.hpp
+        cache/slru_policy.cpp
+        cache/slru_policy.hpp
 )
 
 dplx_target_sources(vefs # disappointment
@@ -265,6 +267,7 @@ if (BUILD_TESTING)
         tests/vefs/cache/cache_page.test.cpp
         tests/vefs/cache/eviction_policy.test.cpp
         tests/vefs/cache/lru_policy.test.cpp
+        tests/vefs/cache/slru_policy.test.cpp
         tests/vefs/cache/spectral_bloom_filter.test.cpp
      )
 endif()

@@ -2,8 +2,12 @@
 
 #include "vfilesystem.hpp"
 
+template class vefs::detail::sector_tree_mt<vefs::detail::cow_tree_allocator_mt<
+        vefs::detail::archive_sector_allocator>>;
+
 namespace vefs
 {
+
 vfile::vfile(vfilesystem *owner,
              detail::thread_pool &executor,
              detail::file_id id,

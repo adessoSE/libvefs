@@ -1,7 +1,7 @@
 #pragma once
 
 #include <algorithm>
-#include <concepts>
+#include <memory>
 #include <ranges>
 #include <span>
 #include <vector>
@@ -14,7 +14,7 @@ namespace vefs::detail
 template <typename KeyType,
           typename IndexType,
           typename Allocator = std::allocator<void>>
-class least_recently_used_policy
+class segmented_least_recently_used_policy
 {
 public:
     using key_type = KeyType;
@@ -26,22 +26,25 @@ public:
 
 private:
     page_state *mPages;
-    list_type mLRU;
+    list_type mSLRU;
+    std::size_t mNumOnProbation;
+    static constexpr std::size_t divider = 5U;
 
 public:
-    least_recently_used_policy(std::span<page_state> pages,
-                               Allocator const &alloc = Allocator())
+    segmented_least_recently_used_policy(std::span<page_state> pages,
+                                         Allocator const &alloc = Allocator())
         : mPages(pages.data())
-        , mLRU(alloc)
+        , mSLRU(alloc)
+        , mNumOnProbation{}
     {
-        mLRU.reserve(pages.size());
+        mSLRU.reserve(pages.size());
     }
 
     class replacement_iterator
     {
-        friend class least_recently_used_policy;
+        friend class segmented_least_recently_used_policy;
 
-        least_recently_used_policy *mOwner;
+        segmented_least_recently_used_policy *mOwner;
         typename list_type::iterator mHand;
 
     public:
@@ -57,7 +60,7 @@ public:
                 = default;
 
         explicit replacement_iterator(
-                least_recently_used_policy &owner,
+                segmented_least_recently_used_policy &owner,
                 typename list_type::iterator hand) noexcept
             : mOwner(&owner)
             , mHand(std::move(hand))
@@ -94,13 +97,13 @@ public:
 
     auto num_managed() const noexcept -> std::size_t
     {
-        return mLRU.size();
+        return mSLRU.size();
     }
 
     auto begin([[maybe_unused]] key_type const &replacement)
             -> replacement_iterator
     {
-        replacement_iterator begin(*this, mLRU.begin());
+        replacement_iterator begin(*this, mSLRU.begin());
         if (begin->is_pinned())
         {
             ++begin;
@@ -109,24 +112,29 @@ public:
     }
     auto end() -> replacement_iterator
     {
-        return replacement_iterator(*this, mLRU.end());
+        return replacement_iterator(*this, mSLRU.end());
     }
 
     void insert(key_type const &, index_type where) noexcept
     {
-        mLRU.push_back(where);
+        mSLRU.insert(std::ranges::next(mSLRU.begin(), mNumOnProbation), where);
+        mNumOnProbation += 1U;
     }
-
     auto on_access(key_type const &, index_type where) noexcept -> bool
     {
-        auto const it = std::ranges::find(mLRU, where);
-        auto const end = mLRU.end();
+        using std::swap;
+        auto const it = std::ranges::find(mSLRU, where);
+        auto const end = mSLRU.end();
         if (it == end)
         {
             return false;
         }
 
         std::ranges::rotate(it, std::next(it), end);
+        if (mNumOnProbation > mSLRU.size() / divider)
+        {
+            mNumOnProbation -= 1U;
+        }
         return true;
     }
 
@@ -139,16 +147,22 @@ public:
         if (rx != cache_replacement_result::pinned)
         {
             where = *which.mHand;
-            mLRU.erase(which.mHand);
+            mSLRU.erase(which.mHand);
         }
         return rx;
     }
     auto on_purge(key_type const &, index_type where) noexcept -> bool
     {
-        auto const it = std::ranges::find(mLRU, where);
-        if (it != mLRU.end())
+        auto const it = std::ranges::find(mSLRU, where);
+        if (it != mSLRU.end())
         {
-            mLRU.erase(it);
+            if (std::ranges::distance(mSLRU.begin(), it)
+                < static_cast<typename list_type::difference_type>(
+                        mNumOnProbation))
+            {
+                mNumOnProbation -= 1U;
+            }
+            mSLRU.erase(it);
             return true;
         }
         else
