@@ -25,11 +25,6 @@ dplx_target_sources(vefs # detail
     BASE_DIR vefs
 
     PRIVATE
-        detail/cache_car.hpp
-        detail/cache_clock.hpp
-        detail/cache_handle.hpp
-        detail/cache_page.hpp
-
         detail/archive_header.hpp
         detail/archive_header.codec.hpp
         detail/archive_file_id.hpp
@@ -80,6 +75,10 @@ dplx_target_sources(vefs # cache
         cache/eviction_policy.hpp
         cache/lru_policy.cpp
         cache/lru_policy.hpp
+        cache/slru_policy.cpp
+        cache/slru_policy.hpp
+        cache/w-tinylfu_policy.cpp
+        cache/w-tinylfu_policy.hpp
 )
 
 dplx_target_sources(vefs # disappointment
@@ -248,8 +247,6 @@ if (BUILD_TESTING)
         tests/disappointment-tests.cpp
         tests/io_buffer_manager.test.cpp
         tests/allocator-tests.cpp
-        tests/cache-tests.cpp
-        tests/cache_clock-tests.cpp
         tests/sector_device-tests.cpp
         tests/sector_tree_mt-tests.cpp
         tests/sector_tree_seq-tests.cpp
@@ -272,6 +269,8 @@ if (BUILD_TESTING)
         tests/vefs/cache/cache_page.test.cpp
         tests/vefs/cache/eviction_policy.test.cpp
         tests/vefs/cache/lru_policy.test.cpp
+        tests/vefs/cache/slru_policy.test.cpp
         tests/vefs/cache/spectral_bloom_filter.test.cpp
+        tests/vefs/cache/w-tinylfu_policy.test.cpp
      )
 endif()

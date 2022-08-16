@@ -3,14 +3,13 @@
 #include "boost-unit-test.hpp"
 
 using namespace vefs::detail;
-using namespace vefs::detail::cache_ng;
 
 namespace vefs_tests
 {
 
 BOOST_AUTO_TEST_SUITE(cache_page)
 
-using test_page_state = cache_ng::cache_page_state<std::uint16_t>;
+using test_page_state = cache_page_state<std::uint16_t>;
 using page_state_ptr = dplx::cncr::intrusive_ptr<test_page_state>;
 
 static_assert(std::is_default_constructible_v<test_page_state>);

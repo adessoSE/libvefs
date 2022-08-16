@@ -30,7 +30,7 @@
 #include <vefs/utils/object_storage.hpp>
 #include <vefs/utils/unordered_map_mt.hpp>
 
-namespace vefs::detail::cache_ng
+namespace vefs::detail
 {
 
 // clang-format off
@@ -179,7 +179,7 @@ public:
         , mDeadPages(cacheSize, alloc)
         , mDeadPageTarget(std::thread::hardware_concurrency() * 2U)
         , mEvictionSync()
-        , mEvictionPolicy(std::span(mPageCtrl), alloc)
+        , mEvictionPolicy(std::span(mPageCtrl), mPageCtrl.size(), alloc)
     {
         std::ranges::reverse_view deadPages(mDeadPages);
         std::iota(deadPages.begin(), deadPages.end(), index_type{});
@@ -451,7 +451,7 @@ private:
             std::lock_guard evictionLock{mEvictionSync};
             replay_access_records();
 
-            for (auto it = mEvictionPolicy.begin(key),
+            for (auto it = mEvictionPolicy.begin(),
                       end = mEvictionPolicy.end();
                  it != end; ++it) // NOLINT
             {
@@ -578,4 +578,4 @@ private:
     }
 };
 
-} // namespace vefs::detail::cache_ng
+} // namespace vefs::detail
