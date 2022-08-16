@@ -1,4 +1,4 @@
-#include "vefs/cache/lru_policy.hpp"
+#include "vefs/cache/w-tinylfu_policy.hpp"
 
 #include "vefs/cache/eviction_policy.hpp"
 
@@ -6,22 +6,21 @@
 
 using namespace vefs::detail;
 
-template class vefs::detail::least_recently_used_policy<uint64_t, uint16_t>;
-
-static_assert(eviction_policy<least_recently_used_policy<uint64_t, uint16_t>>);
-static_assert(std::regular<least_recently_used_policy<uint64_t, uint16_t>::
-                                   replacement_iterator>);
+template class vefs::detail::wtinylfu_policy<std::uint64_t, std::uint16_t>;
+static_assert(eviction_policy<wtinylfu_policy<std::uint64_t, std::uint16_t>>);
+static_assert(std::regular<
+              wtinylfu_policy<uint64_t, uint16_t>::replacement_iterator>);
 
 namespace vefs_tests
 {
 
-namespace lru_policy
+namespace tinylfu_policy
 {
 
 using test_key = uint64_t;
 using test_index = uint16_t;
 
-using test_policy = least_recently_used_policy<test_key, test_index>;
+using test_policy = wtinylfu_policy<test_key, test_index>;
 
 using test_pages = std::vector<test_policy::page_state>;
 
@@ -53,9 +52,19 @@ struct with_elements : fixture
     }
 };
 
-} // namespace lru_policy
+struct get_page_key
+{
+    template <typename K>
+    auto operator()(cache_page_state<K> const &state) const noexcept
+            -> K const &
+    {
+        return state.key();
+    }
+};
 
-BOOST_FIXTURE_TEST_SUITE(lru_policy, lru_policy::fixture)
+} // namespace tinylfu_policy
+
+BOOST_FIXTURE_TEST_SUITE(tinylfu_policy, tinylfu_policy::fixture)
 
 BOOST_AUTO_TEST_CASE(ctor_with_pages)
 {
@@ -82,9 +91,9 @@ BOOST_AUTO_TEST_CASE(insert_one)
 
 BOOST_FIXTURE_TEST_CASE(move_to_back_on_access, with_elements)
 {
-    BOOST_TEST(subject.begin()->key() == 0U);
+    BOOST_TEST(subject.begin()->key() == 2U);
     BOOST_TEST(subject.on_access(0U, 0U));
-    BOOST_TEST(subject.begin()->key() == 1U);
+    BOOST_TEST(subject.begin()->key() == 2U);
     BOOST_TEST(std::next(subject.begin(), 3)->key() == 0U);
 }
 

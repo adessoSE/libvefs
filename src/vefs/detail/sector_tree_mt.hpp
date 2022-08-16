@@ -12,8 +12,7 @@
 #include <dplx/cncr/misc.hpp>
 
 #include <vefs/cache/cache_mt.hpp>
-#include <vefs/cache/lru_policy.hpp>
-#include <vefs/cache/slru_policy.hpp>
+#include <vefs/cache/w-tinylfu_policy.hpp>
 #include <vefs/llfio.hpp>
 #include <vefs/platform/platform.hpp>
 
@@ -167,9 +166,7 @@ public:
     using value_type = sector_mt<TreeAllocator>;
 
     using allocator_type = std::allocator<void>;
-    using eviction = segmented_least_recently_used_policy<key_type,
-                                                          unsigned short,
-                                                          allocator_type>;
+    using eviction = wtinylfu_policy<key_type, unsigned short, allocator_type>;
 
     struct load_context
     {

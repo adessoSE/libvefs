@@ -100,12 +100,7 @@ public:
 
     auto begin() -> replacement_iterator
     {
-        replacement_iterator begin(*this, mLRU.begin());
-        if (begin->is_pinned())
-        {
-            ++begin;
-        }
-        return begin;
+        return replacement_iterator{*this, mLRU.begin()};
     }
     auto end() -> replacement_iterator
     {

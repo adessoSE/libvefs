@@ -77,6 +77,8 @@ dplx_target_sources(vefs # cache
         cache/lru_policy.hpp
         cache/slru_policy.cpp
         cache/slru_policy.hpp
+        cache/w-tinylfu_policy.cpp
+        cache/w-tinylfu_policy.hpp
 )
 
 dplx_target_sources(vefs # disappointment
@@ -269,5 +271,6 @@ if (BUILD_TESTING)
         tests/vefs/cache/lru_policy.test.cpp
         tests/vefs/cache/slru_policy.test.cpp
         tests/vefs/cache/spectral_bloom_filter.test.cpp
+        tests/vefs/cache/w-tinylfu_policy.test.cpp
      )
 endif()

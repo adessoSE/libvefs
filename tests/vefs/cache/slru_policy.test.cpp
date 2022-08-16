@@ -87,8 +87,6 @@ BOOST_AUTO_TEST_CASE(insert_one)
     subject.insert(key, idx);
 
     BOOST_TEST(subject.num_managed() == 1U);
-    // page one is still pinned
-    BOOST_TEST(std::distance(subject.begin(), subject.end()) == 0);
     pages[idx].release();
     BOOST_TEST_REQUIRE(std::distance(subject.begin(), subject.end()) == 1);
     BOOST_TEST(subject.begin()->key() == key);

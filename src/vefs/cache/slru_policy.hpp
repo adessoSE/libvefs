@@ -103,12 +103,7 @@ public:
 
     auto begin() -> replacement_iterator
     {
-        replacement_iterator begin(*this, mSLRU.begin());
-        if (begin->is_pinned())
-        {
-            ++begin;
-        }
-        return begin;
+        return replacement_iterator{*this, mSLRU.begin()};
     }
     auto end() -> replacement_iterator
     {
