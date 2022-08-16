@@ -30,7 +30,7 @@ concept eviction_policy
 {
     typename T::replacement_iterator;
 
-    { policy.begin(key) }
+    { policy.begin() }
         -> std::same_as<typename T::replacement_iterator>;
     { policy.end() }
         -> std::same_as<typename T::replacement_iterator>;

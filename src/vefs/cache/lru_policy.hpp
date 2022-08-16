@@ -30,11 +30,12 @@ private:
 
 public:
     least_recently_used_policy(std::span<page_state> pages,
+                               std::size_t capacity,
                                Allocator const &alloc = Allocator())
         : mPages(pages.data())
         , mLRU(alloc)
     {
-        mLRU.reserve(pages.size());
+        mLRU.reserve(capacity);
     }
 
     class replacement_iterator
@@ -97,8 +98,7 @@ public:
         return mLRU.size();
     }
 
-    auto begin([[maybe_unused]] key_type const &replacement)
-            -> replacement_iterator
+    auto begin() -> replacement_iterator
     {
         replacement_iterator begin(*this, mLRU.begin());
         if (begin->is_pinned())
