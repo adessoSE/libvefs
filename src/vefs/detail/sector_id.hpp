@@ -14,6 +14,12 @@
 
 namespace vefs::detail
 {
+/**
+ * @brief Physical sector id. This is a strong type that addresses actual
+ * sectors in a VEFS file. This type is strongly typed to prevent accidental
+ * usage for address computations. For logical sector positions use
+ * \ref tree_position.
+ */
 enum class sector_id : std::uint64_t
 {
     master = 0,

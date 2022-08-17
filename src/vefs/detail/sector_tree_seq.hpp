@@ -432,7 +432,7 @@ sector_tree_seq<TreeAllocator>::load_next(int const parentRefOffset) noexcept
     auto layer = last_loaded_index() - 1;
     assert(layer >= 0);
     auto ref = ref_node(layer + 1).read(parentRefOffset);
-    if (ref.sector == sector_id::master)
+    if (ref.sector == sector_id{})
     {
         return archive_errc::sector_reference_out_of_range;
     }
