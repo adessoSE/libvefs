@@ -12,7 +12,7 @@
 #include <dplx/cncr/misc.hpp>
 
 #include <vefs/cache/cache_mt.hpp>
-#include <vefs/cache/w-tinylfu_policy.hpp>
+#include <vefs/cache/lru_policy.hpp>
 #include <vefs/llfio.hpp>
 #include <vefs/platform/platform.hpp>
 
@@ -37,10 +37,11 @@ public:
     using writable_content_span = rw_blob<sector_device::sector_payload_size>;
 
 private:
+    mutable std::shared_mutex mParentSync;
     handle mParent;
-    node_allocation mNodeAllocation;
 
     mutable std::shared_mutex mSectorSync;
+    node_allocation mNodeAllocation;
 
     std::array<std::byte, sector_device::sector_payload_size> mContent;
 
@@ -48,9 +49,10 @@ public:
     sector_mt(handle parent,
               tree_allocator &treeAllocator,
               sector_id current) noexcept
-        : mParent(std::move(parent))
-        , mNodeAllocation(treeAllocator, current)
+        : mParentSync()
+        , mParent(std::move(parent))
         , mSectorSync()
+        , mNodeAllocation(treeAllocator, current)
     {
     }
 
@@ -68,6 +70,11 @@ public:
     void parent(handle newParent) noexcept
     {
         mParent = std::move(newParent);
+    }
+
+    auto parent_sync() const noexcept -> std::shared_mutex &
+    {
+        return mParentSync;
     }
 
     void lock() const noexcept
@@ -166,7 +173,9 @@ public:
     using value_type = sector_mt<TreeAllocator>;
 
     using allocator_type = std::allocator<void>;
-    using eviction = wtinylfu_policy<key_type, unsigned short, allocator_type>;
+    using eviction = least_recently_used_policy<key_type,
+                                                unsigned short,
+                                                allocator_type>;
 
     struct load_context
     {
@@ -246,6 +255,7 @@ public:
         auto const referenceOffset = nodePosition.parent_array_offset();
 
         std::lock_guard sectorLock{node};
+        std::shared_lock parentLock{node.parent_sync()};
 
         auto const parent = node.parent();
         auto const content = node.content();
@@ -259,10 +269,10 @@ public:
             }
             else
             {
+                std::shared_lock parentContentLock{*parent};
                 writable_handle writableParent = parent.as_writable();
                 auto const parentContent = writableParent->content();
 
-                std::shared_lock parentLock{*writableParent};
                 reference_sector_layout::write(parentContent, referenceOffset,
                                                {sector_id{}, {}});
             }
@@ -286,8 +296,8 @@ public:
         }
         else
         {
+            std::shared_lock parentContentLock{*parent};
             writable_handle writableParent = parent.as_writable();
-            std::shared_lock parentLock{*writableParent};
 
             auto const parentContent = writableParent->content();
             reference_sector_layout::write(parentContent, referenceOffset,
@@ -305,15 +315,20 @@ public:
                [[maybe_unused]] key_type nodePosition,
                value_type &node) noexcept -> result<void>
     {
-        if (auto writableParent = node.parent().as_writable())
         {
-            reference_sector_layout::write(writableParent->content(),
-                                           ctx.refOffset, {});
+            std::shared_lock parentLock{node.parent_sync()};
+            if (auto writableParent = node.parent().as_writable())
+            {
+                std::shared_lock parentContentLock{*writableParent};
+                reference_sector_layout::write(writableParent->content(),
+                                               ctx.refOffset, {});
+            }
         }
         mTreeAllocator.dealloc(node.allocation(),
                                tree_allocator::leak_on_failure);
         if (ctx.ownsLock)
         {
+            node.parent_sync().unlock();
             node.unlock();
         }
         return oc::success();
@@ -630,10 +645,12 @@ public:
     {
         sector_handle handle;
         std::unique_lock<sector const> lock;
+        std::unique_lock<std::shared_mutex> parentLock;
 
         explicit anchor_commit_lock(sector_handle h)
             : handle(std::move(h))
             , lock(*handle, std::adopt_lock)
+            , parentLock(handle->parent_sync(), std::adopt_lock)
         {
         }
     };
@@ -656,14 +673,18 @@ public:
         for (sector_handle it = mRootSector; it; it = it->parent())
         {
             std::unique_lock anchorLock{*it};
+            std::unique_lock anchorParentLock{it->parent_sync()};
             // TODO: this can (and should) be done without a retry loop
             while (it.is_dirty())
             {
+                anchorParentLock.unlock();
                 anchorLock.unlock();
                 VEFS_TRY(mSectorCache.sync(it));
                 anchorLock.lock();
+                anchorParentLock.lock();
             }
             anchors.emplace_back(it);
+            anchorParentLock.release();
             anchorLock.release();
         }
         sector_handle actualRoot = nullptr;
@@ -705,6 +726,7 @@ public:
                                                   std::move(anchors[i].handle));
                 purgeRx.has_value())
             {
+                anchors[i].parentLock.release();
                 anchors[i].lock.release();
             }
             else
@@ -820,7 +842,7 @@ private:
             tree_position nextRootPos(0u, i + 1);
 
             {
-                std::shared_lock sharedAnchorLock{*anchor};
+                std::shared_lock sharedAnchorLock{anchor->parent_sync()};
 
                 parent = anchor->parent();
                 if (parent != nullptr)
@@ -829,7 +851,7 @@ private:
                 }
             }
 
-            std::unique_lock uniqueAnchorLock{*anchor};
+            std::unique_lock uniqueAnchorLock{anchor->parent_sync()};
 
             // no TOCTOU for you!
             // since we cannot upgrade our shared lock, we need to recheck

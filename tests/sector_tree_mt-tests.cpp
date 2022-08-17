@@ -374,4 +374,21 @@ BOOST_AUTO_TEST_CASE(erase_leaf_changes_mac)
     BOOST_TEST(newRootInfo.tree_depth != preRootInfo.tree_depth);
 }
 
+BOOST_AUTO_TEST_CASE(increasing_tree_height_doesnt_deadlock)
+{
+    // fill cache with dirty pages
+    for (unsigned i = 0; i < 1024; ++i)
+    {
+        (void)existingTree->access_or_create(tree_position{i})
+                .value()
+                .as_writable();
+    }
+
+    // force height increase
+    TEST_RESULT_REQUIRE(existingTree->access_or_create(
+            tree_position{vefs::detail::lut::ref_width[2]}));
+
+    TEST_RESULT_REQUIRE(existingTree->commit([](root_sector_info) {}));
+}
+
 BOOST_AUTO_TEST_SUITE_END()
