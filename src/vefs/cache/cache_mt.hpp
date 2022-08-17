@@ -19,6 +19,7 @@
 #pragma warning(pop)
 #endif
 
+#include <boost/container/static_vector.hpp>
 #include <dplx/cncr/intrusive_ptr.hpp>
 #include <dplx/cncr/math_supplement.hpp>
 #include <dplx/cncr/mp_lite.hpp>
@@ -348,36 +349,49 @@ public:
         if (which.is_dirty())
         {
             which.mark_clean();
-            VEFS_TRY(mTraits.sync(which.key(),
-                                  const_cast<value_type &>(*which)));
+            if (auto &&rx
+                = mTraits.sync(which.key(), const_cast<value_type &>(*which));
+                !oc::try_operation_has_value(rx))
+            {
+                (void)which.as_writable();
+                return oc::try_operation_return_as(
+                        static_cast<decltype(rx) &&>(rx));
+            }
         }
         return oc::success();
     }
     auto sync_all() noexcept -> result<bool>
     {
+        using boost::container::static_vector;
+        constexpr index_type chunkSize = 512;
+
         bool anyDirty = false;
         index_type const numPages = size();
-        for (index_type i = 0; i < numPages; ++i)
+        static_vector<handle, chunkSize> syncQueue;
+
+        for (index_type i = 0; i < numPages;)
         {
-            auto *const ctrl = &mPageCtrl[i];
-            if (!ctrl->try_acquire_wait())
+            do
             {
-                continue;
-            }
-            auto const h = dplx::cncr::intrusive_ptr_import(ctrl);
-            if (!ctrl->is_dirty())
+                auto *const ctrl = &mPageCtrl[i];
+                if (ctrl->try_acquire_wait())
+                {
+                    if (auto h = dplx::cncr::intrusive_ptr_import(ctrl);
+                        ctrl->is_dirty())
+                    {
+                        syncQueue.push_back(
+                                handle{std::move(h), mPage[i].pointer()});
+                    }
+                }
+            } while (++i < numPages && syncQueue.size() < syncQueue.capacity());
+
+            anyDirty = anyDirty || syncQueue.size() > 0U;
+            for (auto &h : syncQueue)
             {
-                continue;
+                VEFS_TRY(sync(h));
+                h = handle{};
             }
-            anyDirty = true;
-            ctrl->mark_clean();
-            if (auto &&rx = mTraits.sync(ctrl->key(), mPage[i].value());
-                !oc::try_operation_has_value(rx))
-            {
-                ctrl->mark_dirty();
-                return oc::try_operation_return_as(
-                        static_cast<decltype(rx) &&>(rx));
-            }
+            syncQueue.clear();
         }
         return anyDirty;
     }
