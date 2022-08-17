@@ -62,6 +62,40 @@ concept cache_traits
 };
 // clang-format on
 
+template <typename T, typename Alloc = std::allocator<T>>
+class default_init_allocator : public Alloc
+{
+    using base_traits = std::allocator_traits<Alloc>;
+
+public:
+    template <typename U>
+    struct rebind
+    {
+        using other = default_init_allocator<
+                U,
+                typename base_traits::template rebind_alloc<U>>;
+    };
+
+    using Alloc::Alloc;
+
+    template <typename U>
+    void construct(U *ptr) noexcept(std::is_nothrow_default_constructible_v<U>)
+    {
+        ::new (static_cast<void *>(ptr)) U;
+    }
+    template <typename U, typename... Args>
+    void
+    construct(U *ptr, Args &&...args) noexcept(noexcept(base_traits::construct(
+            static_cast<Alloc &>(*this), ptr, std::forward<Args>(args)...)))
+    {
+        base_traits::construct(static_cast<Alloc &>(*this), ptr,
+                               std::forward<Args>(args)...);
+    }
+};
+template <typename Alloc>
+using default_init_allocator_for
+        = default_init_allocator<typename Alloc::value_type, Alloc>;
+
 /**
  * @brief An associative fixed size key-value cache
  *
@@ -91,6 +125,9 @@ private:
     using load_context = typename Traits::load_context;
     using purge_context = typename Traits::purge_context;
     using value_storage = utils::object_storage<value_type>;
+    using value_storage_allocator
+            = default_init_allocator<value_storage,
+                                     allocator_for<value_storage>>;
 
     struct entry_info
     {
@@ -113,7 +150,7 @@ private:
     traits_type mTraits;
     key_index_map mIndex;
     std::vector<page_state, allocator_for<page_state>> mPageCtrl;
-    std::vector<value_storage, allocator_for<value_storage>> mPage;
+    std::vector<value_storage, value_storage_allocator> mPage;
     moodycamel::ConcurrentQueue<access_record> mAccessRecords;
     std::mutex mDeadPagesSync;
     std::atomic<index_type> mNumDeadPages;
