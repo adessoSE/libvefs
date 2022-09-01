@@ -124,6 +124,9 @@ dplx_target_sources(vefs # crypto
     MODE VERBATIM
     BASE_DIR vefs
 
+    PUBLIC
+        crypto/provider.hpp
+
     PRIVATE
         crypto/ct_compare.hpp
 
@@ -133,8 +136,6 @@ dplx_target_sources(vefs # crypto
         crypto/blake2.cpp
         crypto/blake2.hpp
         crypto/boringssl_aead.hpp
-
-        crypto/provider.hpp
 
         crypto/kdf.cpp
         crypto/kdf.hpp

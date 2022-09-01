@@ -1,5 +1,6 @@
-#include "provider.hpp"
+#pragma once
 
+#include <vefs/crypto/provider.hpp>
 #include <vefs/span.hpp>
 #include <vefs/utils/secure_array.hpp>
 

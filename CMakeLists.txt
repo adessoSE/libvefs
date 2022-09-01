@@ -17,8 +17,11 @@ list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/tools/cmake/")
 # configure vcpkg from environment vars if possible
 include(VcpkgDefaults)
 
-if (BUILD_TESTING OR NOT DEFINED BUILD_TESTING)
+if (BUILD_TESTING)
     list(APPEND VCPKG_MANIFEST_FEATURES "tests")
+endif()
+if (BUILD_CLI)
+    list(APPEND VCPKG_MANIFEST_FEATURES "cli")
 endif()
 
 ########################################################################
@@ -41,6 +44,8 @@ enable_testing()
 
 ########################################################################
 # options
+option(BUILD_CLI "Build the CommandLine-Interface" OFF)
+option(BUILD_TESTING "Build the unit tests" OFF)
 
 option(VEFS_DISABLE_WORKAROUNDS "Disables all code workarounds" OFF)
 option(VEFS_FLAG_OUTDATED_WORKAROUNDS "Raises compiler errors for all workarounds which need to be reevaluated" OFF)
@@ -50,6 +55,8 @@ set_property(CACHE VEFS_LLFIO_TARGET PROPERTY STRINGS "hl;sl;dl")
 
 ########################################################################
 # dependencies
+
+find_package(base64 REQUIRED)
 
 find_package(Catch2 CONFIG)
 cmake_dependent_option(BUILD_TESTING "Build the documentation using sphinx" ON Catch2_FOUND OFF)
@@ -93,9 +100,12 @@ if (BUILD_TESTING)
     set(_VEFS_REQUIRE_UNIT_TEST_FRAMEWORK unit_test_framework)
 endif()
 find_package(Boost 1.70 REQUIRED COMPONENTS
-    #program_options
     ${_VEFS_REQUIRE_UNIT_TEST_FRAMEWORK}
 )
+
+if (BUILD_CLI)
+    find_package(lyra REQUIRED)
+endif()
 
 find_package(benchmark)
 
@@ -213,6 +223,12 @@ include(sources.cmake)
 source_group(TREE src/vefs)
 source_group(TREE include/vefs)
 
+
+########################################################################
+# cli project
+if (BUILD_CLI)
+    add_subdirectory(apps)
+endif()
 
 ########################################################################
 # docs

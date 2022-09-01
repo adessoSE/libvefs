@@ -117,7 +117,12 @@ constexpr auto make_byte_array(Ts &&...ts)
     }
     return {static_cast<std::byte>(ts)...};
 }
-
+template <std::ranges::contiguous_range R>
+requires std::convertible_to<std::ranges::range_value_t<R>, char> inline auto
+as_string_view(R &r) noexcept -> std::string_view
+{
+    return std::string_view{std::ranges::data(r), std::ranges::size(r)};
+}
 constexpr auto is_null_byte(const std::byte value) noexcept -> bool
 {
     return value == std::byte{};
