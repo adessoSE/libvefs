@@ -4,6 +4,7 @@
     "version-semver": "0.5.0-beta.3",
     "homepage": "https://github.com/BurningEnlightenment/libvefs",
     "dependencies": [
+        "base64",
         "benchmark",
         "boost-container",
         "boost-endian",
@@ -11,6 +12,7 @@
         "boost-integer",
         "boost-intrusive",
         "boost-iterator",
+        "boost-json",
         "boost-mp11",
         "boost-predef",
         "boost-preprocessor",
@@ -34,7 +36,7 @@
         "cli": {
             "description": "Build the CLI",
             "dependencies": [
-                "boost-program-options"
+                "bfgroup-lyra"
             ]
         },
         "tests": {

@@ -13,6 +13,7 @@
             "binaryDir": "${sourceDir}/build/${presetName}",
             "toolchainFile": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
             "cacheVariables": {
+                "BUILD_CLI": true,
                 "BUILD_TESTING": true,
                 "WARNINGS_AS_ERRORS": false,
                 "VEFS_DISABLE_WORKAROUNDS": null,

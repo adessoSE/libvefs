@@ -52,12 +52,14 @@ inline auto check_result(result<T> const &rx)
 
 namespace std
 {
+
 inline auto boost_test_print_type(std::ostream &s, std::byte b)
         -> std::ostream &
 {
     fmt::print(s, FMT_STRING("{:x}"), static_cast<std::uint8_t>(b));
     return s;
 }
+
 } // namespace std
 
 namespace vefs_tests

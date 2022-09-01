@@ -5,12 +5,14 @@ include:
 
 variables:
   VCPKG_VERSION: "2022.05.10"
-  BUILD_PARALLELISM: "6"
+  VCPKG_DEFAULT_BINARY_CACHE: C:\cache\vcpkg\archives
+  VCPKG_DOWNLOADS: C:\cache\vcpkg\downloads
 
 
 stages:
 - build
 - test
+- upload
 
 workflow:
   rules:
@@ -21,65 +23,54 @@ workflow:
 
 
 ########################################################################
-# build template
-.build: &build
-  stage: build
-  tags:
-    - windows-cpp-13
-  before_script:
-    - $ProgressPreference = "SilentlyContinue"
-    - mkdir build
-    - 'git clone --shallow-since=2022-06-01 https://github.com/microsoft/vcpkg.git build/vcpkg'
-    - $env:VCPKG_ROOT="$pwd\build\vcpkg"
-    - cd build
-    - '& vcpkg\bootstrap-vcpkg -disableMetrics'
-
 # test template
 .test: &test
   stage: test
   tags:
-    - windows-cpp-13
-  script:
-    - build\bin\Debug\vefs-tests
+    - windows-docker
 
 
 ########################################################################
 # build jobs
-build:debug:
-  <<: *build
+build:
+  stage: build
+  image: artifactory.adesso-group.com/mdk-dev-docker/de.mdk.bs/ci-win-native:vs17.2
+  tags:
+    - windows-docker
+  before_script:
+    - mkdir -Force "$env:VS_BUILD_TOOLS_ROOT\Common7\IDE\CommonExtensions\Microsoft\TeamFoundation\Team Explorer" *> $null
+    - '& "$env:VS_BUILD_TOOLS_ROOT\Common7\Tools\Launch-VsDevShell.ps1" -VsInstallationPath "$env:VS_BUILD_TOOLS_ROOT" -Arch amd64 -HostArch amd64 *>$null'
+    - mkdir -Force $env:VCPKG_DEFAULT_BINARY_CACHE,$env:VCPKG_DOWNLOADS *> $null
   script:
-    - cmake -G "Visual Studio 16 2019"  -A x64 -DVCPKG_TARGET_TRIPLET:STRING="x64-windows-static-lto" -DCMAKE_MSVC_RUNTIME_LIBRARY:STRING="MultiThreadedDebug" -DCMAKE_EXE_LINKER_FLAGS_DEBUG:STRING="/debug" -DBUILD_TESTING=ON -DWARNINGS_AS_ERRORS=ON ".."
-    - cmake --build . -j $BUILD_PARALLELISM
+    - cmake --preset "x64-windows-msvc"
+    - cmake --build --preset "x64-windows-msvc" --config Debug
+    - cmake --build --preset "x64-windows-msvc" --config RelWithDebInfo
   artifacts:
     paths:
-      - build/Debug
+      - build/x64-windows-msvc/apps/Debug
+      - build/x64-windows-msvc/apps/RelWithDebInfo
+      - build/x64-windows-msvc/Debug
+      - build/x64-windows-msvc/RelWithDebInfo
     expire_in: 1 week
-    expose_as: debug binaries
-
-build:release:
-  <<: *build
-  script:
-    - cmake -G "Visual Studio 16 2019"  -A x64 -DVCPKG_TARGET_TRIPLET:STRING="x64-windows-static-lto" -DCMAKE_MSVC_RUNTIME_LIBRARY:STRING="MultiThreaded" -DCMAKE_INTERPROCEDURAL_OPTIMIZATION=ON -DCMAKE_EXE_LINKER_FLAGS:STRING="/debug" -DCMAKE_BUILD_TYPE="Release" -DBUILD_TESTING=ON -DWARNINGS_AS_ERRORS=ON ".."
-    - cmake --build . -j $BUILD_PARALLELISM --config Release
-  artifacts:
-    paths:
-      - build/Release
-    expire_in: 1 week
-    expose_as: release binaries
+    expose_as: binaries
 
 # test jobs
 test:debug:
   <<: *test
   script:
-    - build\Debug\vefs-tests
-  needs: ["build:debug"]
-  dependencies:
-    - build:debug
+    - build\x64-windows-msvc\Debug\vefs-tests
 
 test:release:
   <<: *test
   script:
-    - build\Release\vefs-tests
-  needs: ["build:release"]
-  dependencies:
-    - build:release
+    - build\x64-windows-msvc\RelWithDebInfo\vefs-tests
+
+release:dev_tools:
+  stage: upload
+  tags:
+    - windows-docker
+  script:
+    - iwr -H @{'X-JFrog-Art-Api'=$env:ARTIFACTORY_TOKEN} -method PUT -uri $env:ARTIFACTORY_URL/$env:ARTIFACTORY_GENERIC_REPO_KEY/dev-tools/vefs/vefs-cli.exe -Infile build\x64-windows-msvc\apps\RelWithDebInfo\vefs.exe
+  rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      when: on_success
