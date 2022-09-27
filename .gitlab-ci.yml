@@ -34,11 +34,10 @@ workflow:
 # build jobs
 build:
   stage: build
-  image: artifactory.adesso-group.com/mdk-dev-docker/de.mdk.bs/ci-win-native:vs17.2
+  image: artifactory.adesso-group.com/mdk-dev-docker/de.mdk.bs/ci-win-native:vs17.3
   tags:
     - windows-docker
   before_script:
-    - mkdir -Force "$env:VS_BUILD_TOOLS_ROOT\Common7\IDE\CommonExtensions\Microsoft\TeamFoundation\Team Explorer" *> $null
     - '& "$env:VS_BUILD_TOOLS_ROOT\Common7\Tools\Launch-VsDevShell.ps1" -VsInstallationPath "$env:VS_BUILD_TOOLS_ROOT" -Arch amd64 -HostArch amd64 *>$null'
     - mkdir -Force $env:VCPKG_DEFAULT_BINARY_CACHE,$env:VCPKG_DOWNLOADS *> $null
   script:
