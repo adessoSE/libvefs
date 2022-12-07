@@ -34,7 +34,7 @@ workflow:
 # build jobs
 build:
   stage: build
-  image: artifactory.adesso-group.com/mdk-dev-docker/de.mdk.bs/ci-win-native:vs17.3
+  image: artifactory.adesso-group.com/mdk-dev-docker/de.mdk.bs/ci-win-native:vs17.4
   tags:
     - windows-docker
   before_script:
