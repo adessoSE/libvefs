@@ -18,6 +18,7 @@ vfile::vfile(vfilesystem *owner,
     , mFileTree()
     , mMaximumExtent(maximumExtent)
     , mWriteFlag()
+    , mFileSemaphore(1)
     , mCommitSync()
     , mWorkTracker(&executor)
 {

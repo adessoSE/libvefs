@@ -307,6 +307,37 @@ public:
      * @return indicates success or failure
      */
     auto commit(vfile_handle const &handle) -> result<void>;
+
+    /**
+     * @brief Try to acquire a lock on the given virtual file. Returns true
+     * if the lock was acquired, false otherwise.
+     *
+     * @param handle a handle to a virtual file within the encrypted archive
+     * @return true if the lock was acquired, false otherwise
+     */
+    auto try_lock(vfile_handle const &handle) -> bool;
+
+    /**
+     * @brief Lock the given virtual file. If already locked, the current
+     * thread is blocked until the lock is released.
+     *
+     * @param handle a handle to a virtual file within the encrypted archive
+     */
+    auto lock(vfile_handle const &handle) -> void;
+
+    /**
+     * @brief Unlock the given virtual file. This is a no-op if the file is'nt
+     * locked.
+     *
+     * @param handle a handle to a virtual file within the encrypted archive
+     */
+    auto unlock(vfile_handle const &handle) -> void;
+
+    /**
+     * @brief List all virtual files.
+     */
+    auto list_files() -> std::vector<std::string>;
+
     /**
      * Extracts a vfile at the given path as a physical file on the
      * device in the given path.

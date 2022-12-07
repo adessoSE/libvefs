@@ -95,6 +95,9 @@ public:
             -> result<void>;
 
     auto commit() -> result<void>;
+
+    auto list_files() -> std::vector<std::string>;
+
     auto crypto_ctx() const noexcept -> detail::file_crypto_ctx const &
     {
         return mCryptoCtx;
