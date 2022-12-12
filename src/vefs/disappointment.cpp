@@ -237,8 +237,8 @@ auto archive_domain_type::message(error const &,
     case archive_errc::index_entry_spanning_blocks:
         return "the archive index contained an entry which spanned multiple blocks"sv;
 
-    case archive_errc::no_such_file:
-        return "no file has been found under the given name"sv;
+    case archive_errc::no_such_vfile:
+        return "no vfile has been found under the given name"sv;
 
     case archive_errc::protobuf_serialization_failed:
         return "the protobuf message could not be encoded"sv;

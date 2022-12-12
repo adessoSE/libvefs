@@ -215,7 +215,7 @@ BOOST_AUTO_TEST_CASE(non_created_file_cannot_be_found)
     auto result = testSubject->query("testpath");
 
     BOOST_TEST(!result);
-    BOOST_TEST(result.error() == archive_errc::no_such_file);
+    BOOST_TEST(result.error() == archive_errc::no_such_vfile);
 }
 
 BOOST_AUTO_TEST_CASE(new_file_system_is_dirty)
@@ -223,7 +223,7 @@ BOOST_AUTO_TEST_CASE(new_file_system_is_dirty)
     auto result = testSubject->query("testpath");
 
     BOOST_TEST(!result);
-    BOOST_TEST(result.error() == archive_errc::no_such_file);
+    BOOST_TEST(result.error() == archive_errc::no_such_vfile);
 }
 
 BOOST_AUTO_TEST_CASE(filesystem_cannot_commit_non_existing_files)
@@ -239,7 +239,7 @@ BOOST_AUTO_TEST_CASE(filesystem_cannot_commit_non_existing_files)
     auto result = file->commit();
 
     BOOST_TEST(!result);
-    BOOST_TEST(result.error() == archive_errc::no_such_file);
+    BOOST_TEST(result.error() == archive_errc::no_such_vfile);
     BOOST_TEST(file->is_dirty());
 }
 
@@ -284,7 +284,7 @@ BOOST_AUTO_TEST_CASE(erased_file_cannot_be_queried)
 
     BOOST_TEST(!result.has_error());
     BOOST_TEST(!queryResult);
-    BOOST_TEST(queryResult.assume_error() == archive_errc::no_such_file);
+    BOOST_TEST(queryResult.assume_error() == archive_errc::no_such_vfile);
 }
 
 BOOST_AUTO_TEST_CASE(erase_removes_unused_file)
@@ -305,7 +305,7 @@ BOOST_AUTO_TEST_CASE(erasing_non_existing_file_throws_error)
     auto result = testSubject->erase("testpath");
 
     BOOST_TEST(!result);
-    BOOST_TEST(result.error() == archive_errc::no_such_file);
+    BOOST_TEST(result.error() == archive_errc::no_such_vfile);
 }
 
 BOOST_AUTO_TEST_CASE(extract_vfile_to_file)
