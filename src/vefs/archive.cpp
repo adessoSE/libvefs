@@ -557,6 +557,26 @@ auto archive_handle::commit(vfile_handle const &handle) -> result<void>
     return syncrx;
 }
 
+auto vefs::archive_handle::try_lock(vfile_handle const &handle) -> bool
+{
+    return handle->try_lock();
+}
+
+auto vefs::archive_handle::lock(vfile_handle const &handle) -> void
+{
+    handle->lock();
+}
+
+auto vefs::archive_handle::unlock(vfile_handle const &handle) -> void
+{
+    handle->unlock();
+}
+
+auto vefs::archive_handle::list_files() -> std::vector<std::string>
+{
+    return mFilesystem->list_files();
+}
+
 auto archive_handle::extract(llfio::path_view sourceFilePath,
                              llfio::path_view targetBasePath) -> result<void>
 {

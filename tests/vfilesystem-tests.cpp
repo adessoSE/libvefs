@@ -195,6 +195,34 @@ BOOST_AUTO_TEST_CASE(newly_created_file_is_not_dirty_after_successful_commit)
     BOOST_TEST(!file->is_dirty());
 }
 
+BOOST_AUTO_TEST_CASE(lock_file)
+{
+    auto file = testSubject
+                        ->open("testpath", file_open_mode::readwrite
+                                                   | file_open_mode::create)
+                        .value();
+    BOOST_TEST(file->try_lock());
+    BOOST_TEST(!file->try_lock());
+    file->unlock();
+    BOOST_TEST(file->try_lock());
+    file->unlock();
+}
+
+BOOST_AUTO_TEST_CASE(list_files)
+{
+    auto file1 = testSubject
+                         ->open("testpath", file_open_mode::create)
+                         .value();
+    auto file2 = testSubject
+                         ->open("testpath2", file_open_mode::create)
+                         .value();
+    std::vector<std::string> files = testSubject->list_files();
+    std::vector<std::string> expectedFiles{"testpath", "testpath2"};
+    BOOST_CHECK_EQUAL_COLLECTIONS(files.cbegin(),
+                                  files.cend(),
+                                  expectedFiles.cbegin(), expectedFiles.cend());
+}
+
 BOOST_AUTO_TEST_CASE(file_with_size_1000_can_be_found_has_size_1000)
 {
     auto vfilerx = testSubject

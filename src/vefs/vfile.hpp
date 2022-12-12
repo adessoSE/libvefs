@@ -74,6 +74,21 @@ public:
         return mWriteFlag.is_dirty();
     }
 
+    inline auto try_lock() -> bool
+    {
+        return mFileSemaphore.try_acquire();
+    }
+
+    inline auto lock() -> void
+    {
+        return mFileSemaphore.acquire();
+    }
+
+    inline auto unlock() -> void
+    {
+        mFileSemaphore.release();
+    }
+
 private:
     auto open_existing(detail::sector_device &device,
                        detail::file_crypto_ctx &cryptoCtx,
@@ -93,6 +108,7 @@ private:
     std::atomic<std::uint64_t> mMaximumExtent;
     utils::dirt_flag mWriteFlag;
 
+    std::binary_semaphore mFileSemaphore;
     std::mutex mCommitSync;
     detail::pooled_work_tracker mWorkTracker;
 };

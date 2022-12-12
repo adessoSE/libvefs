@@ -1085,6 +1085,17 @@ auto vfilesystem::recover_unused_sectors() -> result<void>
     return success();
 }
 
+auto vfilesystem::list_files() -> std::vector<std::string>
+{
+    std::vector<std::string> files;
+    for (auto const &indexEntry : mIndex.lock_table())
+    {
+        std::string_view filename = indexEntry.first;
+        files.push_back(std::string(filename));
+    }
+    return files;
+}
+
 auto vfilesystem::validate() -> result<void>
 {
     using inspection_tree
