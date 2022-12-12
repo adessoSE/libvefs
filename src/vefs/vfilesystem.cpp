@@ -737,7 +737,7 @@ auto vfilesystem::open(const std::string_view filePath,
     using detail::file_id;
 
     file_id id;
-    result<vfile_handle> rx = archive_errc::no_such_file;
+    result<vfile_handle> rx = archive_errc::no_such_vfile;
 
     if (mIndex.find_fn(filePath, [&id](file_id const &elem) { id = elem; }))
     {
@@ -785,7 +785,7 @@ auto vfilesystem::open(const std::string_view filePath,
 
 auto vfilesystem::open(detail::file_id const id) -> result<vfile_handle>
 {
-    result<vfile_handle> rx = archive_errc::no_such_file;
+    result<vfile_handle> rx = archive_errc::no_such_vfile;
     mFiles.update_fn(id,
                      [&](vfilesystem_entry &e)
                      {
@@ -813,7 +813,7 @@ auto vfilesystem::erase(std::string_view filePath) -> result<void>
     file_id id;
     if (!mIndex.find_fn(filePath, [&id](file_id const &elem) { id = elem; }))
     {
-        return archive_errc::no_such_file;
+        return archive_errc::no_such_vfile;
     }
 
     bool erased = false;
@@ -831,7 +831,7 @@ auto vfilesystem::erase(std::string_view filePath) -> result<void>
 
     if (!found)
     {
-        return archive_errc::no_such_file;
+        return archive_errc::no_such_vfile;
     }
     else if (erased)
     {
@@ -924,7 +924,7 @@ auto vfilesystem::query(const std::string_view filePath)
 {
     using detail::file_id;
     file_id id;
-    result<file_query_result> rx = archive_errc::no_such_file;
+    result<file_query_result> rx = archive_errc::no_such_vfile;
     if (mIndex.find_fn(filePath, [&](file_id const &e) { id = e; }))
     {
         mFiles.find_fn(id,
@@ -955,7 +955,7 @@ auto vfilesystem::on_vfile_commit(detail::file_id fileId,
                                   });
     if (!found)
     {
-        return archive_errc::no_such_file;
+        return archive_errc::no_such_vfile;
     }
     mWriteFlag.mark();
 

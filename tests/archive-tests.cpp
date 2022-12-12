@@ -276,7 +276,7 @@ BOOST_AUTO_TEST_CASE(erased_file_cannot_be_queried)
 
     auto queryRx = testSubject.query(default_file_path);
     BOOST_REQUIRE(queryRx.has_error()
-                  && queryRx.assume_error() == archive_errc::no_such_file);
+                  && queryRx.assume_error() == archive_errc::no_such_vfile);
 }
 
 BOOST_AUTO_TEST_CASE(query_cannot_find_non_existing_file)
@@ -284,7 +284,7 @@ BOOST_AUTO_TEST_CASE(query_cannot_find_non_existing_file)
     auto result = testSubject.query(
             "somerandomfilename/asdflsdfmasfw/sadfaöjksdfn");
     BOOST_REQUIRE(!result);
-    BOOST_TEST(result.error() == archive_errc::no_such_file);
+    BOOST_TEST(result.error() == archive_errc::no_such_vfile);
 }
 
 BOOST_AUTO_TEST_CASE(query_finds_existing_file)

@@ -18,7 +18,7 @@ enum class archive_errc : error_code
     index_entry_spanning_blocks,
     free_sector_index_invalid_size,
     unknown_format_version,
-    no_such_file,
+    no_such_vfile,
     protobuf_serialization_failed,
     wrong_user_prk,
     vfilesystem_entry_serialization_failed,
