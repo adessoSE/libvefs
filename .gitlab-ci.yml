@@ -71,5 +71,5 @@ release:dev_tools:
   script:
     - iwr -H @{'X-JFrog-Art-Api'=$env:ARTIFACTORY_TOKEN} -method PUT -uri $env:ARTIFACTORY_URL/$env:ARTIFACTORY_GENERIC_REPO_KEY/dev-tools/vefs/vefs-cli.exe -Infile build\x64-windows-msvc\apps\RelWithDebInfo\vefs.exe
   rules:
-    - if: '$CI_COMMIT_BRANCH == "master"'
+    - if: '$CI_COMMIT_TAG'
       when: on_success
