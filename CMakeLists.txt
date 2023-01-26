@@ -265,6 +265,5 @@ install(FILES
     DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/vefs"
 )
 
-
 ########################################################################
 feature_summary(WHAT PACKAGES_FOUND PACKAGES_NOT_FOUND)

@@ -13,6 +13,7 @@
 #include "vefs/cli/commandlets/extract.hpp"
 #include "vefs/cli/commandlets/extract_all.hpp"
 #include "vefs/cli/commandlets/extract_personalization.hpp"
+#include "vefs/cli/commandlets/upsert.hpp"
 #include "vefs/cli/commandlets/validate.hpp"
 
 #if defined(BOOST_COMP_GNUC_AVAILABLE)
@@ -35,6 +36,7 @@ auto main(lyra::args args) -> int
     extract_all extractAll(cli, archiveOptions);
     extract extractSpecific(cli, archiveOptions);
     extract_personalization extractPersonalization(cli, archiveOptions);
+    upsert upsert(cli, archiveOptions);
 
     try
     {
