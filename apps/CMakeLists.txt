@@ -22,6 +22,8 @@ target_include_directories(vefs-cli
         vefs/cli/commandlets/extract_all.hpp
         vefs/cli/commandlets/extract_personalization.cpp
         vefs/cli/commandlets/extract_personalization.hpp
+        vefs/cli/commandlets/upsert.cpp
+        vefs/cli/commandlets/upsert.hpp
         vefs/cli/commandlets/validate.cpp
         vefs/cli/commandlets/validate.hpp
 
