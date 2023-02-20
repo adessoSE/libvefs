@@ -46,7 +46,8 @@ inline auto tag_invoke(hash_fn<Algorithm, H>,
 }
 template <typename Char, typename Traits>
 inline constexpr bool
-        disable_trivially_hashable<std::basic_string_view<Char, Traits>> = true;
+        disable_trivially_hashable<std::basic_string_view<Char, Traits>>
+        = true;
 
 template <hash_algorithm Algorithm, typename Char, typename Traits>
 inline void tag_invoke(hash_update_fn,

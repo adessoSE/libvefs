@@ -48,8 +48,9 @@ struct triv_h
 } // namespace vefs_tests::spectral_bloom
 
 template <>
-inline constexpr bool vefs::disable_trivially_hashable<
-        vefs_tests::spectral_bloom::triv_h> = true;
+inline constexpr bool
+        vefs::disable_trivially_hashable<vefs_tests::spectral_bloom::triv_h>
+        = true;
 
 namespace vefs_tests
 {

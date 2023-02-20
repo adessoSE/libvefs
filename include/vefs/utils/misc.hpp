@@ -24,14 +24,21 @@ template <typename T, typename... Ts>
 concept none_of = (!std::same_as<T, Ts> && ...);
 
 template <typename T>
-concept integer = std::integral<T> && none_of < std::remove_cv_t<T>,
-bool, char, wchar_t, char8_t, char16_t, char32_t > ;
+concept integer = std::integral<T>
+               && none_of<std::remove_cv_t<T>,
+                          bool,
+                          char,
+                          wchar_t,
+                          char8_t,
+                          char16_t,
+                          char32_t>;
 
 template <typename T>
 concept signed_integer = integer<T> && std::is_signed_v<T>;
 
 template <typename T>
-concept unsigned_integer = integer<T> && !signed_integer<T>;
+concept unsigned_integer = integer<T> && !
+signed_integer<T>;
 
 template <typename T>
 constexpr T div_ceil(T dividend, T divisor)
@@ -93,7 +100,9 @@ constexpr auto upow(std::uint64_t x, std::uint64_t e)
     while (e)
     {
         if (e & 1)
+        {
             result *= x;
+        }
 
         e >>= 1;
         x *= x;
@@ -118,8 +127,8 @@ constexpr auto make_byte_array(Ts &&...ts)
     return {static_cast<std::byte>(ts)...};
 }
 template <std::ranges::contiguous_range R>
-requires std::convertible_to<std::ranges::range_value_t<R>, char> inline auto
-as_string_view(R &r) noexcept -> std::string_view
+    requires std::convertible_to<std::ranges::range_value_t<R>, char>
+inline auto as_string_view(R &r) noexcept -> std::string_view
 {
     return std::string_view{std::ranges::data(r), std::ranges::size(r)};
 }

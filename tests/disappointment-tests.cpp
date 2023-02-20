@@ -1,5 +1,5 @@
-#include "boost-unit-test.hpp"
 #include <vefs/disappointment.hpp>
+#include "boost-unit-test.hpp"
 
 #include <vefs/exceptions.hpp>
 

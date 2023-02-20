@@ -210,16 +210,11 @@ BOOST_AUTO_TEST_CASE(lock_file)
 
 BOOST_AUTO_TEST_CASE(list_files)
 {
-    auto file1 = testSubject
-                         ->open("testpath", file_open_mode::create)
-                         .value();
-    auto file2 = testSubject
-                         ->open("testpath2", file_open_mode::create)
-                         .value();
+    auto file1 = testSubject->open("testpath", file_open_mode::create).value();
+    auto file2 = testSubject->open("testpath2", file_open_mode::create).value();
     std::vector<std::string> files = testSubject->list_files();
     std::vector<std::string> expectedFiles{"testpath", "testpath2"};
-    BOOST_CHECK_EQUAL_COLLECTIONS(files.cbegin(),
-                                  files.cend(),
+    BOOST_CHECK_EQUAL_COLLECTIONS(files.cbegin(), files.cend(),
                                   expectedFiles.cbegin(), expectedFiles.cend());
 }
 
@@ -294,7 +289,7 @@ BOOST_AUTO_TEST_CASE(file_not_committed_cannot_be_erased_invalid_argument)
     auto result = testSubject->erase("testpath");
 
     BOOST_TEST(!result);
-    //#Todo does this make sense?
+    // #Todo does this make sense?
     BOOST_TEST(result.error() == errc::invalid_argument);
 }
 

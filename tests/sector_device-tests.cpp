@@ -59,7 +59,7 @@ BOOST_AUTO_TEST_CASE(open_existing_sector_device_throws_error_for_empty_file)
 }
 
 // the currently used gtest version cannot match a std::span
-//BOOST_AUTO_TEST_CASE(write_sector_seals_sector)
+// BOOST_AUTO_TEST_CASE(write_sector_seals_sector)
 //{
 //    // given
 //    file_crypto_ctx_mock fileCryptoCtx;
@@ -73,9 +73,8 @@ BOOST_AUTO_TEST_CASE(open_existing_sector_device_throws_error_for_empty_file)
 //    auto mac = vefs::rw_blob<16>(mac_data);
 //    auto dataBlob = vefs::ro_blob<32736>(ro_data);
 //    auto testSubject = vefs::detail::sector_device::create_new(
-//                               testFile.reopen(0).value(), &cryptoProviderMock,
-//                               default_user_prk)
-//                               .value()
+//                               testFile.reopen(0).value(),
+//                               &cryptoProviderMock, default_user_prk) .value()
 //                               .device;
 //
 //    EXPECT_CALL(fileCryptoCtx,

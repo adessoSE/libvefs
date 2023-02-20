@@ -1,5 +1,5 @@
-#include "boost-unit-test.hpp"
 #include "vefs/detail/sector_tree_mt.hpp"
+#include "boost-unit-test.hpp"
 
 #include <dplx/cncr/misc.hpp>
 

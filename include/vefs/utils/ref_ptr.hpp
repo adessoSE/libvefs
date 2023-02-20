@@ -31,9 +31,10 @@ public:
     inline ref_ptr(ref_ptr const &other) noexcept;
     inline ref_ptr(ref_ptr &&other) noexcept;
     template <typename U>
-    inline ref_ptr(ref_ptr<U> other,
-                   std::enable_if_t<std::is_convertible_v<U *, T *>,
-                                    std::nullptr_t> = nullptr) noexcept;
+    inline ref_ptr(
+            ref_ptr<U> other,
+            std::enable_if_t<std::is_convertible_v<U *, T *>, std::nullptr_t>
+            = nullptr) noexcept;
     inline ~ref_ptr() noexcept;
 
     inline auto operator=(std::nullptr_t) noexcept -> ref_ptr &;

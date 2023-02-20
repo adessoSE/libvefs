@@ -214,23 +214,21 @@ private:
             auto const nextPosition = next(currentPosition);
 
             if (auto accessRx = mTree->access(nextPosition);
-                accessRx.has_failure())
-                DPLX_ATTR_UNLIKELY
+                accessRx.has_failure()) [[unlikely]]
+            {
+                if (accessRx.assume_error()
+                    == archive_errc::sector_reference_out_of_range)
                 {
-                    if (accessRx.assume_error()
-                        == archive_errc::sector_reference_out_of_range)
-                    {
-                        return dplx::dp::errc::end_of_stream;
-                    }
+                    return dplx::dp::errc::end_of_stream;
+                }
 
-                    // #TODO implement underlying error forwarding
-                    return dplx::dp::errc::bad;
-                }
-            else
-                DPLX_ATTR_LIKELY
-                {
-                    mCurrentSector = std::move(accessRx).assume_value();
-                }
+                // #TODO implement underlying error forwarding
+                return dplx::dp::errc::bad;
+            }
+            else [[likely]]
+            {
+                mCurrentSector = std::move(accessRx).assume_value();
+            }
 
             std::span<std::byte const> const memory = as_span(mCurrentSector);
 
@@ -347,18 +345,16 @@ private:
             auto const nextPosition = next(mCurrentSector.node_position());
 
             if (auto accessRx = mOwner->mIndexTree.access(nextPosition);
-                accessRx.has_failure())
-                DPLX_ATTR_UNLIKELY
-                {
-                    // #TODO implement underlying error forwarding
-                    return dplx::dp::errc::bad;
-                }
-            else
-                DPLX_ATTR_LIKELY
-                {
-                    mCurrentSector
-                            = std::move(accessRx).assume_value().as_writable();
-                }
+                accessRx.has_failure()) [[unlikely]]
+            {
+                // #TODO implement underlying error forwarding
+                return dplx::dp::errc::bad;
+            }
+            else [[likely]]
+            {
+                mCurrentSector
+                        = std::move(accessRx).assume_value().as_writable();
+            }
 
             mOwner->write_block_header(mCurrentSector);
 

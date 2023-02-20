@@ -49,7 +49,8 @@ struct triv_h
 
 template <>
 inline constexpr bool
-        vefs::disable_trivially_hashable<vefs_tests::bloom::triv_h> = true;
+        vefs::disable_trivially_hashable<vefs_tests::bloom::triv_h>
+        = true;
 
 namespace vefs_tests
 {

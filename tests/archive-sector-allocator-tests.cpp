@@ -1,5 +1,5 @@
-#include "vefs/detail/archive_sector_allocator.hpp"
 #include "boost-unit-test.hpp"
+#include "vefs/detail/archive_sector_allocator.hpp"
 
 #include "test-utils.hpp"
 
@@ -44,7 +44,6 @@ struct archive_sector_allocator_fixture : archive_sector_allocator_dependencies
 
 } // namespace
 
-
 BOOST_FIXTURE_TEST_SUITE(archive_sector_allocator_tests,
                          archive_sector_allocator_fixture)
 
@@ -66,8 +65,8 @@ BOOST_AUTO_TEST_CASE(dealloc_one_leak_on_failure)
 {
     auto allocrx = testSubject.alloc_one();
     TEST_RESULT_REQUIRE(allocrx);
-    testSubject.dealloc_one(
-        allocrx.assume_value(), archive_sector_allocator::leak_on_failure);
+    testSubject.dealloc_one(allocrx.assume_value(),
+                            archive_sector_allocator::leak_on_failure);
     BOOST_TEST(testSubject.sector_leak_detected());
 }
 

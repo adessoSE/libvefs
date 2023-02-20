@@ -23,8 +23,8 @@ class pool_alloc_map_mt
     : private atomic_ring_counter<utils::div_ceil<std::size_t>(
               NUM_ELEMS, std::numeric_limits<unit_type>::digits)>
 {
-    static_assert(
-            std::is_integral_v<unit_type> && std::is_unsigned_v<unit_type>);
+    static_assert(std::is_integral_v<unit_type>
+                  && std::is_unsigned_v<unit_type>);
 
     using unit_impl_t = unit_type;
     using unit_impl_limits = std::numeric_limits<unit_impl_t>;

@@ -61,7 +61,7 @@ result<void> libb2_none_blake2b_crypto_provider::box_seal(
         copy(plaintext, ciphertext);
     }
 
-    const auto hashLen
+    auto const hashLen
             = std::min(mac.size(), vefs::crypto::detail::blake2b::digest_bytes);
     vefs::crypto::detail::blake2b blakeCtx{};
     VEFS_TRY(blakeCtx.init(
@@ -88,7 +88,7 @@ libb2_none_blake2b_crypto_provider::box_open(rw_dynblob plaintext,
 {
     // TODO: check whether buffers alias
 
-    const auto hashLen
+    auto const hashLen
             = std::min(mac.size(), vefs::crypto::detail::blake2b::digest_bytes);
     vefs::crypto::detail::blake2b blakeCtx{};
     VEFS_TRY(blakeCtx.init(

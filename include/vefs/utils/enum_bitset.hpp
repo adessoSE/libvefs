@@ -21,8 +21,8 @@ std::false_type allow_enum_bitset(E &&);
 
 template <typename E>
 constexpr bool enum_bitsets_allowed
-        = std::is_enum_v<E> &&decltype(allow_enum_bitset(
-                std::declval<E>()))::value;
+        = std::is_enum_v<E>
+       && decltype(allow_enum_bitset(std::declval<E>()))::value;
 
 /**
  * Wrapper for enums to enable bitoperations

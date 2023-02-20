@@ -47,7 +47,7 @@ public:
     error_detail() = delete;
     error_detail(error_detail &&other) noexcept(
             std::is_nothrow_move_constructible_v<T>);
-    error_detail(const T &v) noexcept(std::is_nothrow_copy_constructible_v<T>);
+    error_detail(T const &v) noexcept(std::is_nothrow_copy_constructible_v<T>);
     error_detail(T &&v) noexcept(std::is_nothrow_move_constructible_v<T>);
 
     auto value() noexcept -> value_type &;
@@ -64,7 +64,7 @@ inline error_detail<Tag, T>::error_detail(error_detail &&other) noexcept(
 {
 }
 template <typename Tag, typename T>
-inline error_detail<Tag, T>::error_detail(const T &v) noexcept(
+inline error_detail<Tag, T>::error_detail(T const &v) noexcept(
         std::is_nothrow_copy_constructible_v<T>)
     : mValue(v)
 {

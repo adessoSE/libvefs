@@ -217,16 +217,15 @@ auto inject(llfio::byte_io_handle::io_result<T> rx, InjectFn &&injectFn)
 }
 
 template <typename T>
-concept tryable = requires(T &&t)
-{
-    {
-        oc::try_operation_has_value(t)
-        } -> std::same_as<bool>;
-    {
-        oc::try_operation_return_as(static_cast<T &&>(t))
-        } -> std::convertible_to<result<void>>;
-    oc::try_operation_extract_value(static_cast<T &&>(t));
-};
+concept tryable = requires(T &&t) {
+                      {
+                          oc::try_operation_has_value(t)
+                          } -> std::same_as<bool>;
+                      {
+                          oc::try_operation_return_as(static_cast<T &&>(t))
+                          } -> std::convertible_to<result<void>>;
+                      oc::try_operation_extract_value(static_cast<T &&>(t));
+                  };
 
 template <tryable T>
 using result_value_t
@@ -265,9 +264,8 @@ inline auto collect_disappointment_no_catch(Fn &&fn, Args &&...args) noexcept
         std::invoke(std::forward<Fn>(fn), std::forward<Args>(args)...);
         return result<std::monostate, void>(success());
     }
-    else if constexpr (
-            oc::is_basic_result_v<
-                    invoke_result_type> || oc::is_basic_outcome_v<invoke_result_type>)
+    else if constexpr (oc::is_basic_result_v<invoke_result_type>
+                       || oc::is_basic_outcome_v<invoke_result_type>)
     {
         return std::invoke(std::forward<Fn>(fn), std::forward<Args>(args)...);
     }
@@ -341,9 +339,8 @@ inline auto collect_disappointment(Fn &&fn, Args &&...args) noexcept
             }
         }
     }
-    else if constexpr (
-            oc::is_basic_result_v<
-                    invoke_result_type> || oc::is_basic_outcome_v<invoke_result_type>)
+    else if constexpr (oc::is_basic_result_v<invoke_result_type>
+                       || oc::is_basic_outcome_v<invoke_result_type>)
     {
         if constexpr (is_nothrow_invocable_v)
         {

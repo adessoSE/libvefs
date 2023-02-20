@@ -18,10 +18,12 @@ public:
 
     virtual auto name() const noexcept -> std::string_view = 0;
     virtual auto message(error const &e, const error_code code) const noexcept
-            -> std::string_view = 0;
+            -> std::string_view
+            = 0;
 
     auto message(error &&e, const error_code code) const noexcept
-            -> std::string_view = delete;
+            -> std::string_view
+            = delete;
 
 protected:
     constexpr error_domain() noexcept = default;

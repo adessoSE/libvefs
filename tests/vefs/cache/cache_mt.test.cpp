@@ -117,11 +117,11 @@ BOOST_AUTO_TEST_SUITE(cache_ng)
 
 static_assert(requires(cache_handle<uint64_t, uint32_t> t,
                        cache_handle<uint64_t, uint32_t const> u) {
-    t == u;
-    t != u;
-    u == t;
-    u != t;
-});
+                  t == u;
+                  t != u;
+                  u == t;
+                  u != t;
+              });
 
 BOOST_AUTO_TEST_CASE(default_ctor)
 {

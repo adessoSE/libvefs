@@ -22,25 +22,26 @@ namespace vefs::detail
  * and tombstone flags of the page state The fifth bit indicates success which
  * has been chosen in order to allow eyeballing the internal state in hex form.
  */
-enum class [[nodiscard]] cache_replacement_result{
-        /**
-         * @brief failed; the page is currently used
-         */
-        pinned = 0b0'0000,
-        /**
-         * @brief succeeded; the page is unoccupied
-         */
-        dead = 0b1'0010,
-        /**
-         * @brief succeeded; the page is occupied and clean
-         */
-        clean = 0b1'0000,
-        /**
-         * @brief succeeded; the page is occupied and dirty/modified
-         *
-         * This indicates that changes need to be synchronized.
-         */
-        dirty = 0b1'0001,
+enum class [[nodiscard]] cache_replacement_result
+{
+    /**
+     * @brief failed; the page is currently used
+     */
+    pinned = 0b0'0000,
+    /**
+     * @brief succeeded; the page is unoccupied
+     */
+    dead = 0b1'0010,
+    /**
+     * @brief succeeded; the page is occupied and clean
+     */
+    clean = 0b1'0000,
+    /**
+     * @brief succeeded; the page is occupied and dirty/modified
+     *
+     * This indicates that changes need to be synchronized.
+     */
+    dirty = 0b1'0001,
 };
 
 #if defined(DPLX_COMP_MSVC_AVAILABLE)
@@ -415,18 +416,16 @@ public:
 } // namespace vefs::detail
 
 template <typename Key>
-struct dplx::cncr::reference_counted_traits<
-        vefs::detail::cache_page_state<Key>>
+struct dplx::cncr::reference_counted_traits<vefs::detail::cache_page_state<Key>>
 {
     using counter_type = void;
 
-    static void add_reference(
-            vefs::detail::cache_page_state<Key> const &v) noexcept
+    static void
+    add_reference(vefs::detail::cache_page_state<Key> const &v) noexcept
     {
         v.add_reference();
     }
-    static void
-    release(vefs::detail::cache_page_state<Key> const &v) noexcept
+    static void release(vefs::detail::cache_page_state<Key> const &v) noexcept
     {
         v.release();
     }
@@ -434,8 +433,7 @@ struct dplx::cncr::reference_counted_traits<
 template <typename Key>
 struct dplx::cncr::reference_counted_traits<
         vefs::detail::cache_page_state<Key> const>
-    : dplx::cncr::reference_counted_traits<
-              vefs::detail::cache_page_state<Key>>
+    : dplx::cncr::reference_counted_traits<vefs::detail::cache_page_state<Key>>
 {
 };
 

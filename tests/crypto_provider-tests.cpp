@@ -1,6 +1,6 @@
 
-#include "vefs/crypto/crypto_provider_boringssl.hpp"
 #include "boost-unit-test.hpp"
+#include "vefs/crypto/crypto_provider_boringssl.hpp"
 
 #include <array>
 
@@ -161,8 +161,8 @@ BOOST_AUTO_TEST_CASE(ct_comparing_two_zero_size_arrays_gives_error)
     std::array<std::byte, 0> first_to_compare;
     std::array<std::byte, 0> second_with_smaller_size;
 
-    auto result = test_subject->ct_compare(
-            std::span(first_to_compare), std::span(second_with_smaller_size));
+    auto result = test_subject->ct_compare(std::span(first_to_compare),
+                                           std::span(second_with_smaller_size));
 
     BOOST_TEST(result.has_error());
     BOOST_TEST(result.error() == vefs::errc::invalid_argument);

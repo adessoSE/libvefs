@@ -15,11 +15,13 @@ public:
     virtual result<void> box_seal(rw_dynblob ciphertext,
                                   rw_dynblob mac,
                                   ro_dynblob keyMaterial,
-                                  ro_dynblob plaintext) const noexcept = 0;
+                                  ro_dynblob plaintext) const noexcept
+            = 0;
     virtual result<void> box_open(rw_dynblob plaintext,
                                   ro_dynblob keyMaterial,
                                   ro_dynblob ciphertext,
-                                  ro_dynblob mac) const noexcept = 0;
+                                  ro_dynblob mac) const noexcept
+            = 0;
 
     /**
      * calculates cryptographically save random bytes
@@ -30,8 +32,8 @@ public:
     /**
      * carries out a constant-time compare
      */
-    virtual result<int> ct_compare(ro_dynblob l,
-                                   ro_dynblob r) const noexcept = 0;
+    virtual result<int> ct_compare(ro_dynblob l, ro_dynblob r) const noexcept
+            = 0;
 
     const std::size_t key_material_size;
 

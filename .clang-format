@@ -120,7 +120,7 @@ IncludeCategories:
   - Regex:           '^".*'
     Priority:        30
     CaseSensitive:   false
-IncludeIsMainRegex: '(\.test)?$'
+IncludeIsMainRegex: '(\.test|-tests)?$'
 IncludeIsMainSourceRegex: ''
 IndentAccessModifiers: false
 IndentCaseLabels: false

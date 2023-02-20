@@ -41,7 +41,7 @@ public:
     template <typename ErrorDetail>
     auto detail() const
             -> utils::aliasing_ref_ptr<const typename ErrorDetail::value_type,
-                                       const error_info>;
+                                       error_info const>;
     template <typename ErrorDetail>
     auto try_add_detail(ErrorDetail &&detail) noexcept -> vefs::error;
     auto try_add_detail(std::type_index type, detail_ptr ptr) noexcept
@@ -70,7 +70,7 @@ static_assert(!std::is_move_assignable_v<error_info>);
 template <typename ErrorDetail>
 inline auto error_info::detail() const
         -> utils::aliasing_ref_ptr<const typename ErrorDetail::value_type,
-                                   const error_info>
+                                   error_info const>
 {
     if (auto it = mDetails.find(typeid(ErrorDetail)); it != mDetails.end())
     {
@@ -163,7 +163,8 @@ private:
 };
 
 template <typename T>
-auto make_error(...) noexcept -> error = delete;
+auto make_error(...) noexcept -> error
+        = delete;
 
 inline auto make_error(errc code, adl::disappointment::type) noexcept -> error
 {

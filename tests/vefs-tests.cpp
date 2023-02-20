@@ -25,7 +25,7 @@ using namespace boost::unit_test;
 class HookupListner : public ::testing::EmptyTestEventListener
 {
 public:
-    void OnTestPartResult(const ::testing::TestPartResult &result)
+    void OnTestPartResult(::testing::TestPartResult const &result)
     {
         boost::unit_test::unit_test_log
                 << boost::unit_test::log::begin(result.file_name(),

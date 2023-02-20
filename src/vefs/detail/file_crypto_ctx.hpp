@@ -22,12 +22,13 @@ public:
                              crypto::crypto_provider &provider,
                              ro_blob<16> sessionSalt,
                              ro_blob<(1 << 15) - (1 << 5)> data) noexcept
-            -> result<void> = 0;
+            -> result<void>
+            = 0;
     virtual auto unseal_sector(rw_blob<(1 << 15) - (1 << 5)> data,
                                crypto::crypto_provider &provider,
                                ro_blob<1 << 15> ciphertext,
-                               ro_blob<16> mac) const noexcept
-            -> result<void> = 0;
+                               ro_blob<16> mac) const noexcept -> result<void>
+            = 0;
 };
 class file_crypto_ctx
 {

@@ -60,7 +60,8 @@ public:
     auto operator==(tree_position const &other) const noexcept -> bool
             = default;
     auto operator<=>(tree_position const &other) const noexcept
-            -> std::strong_ordering = default;
+            -> std::strong_ordering
+            = default;
 
 private:
     // 8bit layer pos + 56bit sector position on that layer

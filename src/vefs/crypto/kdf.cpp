@@ -10,7 +10,7 @@ namespace detail
 
 result<void> kdf_impl(rw_dynblob prk,
                       ro_dynblob inputKey,
-                      std::span<const ro_dynblob> domain) noexcept
+                      std::span<ro_dynblob const> domain) noexcept
 {
     blake2xb state{};
 
