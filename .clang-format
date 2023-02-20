@@ -7,10 +7,30 @@ BasedOnStyle:  LLVM
 AccessModifierOffset: -4
 AlignAfterOpenBracket: Align
 AlignArrayOfStructures: Right
-AlignConsecutiveMacros: AcrossComments
-AlignConsecutiveAssignments: None
-AlignConsecutiveBitFields: None
-AlignConsecutiveDeclarations: None
+AlignConsecutiveAssignments:
+  Enabled:         false
+  AcrossEmptyLines: false
+  AcrossComments:  false
+  AlignCompound:   false
+  PadOperators:    true
+AlignConsecutiveBitFields:
+  Enabled:         false
+  AcrossEmptyLines: false
+  AcrossComments:  false
+  AlignCompound:   false
+  PadOperators:    false
+AlignConsecutiveDeclarations:
+  Enabled:         false
+  AcrossEmptyLines: false
+  AcrossComments:  false
+  AlignCompound:   false
+  PadOperators:    false
+AlignConsecutiveMacros:
+  Enabled:         true
+  AcrossEmptyLines: false
+  AcrossComments:  true
+  AlignCompound:   false
+  PadOperators:    false
 AlignEscapedNewlines: Right
 AlignOperands:   AlignAfterOperator
 AlignTrailingComments: true
@@ -51,7 +71,7 @@ BraceWrapping:
   SplitEmptyRecord: true
   SplitEmptyNamespace: true
 BreakBeforeBinaryOperators: All
-BreakBeforeConceptDeclarations: true
+BreakBeforeConceptDeclarations: Always
 BreakBeforeBraces: Allman
 BreakBeforeInheritanceComma: false
 BreakInheritanceList: BeforeComma
@@ -91,6 +111,9 @@ IncludeCategories:
   - Regex:           '^<boost/'
     Priority:        5
     CaseSensitive:   false
+  - Regex:           '^<vefs/.*'
+    Priority:        27
+    CaseSensitive:   true
   - Regex:           '^<.*'
     Priority:        20
     CaseSensitive:   false
@@ -105,9 +128,10 @@ IndentCaseBlocks: false
 IndentGotoLabels: true
 IndentPPDirectives: None
 IndentExternBlock: NoIndent
-IndentRequires:  true
+IndentRequiresClause: true
 IndentWidth:     4
 IndentWrappedFunctionNames: false
+InsertBraces:    true
 InsertTrailingCommas: None
 JavaScriptQuotes: Leave
 JavaScriptWrapImports: true
@@ -137,6 +161,7 @@ PPIndentWidth:   -1
 ReferenceAlignment: Pointer
 ReflowComments:  true
 RemoveBracesLLVM: false
+RequiresClausePosition: OwnLine
 SeparateDefinitionBlocks: Leave
 ShortNamespaceLines: 1
 SortIncludes:    CaseInsensitive
@@ -151,6 +176,16 @@ SpaceBeforeCpp11BracedList: false
 SpaceBeforeCtorInitializerColon: true
 SpaceBeforeInheritanceColon: true
 SpaceBeforeParens: ControlStatements
+SpaceBeforeParensOptions: # this is ignored due to SpaceBeforeParens != "Custom"
+  AfterControlStatements: true
+  AfterForeachMacros: true
+  AfterFunctionDefinitionName: false
+  AfterFunctionDeclarationName: false
+  AfterIfMacros:   true
+  AfterOverloadedOperator: false
+  AfterRequiresInClause: false
+  AfterRequiresInExpression: false
+  BeforeNonEmptyParentheses: false
 SpaceAroundPointerQualifiers: Default
 SpaceBeforeRangeBasedForLoopColon: true
 SpaceInEmptyBlock: false

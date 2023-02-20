@@ -32,20 +32,17 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - uses: lukka/get-cmake@v3.22.2
+      - uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: 3.22.6
 
       - name: Initialize vcpkg
         uses: lukka/run-vcpkg@v10
         with:
           vcpkgDirectory: ${{ github.workspace }}/build/vcpkg
-          vcpkgGitCommitId: 8b62d95a81afcb9efe74bebeb62f04c1e0e2a003
-          appendedCacheKey: r01
-
-      - if: matrix.os == 'windows-2022'
-        name: Add MSVC to PATH
-        uses: ilammy/msvc-dev-cmd@v1
-        with:
-          arch: x64
+          vcpkgGitCommitId: 71d3fa60b67540e9bf5fde2bf2188f579ff09433
+          prependedCacheKey: compiler=${{ matrix.compiler }}
+          #appendedCacheKey: r00
 
       - name: Build ${{ matrix.triplet }}-${{ matrix.compiler }} preset
         uses: lukka/run-cmake@v10
@@ -53,6 +50,9 @@ jobs:
           configurePreset: ${{ matrix.triplet }}-${{ matrix.compiler }}
           buildPreset: ${{ matrix.triplet }}-${{ matrix.compiler }}
           testPreset: ${{ matrix.triplet }}-${{ matrix.compiler }}
+        env:
+          CC: ''
+          CXX: ''
 
 
       - name: Build ${{ matrix.triplet }}-${{ matrix.compiler }}-release preset
@@ -61,6 +61,22 @@ jobs:
           configurePreset: ${{ matrix.triplet }}-${{ matrix.compiler }}
           buildPreset: ${{ matrix.triplet }}-${{ matrix.compiler }}-release
           testPreset: ${{ matrix.triplet }}-${{ matrix.compiler }}-release
+        env:
+          CC: ''
+          CXX: ''
+
+      - name: Prevent uploading a corrupted vcpkg cache
+        if: ${{ failure() || cancelled() }}
+        run: |
+          echo "RUNVCPKG_NO_CACHE=1" >> $GITHUB_ENV
+        shell: bash
+
+
+      - if: ${{ failure() || cancelled() }}
+        run: |
+          echo "RUNVCPKG_NO_CACHE=1" >> $GITHUB_ENV
+        shell: bash
+
 
   check-format:
     name: clang-tidy & clang-format
@@ -69,37 +85,49 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - uses: actions/setup-python@v3
-      - name: Install the linter driver python package
-        run: python3 -m pip install git+https://github.com/cpp-linter/cpp-linter-action@v1
+      - name: "Install clang-tools-15"
+        run: |
+          sudo cp ${{ github.workspace }}/tools/llvm-snapshot.gpg.key.asc /etc/apt/trusted.gpg.d/llvm-snapshot.asc
+          sudo add-apt-repository "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-15 main"
+          sudo apt-get -qq update
+          sudo apt-get -qq -y install clang-15 clang-tidy-15 clang-format-15
 
-      - uses: lukka/get-cmake@v3.22.2
+      - uses: lukka/get-cmake@latest
+        with:
+          cmakeVersion: 3.22.6
 
       - name: Initialize vcpkg
         uses: lukka/run-vcpkg@v10
         with:
-          vcpkgDirectory: ${{ github.workspace }}/build/vcpkg
-          vcpkgGitCommitId: 8b62d95a81afcb9efe74bebeb62f04c1e0e2a003
-          appendedCacheKey: r01
+          vcpkgDirectory: ${{ github.workspace }}/../vcpkg
+          vcpkgGitCommitId: 71d3fa60b67540e9bf5fde2bf2188f579ff09433
+          prependedCacheKey: compiler=clang-15
+          #appendedCacheKey: r00
 
       - name: Configure x64-linux-clang preset
         uses: lukka/run-cmake@v10
-        env:
-          CMAKE_EXPORT_COMPILE_COMMANDS: '1'
         with:
-          configurePreset: x64-linux-clang
+          configurePreset: x64-linux-ci-lint
 
-      - name: Lint with clang-format and clang-tidy
+      - uses: cpp-linter/cpp-linter-action@v2
+        name: Lint with clang-format and clang-tidy
         id: linter
-        run: |
-          cpp-linter \
-          --version=14 \
-          --style=file \
-          --tidy-checks='' \
-          --files-changed-only=false \
-          --ignore='build|external' \
-          --database=${{ github.event.repository.name }}/build/x64-linux-clang
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+            version: 15.0.7
+            style: file # use .clang-format settings
+            tidy-checks: '' # use .clang-tidy settings
+            extensions: cpp,hpp
+            ignore: '.github|build|external'
+            files-changed-only: true
+            database: build/x64-linux-ci-lint
 
-      # - name: Fail if issues have been raised
-      #   if: steps.linter.outputs.checks-failed > 0
-      #   run: exit 1
+      - name: Fail if issues have been raised
+        if: steps.linter.outputs.checks-failed > 0
+        run: exit 1
+
+      - if: ${{ failure() || cancelled() }}
+        run: |
+          echo "RUNVCPKG_NO_CACHE=1" >> $GITHUB_ENV
+        shell: bash

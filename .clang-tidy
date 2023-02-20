@@ -1,19 +1,29 @@
 ---
+# cppcoreguidelines-avoid-magic-numbers aliases readability-magic-numbers
+# cppcoreguidelines-avoid-c-arrays aliases modernize-avoid-c-arrays
+# cppcoreguidelines-special-member-functions is overly explicit and verbose
 Checks: >
   boost-*,
   bugprone-*,
+    -bugprone-easily-swappable-parameters,
   clang-analyzer-*,
   clang-diagnostic-*,
   cppcoreguidelines-*,
+    -cppcoreguidelines-avoid-c-arrays,
     -cppcoreguidelines-special-member-functions,
   modernize-*,
+    -modernize-avoid-c-arrays,
+    -modernize-use-default-member-init,
   performance-*,
   portability-*,
   readability-*,
     -readability-identifier-length,
-    -readability-named-parameter
+    -readability-magic-numbers,
+    -readability-named-parameter,
+    -readability-redundant-member-init,
+    -readability-static-accessed-through-instance
 WarningsAsErrors: true
-HeaderFilterRegex: ""
+HeaderFilterRegex: ".*/(src|include)/vefs(_tests)?/.*"
 FormatStyle: file
 CheckOptions:
   - key: modernize-use-override.AllowOverrideAndFinal

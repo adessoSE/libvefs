@@ -18,7 +18,7 @@
 # -- Project information -----------------------------------------------------
 
 project = 'vefs'
-copyright = '2017-2022, adesso AG'
+copyright = '2017-2023, adesso AG'
 author = 'Henrik Gaßmann'
 
 # The full version, including alpha/beta/rc tags

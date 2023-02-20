@@ -15,7 +15,7 @@
             "cacheVariables": {
                 "BUILD_CLI": true,
                 "BUILD_TESTING": true,
-                "WARNINGS_AS_ERRORS": false,
+                "WARNINGS_AS_ERRORS": true,
                 "VEFS_DISABLE_WORKAROUNDS": null,
                 "VEFS_FLAG_OUTDATED_WORKAROUNDS": null,
                 "CMAKE_DEBUG_POSTFIX": "-dbg",
@@ -130,7 +130,19 @@
                 "x64-linux"
             ],
             "cacheVariables": {
-                "CMAKE_CXX_COMPILER": "clang++"
+                "VCPKG_TARGET_TRIPLET": "x64-linux-clang",
+                "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "${sourceDir}/tools/toolchains/clang-x64-linux.cmake"
+            }
+        },
+        {
+            "name": "x64-linux-ci-lint",
+            "inherits": [
+                "x64-linux-clang"
+            ],
+            "cacheVariables": {
+                "VCPKG_TARGET_TRIPLET": "x64-linux-clang-15",
+                "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "${sourceDir}/tools/toolchains/clang-15-x64-linux.cmake",
+                "CMAKE_EXPORT_COMPILE_COMMANDS": true
             }
         },
         {

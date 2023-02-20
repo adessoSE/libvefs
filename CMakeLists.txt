@@ -39,7 +39,9 @@ include(GNUInstallDirs)
 include(SourceHelpers)
 
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
-enable_testing()
+if (BUILD_TESTING)
+    enable_testing()
+endif()
 
 
 ########################################################################
@@ -59,18 +61,18 @@ set_property(CACHE VEFS_LLFIO_TARGET PROPERTY STRINGS "hl;sl;dl")
 find_package(base64 REQUIRED)
 
 find_package(Catch2 CONFIG)
-cmake_dependent_option(BUILD_TESTING "Build the documentation using sphinx" ON Catch2_FOUND OFF)
 set_package_properties(Catch2 PROPERTIES
     TYPE OPTIONAL
     PURPOSE "Allows to build the test suite"
 )
+cmake_dependent_option(BUILD_TESTING "Build the documentation using sphinx" ON Catch2_FOUND OFF)
 
 find_package(Sphinx)
-cmake_dependent_option(BUILD_DOCS "Build the documentation using sphinx" ON Sphinx_FOUND OFF)
 set_package_properties(Sphinx PROPERTIES
     TYPE OPTIONAL
     PURPOSE "Allows to build the documentation"
 )
+cmake_dependent_option(BUILD_DOCS "Build the documentation using sphinx" ON Sphinx_FOUND OFF)
 
 find_package(outcome CONFIG REQUIRED)
 
