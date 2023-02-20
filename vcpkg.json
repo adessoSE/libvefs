@@ -25,12 +25,20 @@
         "fmt",
         "libb2",
         "libcuckoo",
-        {
-            "name": "llfio",
-            "version>=": "2.0-20220525"
-        },
+        "llfio",
         "outcome",
+        {
+            "name": "ned14-internal-quickcpplib",
+            "version>=": "2022-09-08"
+        },
         "stduuid"
+    ],
+    "overrides": [
+        {
+            "name": "ned14-internal-quickcpplib",
+            "version": "2022-09-08",
+            "port-version": 1
+        }
     ],
     "features": {
         "cli": {

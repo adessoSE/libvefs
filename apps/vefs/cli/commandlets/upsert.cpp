@@ -1,6 +1,7 @@
 #include "vefs/cli/commandlets/upsert.hpp"
 
 #include <boost/predef/os.h>
+#include <fmt/std.h>
 
 #if defined(BOOST_OS_WINDOWS_AVAILABLE)
 #include <llfio/ntkernel-error-category/include/ntkernel-error-category/ntkernel_category.hpp>
