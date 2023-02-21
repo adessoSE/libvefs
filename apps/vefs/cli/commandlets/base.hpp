@@ -8,6 +8,7 @@
 #include <stdexcept>
 #include <string>
 
+#include <fmt/core.h>
 #include <fmt/ostream.h>
 #include <lyra/lyra.hpp>
 
@@ -19,6 +20,10 @@
 #if FMT_VERSION >= 9'00'00
 template <>
 struct fmt::formatter<lyra::parser> : fmt::ostream_formatter
+{
+};
+template <>
+struct fmt::formatter<lyra::group> : fmt::ostream_formatter
 {
 };
 #endif

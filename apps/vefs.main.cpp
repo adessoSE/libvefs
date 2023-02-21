@@ -6,6 +6,7 @@
 #include <boost/predef/os.h>
 
 #include <fmt/core.h>
+#include <fmt/ostream.h>
 #include <lyra/lyra.hpp>
 
 #include <vefs/archive.hpp>
@@ -18,6 +19,14 @@
 
 #if defined(BOOST_COMP_GNUC_AVAILABLE)
 #pragma GCC diagnostic ignored "-Wmissing-declarations"
+#endif
+
+// fmt 9.0.0
+#if FMT_VERSION >= 9'00'00
+template <>
+struct fmt::formatter<lyra::cli> : fmt::ostream_formatter
+{
+};
 #endif
 
 namespace vefs::cli
