@@ -27,7 +27,7 @@
         "libcuckoo",
         {
             "name": "llfio",
-            "features": []
+            "features": [ "status-code" ]
         },
         "outcome",
         {
