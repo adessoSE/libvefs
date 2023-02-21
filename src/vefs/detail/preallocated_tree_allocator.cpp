@@ -24,7 +24,7 @@ auto preallocated_tree_allocator::reallocate(sector_allocator &part) noexcept
     }
     if (mIds.empty())
     {
-        return errc::resource_exhausted;
+        return errc::file_too_large;
     }
     auto allocated = mIds.back();
     mIds.pop_back();

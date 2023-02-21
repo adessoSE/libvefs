@@ -177,20 +177,20 @@ public:
     /**
      * allocates the first available block
      *
-     * \returns errc::resource_exhausted if none are available
+     * \returns archive_errc::resource_exhausted if none are available
      */
     auto alloc_one() noexcept -> result<id_type>;
     /**
      * allocates many blocks and stores their id in the ids parameter
      *
      * \returns the number of successful allocations or
-     * errc::resource_exhausted
+     * archive_errc::resource_exhausted
      */
     auto alloc_multiple(std::span<id_type> ids) noexcept -> result<std::size_t>;
     /**
      * allocates num contiguous blocks
      *
-     * \returns the start id or errc::resource_exhausted
+     * \returns the start id or archive_errc::resource_exhausted
      */
     auto alloc_contiguous(const std::size_t num) noexcept -> result<id_type>;
 
@@ -198,8 +198,8 @@ public:
      * tries to extend the contiguous block range represented by [begin,
      * end] by num additional blocks.
      *
-     * \returns the new begin id or errc::resource_exhausted if the request
-     * couldn't be served
+     * \returns the new begin id or archive_errc::resource_exhausted if the
+     * request couldn't be served
      */
     auto extend(const id_type begin,
                 const id_type end,
@@ -438,7 +438,7 @@ inline auto block_manager<IdType>::alloc_one() noexcept -> result<id_type>
 {
     if (mFreeBlocks.empty())
     {
-        return errc::resource_exhausted;
+        return archive_errc::resource_exhausted;
     }
     auto it = mFreeBlocks.begin();
     auto result = it->pop_front();
@@ -487,7 +487,7 @@ block_manager<IdType>::alloc_contiguous(const std::size_t num) noexcept
 
     if (it == end)
     {
-        return errc::resource_exhausted;
+        return archive_errc::resource_exhausted;
     }
     auto startId = it->pop_front(num);
     if (it->empty())
@@ -505,7 +505,7 @@ inline auto block_manager<IdType>::extend(const id_type begin,
 {
     if (mFreeBlocks.empty())
     {
-        return errc::resource_exhausted;
+        return archive_errc::resource_exhausted;
     }
 
     auto succIt = mFreeBlocks.upper_bound(begin);
@@ -544,7 +544,7 @@ inline auto block_manager<IdType>::extend(const id_type begin,
         }
     }
 
-    return errc::resource_exhausted;
+    return archive_errc::resource_exhausted;
 }
 
 template <typename IdType>

@@ -276,7 +276,7 @@ BOOST_AUTO_TEST_CASE(file_in_use_cannot_be_erased)
     auto result = testSubject->erase("testpath");
 
     BOOST_TEST(!result);
-    BOOST_TEST(result.error() == errc::still_in_use);
+    BOOST_TEST(result.error() == archive_errc::still_in_use);
 }
 
 BOOST_AUTO_TEST_CASE(file_not_committed_cannot_be_erased_invalid_argument)

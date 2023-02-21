@@ -8,7 +8,6 @@
 #include <dplx/scope_guard.hpp>
 
 #include <vefs/disappointment.hpp>
-#include <vefs/disappointment/llfio_adapter.hpp>
 #include <vefs/llfio.hpp>
 
 #include "vefs/cli/error.hpp"

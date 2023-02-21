@@ -224,7 +224,7 @@ auto sector_device::open_existing(llfio::file_handle fileHandle,
     }
     if (!archive->mArchiveFileLock.try_lock())
     {
-        return errc::still_in_use;
+        return archive_errc::still_in_use;
     }
 
     VEFS_TRY(archive->mIoBufferManager,
@@ -283,7 +283,7 @@ auto sector_device::create_new(llfio::file_handle fileHandle,
     }
     if (!archive->mArchiveFileLock.try_lock())
     {
-        return errc::still_in_use;
+        return archive_errc::still_in_use;
     }
 
     VEFS_TRY(archive->mIoBufferManager,
@@ -353,7 +353,7 @@ result<void> sector_device::parse_static_archive_header(ro_blob<32> userPRK)
     {
         if (rx.has_error() && rx.assume_error() == archive_errc::tag_mismatch)
         {
-            return error{archive_errc::wrong_user_prk}
+            return archive_errc::wrong_user_prk
                 << ed::wrapped_error{std::move(rx).assume_error()};
         }
         return std::move(rx).as_failure();
@@ -476,7 +476,7 @@ auto sector_device::parse_archive_header() -> result<archive_header>
     }
     else
     {
-        return error{archive_errc::no_archive_header}
+        return archive_errc::no_archive_header
             << ed::wrapped_error{std::move(header[0]).assume_error()};
     }
     return std::move(header[selector]);
@@ -603,7 +603,7 @@ auto sector_device::read_sector(rw_blob<sector_payload_size> contentDest,
     }
     else
     {
-        result<void> adaptedrx{std::move(readrx).assume_error()};
+        result<void> adaptedrx{std::move(readrx).as_failure()};
         adaptedrx.assume_error() << ed::sector_idx{sectorIdx};
         return adaptedrx;
     }

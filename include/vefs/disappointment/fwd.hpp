@@ -16,8 +16,6 @@ class error_domain;
 template <typename Tag, typename T>
 class error_detail;
 
-enum class errc : error_code;
-
 enum class error_message_format
 {
     simple,

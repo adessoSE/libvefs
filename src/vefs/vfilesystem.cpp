@@ -860,7 +860,7 @@ auto vfilesystem::erase(std::string_view filePath) -> result<void>
     }
     else
     {
-        return errc::still_in_use;
+        return archive_errc::still_in_use;
     }
 }
 
@@ -999,14 +999,15 @@ auto vfilesystem::commit() -> result<void>
                         {
                             syncrx.assume_error()
                                     << ed::archive_file{"[archive-index]"};
-                            throw error_exception(
-                                    std::move(syncrx).assume_error());
+
+                            std::move(syncrx).assume_error().throw_exception();
                         }
                     });
         }
-        catch (error_exception const &exc)
+        catch (system_error::status_error<system_error::erased<
+                       system_error::system_code::value_type>> const &exc)
         {
-            return exc.error();
+            return exc.code().clone();
         }
         catch (std::bad_alloc const &)
         {

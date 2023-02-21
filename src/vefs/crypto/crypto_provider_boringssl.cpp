@@ -40,7 +40,7 @@ boringssl_aes_256_gcm_provider::generate_session_salt() const
     utils::secure_byte_array<16> salt;
     if (auto r = random_bytes(as_span(salt)); r.has_error())
     {
-        throw error_exception{r.error()};
+        static_cast<decltype(r) &&>(r).assume_error().throw_exception();
     }
     return salt;
 }

@@ -37,13 +37,46 @@ enum class blake2_errc
     state_init_param_failed,
     update_failed,
 };
-auto blake2_error_domain() noexcept -> error_domain const &;
 
-inline auto make_error(blake2_errc value,
-                       vefs::adl::disappointment::type) noexcept -> error
-{
-    return {static_cast<error_code>(value), blake2_error_domain()};
 }
+
+// TODO: fixme
+template <>
+struct SYSTEM_ERROR2_NAMESPACE::quick_status_code_from_enum<
+        vefs::crypto::detail::blake2_errc>
+    : quick_status_code_from_enum_defaults<vefs::crypto::detail::blake2_errc>
+{
+    static constexpr auto domain_name = "blake2 domain";
+    static constexpr auto domain_uuid = "A6CE508B-5884-4EB7-AB2B-92EBFC4FBE47";
+
+    static auto value_mappings() -> std::initializer_list<mapping> const &
+    {
+        using blake2_errc = vefs::crypto::detail::blake2_errc;
+
+        static const std::initializer_list<mapping> v = {
+                {         blake2_errc::finalization_failed,
+                 "the blake2 finalization call failed",                {errc::unknown}                      },
+                {         blake2_errc::invalid_digest_size,
+                 "the requested digest size was to big",       {errc::invalid_argument}                     },
+                {            blake2_errc::invalid_key_size,
+                 "the given key blob doesn't is either missing or oversized",       {errc::invalid_argument}},
+                {blake2_errc::invalid_personalization_size,
+                 "the given personalization blob is too long or missing", {errc::function_not_supported}    },
+                {           blake2_errc::state_init_failed,
+                 "the state init api call failed",                {errc::unknown}                           },
+                {     blake2_errc::state_init_w_key_failed,
+                 "the state init with key api call failed",                {errc::unknown}                  },
+                {     blake2_errc::state_init_param_failed,
+                 "the state init with param api call failed",                {errc::unknown}                },
+                {               blake2_errc::update_failed,
+                 "the update call failed",                {errc::unknown}                                   },
+        };
+        return v;
+    }
+};
+
+namespace vefs::crypto::detail
+{
 
 template <typename MAC>
 result<void> mac_feed_key(MAC &state, ro_dynblob key) noexcept

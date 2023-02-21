@@ -348,12 +348,12 @@ public:
         // do we know about key?
         if (!mIndex.find(key, entry))
         {
-            return errc::not_loaded;
+            return archive_errc::not_loaded;
         }
 
         if (!mPageCtrl[entry.index].try_acquire_wait(key, entry.generation))
         {
-            return errc::not_loaded;
+            return archive_errc::not_loaded;
         }
         return purge_impl(
                 ctx, dplx::cncr::intrusive_ptr_import(&mPageCtrl[entry.index]),
@@ -473,7 +473,7 @@ private:
     {
         if (!ctrl->try_start_purge())
         {
-            return errc::still_in_use;
+            return archive_errc::still_in_use;
         }
 
         if (auto &&purgeRx
@@ -518,7 +518,7 @@ private:
             }
             if (evictionMode == pinned)
             {
-                return errc::still_in_use;
+                return archive_errc::still_in_use;
             }
             mEvictionPolicy.insert(key, where);
             if (evictionMode == clean)

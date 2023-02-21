@@ -8,7 +8,6 @@
 #endif
 
 #include <vefs/disappointment.hpp>
-#include <vefs/disappointment/llfio_adapter.hpp>
 #include <vefs/llfio.hpp>
 
 namespace vefs::cli
@@ -34,13 +33,13 @@ inline auto transfer_to_vfile(llfio::file_handle &file,
             readRx.has_error())
         {
 #if defined(BOOST_OS_WINDOWS_AVAILABLE)
-            if (readRx.assume_error()
-                        == std::error_code{38, std::system_category()}
-                || readRx.assume_error()
-                           == std::error_code(
-                                   0xc0000011,
+            if (auto ec = make_error_code(readRx.assume_error());
+                ec == std::error_code{38, std::system_category()}
+                || ec
+                           == std::error_code{
+                                   static_cast<int>(0xc0000011),
                                    ntkernel_error_category::
-                                           ntkernel_category())) // ERROR_HANDLE_EOF
+                                           ntkernel_category()}) // ERROR_HANDLE_EOF
             {
                 break;
             }

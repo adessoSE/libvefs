@@ -61,15 +61,17 @@ auto main(lyra::args args) -> int
             return 1;
         }
     }
-    catch (error_exception const &exc)
+    catch (std::exception const &exc)
     {
-        if (exc.error() == cli_errc::exit_error)
+        if (auto const *cliError = dynamic_cast<cli_error const *>(&exc);
+            cliError != nullptr
+            && cliError->code().value() == cli_errc::exit_error)
         {
             // error message already printed
             return 1;
         }
         // print nice error message
-        fmt::print(stderr, "Command failed unexpectedly: {}\n", exc.error());
+        fmt::print(stderr, "Command failed unexpectedly: {}\n", exc.what());
         return 1;
     }
     return 0;

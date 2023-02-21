@@ -4,7 +4,6 @@
 
 #include <exception>
 #include <stdexcept>
-#include <system_error>
 #include <type_traits>
 
 #include <boost/predef/compiler.h>

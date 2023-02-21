@@ -18,7 +18,7 @@ BOOST_AUTO_TEST_CASE(initial_blockmanager_is_all_full)
     auto result = test_subject.alloc_one();
 
     BOOST_TEST(result.has_error());
-    BOOST_TEST(result.error() == vefs::errc::resource_exhausted);
+    BOOST_TEST(result.error() == vefs::archive_errc::resource_exhausted);
 }
 
 BOOST_AUTO_TEST_CASE(initial_blockmanager_deallocates_frees_a_block)
@@ -67,7 +67,7 @@ BOOST_AUTO_TEST_CASE(
     auto result = test_subject.alloc_contiguous(6);
 
     BOOST_TEST(result.has_error());
-    BOOST_TEST(result.error() == vefs::errc::resource_exhausted);
+    BOOST_TEST(result.error() == vefs::archive_errc::resource_exhausted);
 }
 
 BOOST_AUTO_TEST_CASE(write_zero_to_bitset_does_not_change_anything)
@@ -168,7 +168,7 @@ BOOST_AUTO_TEST_CASE(parse_to_bitset_configures_deallocates_zero_bits)
     BOOST_TEST(!parse_result.has_error());
 
     BOOST_TEST(alloc_result.has_error());
-    BOOST_TEST(alloc_result.error() == vefs::errc::resource_exhausted);
+    BOOST_TEST(alloc_result.error() == vefs::archive_errc::resource_exhausted);
 }
 
 BOOST_AUTO_TEST_CASE(clear_block_manager_removes_all_deallocated_blocks)
@@ -179,7 +179,7 @@ BOOST_AUTO_TEST_CASE(clear_block_manager_removes_all_deallocated_blocks)
     auto result = test_subject.alloc_contiguous(6);
 
     BOOST_TEST(result.has_error());
-    BOOST_TEST(result.error() == vefs::errc::resource_exhausted);
+    BOOST_TEST(result.error() == vefs::archive_errc::resource_exhausted);
 }
 
 BOOST_AUTO_TEST_CASE(merge_nodes_after_end_insertion)

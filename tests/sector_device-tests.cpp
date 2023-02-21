@@ -29,7 +29,8 @@ struct sector_device_test_fixture
                         });
         EXPECT_CALL(cryptoProviderMock,
                     box_seal(testing::_, testing::_, testing::_, testing::_))
-                .WillRepeatedly(testing::Return(vefs::outcome::success()));
+                .WillRepeatedly([](auto &&...) -> vefs::result<void>
+                                { return vefs::outcome::success(); });
 
         testSubject = vefs::detail::sector_device::create_new(
                               testFile.reopen().value(), &cryptoProviderMock,

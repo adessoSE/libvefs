@@ -11,7 +11,6 @@
 
 #include <vefs/crypto/provider.hpp>
 #include <vefs/disappointment.hpp>
-#include <vefs/disappointment/llfio_adapter.hpp>
 #include <vefs/span.hpp>
 #include <vefs/utils/secure_array.hpp>
 
@@ -179,7 +178,7 @@ inline auto vefs::detail::sector_device::resize(std::uint64_t numSectors)
              mArchiveFile.truncate(numSectors * sector_size));
     if (bytesTruncated != (numSectors * sector_size))
     {
-        return errc::bad;
+        return archive_errc::bad;
     }
     mNumSectors.store(numSectors, std::memory_order::relaxed);
 
