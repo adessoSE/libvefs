@@ -25,8 +25,8 @@ dplx_target_sources(vefs # detail
     BASE_DIR vefs
 
     PRIVATE
+        detail/archive_header.cpp
         detail/archive_header.hpp
-        detail/archive_header.codec.hpp
         detail/archive_file_id.hpp
         detail/block_manager.hpp
         detail/file_crypto_ctx.cpp
@@ -44,8 +44,8 @@ dplx_target_sources(vefs # detail
         detail/tree_walker.cpp
         detail/tree_walker.hpp
 
+        detail/file_descriptor.cpp
         detail/file_descriptor.hpp
-        detail/file_descriptor.codec.hpp
 
         detail/archive_sector_allocator.cpp
         detail/archive_sector_allocator.hpp
@@ -137,7 +137,6 @@ dplx_target_sources(vefs # crypto
 
         crypto/counter.cpp
         crypto/counter.hpp
-        crypto/counter.codec.hpp
 )
 if (OpenSSL_FOUND)
     dplx_target_sources(vefs # crypto
@@ -208,8 +207,7 @@ dplx_target_sources(vefs # utils
         utils/unordered_map_mt.hpp
 
     PRIVATE
-        detail/secure_array.codec.hpp
-        detail/uuid.codec.hpp
+        detail/uuid.cpp
 )
 
 dplx_target_sources(vefs # hash

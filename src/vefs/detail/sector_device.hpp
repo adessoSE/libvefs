@@ -5,7 +5,7 @@
 #include <shared_mutex>
 #include <type_traits>
 
-#include <dplx/dp/memory_buffer.hpp>
+#include <dplx/dp/legacy/memory_buffer.hpp>
 
 #include <vefs/llfio.hpp>
 

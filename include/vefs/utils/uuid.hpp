@@ -1,6 +1,10 @@
 #pragma once
 
+#include <cstdint>
+
 #include <uuid.h>
+
+#include <dplx/dp/fwd.hpp>
 
 namespace vefs
 {
@@ -29,3 +33,20 @@ inline constexpr char32_t guid_encoding_lut<char32_t>[18]
 } // namespace detail
 
 } // namespace vefs
+
+template <>
+class dplx::dp::codec<vefs::uuid>
+{
+    using uuid = vefs::uuid;
+
+public:
+    static auto decode(parse_context &ctx, uuid &value) noexcept
+            -> result<void>;
+    static constexpr auto size_of(emit_context &, uuid) noexcept
+            -> std::uint64_t
+    {
+        // 0x58'xxxxxxxx'xxxxxxxx'xxxxxxxx'xxxxxxxx
+        return 1U + sizeof(uuid);
+    }
+    static auto encode(emit_context &ctx, uuid value) noexcept -> result<void>;
+};
