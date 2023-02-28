@@ -110,8 +110,9 @@ public:
                                key.size(), EVP_AEAD_DEFAULT_TAG_LENGTH,
                                nullptr))
         {
-            return errc::bad << ed::error_code_api_origin{"EVP_AEAD_CTX_init"sv}
-                             << make_openssl_errinfo();
+            return archive_errc::bad
+                << ed::error_code_api_origin{"EVP_AEAD_CTX_init"sv}
+                << make_openssl_errinfo();
         }
         ctx.mInitialized = true;
         return ctx;
@@ -182,7 +183,7 @@ public:
                     reinterpret_cast<uint8_t const *>(ad.data()), ad.size()))
         {
             // #TODO appropriately wrap the boringssl packed error
-            return error{errc::bad}
+            return archive_errc::bad
                 << ed::error_code_api_origin{"EVP_AEAD_CTX_seal_scatter"sv}
                 << make_openssl_errinfo();
         }
@@ -251,7 +252,7 @@ public:
                 // _bad_
                 return archive_errc::tag_mismatch;
             }
-            return error{errc::bad}
+            return archive_errc::bad
                 << ed::error_code_api_origin{"EVP_AEAD_CTX_open_gather"}
                 << make_openssl_errinfo();
         }

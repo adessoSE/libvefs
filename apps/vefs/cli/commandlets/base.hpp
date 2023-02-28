@@ -117,13 +117,10 @@ protected:
               {
                   if (result<void> rx = self->exec(g); rx.has_failure())
                   {
-                      fmt::print(
-                              "Command execution failed: {}\n{}\n",
-                              rx.assume_error().diagnostic_information(
-                                      error_message_format::with_diagnostics),
-                              g);
+                      fmt::print("Command execution failed: {}\n{}\n",
+                                 rx.assume_error().message().c_str(), g);
 
-                      throw vefs::error_exception(cli_errc::exit_error);
+                      cli_code{cli_errc::exit_error}.throw_exception();
                   }
               })
     {

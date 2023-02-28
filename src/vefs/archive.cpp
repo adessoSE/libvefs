@@ -303,7 +303,7 @@ auto archive_handle::purge_corruption(llfio::path_handle const &base,
                                       llfio::lock_kind::unlocked};
     if (!fileGuard.try_lock())
     {
-        return errc::still_in_use;
+        return archive_errc::still_in_use;
     }
 
     auto const disambiguator = llfio::utils::random_string(16);
@@ -490,12 +490,12 @@ auto archive_handle::read(vfile_handle const &handle,
         return errc::invalid_argument;
     }
     auto readrx = handle->read(buffer, readFilePos);
-    if (readrx.has_error())
+    /* if (readrx.has_error())
     {
         readrx.assume_error() << ed::archive_file_read_area{
                 ed::file_span{readFilePos, readFilePos + buffer.size()}
         };
-    }
+    } */
     return readrx;
 }
 
@@ -513,12 +513,12 @@ auto archive_handle::write(vfile_handle const &handle,
     }
 
     auto writerx = handle->write(data, writeFilePos);
-    if (writerx.has_error())
+    /* if (writerx.has_error())
     {
         writerx.assume_error() << ed::archive_file_write_area{
                 ed::file_span{writeFilePos, writeFilePos + data.size()}
         };
-    }
+    } */
     return writerx;
 }
 

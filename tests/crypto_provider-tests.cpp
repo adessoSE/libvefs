@@ -82,7 +82,7 @@ BOOST_AUTO_TEST_CASE(boringssl_decrypts_returns_error_if_mac_is_18_bytes_long)
 
     BOOST_TEST(!seal_result.has_error());
     BOOST_TEST(open_result.has_error());
-    BOOST_TEST(open_result.error().code() == 5);
+    BOOST_TEST(open_result.error().value() == 5);
 }
 
 BOOST_AUTO_TEST_CASE(ct_compare_compares_two_equal_spans_return_true)

@@ -453,7 +453,7 @@ sector_tree_seq<TreeAllocator>::move_backward(const access_mode mode) noexcept
 {
     if (mCurrentPath.position(0) == 0)
     {
-        return errc::no_more_data;
+        return archive_errc::no_more_data;
     }
     return move_to(mCurrentPath.previous(), mode);
 }
@@ -571,7 +571,7 @@ inline auto sector_tree_seq<TreeAllocator>::erase_self() noexcept
 {
     if (mRootInfo.tree_depth > 0)
     {
-        return errc::bad;
+        return archive_errc::bad;
     }
     node(0).mDirty = false;
     if (mRootInfo.root.sector == sector_id{})

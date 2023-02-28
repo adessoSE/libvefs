@@ -23,13 +23,36 @@ struct test_rng : vefs::utils::xoroshiro128plus
     using xoroshiro128plus::xoroshiro128plus;
 };
 
+SYSTEM_ERROR2_NAMESPACE_BEGIN
+
+inline auto operator<<(std::ostream &s, status_code<void> const &sc)
+        -> std::ostream &
+{
+    fmt::print(s, "[{}|{}]", sc.domain().name().c_str(), sc.message().c_str());
+    return s;
+}
+inline auto operator<<(std::ostream &s, errc c) -> std::ostream &
+{
+    return operator<<(s, make_status_code(c));
+}
+
+SYSTEM_ERROR2_NAMESPACE_END
+
 namespace vefs
 {
+/*
 inline std::ostream &operator<<(std::ostream &s, error_domain const &domain)
 {
     using namespace fmt::literals;
     fmt::print(s, "[error_domain|{}]", domain.name());
     return s;
+}
+*/
+
+inline auto boost_test_print_type(std::ostream &s, archive_errc c)
+        -> std::ostream &
+{
+    return operator<<(s, make_status_code(c));
 }
 
 template <typename T>

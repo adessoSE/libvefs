@@ -149,7 +149,7 @@ BOOST_AUTO_TEST_CASE(archive_cannot_be_opened_parallel)
 
     vefs::llfio::log_level_guard reset_guard(vefs::llfio::log_level::all);
 
-    BOOST_TEST(reopenrx.error() == errc::still_in_use);
+    BOOST_TEST(reopenrx.error() == archive_errc::still_in_use);
 }
 
 BOOST_AUTO_TEST_CASE(create_a_new_file_succeeds)

@@ -26,7 +26,7 @@ vefs::result<void> vefs::detail::random_bytes(rw_dynblob buffer) noexcept
 
     if (buffer.empty())
     {
-        return error{errc::invalid_argument}
+        return errc::invalid_argument
             << ed::error_code_api_origin{"random_bytes"sv};
     }
     do
@@ -38,7 +38,7 @@ vefs::result<void> vefs::detail::random_bytes(rw_dynblob buffer) noexcept
 
         if (!RtlGenRandom(buffer.data(), portion))
         {
-            return error{collect_system_error()}
+            return collect_system_error()
                 << ed::error_code_api_origin{"SystemFunction036"sv};
         }
         buffer = buffer.subspan(portion);
@@ -67,14 +67,14 @@ vefs::result<void> vefs::detail::random_bytes(rw_dynblob buffer) noexcept
 
     if (buffer.empty())
     {
-        return error{errc::invalid_argument}
+        return errc::invalid_argument
             << ed::error_code_api_origin{"random_bytes"sv};
     }
 
     int urandom = open("/dev/urandom", O_RDONLY);
     if (urandom == -1)
     {
-        return error{collect_system_error()}
+        return collect_system_error()
             << ed::error_code_api_origin{"open(\"/dev/urandom\")"sv};
     }
     VEFS_SCOPE_EXIT
@@ -91,12 +91,12 @@ vefs::result<void> vefs::detail::random_bytes(rw_dynblob buffer) noexcept
         ssize_t tmp = read(urandom, buffer.data(), portion);
         if (tmp == -1)
         {
-            return error{collect_system_error()}
+            return collect_system_error()
                 << ed::error_code_api_origin{"read(\"/dev/urandom\")"sv};
         }
         if (tmp == 0)
         {
-            return errc::bad
+            return archive_errc::bad
                 << ed::error_code_api_origin{"read(\"/dev/urandom\")"sv};
         }
         buffer = buffer.subspan(static_cast<size_t>(tmp));
@@ -113,7 +113,7 @@ vefs::result<void> vefs::detail::random_bytes(rw_dynblob buffer) noexcept
 
     if (buffer.empty())
     {
-        return error{errc::invalid_argument}
+        return errc::invalid_argument
             << ed::error_code_api_origin{"random_bytes"sv};
     }
 
@@ -125,12 +125,13 @@ vefs::result<void> vefs::detail::random_bytes(rw_dynblob buffer) noexcept
         ssize_t tmp = getrandom(static_cast<void *>(buffer.data()), portion, 0);
         if (tmp == -1)
         {
-            return error{collect_system_error()}
+            return collect_system_error()
                 << ed::error_code_api_origin{"getrandom"sv};
         }
         if (tmp == 0)
         {
-            return error{errc::bad} << ed::error_code_api_origin{"getrandom"sv};
+            return archive_errc::bad
+                << ed::error_code_api_origin{"getrandom"sv};
         }
         buffer = buffer.subspan(static_cast<size_t>(tmp));
     }

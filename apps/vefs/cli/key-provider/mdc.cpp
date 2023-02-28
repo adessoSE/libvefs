@@ -12,6 +12,7 @@
 #include <dplx/cncr/windows-proper.h>
 #include <openssl/evp.h>
 #include <openssl/sha.h>
+#include <status-code/boost_error_code.hpp>
 
 #include <vefs/archive.hpp>
 

@@ -25,7 +25,10 @@
         "fmt",
         "libb2",
         "libcuckoo",
-        "llfio",
+        {
+            "name": "llfio",
+            "features": [ "status-code" ]
+        },
         "outcome",
         {
             "name": "ned14-internal-quickcpplib",

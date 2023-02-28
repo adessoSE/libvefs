@@ -109,14 +109,13 @@ pool_allocator_mt<ELEM_SIZE, NUM_ELEMS, BlockAllocator, ALIGNMENT>::prealloc(
     {
         return block.assume_value().writeable_bytes().first<alloc_block_size>();
     }
-    else if (block.assume_error() == errc::not_enough_memory
-             || block.assume_error() == std::errc::not_enough_memory)
+    else if (block.assume_error() == system_error::errc::not_enough_memory)
     {
         BOOST_THROW_EXCEPTION(std::bad_alloc{});
     }
     else
     {
-        throw error_exception{std::move(block).assume_error()};
+        std::move(block).assume_error().throw_exception();
     }
 }
 

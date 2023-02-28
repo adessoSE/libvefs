@@ -90,14 +90,9 @@ dplx_target_sources(vefs # disappointment
 
         disappointment.hpp
         disappointment/errc.hpp
-        disappointment/error.hpp
         disappointment/error_detail.hpp
-        disappointment/error_domain.hpp
-        disappointment/error_exception.hpp
         disappointment/fwd.hpp
         disappointment/generic_errc.hpp
-        disappointment/llfio_adapter.hpp
-        disappointment/std_adapter.hpp
 
     PRIVATE
         disappointment.cpp
@@ -245,7 +240,6 @@ if (BUILD_TESTING)
         tests/test_utils/test-utils.cpp
         tests/test_utils/test-utils.hpp
 
-        tests/disappointment-tests.cpp
         tests/io_buffer_manager.test.cpp
         tests/allocator-tests.cpp
         tests/sector_device-tests.cpp

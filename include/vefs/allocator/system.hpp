@@ -13,8 +13,6 @@
 #include <cstddef>
 #include <cstdlib>
 
-#include <system_error>
-
 #include <vefs/allocator/allocation.hpp>
 #include <vefs/disappointment.hpp>
 

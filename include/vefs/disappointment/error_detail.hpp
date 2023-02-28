@@ -91,77 +91,14 @@ template <typename Tag, typename T>
 inline void error_detail<Tag, T>::stringify(format_buffer &out) const noexcept
 {
     using namespace std::string_view_literals;
-    auto start = out.size();
-    try
-    {
-        fmt::format_to(std::back_inserter(out), FMT_STRING("[{}] = "),
-                       detail::type_info_fmt{typeid(Tag)});
-    }
-    catch (...)
-    {
-        out.resize(start);
-        try
-        {
-            fmt::format_to(std::back_inserter(out),
-                           "<type name format failed>: ");
-        }
-        catch (...)
-        {
-            // give up
-            out.resize(start);
-            return;
-        }
-    }
-
-    auto valueStart = out.size();
-    try
-    {
-        fmt::format_to(std::back_inserter(out), "{}", mValue);
-        return; // success
-    }
-    catch (std::exception const &e)
-    {
-        out.resize(valueStart);
-        try
-        {
-            std::string_view what{e.what()};
-            fmt::format_to(std::back_inserter(out),
-                           "<detail value format failed|{}>", what);
-        }
-        catch (...)
-        {
-            // give up
-            out.resize(start);
-        }
-    }
-    catch (...)
-    {
-    }
-
-    out.resize(valueStart);
-    try
-    {
-        fmt::format_to(std::back_inserter(out), "<detail value format failed>");
-    }
-    catch (...)
-    {
-        // give up
-        out.resize(start);
-    }
+    fmt::format_to(std::back_inserter(out), "no longer implemented"sv);
 }
 
 template <typename Tag, typename T>
 auto error_detail<Tag, T>::stringify() const -> std::string
 {
-    std::string_view type{typeid(Tag).name()};
-    if (type.size() > 0)
-    {
-        return fmt::format(FMT_STRING("[{}] = {}"), type, mValue);
-    }
-    else
-    {
-        return fmt::format(FMT_STRING("unknown type: {}"), mValue);
-    }
+    using namespace std::string_literals;
+    return "no longer implemented"s;
 }
 } // namespace vefs
 

@@ -134,7 +134,7 @@ inline multi_pool_allocator_mt<ELEM_SIZE,
             {
                 BOOST_THROW_EXCEPTION(std::bad_alloc{});
             }
-            throw error_exception{std::move(mx).assume_error()};
+            std::move(mx).assume_error().throw_exception();
         }
         else
         {

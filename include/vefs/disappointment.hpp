@@ -2,7 +2,6 @@
 
 #include <concepts>
 #include <string_view>
-#include <system_error>
 #include <variant>
 
 #include <fmt/format.h>
@@ -15,21 +14,19 @@
 #pragma warning(disable : 6285)
 #endif
 
-#include <outcome/basic_outcome.hpp>
-#include <outcome/basic_result.hpp>
+#include <outcome/bad_access.hpp>
+#include <outcome/experimental/status_result.hpp>
 #include <outcome/try.hpp>
+#include <status-code/error.hpp>
+#include <status-code/std_error_code.hpp>
 
 #if defined BOOST_COMP_MSVC_AVAILABLE
 #pragma warning(pop)
 #endif
 
 #include <vefs/disappointment/errc.hpp>
-#include <vefs/disappointment/error.hpp>
 #include <vefs/disappointment/error_detail.hpp>
-#include <vefs/disappointment/error_domain.hpp>
-#include <vefs/disappointment/error_exception.hpp>
-#include <vefs/disappointment/fwd.hpp>
-#include <vefs/disappointment/std_adapter.hpp>
+#include <vefs/disappointment/generic_errc.hpp>
 #include <vefs/llfio.hpp>
 
 namespace vefs::ed
@@ -87,7 +84,7 @@ public:
         {
             if (base::_has_error(self))
             {
-                throw error_exception{base::_error(std::move(self))};
+                base::_error(std::move(self)).throw_exception();
             }
             throw outcome::bad_result_access("no value");
         }
@@ -104,70 +101,46 @@ public:
     }
 };
 
-class outcome_no_value_policy : public outcome::policy::base
-{
-public:
-    //! Performs a narrow check of state, used in the assume_value()
-    //! functions.
-    using base::narrow_value_check;
-
-    //! Performs a narrow check of state, used in the assume_error()
-    //! functions.
-    using base::narrow_error_check;
-
-    using base::narrow_exception_check;
-
-    //! Performs a wide check of state, used in the value() functions.
-    template <class Impl>
-    static constexpr void wide_value_check(Impl &&self)
-    {
-        if (!base::_has_value(self))
-        {
-            if (base::_has_error(self))
-            {
-                throw error_exception{base::_error(std::forward<Impl>(self))};
-            }
-            if (base::_has_exception(self))
-            {
-                std::rethrow_exception(
-                        base::_exception(std::forward<Impl>(self)));
-            }
-            throw outcome::bad_result_access("no value");
-        }
-    }
-
-    //! Performs a wide check of state, used in the error() functions.
-    template <class Impl>
-    static constexpr void wide_error_check(Impl &&self)
-    {
-        if (!base::_has_error(self))
-        {
-            throw outcome::bad_outcome_access("no error");
-        }
-    }
-
-    template <class Impl>
-    static constexpr void wide_exception_check(Impl &&self)
-    {
-        if (!base::_has_exception(self))
-        {
-            throw outcome::bad_outcome_access("no exception");
-        }
-    }
-};
 } // namespace detail
 
 using oc::failure;
 using oc::success;
 
-template <typename R, typename E = error>
+template <typename R, typename E = system_error::error>
 using result = oc::basic_result<R, E, detail::result_no_value_policy>;
 
-template <typename R, typename E = error>
-using op_outcome = oc::basic_outcome<R,
-                                     E,
-                                     std::exception_ptr,
-                                     detail::outcome_no_value_policy>;
+template <typename T, typename U>
+    requires std::is_enum_v<std::remove_cvref_t<T>>
+          && std::derived_from<std::remove_cvref_t<U>,
+                               detail::error_detail_base>
+             auto operator<<(T &&c, U &&) noexcept -> std::remove_cvref_t<T>
+{
+    return c;
+}
+
+} // namespace vefs
+
+SYSTEM_ERROR2_NAMESPACE_BEGIN
+
+template <typename T, typename U>
+    requires std::derived_from<std::remove_cvref_t<U>,
+                               vefs::detail::error_detail_base>
+auto operator<<(status_code<T> &&c, U &&) noexcept -> status_code<T>
+{
+    return static_cast<status_code<T> &&>(c);
+}
+template <typename T, typename U>
+    requires std::derived_from<std::remove_cvref_t<U>,
+                               vefs::detail::error_detail_base>
+auto operator<<(status_code<T> &c, U &&) noexcept -> status_code<T> &
+{
+    return c;
+}
+
+SYSTEM_ERROR2_NAMESPACE_END
+
+namespace vefs
+{
 
 template <typename T, typename... Args>
     requires(!std::is_array_v<T>)
@@ -236,175 +209,17 @@ template <typename T, typename R>
 concept tryable_result
         = tryable<T> && std::convertible_to<result_value_t<T>, R>;
 
-template <typename T>
-struct can_result_contain_failure;
-
-template <typename R, typename EC, typename NVP>
-struct can_result_contain_failure<oc::basic_result<R, EC, NVP>>
-    : std::bool_constant<!std::is_void_v<EC>>
-{
-};
-template <typename R, typename EC, typename EP, typename NVP>
-struct can_result_contain_failure<oc::basic_outcome<R, EC, EP, NVP>>
-    : std::bool_constant<!std::is_void_v<EC> || !std::is_void_v<EP>>
-{
-};
-
-template <typename T>
-inline constexpr bool can_result_contain_failure_v
-        = can_result_contain_failure<T>::value;
-
-template <typename Fn, typename... Args>
-inline auto collect_disappointment_no_catch(Fn &&fn, Args &&...args) noexcept
-        -> decltype(auto)
-{
-    using invoke_result_type = std::invoke_result_t<Fn, Args...>;
-    if constexpr (std::is_void_v<invoke_result_type>)
-    {
-        std::invoke(std::forward<Fn>(fn), std::forward<Args>(args)...);
-        return result<std::monostate, void>(success());
-    }
-    else if constexpr (oc::is_basic_result_v<invoke_result_type>
-                       || oc::is_basic_outcome_v<invoke_result_type>)
-    {
-        return std::invoke(std::forward<Fn>(fn), std::forward<Args>(args)...);
-    }
-    else
-    {
-        return result<invoke_result_type, void>{success(std::invoke(
-                std::forward<Fn>(fn), std::forward<Args>(args)...))};
-    }
-}
-
-template <typename Fn, typename... Args>
-using collected_disappointment_t = typename std::conditional_t<
-        std::is_nothrow_invocable_v<Fn, Args...>,
-        result<void>,
-        op_outcome<void>>::
-        template rebind<typename decltype(collect_disappointment_no_catch(
-                std::declval<Fn>(), std::declval<Args>()...))::value_type>;
-
-template <typename Fn, typename... Args>
-inline auto collect_disappointment(Fn &&fn, Args &&...args) noexcept
-        -> decltype(auto)
-{
-    using invoke_result_type = std::invoke_result_t<Fn, Args...>;
-    if constexpr (std::is_nothrow_invocable_v<Fn, Args...>)
-    {
-        return collect_disappointment_no_catch(std::forward<Fn>(fn),
-                                               std::forward<Args>(args)...);
-    }
-    else
-    {
-        using result_type = op_outcome<typename invoke_result_type::value_type>;
-        try
-        {
-            return result_type{collect_disappointment_no_catch(
-                    std::forward<Fn>(fn), std::forward<Args>(args)...)};
-        }
-        catch (std::bad_alloc const &)
-        {
-            return result_type{failure(errc::not_enough_memory)};
-        }
-        catch (...)
-        {
-            return result_type{failure(std::current_exception())};
-        }
-    }
-
-    constexpr bool is_nothrow_invocable_v
-            = std::is_nothrow_invocable_v<Fn, Args...>;
-    using invoke_result_type = std::invoke_result_t<Fn, Args...>;
-    if constexpr (std::is_void_v<invoke_result_type>)
-    {
-        if constexpr (is_nothrow_invocable_v)
-        {
-            std::invoke(std::forward<Fn>(fn), std::forward<Args>(args)...);
-            return result<void>(success());
-        }
-        else
-        {
-            try
-            {
-                std::invoke(std::forward<Fn>(fn), std::forward<Args>(args)...);
-                return op_outcome<void>(success());
-            }
-            catch (std::bad_alloc const &)
-            {
-                return op_outcome<void>(failure(errc::not_enough_memory));
-            }
-            catch (...)
-            {
-                return op_outcome<void>(std::current_exception());
-            }
-        }
-    }
-    else if constexpr (oc::is_basic_result_v<invoke_result_type>
-                       || oc::is_basic_outcome_v<invoke_result_type>)
-    {
-        if constexpr (is_nothrow_invocable_v)
-        {
-            return std::invoke(std::forward<Fn>(fn),
-                               std::forward<Args>(args)...);
-        }
-        else
-        {
-            using outcome_type
-                    = op_outcome<typename invoke_result_type::value_type,
-                                 typename invoke_result_type::error_type>;
-            try
-            {
-                return outcome_type(std::invoke(std::forward<Fn>(fn),
-                                                std::forward<Args>(args)...));
-            }
-            catch (std::bad_alloc const &)
-            {
-                return outcome_type(failure(errc::not_enough_memory));
-            }
-            catch (...)
-            {
-                return outcome_type(std::current_exception());
-            }
-        }
-    }
-    else
-    {
-        if constexpr (is_nothrow_invocable_v)
-        {
-            return result<invoke_result_type>{success(std::invoke(
-                    std::forward<Fn>(fn), std::forward<Args>(args)...))};
-        }
-        else
-        {
-            using outcome_type = op_outcome<invoke_result_type>;
-            try
-            {
-                return outcome_type(success(std::invoke(
-                        std::forward<Fn>(fn), std::forward<Args>(args)...)));
-            }
-            catch (std::bad_alloc const &)
-            {
-                return outcome_type(failure(errc::not_enough_memory));
-            }
-            catch (...)
-            {
-                return outcome_type(std::current_exception());
-            }
-        }
-    }
-}
-
 namespace ed
 {
 enum class wrapped_error_tag
 {
 };
-using wrapped_error = error_detail<wrapped_error_tag, error>;
+using wrapped_error = error_detail<wrapped_error_tag, system_error::error>;
 
 enum class error_code_tag
 {
 };
-using error_code = error_detail<error_code_tag, std::error_code>;
+using error_code = error_detail<error_code_tag, system_error::error>;
 
 enum class error_code_origin_tag
 {
@@ -434,11 +249,13 @@ using archive_file_write_area
         = error_detail<archive_file_write_area_tag, file_span>;
 } // namespace ed
 
-auto collect_system_error() -> std::error_code;
+auto collect_system_error() -> system_error::system_code;
+
 } // namespace vefs
 
 #define VEFS_TRY(...) OUTCOME_TRY(__VA_ARGS__)
 
-#define VEFS_TRY_INJECT(stmt, injected)                                        \
-    VEFS_TRY(vefs::inject((stmt), [&](auto &_vefsError) mutable                \
-                          { _vefsError << injected; }))
+#define VEFS_TRY_INJECT(stmt, injected) VEFS_TRY(stmt)
+// #define VEFS_TRY_INJECT(stmt, injected)
+//     VEFS_TRY(vefs::inject((stmt), [&](auto &_vefsError) mutable
+//                           { _vefsError << injected; }))

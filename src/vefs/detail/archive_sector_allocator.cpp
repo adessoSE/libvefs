@@ -81,7 +81,8 @@ auto archive_sector_allocator::alloc_one() noexcept -> result<sector_id>
     std::lock_guard allocGuard{mAllocatorSync};
 
     if (auto allocationrx = mSectorManager.alloc_one();
-        allocationrx || allocationrx.assume_error() != errc::resource_exhausted)
+        allocationrx
+        || allocationrx.assume_error() != archive_errc::resource_exhausted)
     {
         return allocationrx;
     }
@@ -127,7 +128,7 @@ auto archive_sector_allocator::mine_new_raw(int num) noexcept
     auto oldSize = mSectorDevice.size();
     if (auto resizerx = mSectorDevice.resize(oldSize + num); !resizerx)
     {
-        return error(errc::resource_exhausted)
+        return archive_errc::resource_exhausted
             << ed::wrapped_error(std::move(resizerx).assume_error());
     }
     sector_id first{oldSize};

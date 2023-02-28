@@ -13,7 +13,7 @@ namespace vefs::crypto
 
 auto cbor_box_layout_head(dplx::dp::memory_buffer &outStream,
                           std::uint16_t dataLength) noexcept
-        -> result<cbor_box_layout>
+        -> dplx::dp::result<cbor_box_layout>
 {
     using namespace dplx;
 
@@ -33,7 +33,7 @@ auto cbor_box_layout_head(dplx::dp::memory_buffer &outStream,
 }
 
 auto cbor_box_decode_head(dplx::dp::memory_buffer &inStream) noexcept
-        -> result<cbor_box_head>
+        -> dplx::dp::result<cbor_box_head>
 {
     using namespace dplx;
     using parse = dp::item_parser<dp::memory_buffer>;

@@ -1,5 +1,6 @@
 #pragma once
 
+#include <dplx/dp/disappointment.hpp>
 #include <dplx/dp/memory_buffer.hpp>
 
 #include <vefs/crypto/provider.hpp>
@@ -25,8 +26,8 @@ struct cbor_box_layout
 
 auto cbor_box_layout_head(dplx::dp::memory_buffer &outStream,
                           std::uint16_t dataLength) noexcept
-        -> result<cbor_box_layout>;
+        -> dplx::dp::result<cbor_box_layout>;
 
 auto cbor_box_decode_head(dplx::dp::memory_buffer &inStream) noexcept
-        -> result<cbor_box_head>;
+        -> dplx::dp::result<cbor_box_head>;
 } // namespace vefs::crypto
