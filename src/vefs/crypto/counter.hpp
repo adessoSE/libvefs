@@ -8,12 +8,16 @@
 #include <mutex>
 #include <stdexcept>
 
+#include <dplx/dp.hpp>
+#include <dplx/dp/macros.hpp>
+
 #include <vefs/exceptions.hpp>
 #include <vefs/span.hpp>
 #include <vefs/utils/secure_array.hpp>
 
 namespace vefs::crypto
 {
+
 class counter
 {
 public:
@@ -79,12 +83,13 @@ inline bool operator!=(counter const &lhs, counter const &rhs)
 {
     return !(lhs == rhs);
 }
+
 } // namespace vefs::crypto
 
-namespace std
-{
+DPLX_DP_DECLARE_CODEC_SIMPLE(vefs::crypto::counter);
+
 template <>
-struct atomic<vefs::crypto::counter>
+struct std::atomic<vefs::crypto::counter>
 {
     using value_type = vefs::crypto::counter;
 
@@ -189,9 +194,12 @@ private:
     vefs::crypto::counter mImpl;
     mutable std::mutex mAccessMutex;
 };
-} // namespace std
 
 namespace vefs::crypto
 {
+
 using atomic_counter = std::atomic<counter>;
+
 }
+
+DPLX_DP_DECLARE_CODEC_SIMPLE(vefs::crypto::atomic_counter);

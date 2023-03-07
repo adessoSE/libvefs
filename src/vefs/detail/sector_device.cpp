@@ -4,10 +4,16 @@
 #include <optional>
 #include <random>
 
-#include <dplx/dp/decoder/std_container.hpp>
-#include <dplx/dp/decoder/tuple_utils.hpp>
-#include <dplx/dp/streams/memory_input_stream.hpp>
-#include <dplx/dp/streams/memory_output_stream.hpp>
+#include <dplx/dp.hpp>
+#include <dplx/dp/api.hpp>
+#include <dplx/dp/codecs/auto_tuple.hpp>
+#include <dplx/dp/codecs/std-container.hpp>
+#include <dplx/dp/items/emit_core.hpp>
+#include <dplx/dp/items/encoded_item_head_size.hpp>
+#include <dplx/dp/items/parse_core.hpp>
+#include <dplx/dp/items/parse_ranges.hpp>
+#include <dplx/dp/legacy/memory_input_stream.hpp>
+#include <dplx/dp/legacy/memory_output_stream.hpp>
 
 #include <vefs/span.hpp>
 #include <vefs/utils/misc.hpp>
@@ -16,28 +22,21 @@
 #include <vefs/utils/secure_array.hpp>
 
 #include "../crypto/cbor_box.hpp"
-#include "../crypto/counter.codec.hpp"
 #include "../crypto/kdf.hpp"
 #include "../platform/sysrandom.hpp"
 #include "archive_file_id.hpp"
-#include "archive_header.codec.hpp"
-#include "file_descriptor.codec.hpp"
 #include "io_buffer_manager.hpp"
-#include "secure_array.codec.hpp"
 
-template <dplx::dp::input_stream Stream>
-class dplx::dp::basic_decoder<vefs::detail::master_header, Stream>
+template <>
+class dplx::dp::codec<vefs::detail::master_header>
 {
-    using parse = item_parser<Stream>;
+    using master_header = vefs::detail::master_header;
 
 public:
-    using value_type = vefs::detail::master_header;
-    inline auto operator()(Stream &inStream, value_type &value) const
+    static auto decode(parse_context &ctx, master_header &value) noexcept
             -> result<void>
     {
-        DPLX_TRY(auto headerHead,
-                 dp::parse_tuple_head(inStream, std::true_type{}));
-
+        DPLX_TRY(auto headerHead, dp::decode_tuple_head(ctx, std::true_type{}));
         if (headerHead.version != 0)
         {
             return errc::item_version_mismatch;
@@ -47,32 +46,31 @@ public:
             return errc::tuple_size_mismatch;
         }
 
-        DPLX_TRY(parse::expect(inStream, type_code::binary,
-                               value.master_secret.size(), parse_mode::strict));
-        DPLX_TRY(read(inStream, value.master_secret.data(),
-                      value.master_secret.size()));
+        DPLX_TRY(dp::expect_item_head(ctx, type_code::binary,
+                                      value.master_secret.size()));
+        DPLX_TRY(ctx.in.bulk_read(value.master_secret.data(),
+                                  value.master_secret.size()));
 
-        return decode(inStream, value.master_counter);
+        return dp::decode(ctx, value.master_counter);
     }
-};
-
-template <dplx::dp::output_stream Stream>
-class dplx::dp::basic_encoder<vefs::detail::master_header, Stream>
-{
-    using emit = item_emitter<Stream>;
-
-public:
-    using value_type = vefs::detail::master_header;
-    inline auto operator()(Stream &outStream, value_type const &value) const
+    static auto size_of(emit_context &ctx, master_header const &value) noexcept
+            -> std::uint64_t
+    {
+        return dp::encoded_item_head_size<type_code::array>(3U)
+             + dp::item_size_of_integer(ctx, 0U)
+             + dp::encoded_size_of(ctx, value.master_secret)
+             + dp::item_size_of_binary(ctx, vefs::crypto::counter::state_size);
+    }
+    static auto encode(emit_context &ctx, master_header const &value) noexcept
             -> result<void>
     {
-        DPLX_TRY(emit::array(outStream, 3u));
-        DPLX_TRY(emit::integer(outStream, 0u)); // version prop
+        DPLX_TRY(dp::emit_array(ctx, 3U));
+        DPLX_TRY(dp::emit_integer(ctx, 0U)); // version prop
 
-        DPLX_TRY(encode(outStream, value.master_secret));
+        DPLX_TRY(dp::encode(ctx, value.master_secret));
 
         auto const counter = value.master_counter.load();
-        return encode(outStream, counter.view());
+        return dp::encode(ctx, counter.view());
     }
 };
 

@@ -135,7 +135,7 @@ public:
 
     auto try_evict(replacement_iterator &&which,
                    index_type &where,
-                   page_state::state_type &generation) noexcept
+                   typename page_state::state_type &generation) noexcept
             -> cache_replacement_result
     {
         auto const rx = which->try_start_replace(generation);

@@ -3,11 +3,13 @@
 #include <boost/container/small_vector.hpp>
 #include <boost/endian/conversion.hpp>
 
-#include <dplx/dp/item_emitter.hpp>
-#include <dplx/dp/memory_buffer.hpp>
-#include <dplx/dp/stream.hpp>
-#include <dplx/dp/streams/chunked_input_stream.hpp>
-#include <dplx/dp/streams/chunked_output_stream.hpp>
+#include <dplx/dp/api.hpp>
+#include <dplx/dp/items/emit_core.hpp>
+#include <dplx/dp/items/item_size_of_ranges.hpp>
+#include <dplx/dp/items/parse_core.hpp>
+#include <dplx/dp/legacy/chunked_input_stream.hpp>
+#include <dplx/dp/legacy/chunked_output_stream.hpp>
+#include <dplx/dp/legacy/memory_buffer.hpp>
 #include <dplx/dp/streams/memory_input_stream.hpp>
 #include <dplx/dp/streams/memory_output_stream.hpp>
 
@@ -18,13 +20,13 @@
 
 #include "detail/archive_sector_allocator.hpp"
 #include "detail/archive_tree_allocator.hpp"
-#include "detail/file_descriptor.codec.hpp"
 #include "detail/file_descriptor.hpp"
 #include "detail/sector_tree_seq.hpp"
 #include "platform/sysrandom.hpp"
 
 namespace vefs
 {
+
 class vfilesystem::index_tree_layout
 {
 public:
@@ -115,11 +117,12 @@ private:
     };
 
     class tree_input_stream final
-        : public dplx::dp::chunked_input_stream_base<tree_input_stream>
+        : public dplx::dp::legacy::chunked_input_stream_base<tree_input_stream>
     {
-        friend class dplx::dp::chunked_input_stream_base<tree_input_stream>;
-        using base_type
-                = dplx::dp::chunked_input_stream_base<tree_input_stream>;
+        friend class dplx::dp::legacy::chunked_input_stream_base<
+                tree_input_stream>;
+        using base_type = dplx::dp::legacy::chunked_input_stream_base<
+                tree_input_stream>;
 
         tree_type *mTree;
         tree_type::read_handle mCurrentSector;
@@ -158,8 +161,7 @@ private:
             sectorContent = sectorContent.subspan(
                     alloc_map_size + blockOffset * block_size, maxChunkSize);
 
-            VEFS_TRY(auto streamInfo,
-                     parse_stream_prefix(sectorContent.data()));
+            VEFS_TRY(auto streamInfo, parse_stream_prefix(sectorContent));
 
             auto const initialChunkSize
                     = std::min(streamInfo.stream_size,
@@ -185,13 +187,14 @@ private:
         }
 
     private:
-        static auto parse_stream_prefix(std::byte const *data)
-                -> dplx::dp::result<stream_info>
+        static auto parse_stream_prefix(std::span<std::byte const> content)
+                -> result<stream_info>
         {
             using namespace dplx;
+            auto &&buffer = dp::get_input_buffer(std::move(content));
+            dp::parse_context ctx{buffer};
 
-            DPLX_TRY(dp::item_info const streamInfo,
-                     dp::detail::parse_item_speculative(data));
+            DPLX_TRY(dp::item_head const &streamInfo, dp::parse_item_head(ctx));
 
             if (streamInfo.type != dp::type_code::binary)
             {
@@ -213,22 +216,7 @@ private:
             auto const currentPosition = mCurrentSector.node_position();
             auto const nextPosition = next(currentPosition);
 
-            if (auto accessRx = mTree->access(nextPosition);
-                accessRx.has_failure()) [[unlikely]]
-            {
-                if (accessRx.assume_error()
-                    == archive_errc::sector_reference_out_of_range)
-                {
-                    return dplx::dp::errc::end_of_stream;
-                }
-
-                // #TODO implement underlying error forwarding
-                return dplx::dp::errc::bad;
-            }
-            else [[likely]]
-            {
-                mCurrentSector = std::move(accessRx).assume_value();
-            }
+            DPLX_TRY(mCurrentSector, mTree->access(nextPosition));
 
             std::span<std::byte const> const memory = as_span(mCurrentSector);
 
@@ -246,7 +234,6 @@ private:
                     memory.subspan(alloc_map_size, nextChunkSize));
         }
     };
-    static_assert(dplx::dp::input_stream<tree_input_stream>);
 
     auto find_next_entry(tree_stream_position begin) noexcept
             -> result<tree_stream_position>
@@ -275,10 +262,11 @@ private:
     }
 
     class tree_writer final
-        : public dplx::dp::chunked_output_stream_base<tree_writer>
+        : public dplx::dp::legacy::chunked_output_stream_base<tree_writer>
     {
-        friend class dplx::dp::chunked_output_stream_base<tree_writer>;
-        using base_type = dplx::dp::chunked_output_stream_base<tree_writer>;
+        friend class dplx::dp::legacy::chunked_output_stream_base<tree_writer>;
+        using base_type
+                = dplx::dp::legacy::chunked_output_stream_base<tree_writer>;
 
         index_tree_layout *mOwner;
         tree_type::write_handle mCurrentSector;
@@ -297,16 +285,15 @@ private:
         static auto write_byte_stream_prefix(tree_type::write_handle &handle,
                                              std::uint64_t offset,
                                              std::uint32_t size)
-                -> dplx::dp::result<int>
+                -> result<std::uint64_t>
         {
-            using emit = dplx::dp::item_emitter<dplx::dp::memory_buffer>;
-
-            dplx::dp::memory_buffer buffer(
+            dplx::dp::memory_output_stream buffer(
                     as_span(handle).subspan(offset, block_size));
+            dplx::dp::emit_context ctx{buffer};
 
-            VEFS_TRY(emit::binary(buffer, size));
+            VEFS_TRY(dplx::dp::emit_binary(ctx, size));
 
-            return buffer.consumed_size();
+            return buffer.written_size();
         }
 
     public:
@@ -330,7 +317,7 @@ private:
             tree_type::write_handle writeHandle
                     = std::move(firstSector).as_writable();
             owner.write_block_header(writeHandle);
-            VEFS_TRY(auto &&prefixSize,
+            VEFS_TRY(auto prefixSize,
                      write_byte_stream_prefix(writeHandle, inSectorOffset,
                                               encodedSize));
 
@@ -501,9 +488,12 @@ public:
         descriptor.data = entry.tree_info;
         descriptor.modificationTime = {};
 
-        auto const encodedSize = dplx::dp::encoded_size_of(descriptor);
+        dplx::dp::void_stream sizeOfDummyStream;
+        dplx::dp::emit_context sizeOfCtx{sizeOfDummyStream};
+        auto const encodedSize
+                = dplx::dp::encoded_size_of(sizeOfCtx, descriptor);
         auto const streamSize
-                = encodedSize + dplx::dp::encoded_size_of(encodedSize);
+                = dplx::dp::item_size_of_binary(sizeOfCtx, encodedSize);
 
         auto const neededBlocks
                 = static_cast<int>(utils::div_ceil(streamSize, block_size));

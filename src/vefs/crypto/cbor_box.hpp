@@ -1,7 +1,9 @@
 #pragma once
 
+#include <cstdint>
+
 #include <dplx/dp/disappointment.hpp>
-#include <dplx/dp/memory_buffer.hpp>
+#include <dplx/dp/legacy/memory_buffer.hpp>
 
 #include <vefs/crypto/provider.hpp>
 #include <vefs/disappointment.hpp>

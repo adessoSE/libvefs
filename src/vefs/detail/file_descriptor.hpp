@@ -6,6 +6,8 @@
 #include <boost/predef/compiler.h>
 #include <boost/predef/other/workaround.h>
 
+#include <dplx/dp.hpp>
+#include <dplx/dp/macros.hpp>
 #include <dplx/dp/object_def.hpp>
 
 #include <vefs/platform/secure_memzero.hpp>
@@ -18,6 +20,7 @@
 
 namespace vefs::detail
 {
+
 struct file_descriptor
 {
     uuid fileId;
@@ -55,7 +58,8 @@ struct file_descriptor
         secretCounter = ctxState.counter;
     }
 
-#if BOOST_PREDEF_TESTED_AT(BOOST_COMP_MSVC, 19, 29, 30037)
+#if defined BOOST_COMP_MSVC_AVAILABLE                                          \
+        && BOOST_COMP_MSVC < BOOST_VERSION_NUMBER(19, 35, 32215)
     struct root_sector_accessor
         : dplx::dp::member_accessor_base<file_descriptor, sector_id>
     {
@@ -96,7 +100,8 @@ struct file_descriptor
             dplx::dp::property_def<2U, &file_descriptor::filePath>{},
             dplx::dp::property_def<3U, &file_descriptor::secret>{},
             dplx::dp::property_def<4U, &file_descriptor::secretCounter>{},
-#if BOOST_PREDEF_TESTED_AT(BOOST_COMP_MSVC, 19, 29, 30037)
+#if defined BOOST_COMP_MSVC_AVAILABLE                                          \
+        && BOOST_COMP_MSVC < BOOST_VERSION_NUMBER(19, 35, 32215)
             dplx::dp::property_fun<5U, root_sector_accessor>{},
             dplx::dp::property_fun<6U, root_mac_accessor>{},
             dplx::dp::property_fun<7U, max_extent_accessor>{},
@@ -122,3 +127,5 @@ struct file_descriptor
 };
 
 } // namespace vefs::detail
+
+DPLX_DP_DECLARE_CODEC_SIMPLE(vefs::detail::file_descriptor);

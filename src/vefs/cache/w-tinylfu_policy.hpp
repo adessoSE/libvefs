@@ -244,7 +244,7 @@ public:
 
     auto try_evict(replacement_iterator &&which,
                    index_type &where,
-                   page_state::state_type &nextGeneration) noexcept
+                   typename page_state::state_type &nextGeneration) noexcept
             -> cache_replacement_result
     {
         cache_replacement_result rx;

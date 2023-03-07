@@ -2,6 +2,10 @@
 
 #include <array>
 
+#include <dplx/dp.hpp>
+#include <dplx/dp/macros.hpp>
+#include <dplx/dp/object_def.hpp>
+
 #include "file_descriptor.hpp"
 
 namespace vefs::detail
@@ -26,3 +30,5 @@ struct archive_header
 };
 
 } // namespace vefs::detail
+
+DPLX_DP_DECLARE_CODEC_SIMPLE(vefs::detail::archive_header);

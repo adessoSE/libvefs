@@ -6,7 +6,7 @@
 #include <new>
 #include <semaphore>
 
-#include <dplx/dp/memory_buffer.hpp>
+#include <dplx/dp/legacy/memory_buffer.hpp>
 #include <dplx/predef/compiler.h>
 
 #include <vefs/disappointment.hpp>
