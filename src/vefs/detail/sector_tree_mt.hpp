@@ -286,7 +286,7 @@ public:
         VEFS_TRY(updated.sector, mTreeAllocator.reallocate(node.allocation()));
 
         VEFS_TRY_INJECT(mDevice.write_sector(updated.mac, mCryptoCtx,
-                                             updated.sector, node.content()),
+                                             updated.sector, content),
                         ed::sector_tree_position{nodePosition});
 
         if (parent == nullptr)

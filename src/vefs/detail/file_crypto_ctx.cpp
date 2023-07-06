@@ -13,7 +13,7 @@ constexpr auto byte_literal(char8_t const (&arr)[N]) noexcept
 }
 
 constexpr auto sector_kdf_salt = byte_literal(u8"vefs/salt/Sector-Salt");
-constexpr auto sector_kdf_erase = byte_literal(u8"vefs/erase/Sector");
+// constexpr auto sector_kdf_erase = byte_literal(u8"vefs/erase/Sector");
 constexpr auto sector_kdf_prk = byte_literal(u8"vefs/prk/SectorPRK");
 } // namespace
 
