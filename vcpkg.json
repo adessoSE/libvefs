@@ -12,7 +12,6 @@
         "boost-integer",
         "boost-intrusive",
         "boost-iterator",
-        "boost-json",
         "boost-mp11",
         "boost-predef",
         "boost-preprocessor",
@@ -36,7 +35,8 @@
         "cli": {
             "description": "Build the CLI",
             "dependencies": [
-                "bfgroup-lyra"
+                "bfgroup-lyra",
+                "boost-json"
             ]
         },
         "tests": {
