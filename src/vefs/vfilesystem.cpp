@@ -1180,12 +1180,12 @@ auto vfilesystem::replace_corrupted_sectors() -> result<void>
         }
 
         VEFS_TRY_INJECT(tree->commit(
-                                [&](detail::root_sector_info newRoot)
+                                [this, &it](detail::root_sector_info newRoot)
                                 {
-                                    if (e.tree_info != newRoot)
+                                    if (it->second.tree_info != newRoot)
                                     {
-                                        e.tree_info = newRoot;
-                                        e.needs_index_update = true;
+                                        it->second.tree_info = newRoot;
+                                        it->second.needs_index_update = true;
                                         mWriteFlag.mark();
                                     }
                                 }),
