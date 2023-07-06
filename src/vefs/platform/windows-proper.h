@@ -8,10 +8,16 @@
 
 #if defined BOOST_OS_WINDOWS_AVAILABLE
 
-#define VC_EXTRALEAN        1
+#ifndef VC_EXTRALEAN
+#define VC_EXTRALEAN 1
+#endif
+#ifndef WIN32_LEAN_AND_MEAN
 #define WIN32_LEAN_AND_MEAN 1
+#endif
 
+#ifndef NOMINMAX
 #define NOMINMAX 1
+#endif
 
 #include <windows.h>
 
