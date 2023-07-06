@@ -124,30 +124,6 @@ auto const sector_kdf_prk = byte_literal("vefs/prk/SectorPRK");
 auto const file_kdf_secret = byte_literal("vefs/seed/FileSecret");
 auto const file_kdf_counter = byte_literal("vefs/seed/FileSecretCounter");
 
-#pragma pack(push, 1)
-
-struct StaticArchiveHeaderPrefix
-{
-    std::array<std::byte, 4> magic_number;
-    std::array<std::byte, 32> static_header_salt;
-    std::array<std::byte, 16> static_header_mac;
-    uint32_t static_header_length;
-};
-static_assert(sizeof(StaticArchiveHeaderPrefix) == 56);
-
-struct ArchiveHeaderPrefix
-{
-    std::array<std::byte, 32> header_salt;
-    std::array<std::byte, 16> header_mac;
-    uint32_t header_length;
-
-    constexpr static auto unencrypted_prefix_size
-            = sizeof(ArchiveHeaderPrefix::header_salt)
-            + sizeof(ArchiveHeaderPrefix::header_mac);
-};
-static_assert(sizeof(ArchiveHeaderPrefix) == 52);
-
-#pragma pack(pop)
 } // namespace
 
 auto sector_device::create_file_secrets() noexcept
