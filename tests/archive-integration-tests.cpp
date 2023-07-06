@@ -137,7 +137,7 @@ BOOST_AUTO_TEST_CASE(sqlite_bridge_regression_2)
 
         for (int i = 0; i < 0xf6; ++i)
         {
-            BOOST_TEST_CONTEXT(i);
+            BOOST_TEST_INFO_SCOPE(i);
 
             TEST_RESULT_REQUIRE(
                     testSubject.write(f, fileData, 0x0000000ull + i * 0x1000u));
@@ -151,7 +151,7 @@ BOOST_AUTO_TEST_CASE(sqlite_bridge_regression_2)
 
         for (int j = 0; j < 98; ++j)
         {
-            BOOST_TEST_CONTEXT(j);
+            BOOST_TEST_INFO_SCOPE(j);
 
             TEST_RESULT_REQUIRE(testSubject.write(f, fileData,
                                                   0x000f5000ull + j * 0x1000u));
@@ -165,7 +165,7 @@ BOOST_AUTO_TEST_CASE(sqlite_bridge_regression_2)
 
         for (int j = 0; j < 111; ++j)
         {
-            BOOST_TEST_CONTEXT(j);
+            BOOST_TEST_INFO_SCOPE(j);
 
             TEST_RESULT_REQUIRE(testSubject.write(f, fileData,
                                                   0x0010d000ull + j * 0x1000u));
