@@ -58,7 +58,46 @@ set_property(CACHE VEFS_LLFIO_TARGET PROPERTY STRINGS "hl;sl;dl")
 ########################################################################
 # dependencies
 
-find_package(base64 REQUIRED)
+find_package(base64 CONFIG REQUIRED)
+
+find_package(fmt CONFIG REQUIRED)
+
+find_package(unofficial-concurrentqueue CONFIG REQUIRED)
+
+find_package(libb2 REQUIRED CONFIG)
+
+find_package(libcuckoo CONFIG REQUIRED)
+
+find_package(stduuid CONFIG REQUIRED)
+
+find_package(OpenSSL REQUIRED)
+
+if (BUILD_TESTING)
+    set(_VEFS_REQUIRE_UNIT_TEST_FRAMEWORK unit_test_framework)
+endif()
+find_package(Boost 1.82 REQUIRED COMPONENTS
+    ${_VEFS_REQUIRE_UNIT_TEST_FRAMEWORK}
+)
+
+find_package(status-code CONFIG REQUIRED)
+find_package(outcome CONFIG REQUIRED)
+find_package(llfio CONFIG REQUIRED)
+
+# botan provider is currently not implemented
+#find_package(botan 2.8.0)
+
+find_package(concrete CONFIG REQUIRED)
+find_package(deeppack CONFIG REQUIRED)
+
+if (BUILD_CLI)
+    find_package(lyra REQUIRED)
+endif()
+
+find_package(benchmark)
+
+if (BUILD_TESTING)
+    find_package(GTest CONFIG REQUIRED)
+endif()
 
 find_package(Catch2 CONFIG)
 set_package_properties(Catch2 PROPERTIES
@@ -74,49 +113,10 @@ set_package_properties(Sphinx PROPERTIES
 )
 cmake_dependent_option(BUILD_DOCS "Build the documentation using sphinx" ON Sphinx_FOUND OFF)
 
-find_package(outcome CONFIG REQUIRED)
-
-find_package(llfio CONFIG REQUIRED)
-
-find_package(unofficial-concurrentqueue CONFIG REQUIRED)
-
-find_package(libb2 REQUIRED CONFIG)
-
-find_package(libcuckoo CONFIG REQUIRED)
-
-find_package(stduuid CONFIG REQUIRED)
-
-find_package(OpenSSL REQUIRED)
-
-if (BUILD_TESTING)
-    find_package(GTest CONFIG REQUIRED)
-endif()
-
-# botan provider is currently not implemented
-#find_package(botan 2.8.0)
-
-find_package(concrete CONFIG REQUIRED)
-find_package(deeppack CONFIG REQUIRED)
-
-if (BUILD_TESTING)
-    set(_VEFS_REQUIRE_UNIT_TEST_FRAMEWORK unit_test_framework)
-endif()
-find_package(Boost 1.70 REQUIRED COMPONENTS
-    ${_VEFS_REQUIRE_UNIT_TEST_FRAMEWORK}
-)
-
-if (BUILD_CLI)
-    find_package(lyra REQUIRED)
-endif()
-
-find_package(benchmark)
-
-# fmt library
-find_package(fmt CONFIG REQUIRED)
-
 if (NOT (botan_FOUND OR OpenSSL_FOUND))
     message(WARNING "no crypto provider library (BoringSSL, botan) could be found.")
 endif()
+
 
 ########################################################################
 # warning configuration
@@ -183,8 +183,6 @@ if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
     )
     target_compile_definitions(vefs
         PRIVATE
-            # specify winapi version to windows 8.1
-            -D_WIN32_WINNT=0x0603
             # force unicode WINAPI symbols
             -DUNICODE -D_UNICODE
     )
