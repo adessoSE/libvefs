@@ -1,5 +1,6 @@
 #include "vefs/cli/commandlets/base.hpp"
 
+#include <array>
 #include <cstddef>
 #include <ranges>
 #include <vector>
@@ -12,8 +13,8 @@ namespace vefs::cli
 
 auto archive_options::get_key() const noexcept -> result<storage_key>
 {
-    if (auto const numProviders = std::ranges::count(
-                std::initializer_list{mdcProvider, key.has_value()}, true);
+    if (auto const numProviders
+        = std::ranges::count(std::array{mdcProvider, key.has_value()}, true);
         numProviders != 1)
     {
         using namespace std::string_view_literals;

@@ -34,14 +34,14 @@ BOOST_AUTO_TEST_CASE(allocate_more_than_buffered)
         for (std::size_t i = 0;
              i < allocations.size() && !allocations[i].empty(); ++i)
         {
-            BOOST_TEST_CONTEXT(i);
+            BOOST_TEST_INFO_SCOPE(i);
             subject.deallocate(allocations[i]);
         }
     };
 
     for (std::size_t i = 0; i < allocations.size(); ++i)
     {
-        BOOST_TEST_CONTEXT(i);
+        BOOST_TEST_INFO_SCOPE(i);
 
         auto allocRx = subject.allocate();
         TEST_RESULT_REQUIRE(allocRx);

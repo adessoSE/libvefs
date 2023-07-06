@@ -162,7 +162,7 @@ inline unsigned char add_carry(unsigned char carry, T a, T b, T *out)
     }
 }
 
-#if defined BOOST_COMP_MSVC_AVAILABLE
+#if defined(BOOST_COMP_MSVC_AVAILABLE) && !defined(BOOST_COMP_CLANG_AVAILABLE)
 #pragma inline_recursion(on)
 #endif
 
