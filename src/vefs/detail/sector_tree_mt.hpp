@@ -785,7 +785,7 @@ private:
         {
             if constexpr (ReturnParentIfNotAllocated)
             {
-                return get_anchor_sector(pathBegin->layer());
+                return get_anchor_sector((*pathBegin).layer());
             }
             else
             {

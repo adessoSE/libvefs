@@ -616,7 +616,7 @@ inline auto sector_tree_seq<TreeAllocator>::load(
         return success();
     }
 
-    auto const numChanged = updateIt->layer();
+    auto const numChanged = (*updateIt).layer();
     for (int i = last_loaded_index(); i <= numChanged; ++i)
     {
         VEFS_TRY(sync_to_device(i));

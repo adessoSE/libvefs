@@ -161,8 +161,8 @@ BOOST_AUTO_TEST_CASE(iterator_test_begin)
 
     auto iter = test_subject.begin();
 
-    BOOST_TEST(5 == iter->layer());
-    BOOST_TEST(0u == iter->position());
+    BOOST_TEST(5 == (*iter).layer());
+    BOOST_TEST(0u == (*iter).position());
 }
 
 BOOST_AUTO_TEST_CASE(iterator_test_next_in_the_middle_of_path)
@@ -204,7 +204,7 @@ BOOST_AUTO_TEST_CASE(iterator_test_end)
     vefs::detail::tree_path test_subject = vefs::detail::tree_path(3, position);
 
     auto path_iter = test_subject.end();
-    BOOST_TEST(1 == path_iter->layer());
+    BOOST_TEST(1 == (*path_iter).layer());
 }
 
 BOOST_AUTO_TEST_SUITE_END()

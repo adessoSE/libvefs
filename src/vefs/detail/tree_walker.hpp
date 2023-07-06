@@ -11,8 +11,6 @@
 
 #include <fmt/format.h>
 
-#include <boost/iterator/iterator_facade.hpp>
-
 #include <vefs/disappointment/error_detail.hpp>
 
 #include "sector_device.hpp"
@@ -20,6 +18,7 @@
 
 namespace vefs::detail
 {
+
 struct tree_position final
 {
 private:
@@ -139,30 +138,76 @@ private:
 };
 
 class tree_path::iterator
-    : public boost::iterator_facade<tree_path::iterator,
-                                    tree_position,
-                                    std::bidirectional_iterator_tag,
-                                    tree_position>
 {
-    friend class boost::iterator_core_access;
-
-public:
-    iterator();
-    iterator(tree_path const &path);
-    iterator(tree_path const &path, int layer);
-
-    int array_offset();
-
-private:
-    bool equal(iterator const &other) const;
-
-    tree_position dereference() const;
-    void increment();
-    void decrement();
-
     tree_path const *mOwner;
     int mLayer;
+
+public:
+    constexpr iterator() noexcept
+        : mOwner{nullptr}
+        , mLayer{-1}
+    {
+    }
+
+    using value_type = tree_position;
+    using difference_type = int;
+    using iterator_category = std::bidirectional_iterator_tag;
+
+    iterator(tree_path const &path)
+        : iterator(path, path.mTreeDepth)
+    {
+    }
+    iterator(tree_path const &path, int layer)
+        : mOwner(&path)
+        , mLayer(layer)
+    {
+    }
+
+    friend constexpr auto operator==(iterator const &lhs,
+                                     iterator const &rhs) noexcept -> bool
+    {
+        if (lhs.mLayer < 0)
+        {
+            return rhs.mLayer < 0;
+        }
+        return lhs.mLayer == rhs.mLayer && lhs.mOwner == rhs.mOwner;
+    }
+
+    auto operator*() const noexcept -> value_type
+    {
+        return mOwner->layer_position(mLayer);
+    }
+
+    auto operator++() noexcept -> iterator &
+    {
+        mLayer -= 1;
+        return *this;
+    }
+    auto operator++(int) noexcept -> iterator
+    {
+        auto old = *this;
+        operator++();
+        return old;
+    }
+    auto operator--() noexcept -> iterator &
+    {
+        mLayer += 1;
+        return *this;
+    }
+    auto operator--(int) noexcept -> iterator
+    {
+        auto old = *this;
+        operator--();
+        return old;
+    }
+
+    int array_offset()
+    {
+        return mOwner->offset(mLayer);
+    }
 };
+static_assert(std::bidirectional_iterator<tree_path::iterator>);
+
 } // namespace vefs::detail
 
 namespace vefs::detail
@@ -407,50 +452,6 @@ inline tree_path::operator bool() const noexcept
 #pragma endregion
 
 #pragma region tree_path::iterator implementation
-
-inline tree_path::iterator::iterator()
-    : mOwner(nullptr)
-    , mLayer(-1)
-{
-}
-inline tree_path::iterator::iterator(tree_path const &path, int layer)
-    : mOwner(&path)
-    , mLayer(layer)
-{
-}
-inline tree_path::iterator::iterator(tree_path const &path)
-    : iterator(path, path.mTreeDepth)
-{
-}
-
-inline int tree_path::iterator::array_offset()
-{
-    return mOwner->offset(mLayer);
-}
-
-inline tree_position tree_path::iterator::dereference() const
-{
-    return mOwner->layer_position(mLayer);
-}
-
-inline void tree_path::iterator::increment()
-{
-    mLayer -= 1;
-}
-
-inline void tree_path::iterator::decrement()
-{
-    mLayer += 1;
-}
-
-inline bool tree_path::iterator::equal(iterator const &other) const
-{
-    if (mLayer < 0)
-    {
-        return other.mLayer < 0;
-    }
-    return mLayer == other.mLayer && mOwner == other.mOwner;
-}
 
 inline auto tree_path::begin() const -> const_iterator
 {
