@@ -274,9 +274,11 @@ private:
         explicit tree_writer(index_tree_layout &owner,
                              tree_type::write_handle &&currentSector,
                              std::uint64_t inSectorOffset,
-                             std::uint64_t size)
-            : base_type(as_span(currentSector).subspan(inSectorOffset),
-                        size - inSectorOffset)
+                             std::uint64_t inSectorSize,
+                             std::uint64_t streamSize)
+            : base_type(as_span(currentSector)
+                                .subspan(inSectorOffset, inSectorSize),
+                        streamSize - inSectorSize)
             , mOwner(&owner)
             , mCurrentSector(std::move(currentSector))
         {
@@ -321,8 +323,13 @@ private:
                      write_byte_stream_prefix(writeHandle, inSectorOffset,
                                               encodedSize));
 
-            return tree_writer(owner, std::move(writeHandle),
-                               inSectorOffset + prefixSize, size);
+            auto const remainingSectorSize
+                    = detail::sector_device::sector_payload_size
+                    - (inSectorOffset + prefixSize);
+            return tree_writer(
+                    owner, std::move(writeHandle), inSectorOffset + prefixSize,
+                    size <= remainingSectorSize ? size : remainingSectorSize,
+                    size);
         }
 
     private:
