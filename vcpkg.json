@@ -1,7 +1,7 @@
 {
     "$schema": "https://raw.githubusercontent.com/microsoft/vcpkg-tool/master/docs/vcpkg.schema.json",
     "name": "vefs",
-    "version-semver": "0.5.0-beta.4",
+    "version-semver": "0.5.0-beta.5",
     "homepage": "https://github.com/adessose/libvefs",
     "dependencies": [
         "base64",
