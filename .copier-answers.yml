@@ -1,13 +1,12 @@
 # Changes here will be overwritten by Copier
-_commit: v0.2.5
+_commit: v0.3.1
 _src_path: gh:deeplex/copier-cpp
-buildver: 0.5.0.6
 email: henrik.gassmann@adesso.de
 full_name: Henrik Gaßmann
+header_config: false
 header_only: false
 namespace: vefs
 project_name: vefs
 project_slug: vefs
-semver: 0.5.0-beta.4
+workaround_header: false
 year: 2017-2023
-

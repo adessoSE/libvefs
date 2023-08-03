@@ -151,7 +151,8 @@
                 "x64-linux"
             ],
             "cacheVariables": {
-                "CMAKE_CXX_FLAGS": "-fconcepts-diagnostics-depth=3 -fsanitize=address,leak,undefined -g -fno-omit-frame-pointer",
+                "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "${sourceDir}/tools/toolchains/gcc-12-x64-linux.cmake",
+                "CMAKE_CXX_FLAGS": "-fconcepts-diagnostics-depth=0 -ftemplate-backtrace-limit=0 -fsanitize=address,leak,undefined -g -fno-omit-frame-pointer",
                 "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address,leak,undefined",
                 "CMAKE_CXX_COMPILER": "g++"
             }
