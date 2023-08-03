@@ -1,0 +1,53 @@
+name: GitHub Pages
+
+on:
+  push:
+    branches:
+      - master
+      - "releases/v*"
+    paths:
+      - 'docs/**'
+  pull_request:
+    paths:
+      - 'docs/**'
+  merge_group:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+    name: Build docs
+    concurrency:
+      group: ${{ github.workflow }}-${{ github.ref }}
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: "3.11"
+          cache: 'pipenv'
+          cache-dependency-path: docs/Pipfile.lock
+
+      - name: Install dependencies
+        working-directory: docs
+        run: |
+          python3 -m pip install pipenv
+          python3 -m pipenv sync
+
+      - if: github.ref != 'refs/heads/master' && !startsWith(github.ref, 'refs/heads/release/v')
+        working-directory: docs
+        run: python3 -m pipenv run sphinx-build . ../build/html
+
+      - if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/heads/release/v')
+        working-directory: docs
+        run: python3 -m pipenv run sphinx-multiversion . ../build/html
+
+      - if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/heads/release/v')
+        run: cp ./docs/root.html ./build/html/index.html
+
+      - name: Deploy
+        uses: peaceiris/actions-gh-pages@v3
+        if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/heads/release/v')
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./build/html

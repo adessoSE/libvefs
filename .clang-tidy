@@ -30,3 +30,5 @@ CheckOptions:
     value: true
   - key: cppcoreguidelines-macro-usage.AllowedRegexp
     value: "DPLX_.+_WORKAROUND(_TESTED_AT)?"
+  - key: readability-function-cognitive-complexity.IgnoreMacros
+    value: true

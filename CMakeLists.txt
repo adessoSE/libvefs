@@ -1,4 +1,4 @@
-# Written in 2017, 2019 by Henrik Steffen Gaßmann <henrik@gassmann.onl>
+# Written in 2017, 2019, 2022-2023 by Henrik Steffen Gaßmann <henrik@gassmann.onl>
 #
 # To the extent possible under law, the author(s) have dedicated all
 # copyright and related and neighboring rights to this software to the
@@ -10,7 +10,7 @@
 #     http://creativecommons.org/publicdomain/zero/1.0/
 #
 ########################################################################
-cmake_minimum_required(VERSION 3.20)
+cmake_minimum_required(VERSION 3.22)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/tools/cmake/")
 
 ########################################################################
@@ -54,6 +54,7 @@ option(VEFS_FLAG_OUTDATED_WORKAROUNDS "Raises compiler errors for all workaround
 
 set(VEFS_LLFIO_TARGET "sl" CACHE STRING "The llfio target to link against, can be 'hl', 'sl' or 'dl'")
 set_property(CACHE VEFS_LLFIO_TARGET PROPERTY STRINGS "hl;sl;dl")
+
 
 ########################################################################
 # dependencies
@@ -249,6 +250,11 @@ install(EXPORT vefs-targets
     NAMESPACE Vefs::
     DESTINATION "${CMAKE_INSTALL_LIBDIR}/cmake/vefs"
 )
+
+export(EXPORT vefs-targets NAMESPACE Vefs::)
+# note that you need to configure with -DCMAKE_EXPORT_PACKAGE_REGISTRY=ON
+# for this to have any effect at all
+export(PACKAGE vefs)
 
 configure_package_config_file(tools/vefs-config.cmake.in
     "${CMAKE_CURRENT_BINARY_DIR}/vefs-config.cmake"

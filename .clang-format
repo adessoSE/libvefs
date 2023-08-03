@@ -49,6 +49,8 @@ AlwaysBreakBeforeMultilineStrings: false
 AlwaysBreakTemplateDeclarations: Yes
 AttributeMacros:
   - __capability
+  - DPLX_ATTR_FORCE_INLINE
+  - DPLX_ATTR_NO_UNIQUE_ADDRESS
 BinPackArguments: true
 BinPackParameters: false
 BraceWrapping:

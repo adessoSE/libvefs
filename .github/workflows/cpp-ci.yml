@@ -1,10 +1,11 @@
 name: C++ CI
 on:
-    push:
-        branches:
-            - master
-            - releases/v*
-    pull_request:
+  push:
+    branches:
+      - master
+      - releases/v*
+  pull_request:
+  merge_group:
 
 jobs:
   build-and-test:
@@ -54,7 +55,6 @@ jobs:
           CC: ''
           CXX: ''
 
-
       - name: Build ${{ matrix.triplet }}-${{ matrix.compiler }}-release preset
         uses: lukka/run-cmake@v10
         with:
@@ -67,12 +67,6 @@ jobs:
 
       - name: Prevent uploading a corrupted vcpkg cache
         if: ${{ failure() || cancelled() }}
-        run: |
-          echo "RUNVCPKG_NO_CACHE=1" >> $GITHUB_ENV
-        shell: bash
-
-
-      - if: ${{ failure() || cancelled() }}
         run: |
           echo "RUNVCPKG_NO_CACHE=1" >> $GITHUB_ENV
         shell: bash
@@ -115,13 +109,13 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-            version: 15.0.7
-            style: file # use .clang-format settings
-            tidy-checks: '' # use .clang-tidy settings
-            extensions: cpp,hpp
-            ignore: '.github|build|external'
-            files-changed-only: true
-            database: build/x64-linux-ci-lint
+          version: 15.0.7
+          style: file # use .clang-format settings
+          tidy-checks: '' # use .clang-tidy settings
+          extensions: cpp,hpp
+          ignore: '.github|build|external'
+          files-changed-only: true
+          database: build/x64-linux-ci-lint
 
       - name: Fail if issues have been raised
         if: steps.linter.outputs.checks-failed > 0
