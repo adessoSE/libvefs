@@ -5,7 +5,6 @@
     "homepage": "https://github.com/adessoSE/libvefs",
     "dependencies": [
         "base64",
-        "benchmark",
         "boost-container",
         "boost-endian",
         "boost-exception",

@@ -94,8 +94,6 @@ if (BUILD_CLI)
     find_package(lyra REQUIRED)
 endif()
 
-find_package(benchmark)
-
 if (BUILD_TESTING)
     find_package(GTest CONFIG REQUIRED)
 endif()
