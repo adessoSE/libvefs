@@ -33,6 +33,17 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Install go (boringSSL build dependency)
+        if: ${{ !startsWith(matrix.os, 'windows-') }}
+        uses: actions/setup-go@v4
+        with:
+          go-version: '>=1.20.7'
+      - name: Install nasm (boringSSL build dependency)
+        if: ${{ startsWith(matrix.os, 'ubuntu-') }}
+        run: |
+          sudo apt-get -qq update
+          sudo apt-get -qq install nasm
+
       - uses: lukka/get-cmake@latest
         with:
           cmakeVersion: 3.22.6
@@ -85,6 +96,15 @@ jobs:
           sudo add-apt-repository "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-15 main"
           sudo apt-get -qq update
           sudo apt-get -qq -y install clang-15 clang-tidy-15 clang-format-15
+
+      - name: Install go (boringSSL build dependency)
+        uses: actions/setup-go@v4
+        with:
+          go-version: '>=1.20.7'
+      - name: Install nasm (boringSSL build dependency)
+        run: |
+          sudo apt-get -qq update
+          sudo apt-get -qq install nasm
 
       - uses: lukka/get-cmake@latest
         with:
