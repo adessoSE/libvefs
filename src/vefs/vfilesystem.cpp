@@ -3,6 +3,8 @@
 #include <boost/container/small_vector.hpp>
 #include <boost/endian/conversion.hpp>
 
+#include <dplx/predef/compiler/gcc.h>
+
 #include <dplx/dp/api.hpp>
 #include <dplx/dp/items/emit_core.hpp>
 #include <dplx/dp/items/item_size_of_ranges.hpp>
@@ -115,6 +117,11 @@ private:
         tree_type::read_handle sector;
         int next_block;
     };
+
+#if defined(DPLX_COMP_GNUC_AVAILABLE)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
 
     class tree_input_stream final
         : public dplx::dp::legacy::chunked_input_stream_base<tree_input_stream>
@@ -355,6 +362,9 @@ private:
             return as_span(mCurrentSector).subspan(alloc_map_size);
         }
     };
+#if defined(DPLX_COMP_GNUC_AVAILABLE)
+#pragma GCC diagnostic pop
+#endif
 
 public:
     index_tree_layout(tree_type &indexTree,
