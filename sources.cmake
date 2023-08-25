@@ -98,23 +98,6 @@ dplx_target_sources(vefs # disappointment
         disappointment.cpp
 )
 
-dplx_target_sources(vefs # allocator
-    MODE VERBATIM
-    BASE_DIR vefs
-
-    PUBLIC
-        allocator/alignment.hpp
-        allocator/allocation.hpp
-        allocator/multi_pool_mt.hpp
-        allocator/octopus.hpp
-        allocator/pool_mt.hpp
-        allocator/std_adapter.hpp
-        allocator/system.hpp
-
-        allocator/atomic_ring_counter.hpp
-        allocator/atomic_resource_counter.hpp
-)
-
 dplx_target_sources(vefs # crypto
     MODE VERBATIM
     BASE_DIR vefs
@@ -239,7 +222,6 @@ if (BUILD_TESTING)
         tests/test_utils/test-utils.hpp
 
         tests/io_buffer_manager.test.cpp
-        tests/allocator-tests.cpp
         tests/sector_device-tests.cpp
         tests/sector_tree_mt-tests.cpp
         tests/sector_tree_seq-tests.cpp
