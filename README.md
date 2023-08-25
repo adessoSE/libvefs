@@ -1,17 +1,21 @@
-# Setup Development Environment (Windows)
+## 🚧 **UNDER CONSTRUCTION** 🚧
+
+# Virtual Encrypted FileSystem
+
+`libvefs` is a user-space C++ library for reading and writing `.vefs` files.
+The `.vefs` file contains a virtual filesystem with transparent authenticated
+encryption.
+
+# Setup Development Environment
 ## Required Tools
-- Visual Studio 2019 (tested with 16.4.0) 
-- CMake 3.15 [https://cmake.org/download/]
+- Visual Studio 2022 or G++ 11 or Clang 14
+- `CMake` >= v3.22 [https://cmake.org/download/]
+- vcpkg (containg at least [v2023.06.20](https://github.com/microsoft/vcpkg/releases/tag/2023.06.20))
+    - Be sure to setup the environment variable `VCPKG_ROOT` with the local repository path
 
-## Checkout additionally
-- clone this repository
-- vefs-packages (https://github.com/BurningEnlightenment/vefs-packages)
+### devcontainer
+The project comes with a devcontainer configuration, i.e. it is unnecessary to setup a Linux development environment.
 
-
-## Run
-(For this a ssh connection for the provided repositories has to be configured and the host has to be added to known_hosts file)
-1. Build vcpkg-packages in the vcpkg-packges folder run in PowerShell: `.\build.ps`
-2. Replace both cmakeToolchain parameters in the CMakeSettings.template.json to the path of the vcpkg folder (inside the vcpkg-packages folder) and save the file as CMakeSettings.json next to the template file.
-
-## Finish
-After the steps above it is possible to open the vefs folder inside VS 2019 and for example bin/vefs-tests.exe can be executed.
+## IDE support
+The project comes with various `CMake` presets targetting the above compilers on Windows and Linux.
+Therefore one can simply open the worktree with any IDE supporting `CMakePresets` (e.g. CLion, Visual Studio 2022 or Visual Studio Code)
