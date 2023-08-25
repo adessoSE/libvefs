@@ -7,7 +7,6 @@
 
 #include <boost/algorithm/hex.hpp>
 #include <boost/endian/conversion.hpp>
-#include <boost/json/src.hpp>
 #include <boost/predef/os.h>
 #include <dplx/cncr/windows-proper.h>
 #include <openssl/evp.h>
@@ -19,6 +18,16 @@
 #include "../../../../src/vefs/crypto/boringssl_aead.hpp"
 #include "vefs/cli/commandlets/base.hpp"
 #include "vefs/cli/utils.hpp"
+
+#if defined(DPLX_COMP_GNUC_AVAILABLE)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Warray-bounds"
+#pragma GCC diagnostic ignored "-Wstringop-overflow"
+#endif
+#include <boost/json/src.hpp>
+#if defined(DPLX_COMP_GNUC_AVAILABLE)
+#pragma GCC diagnostic pop
+#endif
 
 namespace vefs
 {
