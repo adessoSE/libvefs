@@ -10,6 +10,8 @@
 #include <string_view>
 #include <tuple>
 
+#include <dplx/dlog.hpp>
+
 #include <vefs/platform/thread_pool.hpp>
 #include <vefs/utils/bitset_overlay.hpp>
 #include <vefs/utils/misc.hpp>

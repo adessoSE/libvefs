@@ -18,6 +18,7 @@
         "boringssl",
         "concrete",
         "concurrentqueue",
+        "deeplog",
         "deeppack",
         "fmt",
         "libb2",

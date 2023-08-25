@@ -89,6 +89,7 @@ find_package(llfio CONFIG REQUIRED)
 
 find_package(concrete CONFIG REQUIRED)
 find_package(deeppack CONFIG REQUIRED)
+find_package(deeplog CONFIG REQUIRED)
 
 if (BUILD_CLI)
     find_package(lyra REQUIRED)
@@ -152,6 +153,7 @@ target_link_libraries(vefs
 
         Boost::boost
         Deeplex::deeppack
+        Deeplex::deeplog
         libb2
         fmt::fmt
         llfio::${VEFS_LLFIO_TARGET}
