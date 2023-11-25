@@ -1,6 +1,8 @@
 #include "vefs/cache/cache_mt.hpp"
 
+#include <boost/predef/compiler.h>
 #include <vefs/cache/lru_policy.hpp>
+#include <vefs/utils/workaround.h>
 
 #include "boost-unit-test.hpp"
 #include "test-utils.hpp"
@@ -38,10 +40,10 @@ struct immovable_value_type
     }
 
     friend inline auto operator<<(std::ostream &out,
-                                  immovable_value_type const &value)
+                                  immovable_value_type const &wrapper)
             -> std::ostream &
     {
-        return out << value.value;
+        return out << wrapper.value;
     }
 };
 
@@ -107,21 +109,30 @@ static_assert(vefs::detail::cache_traits<ex_traits>);
 template class vefs::detail::cache_mt<vefs_tests::ex_traits>;
 
 template class vefs::detail::cache_handle<uint64_t, uint32_t>;
+#if VEFS_WORKAROUND_TESTED_AT(BOOST_COMP_CLANG, 16, 0, 6)
+#else
 static_assert(std::regular<cache_handle<uint64_t, uint32_t>>);
+#endif
 template class vefs::detail::cache_handle<uint64_t, uint32_t const>;
+#if VEFS_WORKAROUND_TESTED_AT(BOOST_COMP_CLANG, 16, 0, 6)
+#else
 static_assert(std::regular<cache_handle<uint64_t, uint32_t const>>);
+#endif
 
 namespace vefs_tests
 {
 BOOST_AUTO_TEST_SUITE(cache_ng)
 
+#if VEFS_WORKAROUND_TESTED_AT(BOOST_COMP_CLANG, 16, 0, 6)
+#else
 static_assert(requires(cache_handle<uint64_t, uint32_t> t,
                        cache_handle<uint64_t, uint32_t const> u) {
-                  t == u;
-                  t != u;
-                  u == t;
-                  u != t;
-              });
+    t == u;
+    t != u;
+    u == t;
+    u != t;
+});
+#endif
 
 BOOST_AUTO_TEST_CASE(default_ctor)
 {

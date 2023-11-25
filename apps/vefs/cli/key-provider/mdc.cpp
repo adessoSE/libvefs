@@ -19,13 +19,13 @@
 #include "vefs/cli/commandlets/base.hpp"
 #include "vefs/cli/utils.hpp"
 
-#if defined(DPLX_COMP_GNUC_AVAILABLE)
+#if defined(DPLX_COMP_GNUC_AVAILABLE) && !defined(DPLX_COMP_GNUC_EMULATED)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Warray-bounds"
 #pragma GCC diagnostic ignored "-Wstringop-overflow"
 #endif
 #include <boost/json/src.hpp>
-#if defined(DPLX_COMP_GNUC_AVAILABLE)
+#if defined(DPLX_COMP_GNUC_AVAILABLE) && !defined(DPLX_COMP_GNUC_EMULATED)
 #pragma GCC diagnostic pop
 #endif
 

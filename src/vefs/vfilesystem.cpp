@@ -118,7 +118,7 @@ private:
         int next_block;
     };
 
-#if defined(DPLX_COMP_GNUC_AVAILABLE)
+#if defined(DPLX_COMP_GNUC_AVAILABLE) && !defined(DPLX_COMP_GNUC_EMULATED)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 #endif
@@ -362,7 +362,7 @@ private:
             return as_span(mCurrentSector).subspan(alloc_map_size);
         }
     };
-#if defined(DPLX_COMP_GNUC_AVAILABLE)
+#if defined(DPLX_COMP_GNUC_AVAILABLE) && !defined(DPLX_COMP_GNUC_EMULATED)
 #pragma GCC diagnostic pop
 #endif
 
