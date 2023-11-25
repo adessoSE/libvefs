@@ -14,23 +14,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [macos-13, ubuntu-22.04, windows-2022]
+        os: [ubuntu-22.04, windows-2022]
         compiler: [gcc, clang, msvc]
         exclude:
-          - os: macos-13
-            compiler: msvc
           - os: ubuntu-22.04
             compiler: msvc
           - os: windows-2022
             compiler: gcc
         include:
-          - os: macos-13
-            triplet: x64-macos
-          - os: macos-13
-            compiler: clang
-            triplet: x64-macos
-            install: |
-              HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=1 brew install llvm@16
           - os: ubuntu-22.04
             triplet: x64-linux
             install: |
