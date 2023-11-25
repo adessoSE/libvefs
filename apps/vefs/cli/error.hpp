@@ -53,8 +53,6 @@ class cli_domain_type : public system_error::status_code_domain
     using base = system_error::status_code_domain;
     template <class DomainType>
     friend class system_error::status_code;
-    template <class StatusCode>
-    friend class system_error::detail::indirecting_domain;
 
 public:
     static constexpr std::string_view uuid
@@ -161,7 +159,7 @@ protected:
                               .value();
 
             return system_error::errc::unknown != sysErrc
-                && map_to_generic(alhs.value()) == sysErrc;
+                   && map_to_generic(alhs.value()) == sysErrc;
         }
         return false;
     }

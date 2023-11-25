@@ -1007,14 +1007,14 @@ auto vfilesystem::commit() -> result<void>
                             syncrx.assume_error()
                                     << ed::archive_file{"[archive-index]"};
 
-                            std::move(syncrx).assume_error().throw_exception();
+                            // note that this isn't a child of std::exception
+                            throw std::move(syncrx).assume_error();
                         }
                     });
         }
-        catch (system_error::status_error<system_error::erased<
-                       system_error::system_code::value_type>> const &exc)
+        catch (system_error::error const &error)
         {
-            return exc.code().clone();
+            return error.clone();
         }
         catch (std::bad_alloc const &)
         {

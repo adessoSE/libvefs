@@ -2,9 +2,7 @@
 // README at: https://github.com/devcontainers/templates/tree/main/src/cpp
 {
     "name": "C++",
-    "build": {
-        "dockerfile": "Dockerfile"
-    },
+    "image": "ghcr.io/deeplex/devcontainer-cpp:ubuntu-22.04",
     "customizations": {
         "vscode": {
             "extensions": [
