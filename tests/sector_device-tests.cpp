@@ -21,16 +21,15 @@ struct sector_device_test_fixture
                 .WillRepeatedly(
                         testing::Return(vefs::utils::secure_byte_array<16>{}));
         EXPECT_CALL(cryptoProviderMock, random_bytes(testing::_))
-                .WillRepeatedly(
-                        [](vefs::rw_dynblob out)
-                        {
-                            vefs::fill_blob(out, static_cast<std::byte>(0x11));
-                            return vefs::outcome::success();
-                        });
+                .WillRepeatedly([](vefs::rw_dynblob out) {
+                    vefs::fill_blob(out, static_cast<std::byte>(0x11));
+                    return vefs::outcome::success();
+                });
         EXPECT_CALL(cryptoProviderMock,
                     box_seal(testing::_, testing::_, testing::_, testing::_))
-                .WillRepeatedly([](auto &&...) -> vefs::result<void>
-                                { return vefs::outcome::success(); });
+                .WillRepeatedly([](auto &&...) -> vefs::result<void> {
+                    return vefs::outcome::success();
+                });
 
         testSubject = vefs::detail::sector_device::create_new(
                               testFile.reopen().value(), &cryptoProviderMock,
@@ -108,10 +107,10 @@ BOOST_AUTO_TEST_CASE(open_existing_sector_device_throws_error_for_empty_file)
 BOOST_AUTO_TEST_CASE(write_sector_does_not_work_for_master_sector)
 {
     std::byte mac_data[16];
-    std::byte ro_data[32736];
-    vefs::fill_blob(vefs::rw_blob<32736>(ro_data), std::byte(0x1a));
+    std::byte ro_data[32'736];
+    vefs::fill_blob(vefs::rw_blob<32'736>(ro_data), std::byte(0x1a));
     auto mac = vefs::rw_blob<16>(mac_data);
-    auto data_bla = vefs::ro_blob<32736>(ro_data);
+    auto data_bla = vefs::ro_blob<32'736>(ro_data);
     auto fileCryptoCtx = vefs::detail::file_crypto_ctx(
             vefs::detail::file_crypto_ctx::zero_init_t{});
     auto masterSectorId = vefs::detail::sector_id::master;
@@ -127,7 +126,7 @@ BOOST_AUTO_TEST_CASE(
         write_sector_gives_invalid_errc_for_sector_ids_that_is_to_great)
 {
     std::byte mac_data[16];
-    std::byte ro_data[32736];
+    std::byte ro_data[32'736];
     auto mac = vefs::rw_blob<16>(mac_data);
     auto fileCryptoCtx = vefs::detail::file_crypto_ctx(
             vefs::detail::file_crypto_ctx::zero_init_t{});
@@ -136,7 +135,7 @@ BOOST_AUTO_TEST_CASE(
     auto sectorId = static_cast<vefs::detail::sector_id>(sectorIdxLimit + 1);
 
     auto result = testSubject->write_sector(mac, fileCryptoCtx, sectorId,
-                                            vefs::ro_blob<32736>(ro_data));
+                                            vefs::ro_blob<32'736>(ro_data));
 
     BOOST_TEST(result.has_error());
     BOOST_TEST(result.assume_error() == vefs::errc::invalid_argument);
@@ -146,7 +145,7 @@ BOOST_AUTO_TEST_CASE(
         read_sector_gives_invalid_errc_for_sector_ids_that_is_to_great)
 {
     std::byte mac_data[16];
-    std::byte rw_data[32736];
+    std::byte rw_data[32'736];
     auto mac = vefs::ro_blob<16>(mac_data);
     auto fileCryptoCtx = vefs::detail::file_crypto_ctx(
             vefs::detail::file_crypto_ctx::zero_init_t{});
@@ -154,7 +153,7 @@ BOOST_AUTO_TEST_CASE(
             = std::numeric_limits<std::uint64_t>::max() / (1 << 15);
     auto sectorId = static_cast<vefs::detail::sector_id>(sectorIdxLimit + 1);
 
-    auto result = testSubject->read_sector(vefs::rw_blob<32736>(rw_data),
+    auto result = testSubject->read_sector(vefs::rw_blob<32'736>(rw_data),
                                            fileCryptoCtx, sectorId, mac);
 
     BOOST_TEST(result.has_error());
@@ -164,14 +163,14 @@ BOOST_AUTO_TEST_CASE(
 BOOST_AUTO_TEST_CASE(read_sector_does_not_work_for_master_sector)
 {
     std::byte mac_data[16];
-    std::byte rw_data[32736];
-    vefs::fill_blob(vefs::rw_blob<32736>(rw_data), std::byte(0x1a));
+    std::byte rw_data[32'736];
+    vefs::fill_blob(vefs::rw_blob<32'736>(rw_data), std::byte(0x1a));
     auto mac = vefs::rw_blob<16>(mac_data);
     auto fileCryptoCtx = vefs::detail::file_crypto_ctx(
             vefs::detail::file_crypto_ctx::zero_init_t{});
     auto masterSectorId = vefs::detail::sector_id::master;
 
-    auto result = testSubject->read_sector(vefs::rw_blob<32736>(rw_data),
+    auto result = testSubject->read_sector(vefs::rw_blob<32'736>(rw_data),
                                            fileCryptoCtx, masterSectorId, mac);
 
     BOOST_TEST(result.has_error());

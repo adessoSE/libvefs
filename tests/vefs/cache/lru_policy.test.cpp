@@ -65,7 +65,7 @@ BOOST_AUTO_TEST_CASE(ctor_with_pages)
 BOOST_AUTO_TEST_CASE(insert_one)
 {
     test_policy::page_state::state_type gen;
-    test_key key = 0xdeadbeef;
+    test_key key = 0xdead'beef;
     test_index idx = 1U;
 
     BOOST_TEST_REQUIRE((pages[idx].try_start_replace(gen)

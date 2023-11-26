@@ -70,10 +70,10 @@ constexpr int required_tree_depth(std::uint64_t sectorPos)
 {
     static_assert(ref_width.size() == 5); // safe guard for ref_width changes.
     return 0 + static_cast<int>(sectorPos >= ref_width[0])
-         + static_cast<int>(sectorPos >= ref_width[1])
-         + static_cast<int>(sectorPos >= ref_width[2])
-         + static_cast<int>(sectorPos >= ref_width[3])
-         + static_cast<int>(sectorPos >= ref_width[4]);
+           + static_cast<int>(sectorPos >= ref_width[1])
+           + static_cast<int>(sectorPos >= ref_width[2])
+           + static_cast<int>(sectorPos >= ref_width[3])
+           + static_cast<int>(sectorPos >= ref_width[4]);
 }
 
 /**

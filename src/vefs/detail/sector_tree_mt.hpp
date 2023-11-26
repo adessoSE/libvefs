@@ -536,11 +536,11 @@ public:
         using base_type::operator->;
         using base_type::get;
 
-        auto as_writable() &&noexcept -> write_handle
+        auto as_writable() && noexcept -> write_handle
         {
             return write_handle(static_cast<base_type &&>(*this).as_writable());
         }
-        auto as_writable() const &noexcept -> write_handle
+        auto as_writable() const & noexcept -> write_handle
         {
             return write_handle(base_type::as_writable());
         }
@@ -772,11 +772,12 @@ private:
             -> result<sector_handle>
     {
         sector_handle base;
-        auto it = std::find_if(
-                          std::make_reverse_iterator(pathEnd),
-                          std::make_reverse_iterator(pathBegin),
-                          [this, &base](tree_position position)
-                          { return (base = mSectorCache.try_pin(position)); })
+        auto it = std::find_if(std::make_reverse_iterator(pathEnd),
+                               std::make_reverse_iterator(pathBegin),
+                               [this, &base](tree_position position) {
+                                   return (base
+                                           = mSectorCache.try_pin(position));
+                               })
                           .base();
 
         // current root is always in cache, i.e. if nothing is hit, it's out of

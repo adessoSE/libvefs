@@ -111,9 +111,9 @@ using result = oc::basic_result<R, E, detail::result_no_value_policy>;
 
 template <typename T, typename U>
     requires std::is_enum_v<std::remove_cvref_t<T>>
-          && std::derived_from<std::remove_cvref_t<U>,
-                               detail::error_detail_base>
-             auto operator<<(T &&c, U &&) noexcept -> std::remove_cvref_t<T>
+             && std::derived_from<std::remove_cvref_t<U>,
+                                  detail::error_detail_base>
+auto operator<<(T &&c, U &&) noexcept -> std::remove_cvref_t<T>
 {
     return c;
 }
@@ -191,14 +191,14 @@ auto inject(llfio::byte_io_handle::io_result<T> rx, InjectFn &&injectFn)
 
 template <typename T>
 concept tryable = requires(T &&t) {
-                      {
-                          oc::try_operation_has_value(t)
-                          } -> std::same_as<bool>;
-                      {
-                          oc::try_operation_return_as(static_cast<T &&>(t))
-                          } -> std::convertible_to<result<void>>;
-                      oc::try_operation_extract_value(static_cast<T &&>(t));
-                  };
+    {
+        oc::try_operation_has_value(t)
+    } -> std::same_as<bool>;
+    {
+        oc::try_operation_return_as(static_cast<T &&>(t))
+    } -> std::convertible_to<result<void>>;
+    oc::try_operation_extract_value(static_cast<T &&>(t));
+};
 
 template <tryable T>
 using result_value_t

@@ -27,7 +27,7 @@ vefs::result<void> vefs::detail::random_bytes(rw_dynblob buffer) noexcept
     if (buffer.empty())
     {
         return errc::invalid_argument
-            << ed::error_code_api_origin{"random_bytes"sv};
+               << ed::error_code_api_origin{"random_bytes"sv};
     }
     do
     {
@@ -39,10 +39,11 @@ vefs::result<void> vefs::detail::random_bytes(rw_dynblob buffer) noexcept
         if (!RtlGenRandom(buffer.data(), portion))
         {
             return collect_system_error()
-                << ed::error_code_api_origin{"SystemFunction036"sv};
+                   << ed::error_code_api_origin{"SystemFunction036"sv};
         }
         buffer = buffer.subspan(portion);
-    } while (!buffer.empty());
+    }
+    while (!buffer.empty());
 
     return outcome::success();
 }
@@ -68,14 +69,14 @@ vefs::result<void> vefs::detail::random_bytes(rw_dynblob buffer) noexcept
     if (buffer.empty())
     {
         return errc::invalid_argument
-            << ed::error_code_api_origin{"random_bytes"sv};
+               << ed::error_code_api_origin{"random_bytes"sv};
     }
 
     int urandom = open("/dev/urandom", O_RDONLY);
     if (urandom == -1)
     {
         return collect_system_error()
-            << ed::error_code_api_origin{"open(\"/dev/urandom\")"sv};
+               << ed::error_code_api_origin{"open(\"/dev/urandom\")"sv};
     }
     VEFS_SCOPE_EXIT
     {
@@ -92,12 +93,12 @@ vefs::result<void> vefs::detail::random_bytes(rw_dynblob buffer) noexcept
         if (tmp == -1)
         {
             return collect_system_error()
-                << ed::error_code_api_origin{"read(\"/dev/urandom\")"sv};
+                   << ed::error_code_api_origin{"read(\"/dev/urandom\")"sv};
         }
         if (tmp == 0)
         {
             return archive_errc::bad
-                << ed::error_code_api_origin{"read(\"/dev/urandom\")"sv};
+                   << ed::error_code_api_origin{"read(\"/dev/urandom\")"sv};
         }
         buffer = buffer.subspan(static_cast<size_t>(tmp));
     }
@@ -114,24 +115,24 @@ vefs::result<void> vefs::detail::random_bytes(rw_dynblob buffer) noexcept
     if (buffer.empty())
     {
         return errc::invalid_argument
-            << ed::error_code_api_origin{"random_bytes"sv};
+               << ed::error_code_api_origin{"random_bytes"sv};
     }
 
     while (!buffer.empty())
     {
-        constexpr size_t max_portion = static_cast<size_t>(33554431);
+        constexpr size_t max_portion = static_cast<size_t>(33'554'431);
         auto const portion = std::min(max_portion, buffer.size());
 
         ssize_t tmp = getrandom(static_cast<void *>(buffer.data()), portion, 0);
         if (tmp == -1)
         {
             return collect_system_error()
-                << ed::error_code_api_origin{"getrandom"sv};
+                   << ed::error_code_api_origin{"getrandom"sv};
         }
         if (tmp == 0)
         {
             return archive_errc::bad
-                << ed::error_code_api_origin{"getrandom"sv};
+                   << ed::error_code_api_origin{"getrandom"sv};
         }
         buffer = buffer.subspan(static_cast<size_t>(tmp));
     }

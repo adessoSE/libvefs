@@ -59,7 +59,7 @@ private:
         auto const treeOffset = wblock % blocks_per_sector;
 
         return treePosition * sector_payload_size + alloc_map_size
-             + treeOffset * block_size;
+               + treeOffset * block_size;
     }
 
     using map_bucket_type = std::size_t;
@@ -105,7 +105,7 @@ private:
             if (eblock != 0)
             {
                 return offset * map_bucket_size + start
-                     + utils::countr_zero(eblock);
+                       + utils::countr_zero(eblock);
             }
             start = 0;
         }
@@ -186,7 +186,7 @@ private:
             auto const sectorContentBegin = as_span(mCurrentSector).data();
 
             auto const blockOffset = state.remaining_begin()
-                                   - sectorContentBegin - alloc_map_size;
+                                     - sectorContentBegin - alloc_map_size;
             auto const nextBlock = static_cast<int>(
                     utils::div_ceil(blockOffset, block_size));
 
@@ -316,8 +316,8 @@ private:
             auto firstPosition = detail::lut::sector_position_of(offset);
             auto inSectorOffset
                     = offset
-                    - firstPosition
-                              * detail::sector_device::sector_payload_size;
+                      - firstPosition
+                                * detail::sector_device::sector_payload_size;
 
             VEFS_TRY(auto &&firstSector,
                      owner.mIndexTree.access(
@@ -332,7 +332,7 @@ private:
 
             auto const remainingSectorSize
                     = detail::sector_device::sector_payload_size
-                    - (inSectorOffset + prefixSize);
+                      - (inSectorOffset + prefixSize);
             return tree_writer(
                     owner, std::move(writeHandle), inSectorOffset + prefixSize,
                     size <= remainingSectorSize ? size : remainingSectorSize,
@@ -475,7 +475,7 @@ public:
                 as_span(sector).first<alloc_map_size>());
 
         auto const ptr = (position % sector_payload_size - alloc_map_size)
-                       / block_size;
+                         / block_size;
         int numBlocks = ptr + utils::div_ceil(size, block_size);
 
         for (int i = ptr; i < numBlocks; ++i)
@@ -789,22 +789,19 @@ auto vfilesystem::open(const std::string_view filePath,
 auto vfilesystem::open(detail::file_id const id) -> result<vfile_handle>
 {
     result<vfile_handle> rx = archive_errc::no_such_vfile;
-    mFiles.update_fn(id,
-                     [&](vfilesystem_entry &e)
-                     {
-                         if (auto h = e.instance.lock())
-                         {
-                             rx = h;
-                             return;
-                         }
-                         rx = vfile::open_existing(
-                                 this, mDeviceExecutor, mSectorAllocator, id,
-                                 mDevice, *e.crypto_ctx, e.tree_info);
-                         if (rx)
-                         {
-                             e.instance = rx.assume_value();
-                         }
-                     });
+    mFiles.update_fn(id, [&](vfilesystem_entry &e) {
+        if (auto h = e.instance.lock())
+        {
+            rx = h;
+            return;
+        }
+        rx = vfile::open_existing(this, mDeviceExecutor, mSectorAllocator, id,
+                                  mDevice, *e.crypto_ctx, e.tree_info);
+        if (rx)
+        {
+            e.instance = rx.assume_value();
+        }
+    });
     return rx;
 }
 
@@ -821,16 +818,14 @@ auto vfilesystem::erase(std::string_view filePath) -> result<void>
 
     bool erased = false;
     vfilesystem_entry victim;
-    bool found = mFiles.erase_fn(id,
-                                 [&](vfilesystem_entry &e)
-                                 {
-                                     erased = e.instance.expired();
-                                     if (erased)
-                                     {
-                                         victim = std::move(e);
-                                     }
-                                     return erased;
-                                 });
+    bool found = mFiles.erase_fn(id, [&](vfilesystem_entry &e) {
+        erased = e.instance.expired();
+        if (erased)
+        {
+            victim = std::move(e);
+        }
+        return erased;
+    });
 
     if (!found)
     {
@@ -916,8 +911,9 @@ auto vfilesystem::extractAll(llfio::path_view targetBasePath) -> result<void>
     for (auto const &indexEntry : mIndex.lock_table())
     {
         VEFS_TRY(extract(indexEntry.first, targetBasePath,
-                         [this, &indexEntry]() -> result<vfile_handle>
-                         { return open(indexEntry.second); }));
+                         [this, &indexEntry]() -> result<vfile_handle> {
+                             return open(indexEntry.second);
+                         }));
     }
     return success();
 }
@@ -930,18 +926,15 @@ auto vfilesystem::query(const std::string_view filePath)
     result<file_query_result> rx = archive_errc::no_such_vfile;
     if (mIndex.find_fn(filePath, [&](file_id const &e) { id = e; }))
     {
-        mFiles.find_fn(id,
-                       [&](vfilesystem_entry const &e)
-                       {
-                           auto maxExtent = e.tree_info.maximum_extent;
-                           if (auto h = e.instance.lock())
-                           {
-                               maxExtent = h->maximum_extent();
-                           }
+        mFiles.find_fn(id, [&](vfilesystem_entry const &e) {
+            auto maxExtent = e.tree_info.maximum_extent;
+            if (auto h = e.instance.lock())
+            {
+                maxExtent = h->maximum_extent();
+            }
 
-                           rx = file_query_result{file_open_mode::readwrite,
-                                                  maxExtent};
-                       });
+            rx = file_query_result{file_open_mode::readwrite, maxExtent};
+        });
     }
     return rx;
 }
@@ -950,12 +943,10 @@ auto vfilesystem::on_vfile_commit(detail::file_id fileId,
                                   detail::root_sector_info updatedRootInfo)
         -> result<void>
 {
-    bool found = mFiles.update_fn(fileId,
-                                  [&](vfilesystem_entry &e)
-                                  {
-                                      e.needs_index_update = true;
-                                      e.tree_info = updatedRootInfo;
-                                  });
+    bool found = mFiles.update_fn(fileId, [&](vfilesystem_entry &e) {
+        e.needs_index_update = true;
+        e.tree_info = updatedRootInfo;
+    });
     if (!found)
     {
         return archive_errc::no_such_vfile;
@@ -986,31 +977,27 @@ auto vfilesystem::commit() -> result<void>
             descriptor.fileId = fid.as_uuid();
             auto pathBytes = as_bytes(std::span(path));
 
-            mFiles.update_fn(
-                    fid,
-                    [&](vfilesystem_entry &e)
-                    {
-                        if (!e.needs_index_update)
-                        {
-                            return;
-                        }
+            mFiles.update_fn(fid, [&](vfilesystem_entry &e) {
+                if (!e.needs_index_update)
+                {
+                    return;
+                }
 
-                        // reuse allocation if possible
-                        descriptor.filePath.resize(pathBytes.size());
-                        // #TODO #char8_t convert vfilesystem to u8string
-                        vefs::copy(pathBytes, as_writable_bytes(std::span(
-                                                      descriptor.filePath)));
+                // reuse allocation if possible
+                descriptor.filePath.resize(pathBytes.size());
+                // #TODO #char8_t convert vfilesystem to u8string
+                vefs::copy(pathBytes,
+                           as_writable_bytes(std::span(descriptor.filePath)));
 
-                        if (auto syncrx = layout.sync_to_tree(e, descriptor);
-                            !syncrx)
-                        {
-                            syncrx.assume_error()
-                                    << ed::archive_file{"[archive-index]"};
+                if (auto syncrx = layout.sync_to_tree(e, descriptor); !syncrx)
+                {
+                    syncrx.assume_error()
+                            << ed::archive_file{"[archive-index]"};
 
-                            // note that this isn't a child of std::exception
-                            throw std::move(syncrx).assume_error();
-                        }
-                    });
+                    // note that this isn't a child of std::exception
+                    throw std::move(syncrx).assume_error();
+                }
+            });
         }
         catch (system_error::error const &error)
         {
@@ -1023,11 +1010,10 @@ auto vfilesystem::commit() -> result<void>
     }
 
     auto maxExtent = (layout.last_allocated().position() + 1)
-                   * detail::sector_device::sector_payload_size;
+                     * detail::sector_device::sector_payload_size;
     return mIndexTree->commit(
-            [this, maxExtent](
-                    detail::root_sector_info rootInfo) noexcept -> result<void>
-            { return sync_commit_info(rootInfo, maxExtent); });
+            [this, maxExtent](detail::root_sector_info rootInfo) noexcept
+            -> result<void> { return sync_commit_info(rootInfo, maxExtent); });
 }
 
 auto vfilesystem::sync_commit_info(detail::root_sector_info rootInfo,
@@ -1196,17 +1182,16 @@ auto vfilesystem::replace_corrupted_sectors() -> result<void>
                     ed::archive_file_id{id});
         }
 
-        VEFS_TRY_INJECT(tree->commit(
-                                [this, &it](detail::root_sector_info newRoot)
-                                {
-                                    if (it->second.tree_info != newRoot)
-                                    {
-                                        it->second.tree_info = newRoot;
-                                        it->second.needs_index_update = true;
-                                        mWriteFlag.mark();
-                                    }
-                                }),
-                        ed::archive_file_id{id});
+        VEFS_TRY_INJECT(
+                tree->commit([this, &it](detail::root_sector_info newRoot) {
+                    if (it->second.tree_info != newRoot)
+                    {
+                        it->second.tree_info = newRoot;
+                        it->second.needs_index_update = true;
+                        mWriteFlag.mark();
+                    }
+                }),
+                ed::archive_file_id{id});
 
         std::advance(it, 1);
     }

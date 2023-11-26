@@ -94,17 +94,17 @@ BOOST_AUTO_TEST_CASE(sqlite_bridge_regression_1)
     TEST_RESULT_REQUIRE(testSubject.write(f, fileData, 4 * 8192));
 
     dataGenerator.fill(fileData);
-    TEST_RESULT_REQUIRE(testSubject.write(f, fileData, 32772));
+    TEST_RESULT_REQUIRE(testSubject.write(f, fileData, 32'772));
 
     dataGenerator.fill(fileData);
-    TEST_RESULT_REQUIRE(testSubject.write(f, fileData.subspan(0, 4), 40964));
-    TEST_RESULT_REQUIRE(testSubject.write(f, fileData.subspan(4, 4), 40968));
+    TEST_RESULT_REQUIRE(testSubject.write(f, fileData.subspan(0, 4), 40'964));
+    TEST_RESULT_REQUIRE(testSubject.write(f, fileData.subspan(4, 4), 40'968));
 
     dataGenerator.fill(fileData);
-    TEST_RESULT_REQUIRE(testSubject.write(f, fileData, 40972));
+    TEST_RESULT_REQUIRE(testSubject.write(f, fileData, 40'972));
 
     dataGenerator.fill(fileData);
-    TEST_RESULT_REQUIRE(testSubject.write(f, fileData.subspan(0, 4), 49164));
+    TEST_RESULT_REQUIRE(testSubject.write(f, fileData.subspan(0, 4), 49'164));
 
     TEST_RESULT_REQUIRE(testSubject.commit(f));
     f = nullptr;
@@ -133,42 +133,42 @@ BOOST_AUTO_TEST_CASE(sqlite_bridge_regression_2)
 
         TEST_RESULT_REQUIRE(testSubject.commit());
 
-        TEST_RESULT_REQUIRE(testSubject.write(f, fileData, 0x00000000));
+        TEST_RESULT_REQUIRE(testSubject.write(f, fileData, 0x0000'0000));
 
         for (int i = 0; i < 0xf6; ++i)
         {
             BOOST_TEST_INFO_SCOPE(i);
 
-            TEST_RESULT_REQUIRE(
-                    testSubject.write(f, fileData, 0x0000000ull + i * 0x1000u));
+            TEST_RESULT_REQUIRE(testSubject.write(f, fileData,
+                                                  0x000'0000ull + i * 0x1000u));
         }
 
         TEST_RESULT_REQUIRE(testSubject.commit(f));
 
         TEST_RESULT_REQUIRE(testSubject.commit());
 
-        TEST_RESULT_REQUIRE(testSubject.write(f, fileData, 0x0000b000));
+        TEST_RESULT_REQUIRE(testSubject.write(f, fileData, 0x0000'b000));
 
         for (int j = 0; j < 98; ++j)
         {
             BOOST_TEST_INFO_SCOPE(j);
 
-            TEST_RESULT_REQUIRE(testSubject.write(f, fileData,
-                                                  0x000f5000ull + j * 0x1000u));
+            TEST_RESULT_REQUIRE(testSubject.write(
+                    f, fileData, 0x000f'5000ull + j * 0x1000u));
         }
 
         TEST_RESULT_REQUIRE(testSubject.commit(f));
 
         TEST_RESULT_REQUIRE(testSubject.commit());
 
-        TEST_RESULT_REQUIRE(testSubject.write(f, fileData, 0x000f4000));
+        TEST_RESULT_REQUIRE(testSubject.write(f, fileData, 0x000f'4000));
 
         for (int j = 0; j < 111; ++j)
         {
             BOOST_TEST_INFO_SCOPE(j);
 
-            TEST_RESULT_REQUIRE(testSubject.write(f, fileData,
-                                                  0x0010d000ull + j * 0x1000u));
+            TEST_RESULT_REQUIRE(testSubject.write(
+                    f, fileData, 0x0010'd000ull + j * 0x1000u));
         }
 
         TEST_RESULT_REQUIRE(testSubject.commit(f));

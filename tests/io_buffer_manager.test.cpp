@@ -29,8 +29,7 @@ BOOST_AUTO_TEST_CASE(allocate_more_than_buffered)
     auto const subject = std::move(rx).assume_value();
 
     std::array<std::span<std::byte>, 17> allocations{};
-    vefs::utils::scope_guard freeAllocs = [&]
-    {
+    vefs::utils::scope_guard freeAllocs = [&] {
         for (std::size_t i = 0;
              i < allocations.size() && !allocations[i].empty(); ++i)
         {
@@ -61,15 +60,13 @@ BOOST_AUTO_TEST_CASE(allocations_are_aligned)
 
     auto tmpAllocRx = subject.allocate();
     TEST_RESULT_REQUIRE(tmpAllocRx);
-    vefs::utils::scope_guard freeTmpAlloc = [&]
-    {
+    vefs::utils::scope_guard freeTmpAlloc = [&] {
         subject.deallocate(tmpAllocRx.assume_value());
     };
 
     auto allocRx = subject.allocate();
     TEST_RESULT_REQUIRE(allocRx);
-    vefs::utils::scope_guard freeAlloc = [&]
-    {
+    vefs::utils::scope_guard freeAlloc = [&] {
         subject.deallocate(allocRx.assume_value());
     };
 

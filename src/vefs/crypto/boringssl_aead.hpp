@@ -30,8 +30,7 @@ namespace vefs::crypto::detail
 {
 inline std::string read_openssl_errors(std::string str = std::string{})
 {
-    auto printCb = [](char const *msg, size_t msgSize, void *ctx)
-    {
+    auto printCb = [](char const *msg, size_t msgSize, void *ctx) {
         auto &cbStr = *reinterpret_cast<std::string *>(ctx);
         cbStr.append(msg, msgSize);
         cbStr.push_back('\n');
@@ -111,8 +110,8 @@ public:
                                nullptr))
         {
             return archive_errc::bad
-                << ed::error_code_api_origin{"EVP_AEAD_CTX_init"sv}
-                << make_openssl_errinfo();
+                   << ed::error_code_api_origin{"EVP_AEAD_CTX_init"sv}
+                   << make_openssl_errinfo();
         }
         ctx.mInitialized = true;
         return ctx;
@@ -184,8 +183,8 @@ public:
         {
             // #TODO appropriately wrap the boringssl packed error
             return archive_errc::bad
-                << ed::error_code_api_origin{"EVP_AEAD_CTX_seal_scatter"sv}
-                << make_openssl_errinfo();
+                   << ed::error_code_api_origin{"EVP_AEAD_CTX_seal_scatter"sv}
+                   << make_openssl_errinfo();
         }
 
         outTag = outTag.subspan(0, outTagLen);
@@ -253,8 +252,8 @@ public:
                 return archive_errc::tag_mismatch;
             }
             return archive_errc::bad
-                << ed::error_code_api_origin{"EVP_AEAD_CTX_open_gather"}
-                << make_openssl_errinfo();
+                   << ed::error_code_api_origin{"EVP_AEAD_CTX_open_gather"}
+                   << make_openssl_errinfo();
         }
         return outcome::success();
     }

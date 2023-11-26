@@ -7,11 +7,11 @@
 
 #include <boost/predef.h>
 
-#if __cplusplus > 201703L && __has_include(<version>)
+#if __cplusplus > 201'703L && __has_include(<version>)
 #include <version>
 #endif
 
-#if __cpp_lib_bitops >= 201907L
+#if __cpp_lib_bitops >= 201'907L
 #include <bit>
 
 namespace vefs::utils
