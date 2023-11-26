@@ -36,14 +36,14 @@ public:
         std::array<typename Sseq::result_type, 2> data;
         init.generate(data.begin(), data.end());
         s = static_cast<std::uint64_t>(data[0])
-          | (static_cast<std::uint64_t>(data[1]) << 32);
+            | (static_cast<std::uint64_t>(data[1]) << 32);
     }
 
     inline result_type operator()()
     {
-        std::uint64_t z = (s += 0x9E3779B97F4A7C15ull);
-        z = (z ^ (z >> 30)) * 0xBF58476D1CE4E5B9ull;
-        z = (z ^ (z >> 27)) * 0x94D049BB133111EBull;
+        std::uint64_t z = (s += 0x9E37'79B9'7F4A'7C15ull);
+        z = (z ^ (z >> 30)) * 0xBF58'476D'1CE4'E5B9ull;
+        z = (z ^ (z >> 27)) * 0x94D0'49BB'1331'11EBull;
         return z ^ (z >> 31);
     }
 
@@ -51,7 +51,7 @@ public:
     {
         for (unsigned long long i = 0; i < j; ++i)
         {
-            s += 0x9E3779B97F4A7C15ull;
+            s += 0x9E37'79B9'7F4A'7C15ull;
         }
     }
 
@@ -103,9 +103,9 @@ public:
         std::array<typename Sseq::result_type, 4> data;
         init.generate(data.begin(), data.end());
         s[0] = static_cast<std::uint64_t>(data[0])
-             | (static_cast<std::uint64_t>(data[1]) << 32);
+               | (static_cast<std::uint64_t>(data[1]) << 32);
         s[1] = static_cast<std::uint64_t>(data[2])
-             | (static_cast<std::uint64_t>(data[3]) << 32);
+               | (static_cast<std::uint64_t>(data[3]) << 32);
     }
     inline void seed(std::uint64_t s1, std::uint64_t s2)
     {

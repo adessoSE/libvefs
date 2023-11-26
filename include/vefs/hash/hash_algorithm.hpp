@@ -79,8 +79,8 @@ template <typename T>
 inline constexpr bool disable_trivially_hashable = false;
 
 template <typename T>
-concept trivially_hashable = std::has_unique_object_representations_v<T> && !
-disable_trivially_hashable<T>;
+concept trivially_hashable = std::has_unique_object_representations_v<T>
+                             && !disable_trivially_hashable<T>;
 
 inline constexpr struct hash_update_fn
 {
@@ -166,9 +166,9 @@ struct hash_fn<Algorithm, H>
     }
     template <typename T>
         requires dplx::cncr::nothrow_tag_invocable<
-                         hash_fn,
-                         typename Algorithm::key_type const &,
-                         T const &>
+                hash_fn,
+                typename Algorithm::key_type const &,
+                T const &>
     [[nodiscard]] constexpr auto
     operator()(typename Algorithm::key_type const &key,
                T const &object) const noexcept

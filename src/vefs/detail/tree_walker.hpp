@@ -25,7 +25,7 @@ private:
     using storage_type = std::uint64_t;
     static constexpr auto layer_offset = 56;
     static constexpr storage_type layer_mask = static_cast<storage_type>(0xFF)
-                                            << layer_offset;
+                                               << layer_offset;
     static constexpr storage_type position_mask = ~layer_mask;
 
     /**
@@ -221,7 +221,7 @@ constexpr auto tree_position::compress(std::uint64_t position, int layer)
         -> storage_type
 {
     return (static_cast<storage_type>(layer) << layer_offset)
-         | (position & position_mask);
+           | (position & position_mask);
 }
 
 constexpr tree_position::tree_position() noexcept
@@ -251,7 +251,7 @@ constexpr int tree_position::layer() const noexcept
 constexpr void tree_position::layer(int layer_no) noexcept
 {
     mLayerPosition = (mLayerPosition & position_mask)
-                   | static_cast<storage_type>(layer_no) << 56;
+                     | static_cast<storage_type>(layer_no) << 56;
 }
 
 constexpr std::uint64_t tree_position::position() const noexcept

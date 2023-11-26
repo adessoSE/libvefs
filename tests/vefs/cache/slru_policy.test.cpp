@@ -77,7 +77,7 @@ BOOST_AUTO_TEST_CASE(ctor_with_pages)
 BOOST_AUTO_TEST_CASE(insert_one)
 {
     test_policy::page_state::state_type gen;
-    test_key key = 0xdeadbeef;
+    test_key key = 0xdead'beef;
     test_index idx = 1U;
 
     BOOST_TEST_REQUIRE((pages[idx].try_start_replace(gen)
@@ -103,7 +103,7 @@ BOOST_FIXTURE_TEST_CASE(move_to_back_on_access, with_elements)
 BOOST_FIXTURE_TEST_CASE(newly_inserted_are_due_before_protected, with_elements)
 {
     test_key protectedKey = 0U;
-    test_key newElementKey = 0xdeadbeef;
+    test_key newElementKey = 0xdead'beef;
     test_index newElementIndex = 32U;
     BOOST_TEST(subject.on_access(protectedKey, 0U));
     {

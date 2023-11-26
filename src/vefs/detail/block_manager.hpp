@@ -412,7 +412,7 @@ inline auto id_range<IdType>::contains(id_type id) const noexcept -> bool
 {
     auto const idValue = static_cast<underlying_type>(id);
     return static_cast<underlying_type>(mFirstId) <= idValue
-        && static_cast<underlying_type>(mLastId) >= idValue;
+           && static_cast<underlying_type>(mLastId) >= idValue;
 }
 
 #pragma endregion
@@ -685,12 +685,10 @@ inline auto block_manager<IdType>::parse_bitset(const const_bitset_overlay data,
 template <typename IdType>
 void block_manager<IdType>::clear() noexcept
 {
-    mFreeBlocks.clear_and_dispose(
-            [this](range_type *p)
-            {
-                allocator_traits::destroy(mAllocator, p);
-                allocator_traits::deallocate(mAllocator, p, 1);
-            });
+    mFreeBlocks.clear_and_dispose([this](range_type *p) {
+        allocator_traits::destroy(mAllocator, p);
+        allocator_traits::deallocate(mAllocator, p, 1);
+    });
 }
 
 template <typename IdType>
@@ -744,7 +742,8 @@ inline auto block_manager<IdType>::merge_from(block_manager &other) noexcept
                 num -= range_type::distance(first, nxt2->last()) + 1;
                 first = range_type::advance(nxt2->last(), 1);
             }
-        } while (!(last < first));
+        }
+        while (!(last < first));
     }
     other.clear();
     return success();
@@ -787,13 +786,10 @@ template <typename IdType>
 inline void
 block_manager<IdType>::dispose(typename block_set::const_iterator cit) noexcept
 {
-    mFreeBlocks.erase_and_dispose(cit,
-                                  [this](range_type *p)
-                                  {
-                                      allocator_traits::destroy(mAllocator, p);
-                                      allocator_traits::deallocate(mAllocator,
-                                                                   p, 1);
-                                  });
+    mFreeBlocks.erase_and_dispose(cit, [this](range_type *p) {
+        allocator_traits::destroy(mAllocator, p);
+        allocator_traits::deallocate(mAllocator, p, 1);
+    });
 }
 
 template <typename IdType>
@@ -801,13 +797,10 @@ inline void
 block_manager<IdType>::dispose(typename block_set::const_iterator cbegin,
                                typename block_set::const_iterator cend) noexcept
 {
-    mFreeBlocks.erase_and_dispose(cbegin, cend,
-                                  [this](range_type *p)
-                                  {
-                                      allocator_traits::destroy(mAllocator, p);
-                                      allocator_traits::deallocate(mAllocator,
-                                                                   p, 1);
-                                  });
+    mFreeBlocks.erase_and_dispose(cbegin, cend, [this](range_type *p) {
+        allocator_traits::destroy(mAllocator, p);
+        allocator_traits::deallocate(mAllocator, p, 1);
+    });
 }
 #pragma endregion
 } // namespace vefs::utils

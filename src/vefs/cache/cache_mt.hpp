@@ -192,7 +192,8 @@ public:
                         break;
                     }
                 }
-            } while (numPinned != numPinnedPreviously);
+            }
+            while (numPinned != numPinnedPreviously);
 
             if (numPinned > 0)
             {
@@ -281,8 +282,7 @@ public:
         if (!mIndex.uprase_fn(
                     key,
                     [this, &h,
-                     &foundEntry](entry_info const &indexEntry) noexcept
-                    {
+                     &foundEntry](entry_info const &indexEntry) noexcept {
                         // someone was faster than us
                         // forcefully reference the page in order to prevent its
                         // untimely unbecoming during the retry
@@ -303,15 +303,15 @@ public:
             entry = foundEntry;
             goto retry;
         }
-        dplx::scope_guard indexRollback = [this, &key, &entry, &ctrl]() noexcept
-        {
-            if (entry.generation != page_state::invalid_generation)
-            {
-                mIndex.erase(key);
-                ctrl.cancel_replace();
-                release_page(entry.index);
-            }
-        };
+        dplx::scope_guard indexRollback
+                = [this, &key, &entry, &ctrl]() noexcept {
+                      if (entry.generation != page_state::invalid_generation)
+                      {
+                          mIndex.erase(key);
+                          ctrl.cancel_replace();
+                          release_page(entry.index);
+                      }
+                  };
 
         if (shouldEvictOne)
         {
@@ -322,8 +322,7 @@ public:
             std::lock_guard evictionLock{mEvictionSync};
             mEvictionPolicy.insert(key, entry.index);
         }
-        dplx::scope_guard evictionRollback = [this, &key, &entry]() noexcept
-        {
+        dplx::scope_guard evictionRollback = [this, &key, &entry]() noexcept {
             if (entry.generation != page_state::invalid_generation)
             {
                 std::lock_guard evictionLock{mEvictionSync};
@@ -420,7 +419,8 @@ public:
                                 handle{std::move(h), mPage[i].pointer()});
                     }
                 }
-            } while (++i < numPages && syncQueue.size() < syncQueue.capacity());
+            }
+            while (++i < numPages && syncQueue.size() < syncQueue.capacity());
 
             anyDirty = anyDirty || syncQueue.size() > 0U;
             for (auto &h : syncQueue)

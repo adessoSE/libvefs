@@ -22,7 +22,7 @@
 #endif
 
 // fmt 9.0.0
-#if FMT_VERSION >= 9'00'00
+#if FMT_VERSION >= 90'000
 template <>
 struct fmt::formatter<lyra::cli> : fmt::ostream_formatter
 {
@@ -88,7 +88,7 @@ namespace
 
 auto win32_utf16_to_utf8(std::wstring_view u16str) noexcept -> std::string
 {
-    constexpr unsigned utf8_codepage = 65001U;
+    constexpr unsigned utf8_codepage = 65'001U;
 
     std::string u8str;
 
@@ -137,7 +137,7 @@ auto win32_utf16_to_utf8(std::wstring_view u16str) noexcept -> std::string
 auto wmain(int argc, wchar_t *argv[]) -> int
 {
     auto utf8Args = std::span<wchar_t *>(argv, static_cast<std::size_t>(argc))
-                  | std::ranges::views::transform(win32_utf16_to_utf8);
+                    | std::ranges::views::transform(win32_utf16_to_utf8);
     return vefs::cli::main(lyra::args(std::ranges::begin(utf8Args),
                                       std::ranges::end(utf8Args)));
 }

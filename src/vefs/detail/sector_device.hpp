@@ -67,7 +67,7 @@ public:
 
     static constexpr size_t sector_size = 1 << 15; // 2^15
     static constexpr size_t sector_payload_size
-            = sector_size - (1 << 5); // 2^15-2^5
+            = sector_size - (1 << 5);              // 2^15-2^5
 
     static constexpr std::size_t static_header_size = 1 << 12;
     static constexpr std::size_t personalization_area_size = 1 << 12;
@@ -219,7 +219,7 @@ constexpr auto sector_device::header_offset(header_id which) const noexcept
         -> std::size_t
 {
     return static_header_size + personalization_area_size
-         + ((-static_cast<std::size_t>(which)) & pheader_size);
+           + ((-static_cast<std::size_t>(which)) & pheader_size);
 }
 inline void sector_device::switch_header() noexcept
 {

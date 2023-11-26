@@ -19,14 +19,14 @@ BOOST_AUTO_TEST_CASE(tree_ref_width_lut)
 
 BOOST_AUTO_TEST_CASE(calculate_sector_pos_for_byte_in_sector_five)
 {
-    auto sector_position = vefs::detail::lut::sector_position_of(5 * 32702);
+    auto sector_position = vefs::detail::lut::sector_position_of(5 * 32'702);
 
     BOOST_TEST(sector_position == 4u);
 }
 
 BOOST_AUTO_TEST_CASE(calculate_sector_pos_for_byte_in_sector_three)
 {
-    auto sector_position = vefs::detail::lut::sector_position_of(3 * 32702);
+    auto sector_position = vefs::detail::lut::sector_position_of(3 * 32'702);
 
     BOOST_TEST(sector_position == 2u);
 }

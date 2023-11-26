@@ -8,6 +8,9 @@ dplx_target_sources(vefs # core
         archive_fwd.hpp
         llfio.hpp
         span.hpp
+        
+        config.hpp
+        detail/workaround.hpp
 
     PRIVATE
         # the first added source file determines target language
@@ -66,7 +69,7 @@ dplx_target_sources(vefs # cache
         cache/bloom_filter.hpp
         cache/spectral_bloom_filter.cpp
         cache/spectral_bloom_filter.hpp
-        
+
         cache/cache_mt.cpp
         cache/cache_mt.hpp
         cache/cache_page.cpp
@@ -210,42 +213,50 @@ dplx_target_sources(vefs # hash
         hash/spooky_v2.cpp
 )
 
+file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/generated/src/vefs/detail")
+configure_file(tools/config.hpp.in "${CMAKE_CURRENT_BINARY_DIR}/generated/src/vefs/detail/config.hpp" @ONLY)
+target_sources(vefs PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/generated/src/vefs/detail/config.hpp>)
+
 if (BUILD_TESTING)
-    target_sources(vefs-tests PRIVATE
-        tests/vefs-tests.cpp
+    dplx_target_sources(vefs-tests PRIVATE
+        MODE VERBATIM
+        BASE_DIR ../tests
 
-        tests/test_utils/boost-unit-test.hpp
-        tests/test_utils/libb2_none_blake2b_crypto_provider.cpp
-        tests/test_utils/libb2_none_blake2b_crypto_provider.hpp
-        tests/test_utils/mocks.hpp
-        tests/test_utils/test-utils.cpp
-        tests/test_utils/test-utils.hpp
+        PRIVATE
+            vefs-tests.cpp
 
-        tests/io_buffer_manager.test.cpp
-        tests/sector_device-tests.cpp
-        tests/sector_tree_mt-tests.cpp
-        tests/sector_tree_seq-tests.cpp
-        tests/archive-tests.cpp
-        tests/vfile-tests.cpp
-        tests/vfilesystem-tests.cpp
-        tests/span-tests.cpp
-        tests/crypto_provider-tests.cpp
-        tests/block_manager-tests.cpp
-        tests/tree_lut-tests.cpp
-        tests/tree_walker-tests.cpp
-        tests/archive_file_id_tests.cpp
-        tests/archive-integration-tests.cpp
+            test_utils/boost-unit-test.hpp
+            test_utils/libb2_none_blake2b_crypto_provider.cpp
+            test_utils/libb2_none_blake2b_crypto_provider.hpp
+            test_utils/mocks.hpp
+            test_utils/test-utils.cpp
+            test_utils/test-utils.hpp
 
-        tests/vefs/hash/hash_algorithm.test.cpp
-        tests/vefs/hash/spooky_v2.test.cpp
+            io_buffer_manager.test.cpp
+            sector_device-tests.cpp
+            sector_tree_mt-tests.cpp
+            sector_tree_seq-tests.cpp
+            archive-tests.cpp
+            vfile-tests.cpp
+            vfilesystem-tests.cpp
+            span-tests.cpp
+            crypto_provider-tests.cpp
+            block_manager-tests.cpp
+            tree_lut-tests.cpp
+            tree_walker-tests.cpp
+            archive_file_id_tests.cpp
+            archive-integration-tests.cpp
 
-        tests/vefs/cache/bloom_filter.test.cpp
-        tests/vefs/cache/cache_mt.test.cpp
-        tests/vefs/cache/cache_page.test.cpp
-        tests/vefs/cache/eviction_policy.test.cpp
-        tests/vefs/cache/lru_policy.test.cpp
-        tests/vefs/cache/slru_policy.test.cpp
-        tests/vefs/cache/spectral_bloom_filter.test.cpp
-        tests/vefs/cache/w-tinylfu_policy.test.cpp
+            vefs/hash/hash_algorithm.test.cpp
+            vefs/hash/spooky_v2.test.cpp
+
+            vefs/cache/bloom_filter.test.cpp
+            vefs/cache/cache_mt.test.cpp
+            vefs/cache/cache_page.test.cpp
+            vefs/cache/eviction_policy.test.cpp
+            vefs/cache/lru_policy.test.cpp
+            vefs/cache/slru_policy.test.cpp
+            vefs/cache/spectral_bloom_filter.test.cpp
+            vefs/cache/w-tinylfu_policy.test.cpp
      )
 endif()

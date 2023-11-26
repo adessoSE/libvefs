@@ -53,8 +53,9 @@ inline void thread_pool::execute(F &&task)
     else
     {
         execute(std::make_unique<task_t>(
-                [btask = std::forward<F>(task)]() mutable
-                { std::invoke(btask); }));
+                [btask = std::forward<F>(task)]() mutable {
+                    std::invoke(btask);
+                }));
     }
 }
 
@@ -87,7 +88,7 @@ private:
 
     thread_pool *const mPool;
     std::atomic_int mWorkCtr;
-#if __cpp_lib_atomic_wait < 201907L // TODO: remove after gcc11 release
+#if __cpp_lib_atomic_wait < 201'907L // TODO: remove after gcc11 release
     std::mutex mSync;
     std::condition_variable mOnDecr;
 #endif

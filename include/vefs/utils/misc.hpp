@@ -25,20 +25,19 @@ concept none_of = (!std::same_as<T, Ts> && ...);
 
 template <typename T>
 concept integer = std::integral<T>
-               && none_of<std::remove_cv_t<T>,
-                          bool,
-                          char,
-                          wchar_t,
-                          char8_t,
-                          char16_t,
-                          char32_t>;
+                  && none_of<std::remove_cv_t<T>,
+                             bool,
+                             char,
+                             wchar_t,
+                             char8_t,
+                             char16_t,
+                             char32_t>;
 
 template <typename T>
 concept signed_integer = integer<T> && std::is_signed_v<T>;
 
 template <typename T>
-concept unsigned_integer = integer<T> && !
-signed_integer<T>;
+concept unsigned_integer = integer<T> && !signed_integer<T>;
 
 template <typename T>
 constexpr T div_ceil(T dividend, T divisor)

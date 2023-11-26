@@ -19,24 +19,24 @@ BOOST_AUTO_TEST_CASE(tree_position_only_considers_eight_layer_bits)
     vefs::detail::tree_position test_subject
             = vefs::detail::tree_position(0xF, 0xf6e5);
 
-    BOOST_TEST(test_subject.raw() == (0xe50000000000000f));
+    BOOST_TEST(test_subject.raw() == (0xe500'0000'0000'000f));
 }
 
 BOOST_AUTO_TEST_CASE(tree_position_only_considers_56_position_bits)
 {
-    std::uint64_t position_inside_layer = 0x1122334455667788;
+    std::uint64_t position_inside_layer = 0x1122'3344'5566'7788;
 
     vefs::detail::tree_position test_subject
             = vefs::detail::tree_position(position_inside_layer, 0xf6);
 
-    BOOST_TEST(test_subject.raw() == (0xf622334455667788u));
+    BOOST_TEST(test_subject.raw() == (0xf622'3344'5566'7788u));
 }
 
 BOOST_AUTO_TEST_CASE(tree_position_init_with_max_value)
 {
     vefs::detail::tree_position test_subject = vefs::detail::tree_position();
 
-    BOOST_TEST(test_subject.raw() == 0xffffffffffffffffu);
+    BOOST_TEST(test_subject.raw() == 0xffff'ffff'ffff'ffffu);
 }
 
 BOOST_AUTO_TEST_CASE(tree_position_sets_new_layer)
@@ -46,7 +46,7 @@ BOOST_AUTO_TEST_CASE(tree_position_sets_new_layer)
 
     test_subject.layer(0xab);
 
-    BOOST_TEST(test_subject.raw() == 0xab0000000000000fu);
+    BOOST_TEST(test_subject.raw() == 0xab00'0000'0000'000fu);
 }
 
 BOOST_AUTO_TEST_CASE(position_returns_position_potion_of_position)
@@ -66,7 +66,7 @@ BOOST_AUTO_TEST_CASE(tree_position_sets_new_position)
 
     test_subject.position(0xabu);
 
-    BOOST_TEST(test_subject.raw() == 0xf6000000000000abu);
+    BOOST_TEST(test_subject.raw() == 0xf600'0000'0000'00abu);
 }
 
 BOOST_AUTO_TEST_CASE(parent_returns_position_of_parent)
@@ -91,9 +91,9 @@ BOOST_AUTO_TEST_CASE(parent_array_offset)
 BOOST_AUTO_TEST_CASE(bool_comparison_returns_true_for_equal_positions)
 {
     vefs::detail::tree_position test_subject
-            = vefs::detail::tree_position(123456, 78);
+            = vefs::detail::tree_position(123'456, 78);
     vefs::detail::tree_position tree_position_to_compare
-            = vefs::detail::tree_position(123456, 78);
+            = vefs::detail::tree_position(123'456, 78);
 
     auto result = test_subject == tree_position_to_compare;
 
@@ -103,9 +103,9 @@ BOOST_AUTO_TEST_CASE(bool_comparison_returns_true_for_equal_positions)
 BOOST_AUTO_TEST_CASE(bool_comparison_returns_false_for_unequal_positions)
 {
     vefs::detail::tree_position test_subject
-            = vefs::detail::tree_position(123456, 78);
+            = vefs::detail::tree_position(123'456, 78);
     vefs::detail::tree_position tree_position_to_compare
-            = vefs::detail::tree_position(123456, 79);
+            = vefs::detail::tree_position(123'456, 79);
 
     auto result = test_subject != tree_position_to_compare;
 
@@ -195,7 +195,7 @@ BOOST_AUTO_TEST_CASE(iterator_test_previous_in_beginning_of_layer)
     auto path = test_subject.previous();
 
     BOOST_TEST(0u == path.position(3));
-    BOOST_TEST(0xffffffffffffffffu == path.position(2));
+    BOOST_TEST(0xffff'ffff'ffff'ffffu == path.position(2));
 }
 
 BOOST_AUTO_TEST_CASE(iterator_test_end)

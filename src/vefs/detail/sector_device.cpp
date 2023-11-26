@@ -57,9 +57,10 @@ public:
             -> std::uint64_t
     {
         return dp::encoded_item_head_size<type_code::array>(3U)
-             + dp::item_size_of_integer(ctx, 0U)
-             + dp::encoded_size_of(ctx, value.master_secret)
-             + dp::item_size_of_binary(ctx, vefs::crypto::counter::state_size);
+               + dp::item_size_of_integer(ctx, 0U)
+               + dp::encoded_size_of(ctx, value.master_secret)
+               + dp::item_size_of_binary(ctx,
+                                         vefs::crypto::counter::state_size);
     }
     static auto encode(emit_context &ctx, master_header const &value) noexcept
             -> result<void>
@@ -238,8 +239,8 @@ auto sector_device::open_existing(llfio::file_handle fileHandle,
     else
     {
         return std::move(headerRx).assume_error()
-            << ed::archive_file{"[archive-header]"}
-            << ed::sector_idx{sector_id::master};
+               << ed::archive_file{"[archive-header]"}
+               << ed::sector_idx{sector_id::master};
     }
 }
 
@@ -328,7 +329,7 @@ result<void> sector_device::parse_static_archive_header(ro_blob<32> userPRK)
         if (rx.has_error() && rx.assume_error() == archive_errc::tag_mismatch)
         {
             return archive_errc::wrong_user_prk
-                << ed::wrapped_error{std::move(rx).assume_error()};
+                   << ed::wrapped_error{std::move(rx).assume_error()};
         }
         return std::move(rx).as_failure();
     }
@@ -451,7 +452,7 @@ auto sector_device::parse_archive_header() -> result<archive_header>
     else
     {
         return archive_errc::no_archive_header
-            << ed::wrapped_error{std::move(header[0]).assume_error()};
+               << ed::wrapped_error{std::move(header[0]).assume_error()};
     }
     return std::move(header[selector]);
 
@@ -552,8 +553,7 @@ auto sector_device::read_sector(rw_blob<sector_payload_size> contentDest,
     }
 
     VEFS_TRY(auto ioBuffer, mIoBufferManager.allocate());
-    utils::scope_guard deallocationGuard = [&]
-    {
+    utils::scope_guard deallocationGuard = [&] {
         mIoBufferManager.deallocate(ioBuffer);
     };
 
@@ -602,8 +602,7 @@ auto sector_device::write_sector(
     }
 
     VEFS_TRY(auto const ioBuffer, mIoBufferManager.allocate());
-    utils::scope_guard deallocationGuard = [&]
-    {
+    utils::scope_guard deallocationGuard = [&] {
         mIoBufferManager.deallocate(ioBuffer);
     };
 
@@ -630,8 +629,7 @@ auto sector_device::erase_sector(sector_id const sectorIdx) noexcept
     }
 
     VEFS_TRY(auto const ioBuffer, mIoBufferManager.allocate());
-    utils::scope_guard deallocationGuard = [&]
-    {
+    utils::scope_guard deallocationGuard = [&] {
         mIoBufferManager.deallocate(ioBuffer);
     };
     auto const writeBuffer = ioBuffer.first(io_buffer_manager::page_size);

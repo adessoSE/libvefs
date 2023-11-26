@@ -168,8 +168,7 @@ public:
                   std::back_inserter(mAllocationBuffer));
 
         std::for_each(split, mOverwrittenAllocations.end(),
-                      [this](sector_id allocation)
-                      {
+                      [this](sector_id allocation) {
                           mSourceAllocator.dealloc_one(
                                   allocation,
                                   source_allocator_type::leak_on_failure);

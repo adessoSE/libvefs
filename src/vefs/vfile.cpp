@@ -161,8 +161,8 @@ retry:
             {
                 newSize = std::max(newSize, maximumExtent);
             }
-
-        } while (++it <= end);
+        }
+        while (++it <= end);
     }
     else if (it > end)
     {
@@ -180,8 +180,8 @@ retry:
             {
                 newSize = std::min(newSize, maximumExtent);
             }
-
-        } while (--it != 0 && it >= end);
+        }
+        while (--it != 0 && it >= end);
 
         if (end == 0)
         {
@@ -217,8 +217,9 @@ auto vfile::commit() -> result<void>
     mWriteFlag.unmark();
 
     auto commitRx = mFileTree->commit(
-            [this](detail::root_sector_info committedRootInfo) noexcept
-            { return sync_commit_info(committedRootInfo); });
+            [this](detail::root_sector_info committedRootInfo) noexcept {
+                return sync_commit_info(committedRootInfo);
+            });
     if (!commitRx)
     {
         mWriteFlag.mark();

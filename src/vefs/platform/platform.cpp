@@ -14,8 +14,7 @@ using set_native_thread_name_fn = HRESULT (*)(HANDLE hThread, PCWSTR name);
 
 set_native_thread_name_fn set_native_thread_name()
 {
-    static set_native_thread_name_fn fn = []() -> set_native_thread_name_fn
-    {
+    static set_native_thread_name_fn fn = []() -> set_native_thread_name_fn {
         set_native_thread_name_fn dfn = nullptr;
         if (auto dll = LoadLibraryW(L"Kernel32.dll"))
         {
@@ -52,7 +51,7 @@ void set_current_thread_name_legacy(std::string const &name)
     // adapted from
     // https://docs.microsoft.com/en-us/visualstudio/debugger/how-to-set-a-thread-name-in-native-code
 
-    constexpr DWORD MS_VC_EXCEPTION = 0x406D1388;
+    constexpr DWORD MS_VC_EXCEPTION = 0x406D'1388;
 
     struct THREADNAME_INFO
     {
@@ -85,8 +84,8 @@ void set_current_thread_name_legacy(std::string const &name)
 void set_current_thread_name(std::string const &name)
 {
     static set_thread_name_fn impl = set_native_thread_name()
-                                           ? &set_current_thread_name_spicey
-                                           : &set_current_thread_name_legacy;
+                                             ? &set_current_thread_name_spicey
+                                             : &set_current_thread_name_legacy;
 
     impl(name);
 }

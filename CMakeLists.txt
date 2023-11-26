@@ -49,12 +49,11 @@ endif()
 option(BUILD_CLI "Build the CommandLine-Interface" OFF)
 option(BUILD_TESTING "Build the unit tests" OFF)
 
-option(VEFS_DISABLE_WORKAROUNDS "Disables all code workarounds" OFF)
-option(VEFS_FLAG_OUTDATED_WORKAROUNDS "Raises compiler errors for all workarounds which need to be reevaluated" OFF)
+option(VEFS_DISABLE_WORKAROUNDS "Disable all workarounds" OFF)
+option(VEFS_FLAG_OUTDATED_WORKAROUNDS "Emit compiler errors for workarounds which are active, but haven't been validated for this version" OFF)
 
 set(VEFS_LLFIO_TARGET "sl" CACHE STRING "The llfio target to link against, can be 'hl', 'sl' or 'dl'")
 set_property(CACHE VEFS_LLFIO_TARGET PROPERTY STRINGS "hl;sl;dl")
-
 
 ########################################################################
 # dependencies
@@ -169,12 +168,11 @@ target_compile_definitions(vefs
         VEFS_FLAG_OUTDATED_WORKAROUNDS=$<BOOL:${VEFS_FLAG_OUTDATED_WORKAROUNDS}>
 )
 
-target_include_directories(vefs
-    PUBLIC
-        $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-        $<INSTALL_INTERFACE:include>
-    PRIVATE
-        ${CMAKE_CURRENT_SOURCE_DIR}/src
+target_include_directories(vefs PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/src>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/generated/src>
+    $<INSTALL_INTERFACE:include>
 )
 
 if (CMAKE_SYSTEM_NAME STREQUAL "Windows")
@@ -240,6 +238,11 @@ endif()
 ########################################################################
 # cmake install
 install(DIRECTORY include/vefs
+    TYPE INCLUDE
+    FILES_MATCHING
+    REGEX ".*\\.h(pp)?"
+)
+install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/generated/src
     TYPE INCLUDE
     FILES_MATCHING
     REGEX ".*\\.h(pp)?"

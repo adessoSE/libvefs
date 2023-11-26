@@ -144,8 +144,8 @@ BOOST_FIXTURE_TEST_CASE(new_sector_tree_has_id_one, sector_tree_mt_dependencies)
     TEST_RESULT_REQUIRE(createrx);
     auto newTree = std::move(createrx).assume_value();
     root_sector_info newRootInfo;
-    TEST_RESULT_REQUIRE(newTree->commit([&newRootInfo](root_sector_info rsi)
-                                        { newRootInfo = rsi; }));
+    TEST_RESULT_REQUIRE(newTree->commit(
+            [&newRootInfo](root_sector_info rsi) { newRootInfo = rsi; }));
 
     BOOST_TEST(newRootInfo.root.sector == sector_id{2});
     BOOST_TEST(newRootInfo.tree_depth == 0);
@@ -158,8 +158,8 @@ BOOST_FIXTURE_TEST_CASE(check_initial_sector_tree_mac,
     TEST_RESULT_REQUIRE(createrx);
     auto newTree = std::move(createrx).assume_value();
     root_sector_info newRootInfo;
-    TEST_RESULT_REQUIRE(newTree->commit([&newRootInfo](root_sector_info rsi)
-                                        { newRootInfo = rsi; }));
+    TEST_RESULT_REQUIRE(newTree->commit(
+            [&newRootInfo](root_sector_info rsi) { newRootInfo = rsi; }));
 
     auto expectedRootMac = dplx::cncr::make_byte_array<16>(
             {0xe8, 0xfc, 0xa8, 0xd7, 0x5c, 0xd8, 0x51, 0xe1, 0xd6, 0xe3, 0x9e,
@@ -225,7 +225,7 @@ BOOST_AUTO_TEST_CASE(creation_of_a_new_node_changes_mac)
     // given
     auto createRx = existingTree->access_or_create(tree_position(1));
     TEST_RESULT_REQUIRE(createRx);
-    as_span(createRx.assume_value().as_writable())[0] = std::byte{0b1010'1010};
+    as_span(createRx.assume_value().as_writable())[0] = std::byte{0b10101010};
     createRx.assume_value() = read_handle();
 
     root_sector_info newRootInfo;
@@ -248,7 +248,7 @@ BOOST_AUTO_TEST_CASE(created_node_can_be_read)
     TEST_RESULT_REQUIRE(createRx);
     write_handle writeHandle = createRx.assume_value().as_writable();
     BOOST_TEST_REQUIRE(writeHandle.operator bool());
-    as_span(writeHandle)[0] = std::byte{0b1010'1010};
+    as_span(writeHandle)[0] = std::byte{0b10101010};
     writeHandle = write_handle();
 
     // when
@@ -259,7 +259,7 @@ BOOST_AUTO_TEST_CASE(created_node_can_be_read)
     TEST_RESULT_REQUIRE(rootAccessRx);
     auto rootSpan = as_span(rootAccessRx.assume_value());
 
-    BOOST_TEST(rootSpan[0] == std::byte{0b1010'1010});
+    BOOST_TEST(rootSpan[0] == std::byte{0b10101010});
 }
 
 BOOST_AUTO_TEST_CASE(creation_of_a_new_node_expands_to_two_sectors)

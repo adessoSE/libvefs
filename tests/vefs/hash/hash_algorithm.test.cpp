@@ -11,7 +11,7 @@ enum class non_trivially_hashable : std::uint32_t
 {
 };
 
-}
+} // namespace vefs_tests::hash_algorithm_tmp
 
 template <>
 inline constexpr bool vefs::disable_trivially_hashable<

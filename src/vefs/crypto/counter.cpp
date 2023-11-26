@@ -14,8 +14,7 @@ auto dplx::dp::codec<vefs::crypto::counter>::decode(parse_context &ctx,
         -> result<void>
 {
     boost::container::static_vector<std::byte, value_type::state_size> state{};
-    dplx::scope_guard cleanupState = [&state]
-    {
+    dplx::scope_guard cleanupState = [&state] {
         vefs::utils::secure_memzero(state);
     };
 
@@ -104,8 +103,7 @@ inline unsigned char add_carry(unsigned char carry, T a, T b, T *out)
     static_assert(std::is_integral_v<T>);
     static_assert(std::is_unsigned_v<T>);
 
-    [[maybe_unused]] auto const upcast_impl = [&]([[maybe_unused]] auto acc)
-    {
+    [[maybe_unused]] auto const upcast_impl = [&]([[maybe_unused]] auto acc) {
         acc += a;
         acc += b;
         *out = static_cast<T>(acc);
