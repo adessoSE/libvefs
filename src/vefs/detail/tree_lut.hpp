@@ -96,7 +96,8 @@ constexpr auto required_sector_count(const std::uint64_t byteSize)
 {
     static_assert(ref_width.size() == 5); // safe guard for ref_width changes.
 
-    auto numSectors = byteSize ? utils::div_ceil(byteSize, step_width[1]) : 1;
+    auto numSectors
+            = byteSize != 0u ? utils::div_ceil(byteSize, step_width[1]) : 1;
     if (byteSize > step_width[1])
     {
         numSectors += utils::div_ceil(byteSize, step_width[2]);

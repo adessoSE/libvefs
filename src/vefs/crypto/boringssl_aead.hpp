@@ -105,10 +105,10 @@ public:
         }
 
         boringssl_aead ctx;
-        if (!EVP_AEAD_CTX_init(&ctx.mCtx, algorithm,
-                               reinterpret_cast<uint8_t const *>(key.data()),
-                               key.size(), EVP_AEAD_DEFAULT_TAG_LENGTH,
-                               nullptr))
+        if (EVP_AEAD_CTX_init(&ctx.mCtx, algorithm,
+                              reinterpret_cast<uint8_t const *>(key.data()),
+                              key.size(), EVP_AEAD_DEFAULT_TAG_LENGTH, nullptr)
+            == 0)
         {
             return archive_errc::bad
                    << ed::error_code_api_origin{"EVP_AEAD_CTX_init"sv}
@@ -173,7 +173,7 @@ public:
         size_t outTagLen = outTag.size();
 
         ERR_clear_error();
-        if (!EVP_AEAD_CTX_seal_scatter(
+        if (EVP_AEAD_CTX_seal_scatter(
                     &mCtx, reinterpret_cast<uint8_t *>(out.data()),
                     reinterpret_cast<uint8_t *>(outTag.data()), &outTagLen,
                     outTag.size(),
@@ -182,7 +182,8 @@ public:
                     reinterpret_cast<uint8_t const *>(plain.data()),
                     plain.size(), nullptr,
                     0, // extra_in, extra_in_len
-                    reinterpret_cast<uint8_t const *>(ad.data()), ad.size()))
+                    reinterpret_cast<uint8_t const *>(ad.data()), ad.size())
+            == 0)
         {
             // #TODO appropriately wrap the boringssl packed error
             return archive_errc::bad
@@ -236,7 +237,7 @@ public:
         }
 
         ERR_clear_error();
-        if (!EVP_AEAD_CTX_open_gather(
+        if (EVP_AEAD_CTX_open_gather(
                     &mCtx, reinterpret_cast<uint8_t *>(out.data()),
                     reinterpret_cast<uint8_t const *>(nonce.data()),
                     nonce.size(),
@@ -244,10 +245,11 @@ public:
                     ciphertext.size(),
                     reinterpret_cast<uint8_t const *>(authTag.data()),
                     authTag.size(),
-                    reinterpret_cast<uint8_t const *>(ad.data()), ad.size()))
+                    reinterpret_cast<uint8_t const *>(ad.data()), ad.size())
+            == 0)
         {
             auto ec = ERR_peek_last_error();
-            if (!ec
+            if ((ec == 0u)
                 || (ERR_GET_LIB(ec) == ERR_LIB_CIPHER
                     && ERR_GET_REASON(ec) == CIPHER_R_BAD_DECRYPT))
             {

@@ -170,7 +170,8 @@ public:
 
         for (unsigned i = 0U; i < k; ++i)
         {
-            unsigned const incr = values[i] == estimate;
+            unsigned const incr
+                    = static_cast<unsigned>(values[i] == estimate);
             mBuckets[bucketIndices[i]] += static_cast<bucket_type>(incr)
                                           << cellShifts[i];
         }

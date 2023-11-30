@@ -142,8 +142,8 @@ auto vfile::truncate(std::uint64_t size) -> result<void>
     auto maximumExtent = mMaximumExtent.load(std::memory_order_acquire);
 
 retry:
-    auto it = maximumExtent ? sector_position_of(maximumExtent - 1) : 0;
-    auto end = size ? sector_position_of(size - 1) : 0;
+    auto it = maximumExtent != 0u ? sector_position_of(maximumExtent - 1) : 0;
+    auto end = size != 0u ? sector_position_of(size - 1) : 0;
 
     if (it < end)
     {

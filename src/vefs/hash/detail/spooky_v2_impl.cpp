@@ -51,7 +51,7 @@ void SpookyHash::Short(void const *message,
 
     if constexpr (!ALLOW_UNALIGNED_READS)
     {
-        if (u.i & 0x7)
+        if ((u.i & 0x7) != 0u)
         {
             memcpy(buf, message, length);
             u.p64 = buf;
@@ -266,7 +266,7 @@ void SpookyHash::Update(void const *message, size_t length)
     m_length = length + m_length;
 
     // if we've got anything stuffed away, use it now
-    if (m_remainder)
+    if (m_remainder != 0u)
     {
         uint8_t prefix = sc_bufSize - m_remainder;
         memcpy(&(((uint8_t *)m_data)[m_remainder]), message, prefix);

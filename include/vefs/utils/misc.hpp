@@ -96,9 +96,9 @@ constexpr auto mod(T k, U n) -> std::common_type_t<T, U>
 constexpr auto upow(std::uint64_t x, std::uint64_t e)
 {
     std::uint64_t result = 1;
-    while (e)
+    while (e != 0u)
     {
-        if (e & 1)
+        if ((e & 1) != 0u)
         {
             result *= x;
         }

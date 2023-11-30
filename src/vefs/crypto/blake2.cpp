@@ -10,12 +10,12 @@ namespace vefs::crypto::detail
 {
 auto blake2b::init(std::size_t digestSize) noexcept -> result<void>
 {
-    if (!digestSize || digestSize < 16 || digestSize > block_bytes)
+    if ((digestSize == 0u) || digestSize < 16 || digestSize > block_bytes)
     {
         return blake2_errc::invalid_digest_size;
     }
 
-    if (blake2b_init(&mState, digestSize))
+    if (blake2b_init(&mState, digestSize) != 0)
     {
         return blake2_errc::state_init_failed;
     }
@@ -25,7 +25,7 @@ auto blake2b::init(std::size_t digestSize) noexcept -> result<void>
 auto blake2b::init(std::size_t digestSize, ro_dynblob key) noexcept
         -> result<void>
 {
-    if (!digestSize || digestSize < 16 || digestSize > block_bytes)
+    if ((digestSize == 0u) || digestSize < 16 || digestSize > block_bytes)
     {
         return blake2_errc::invalid_digest_size;
     }
@@ -34,7 +34,7 @@ auto blake2b::init(std::size_t digestSize, ro_dynblob key) noexcept
         return blake2_errc::invalid_key_size;
     }
 
-    if (blake2b_init_key(&mState, digestSize, key.data(), key.size()))
+    if (blake2b_init_key(&mState, digestSize, key.data(), key.size()) != 0)
     {
         return blake2_errc::state_init_w_key_failed;
     }
@@ -46,7 +46,7 @@ auto blake2b::init(std::size_t digestSize,
                    ro_blob<personal_bytes> personalisation) noexcept
         -> result<void>
 {
-    if (!digestSize || digestSize < 16 || digestSize > block_bytes)
+    if ((digestSize == 0u) || digestSize < 16 || digestSize > block_bytes)
     {
         return blake2_errc::invalid_digest_size;
     }
@@ -70,7 +70,7 @@ auto blake2b::init(std::size_t digestSize,
     fill_blob(as_writable_bytes(std::span(param.salt)));
     copy(personalisation, as_writable_bytes(std::span(param.personal)));
 
-    if (blake2b_init_param(&mState, &param))
+    if (blake2b_init_param(&mState, &param) != 0)
     {
         return blake2_errc::state_init_param_failed;
     }
@@ -85,7 +85,7 @@ auto blake2b::init(std::size_t digestSize,
 
 auto blake2b::update(ro_dynblob data) noexcept -> result<void>
 {
-    if (blake2b_update(&mState, data.data(), data.size()))
+    if (blake2b_update(&mState, data.data(), data.size()) != 0)
     {
         return blake2_errc::update_failed;
     }
@@ -94,7 +94,7 @@ auto blake2b::update(ro_dynblob data) noexcept -> result<void>
 
 auto blake2b::final(rw_dynblob digest) noexcept -> result<void>
 {
-    if (blake2b_final(&mState, digest.data(), digest.size()))
+    if (blake2b_final(&mState, digest.data(), digest.size()) != 0)
     {
         return blake2_errc::finalization_failed;
     }
@@ -103,12 +103,12 @@ auto blake2b::final(rw_dynblob digest) noexcept -> result<void>
 
 auto blake2xb::init(std::size_t digestSize) noexcept -> result<void>
 {
-    if (!digestSize || digestSize > variable_digest_length)
+    if ((digestSize == 0u) || digestSize > variable_digest_length)
     {
         return blake2_errc::invalid_digest_size;
     }
 
-    if (blake2xb_init(&mState, digestSize))
+    if (blake2xb_init(&mState, digestSize) != 0)
     {
         return blake2_errc::state_init_failed;
     }
@@ -118,7 +118,7 @@ auto blake2xb::init(std::size_t digestSize) noexcept -> result<void>
 auto blake2xb::init(std::size_t digestSize, ro_dynblob key) noexcept
         -> result<void>
 {
-    if (!digestSize || digestSize > variable_digest_length)
+    if ((digestSize == 0u) || digestSize > variable_digest_length)
     {
         return blake2_errc::invalid_digest_size;
     }
@@ -127,7 +127,7 @@ auto blake2xb::init(std::size_t digestSize, ro_dynblob key) noexcept
         return blake2_errc::invalid_key_size;
     }
 
-    if (blake2xb_init_key(&mState, digestSize, key.data(), key.size()))
+    if (blake2xb_init_key(&mState, digestSize, key.data(), key.size()) != 0)
     {
         return blake2_errc::state_init_w_key_failed;
     }
@@ -139,7 +139,7 @@ auto blake2xb::init(std::size_t digestSize,
                     ro_blob<personal_bytes> personalisation) noexcept
         -> result<void>
 {
-    if (!digestSize || digestSize > variable_digest_length)
+    if ((digestSize == 0u) || digestSize > variable_digest_length)
     {
         return blake2_errc::invalid_digest_size;
     }
@@ -167,7 +167,7 @@ auto blake2xb::init(std::size_t digestSize,
     fill_blob(as_writable_bytes(std::span(param.salt)));
     copy(personalisation, as_writable_bytes(std::span(param.personal)));
 
-    if (blake2b_init_param(mState.S, &param))
+    if (blake2b_init_param(mState.S, &param) != 0)
     {
         return blake2_errc::state_init_param_failed;
     }
@@ -182,7 +182,7 @@ auto blake2xb::init(std::size_t digestSize,
 
 auto blake2xb::update(ro_dynblob data) noexcept -> result<void>
 {
-    if (blake2xb_update(&mState, data.data(), data.size()))
+    if (blake2xb_update(&mState, data.data(), data.size()) != 0)
     {
         return blake2_errc::update_failed;
     }
@@ -191,7 +191,7 @@ auto blake2xb::update(ro_dynblob data) noexcept -> result<void>
 
 auto blake2xb::final(rw_dynblob digest) noexcept -> result<void>
 {
-    if (blake2xb_final(&mState, digest.data(), digest.size()))
+    if (blake2xb_final(&mState, digest.data(), digest.size()) != 0)
     {
         return blake2_errc::finalization_failed;
     }

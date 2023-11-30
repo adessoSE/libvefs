@@ -226,8 +226,9 @@ constexpr auto sector_device::header_offset(header_id which) noexcept
 }
 inline void sector_device::switch_header() noexcept
 {
-    mHeaderSelector = header_id{
-            !static_cast<std::underlying_type_t<header_id>>(mHeaderSelector)};
+    mHeaderSelector = static_cast<header_id>(
+            static_cast<std::underlying_type_t<header_id>>(mHeaderSelector)
+            == 0);
 }
 
 inline auto sector_device::personalization_area() noexcept
