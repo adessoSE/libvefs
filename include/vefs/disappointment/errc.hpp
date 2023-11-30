@@ -82,6 +82,7 @@ protected:
     _do_failure(system_error::status_code<void> const &code) const noexcept
             -> bool override
     {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-static-cast-downcast)
         return static_cast<archive_code const &>(code).value()
                != archive_errc::success;
     }
@@ -177,15 +178,18 @@ protected:
                    system_error::status_code<void> const &rhs) const noexcept
             -> bool override
     {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-static-cast-downcast)
         auto const &alhs = static_cast<archive_code const &>(lhs);
         if (rhs.domain() == *this)
         {
             return alhs.value()
+                   // NOLINTNEXTLINE(cppcoreguidelines-pro-type-static-cast-downcast)
                    == static_cast<archive_code const &>(rhs).value();
         }
         if (rhs.domain() == system_error::generic_code_domain)
         {
             system_error::errc sysErrc
+                    // NOLINTNEXTLINE(cppcoreguidelines-pro-type-static-cast-downcast)
                     = static_cast<system_error::generic_code const &>(rhs)
                               .value();
 
@@ -198,6 +202,7 @@ protected:
     _generic_code(system_error::status_code<void> const &code) const noexcept
             -> system_error::generic_code override
     {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-static-cast-downcast)
         return map_to_generic(static_cast<archive_code const &>(code).value());
     }
 
@@ -205,6 +210,7 @@ protected:
     _do_message(system_error::status_code<void> const &code) const noexcept
             -> string_ref override
     {
+        // NOLINTNEXTLINE(cppcoreguidelines-pro-type-static-cast-downcast)
         auto const archiveCode = static_cast<archive_code const &>(code);
         auto const message = map_to_message(archiveCode.value());
         return string_ref(message.data(), message.size());
@@ -214,6 +220,7 @@ protected:
             system_error::status_code<void> const &code) const override
     {
         throw system_error::status_error<archive_domain_type>(
+                // NOLINTNEXTLINE(cppcoreguidelines-pro-type-static-cast-downcast)
                 static_cast<archive_code const &>(code).clone());
     }
 };
