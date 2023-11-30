@@ -146,12 +146,9 @@ struct hash_fn
                     = std::bit_cast<std::array<std::byte, sizeof(T)>>(object);
             return Algorithm::template hash<H>(bits.data(), sizeof(object));
         }
-        else
-        {
-            return Algorithm::template hash<H>(
-                    reinterpret_cast<std::byte const *>(&object),
-                    sizeof(object));
-        }
+
+        return Algorithm::template hash<H>(
+                reinterpret_cast<std::byte const *>(&object), sizeof(object));
     }
 };
 template <keyable_hash_algorithm Algorithm, hash_type H>
@@ -217,12 +214,9 @@ struct hash_fn<Algorithm, H>
                     = std::bit_cast<std::array<std::byte, sizeof(T)>>(object);
             return Algorithm::template hash<H>(bits.data(), sizeof(object));
         }
-        else
-        {
-            return Algorithm::template hash<H>(
-                    reinterpret_cast<std::byte const *>(&object),
-                    sizeof(object));
-        }
+
+        return Algorithm::template hash<H>(
+                reinterpret_cast<std::byte const *>(&object), sizeof(object));
     }
     template <trivially_hashable T>
     friend inline constexpr auto
@@ -237,12 +231,10 @@ struct hash_fn<Algorithm, H>
             return Algorithm::template hash<H>(key, bits.data(),
                                                sizeof(object));
         }
-        else
-        {
-            return Algorithm::template hash<H>(
-                    key, reinterpret_cast<std::byte const *>(&object),
-                    sizeof(object));
-        }
+
+        return Algorithm::template hash<H>(
+                key, reinterpret_cast<std::byte const *>(&object),
+                sizeof(object));
     }
 };
 

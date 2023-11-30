@@ -831,7 +831,7 @@ auto vfilesystem::erase(std::string_view filePath) -> result<void>
     {
         return archive_errc::no_such_vfile;
     }
-    else if (erased)
+    if (erased)
     {
         mIndex.erase_fn(filePath,
                         [id](file_id const &elem) { return id == elem; });
@@ -860,10 +860,8 @@ auto vfilesystem::erase(std::string_view filePath) -> result<void>
         VEFS_TRY(erase_contiguous(*eraser, victim.tree_info.maximum_extent));
         return success();
     }
-    else
-    {
-        return archive_errc::still_in_use;
-    }
+
+    return archive_errc::still_in_use;
 }
 
 auto vfilesystem::extract(llfio::path_view sourceFilePath,

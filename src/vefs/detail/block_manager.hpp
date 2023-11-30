@@ -724,24 +724,22 @@ inline auto block_manager<IdType>::merge_from(block_manager &other) noexcept
                 first = range_type::advance(nxt->last(), 1);
                 num -= range_type::distance(first, nxt->last()) + 1;
             }
-            if (auto nxt2 = std::next(nxt);
-                nxt2 == mFreeBlocks.end() || last < nxt2->first())
+            auto nxt2 = std::next(nxt);
+            if (nxt2 == mFreeBlocks.end() || last < nxt2->first())
             {
                 // [first, first + num) doesn't overlap with anything
                 // (anymore)
                 VEFS_TRY(dealloc_contiguous(first, num));
                 break;
             }
-            else
-            {
-                auto numDealloc = range_type::distance(first, nxt2->first());
-                VEFS_TRY(dealloc_contiguous(first, numDealloc));
 
-                // num might wrap around 0, therefore we compare
-                // last and first in the loop condition
-                num -= range_type::distance(first, nxt2->last()) + 1;
-                first = range_type::advance(nxt2->last(), 1);
-            }
+            auto numDealloc = range_type::distance(first, nxt2->first());
+            VEFS_TRY(dealloc_contiguous(first, numDealloc));
+
+            // num might wrap around 0, therefore we compare
+            // last and first in the loop condition
+            num -= range_type::distance(first, nxt2->last()) + 1;
+            first = range_type::advance(nxt2->last(), 1);
         }
         while (!(last < first));
     }

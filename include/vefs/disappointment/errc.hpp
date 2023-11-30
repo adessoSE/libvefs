@@ -183,7 +183,7 @@ protected:
             return alhs.value()
                    == static_cast<archive_code const &>(rhs).value();
         }
-        else if (rhs.domain() == system_error::generic_code_domain)
+        if (rhs.domain() == system_error::generic_code_domain)
         {
             system_error::errc sysErrc
                     = static_cast<system_error::generic_code const &>(rhs)

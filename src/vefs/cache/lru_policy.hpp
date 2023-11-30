@@ -146,10 +146,8 @@ public:
             mLRU.erase(it);
             return true;
         }
-        else
-        {
-            return false;
-        }
+
+        return false;
     }
 };
 

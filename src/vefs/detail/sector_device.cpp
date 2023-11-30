@@ -224,7 +224,8 @@ auto sector_device::open_existing(llfio::file_handle fileHandle,
                     ed::archive_file{"[archive-static-header]"}
                             << ed::sector_idx{sector_id::master});
 
-    if (auto headerRx = archive->parse_archive_header(); headerRx.has_value())
+    auto headerRx = archive->parse_archive_header();
+    if (headerRx.has_value())
     {
         auto &&header = std::move(headerRx).assume_value();
         archive->mArchiveSecretCounter.store(
@@ -236,12 +237,10 @@ auto sector_device::open_existing(llfio::file_handle fileHandle,
                          master_file_info(header.filesystem_index),
                          master_file_info(header.free_sector_index)};
     }
-    else
-    {
-        return std::move(headerRx).assume_error()
-               << ed::archive_file{"[archive-header]"}
-               << ed::sector_idx{sector_id::master};
-    }
+
+    return std::move(headerRx).assume_error()
+           << ed::archive_file{"[archive-header]"}
+           << ed::sector_idx{sector_id::master};
 }
 
 auto sector_device::create_new(llfio::file_handle fileHandle,
@@ -560,7 +559,8 @@ auto sector_device::read_sector(rw_blob<sector_payload_size> contentDest,
     auto const sectorOffset = to_offset(sectorIdx);
     io_buffer reqBuffers[] = {ioBuffer};
 
-    if (auto readrx = mArchiveFile.read({reqBuffers, sectorOffset}))
+    auto readrx = mArchiveFile.read({reqBuffers, sectorOffset});
+    if (readrx)
     {
         auto const buffers = readrx.assume_value();
         assert(buffers.size() == 1U);
@@ -575,12 +575,10 @@ auto sector_device::read_sector(rw_blob<sector_payload_size> contentDest,
                 ed::sector_idx{sectorIdx});
         return oc::success();
     }
-    else
-    {
-        result<void> adaptedrx{std::move(readrx).as_failure()};
-        adaptedrx.assume_error() << ed::sector_idx{sectorIdx};
-        return adaptedrx;
-    }
+
+    result<void> adaptedrx{std::move(readrx).as_failure()};
+    adaptedrx.assume_error() << ed::sector_idx{sectorIdx};
+    return adaptedrx;
 }
 
 template <typename file_crypto_ctx_T>

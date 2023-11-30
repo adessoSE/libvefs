@@ -358,11 +358,8 @@ auto archive_sector_allocator::finalize(
         {
             return success();
         }
-        else
-        {
-            VEFS_TRY(freeSectorTree->move_forward(
-                    file_tree::access_mode::force));
-        }
+
+        VEFS_TRY(freeSectorTree->move_forward(file_tree::access_mode::force));
     }
 }
 

@@ -108,7 +108,7 @@ libb2_none_blake2b_crypto_provider::box_open(rw_dynblob plaintext,
         utils::secure_memzero(plaintext);
         return archive_errc::tag_mismatch;
     }
-    else if (ciphertext.data() != plaintext.data())
+    if (ciphertext.data() != plaintext.data())
     {
         copy(ciphertext, plaintext);
     }

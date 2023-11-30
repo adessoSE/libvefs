@@ -595,13 +595,11 @@ inline auto sector_tree_seq<TreeAllocator>::compute_update_range(
                 = (lut::max_tree_depth + 2) - mRootInfo.tree_depth;
         return {std::next(newPath.cbegin(), subRootDistance), newPath.cend()};
     }
-    else
-    {
-        return {std::mismatch(mCurrentPath.cbegin(), mCurrentPath.cend(),
-                              newPath.cbegin())
-                        .second,
-                newPath.cend()};
-    }
+
+    return {std::mismatch(mCurrentPath.cbegin(), mCurrentPath.cend(),
+                          newPath.cbegin())
+                    .second,
+            newPath.cend()};
 }
 
 template <typename TreeAllocator>

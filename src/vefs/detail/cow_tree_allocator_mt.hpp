@@ -193,12 +193,10 @@ private:
         {
             return sector_id{};
         }
-        else
-        {
-            auto allocation = mAllocationBuffer.back();
-            mAllocationBuffer.pop_back();
-            return allocation;
-        }
+
+        auto allocation = mAllocationBuffer.back();
+        mAllocationBuffer.pop_back();
+        return allocation;
     }
 
     source_allocator_type &mSourceAllocator;

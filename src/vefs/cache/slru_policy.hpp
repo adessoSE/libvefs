@@ -160,10 +160,8 @@ public:
             mSLRU.erase(it);
             return true;
         }
-        else
-        {
-            return false;
-        }
+
+        return false;
     }
 };
 

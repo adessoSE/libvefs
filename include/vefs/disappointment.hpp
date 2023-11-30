@@ -162,10 +162,8 @@ auto make_unique_rx(Args &&...args) noexcept(
     {
         return std::unique_ptr<T>(ptr);
     }
-    else
-    {
-        return errc::not_enough_memory;
-    }
+
+    return errc::not_enough_memory;
 }
 
 template <typename T, typename InjectFn>

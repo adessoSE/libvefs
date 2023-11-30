@@ -145,11 +145,9 @@ auto archive_handle::archive(llfio::file_handle const &file,
         return archive_handle::open_existing(std::move(clonedHandle),
                                              cryptoProvider, userPRK);
     }
-    else
-    {
-        return archive_handle::create_new(std::move(clonedHandle),
-                                          cryptoProvider, userPRK);
-    }
+
+    return archive_handle::create_new(std::move(clonedHandle), cryptoProvider,
+                                      userPRK);
 }
 
 auto archive_handle::archive(llfio::path_handle const &base,
@@ -181,16 +179,15 @@ auto archive_handle::archive(llfio::path_handle const &base,
 
     VEFS_TRY(clonedHandle, fileHandle.reopen());
 
-    if (auto createRx = archive_handle::create_new(std::move(fileHandle),
-                                                   cryptoProvider, userPRK))
+    auto createRx = archive_handle::create_new(std::move(fileHandle),
+                                               cryptoProvider, userPRK);
+    if (createRx.has_value())
     {
         return std::move(createRx).assume_value();
     }
-    else
-    {
-        (void)llfio::unlink(clonedHandle);
-        return std::move(createRx).assume_error();
-    }
+
+    (void)llfio::unlink(clonedHandle);
+    return std::move(createRx).assume_error();
 }
 
 auto archive_handle::open_existing(

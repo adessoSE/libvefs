@@ -222,15 +222,14 @@ auto mdc_derive_key_id(boost::json::object const &mdcBoxObject) noexcept
         {
             return cli_errc::malformed_mdc_key_box;
         }
-        if (auto idStr = id->if_string(); idStr == nullptr)
+        auto idStr = id->if_string();
+        if (idStr == nullptr)
         {
             return cli_errc::malformed_mdc_key_box;
         }
-        else
-        {
-            hashCtx.update(reinterpret_cast<std::byte const *>(idStr->data()),
-                           idStr->size());
-        }
+
+        hashCtx.update(reinterpret_cast<std::byte const *>(idStr->data()),
+                       idStr->size());
     }
     auto keyId = hashCtx.final();
 

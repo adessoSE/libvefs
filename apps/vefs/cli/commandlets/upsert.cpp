@@ -29,8 +29,8 @@ inline auto transfer_to_vfile(llfio::file_handle &file,
     {
         llfio::file_handle::buffer_type requestBuffers[]
                 = {std::span(ioBuffer)};
-        if (auto readRx = file.read({requestBuffers, written});
-            readRx.has_error())
+        auto readRx = file.read({requestBuffers, written});
+        if (readRx.has_error())
         {
 #if defined(BOOST_OS_WINDOWS_AVAILABLE)
             constexpr system_error::win32_code error_handle_eof{0x0000'0026};
@@ -44,16 +44,14 @@ inline auto transfer_to_vfile(llfio::file_handle &file,
 #endif
             return std::move(readRx).as_failure();
         }
-        else if (readRx.bytes_transferred() == 0U)
+        if (readRx.bytes_transferred() == 0U)
         {
             break;
         }
-        else
-        {
-            VEFS_TRY(archive.write(vfile, std::span(readRx.assume_value()[0]),
-                                   written));
-            written += readRx.bytes_transferred();
-        }
+
+        VEFS_TRY(archive.write(vfile, std::span(readRx.assume_value()[0]),
+                               written));
+        written += readRx.bytes_transferred();
     }
     VEFS_TRY(archive.truncate(vfile, written));
     return oc::success();

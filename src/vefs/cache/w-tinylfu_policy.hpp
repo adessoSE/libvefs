@@ -140,7 +140,7 @@ public:
                 ++mWindowHand;
                 return *this;
             }
-            else if (mWindowHand == endWindow)
+            if (mWindowHand == endWindow)
             {
                 ++mMainHand;
                 return *this;
