@@ -153,10 +153,11 @@ public:
         }
     }
 
+    // NOLINTNEXTLINE(bugprone-exception-escape)
     auto on_commit() noexcept -> result<void>
     {
         mCommitCounter += 1;
-        const std::scoped_lock lock{mBufferSync, mDeallocationSync};
+        std::scoped_lock const lock{mBufferSync, mDeallocationSync};
 
         auto const bufferAmount = std::min(mAllocationBuffer.capacity()
                                                    - mAllocationBuffer.size(),

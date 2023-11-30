@@ -245,6 +245,9 @@ num_required_storage_sectors(utils::block_manager<sector_id> &sectorManager)
             * free_block_sector_layout::serialized_block_range_size);
 }
 
+// all exceptions are either catched on site or the throw can't be triggered
+// due to invariants
+// NOLINTNEXTLINE(bugprone-exception-escape)
 static auto preallocate_serialization_storage(
         sector_id rootSectorId,
         utils::block_manager<sector_id> &sectorManager,
@@ -303,6 +306,8 @@ static auto preallocate_serialization_storage(
     return success();
 }
 
+// see preallocate_serialization_storage()
+// NOLINTNEXTLINE(bugprone-exception-escape)
 auto archive_sector_allocator::finalize(
         file_crypto_ctx const &filesystemCryptoCtx,
         root_sector_info filesystemRoot) noexcept -> result<void>

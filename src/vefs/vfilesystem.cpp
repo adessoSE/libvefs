@@ -219,6 +219,8 @@ private:
                                = static_cast<std::uint32_t>(streamInfo.value)};
         }
 
+        // pin_or_load is marked noexcept… but clang-tidy doesn't care :/
+        // NOLINTNEXTLINE(bugprone-exception-escape)
         auto acquire_next_chunk_impl(std::uint64_t remaining) noexcept
                 -> dplx::dp::result<dplx::dp::memory_view>
         {
@@ -244,6 +246,8 @@ private:
         }
     };
 
+    // pin_or_load is marked noexcept… but clang-tidy doesn't care :/
+    // NOLINTNEXTLINE(bugprone-exception-escape)
     auto find_next_entry(tree_stream_position begin) noexcept
             -> result<tree_stream_position>
     {
@@ -342,6 +346,8 @@ private:
         }
 
     private:
+        // pin_or_load is marked noexcept… but clang-tidy doesn't care :/
+        // NOLINTNEXTLINE(bugprone-exception-escape)
         auto acquire_next_chunk_impl() noexcept
                 -> dplx::dp::result<std::span<std::byte>>
         {

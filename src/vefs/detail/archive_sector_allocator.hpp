@@ -44,6 +44,8 @@ public:
 
     auto initialize_new() noexcept -> result<void>;
     auto initialize_from(root_sector_info rootInfo) noexcept -> result<void>;
+    // see implementation 🙄
+    // NOLINTNEXTLINE(bugprone-exception-escape)
     auto finalize(file_crypto_ctx const &filesystemCryptoCtx,
                   root_sector_info filesystemRoot) noexcept -> result<void>;
 

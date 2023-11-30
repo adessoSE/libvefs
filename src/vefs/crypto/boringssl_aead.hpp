@@ -126,11 +126,13 @@ public:
         }
     }
 
+    // FIXME refactor boringssl parameter validation
+    // NOLINTNEXTLINE(bugprone-exception-escape)
     auto seal(rw_dynblob out,
               rw_dynblob &outTag,
               ro_dynblob nonce,
               ro_dynblob plain,
-              ro_dynblob ad = ro_dynblob{}) const -> result<void>
+              ro_dynblob ad = ro_dynblob{}) const noexcept -> result<void>
     {
         using namespace std::string_view_literals;
 
@@ -193,11 +195,13 @@ public:
         return outcome::success();
     }
 
+    // FIXME refactor boringssl parameter validation
+    // NOLINTNEXTLINE(bugprone-exception-escape)
     auto open(rw_dynblob out,
               ro_dynblob nonce,
               ro_dynblob ciphertext,
               ro_dynblob authTag,
-              ro_dynblob ad = ro_dynblob{}) -> result<void>
+              ro_dynblob ad = ro_dynblob{}) noexcept -> result<void>
     {
         if (out.empty())
         {

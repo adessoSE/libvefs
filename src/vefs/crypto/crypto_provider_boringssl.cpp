@@ -11,6 +11,9 @@
 
 namespace vefs::crypto::detail
 {
+
+// aead.seal is marked noexcept… but clang-tidy doesn't care :/
+// NOLINTNEXTLINE(bugprone-exception-escape)
 auto boringssl_aes_256_gcm_provider::box_seal(
         rw_dynblob ciphertext,
         rw_dynblob mac,
@@ -22,6 +25,8 @@ auto boringssl_aes_256_gcm_provider::box_seal(
     return aead.seal(ciphertext, mac, keyMaterial.subspan(32, 12), plaintext);
 }
 
+// aead.open is marked noexcept… but clang-tidy doesn't care :/
+// NOLINTNEXTLINE(bugprone-exception-escape)
 auto boringssl_aes_256_gcm_provider::box_open(rw_dynblob plaintext,
                                               ro_dynblob keyMaterial,
                                               ro_dynblob ciphertext,
@@ -57,10 +62,12 @@ auto boringssl_aes_256_gcm_provider::ct_compare(ro_dynblob l,
 {
     return ::vefs::crypto::detail::ct_compare(l, r);
 }
+
 } // namespace vefs::crypto::detail
 
 namespace vefs::crypto
 {
+
 namespace
 {
 detail::boringssl_aes_256_gcm_provider boringssl_aes_256_gcm;
@@ -70,4 +77,5 @@ auto boringssl_aes_256_gcm_crypto_provider() -> crypto_provider *
 {
     return &boringssl_aes_256_gcm;
 }
+
 } // namespace vefs::crypto

@@ -395,6 +395,8 @@ private:
     {
     }
 
+    // pin_or_load is marked noexcept… but clang-tidy doesn't care :/
+    // NOLINTNEXTLINE(bugprone-exception-escape)
     auto initialize(bool createNew) noexcept -> result<void>
     {
         tree_position const rootPosition(0U, mRootInfo.tree_depth);

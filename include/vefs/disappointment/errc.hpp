@@ -53,6 +53,8 @@ public:
             = "9F10BF2E-4F20-459E-9976-4D975CBB3349";
 
     constexpr ~archive_domain_type() noexcept = default;
+    // uuid is valid and exception would bubble up at compile time
+    // NOLINTNEXTLINE(bugprone-exception-escape)
     constexpr archive_domain_type() noexcept
         : base(uuid.data(), base::_uuid_size<uuid.size()>{})
     {

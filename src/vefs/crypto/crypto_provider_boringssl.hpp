@@ -8,12 +8,16 @@ namespace vefs::crypto::detail
 {
 class boringssl_aes_256_gcm_provider : public crypto_provider
 {
+    // see implementation 🙄
+    // NOLINTNEXTLINE(bugprone-exception-escape)
     [[nodiscard]] auto box_seal(rw_dynblob ciphertext,
                                 rw_dynblob mac,
                                 ro_dynblob keyMaterial,
                                 ro_dynblob plaintext) const noexcept
             -> result<void> override;
 
+    // see implementation 🙄
+    // NOLINTNEXTLINE(bugprone-exception-escape)
     [[nodiscard]] auto box_open(rw_dynblob plaintext,
                                 ro_dynblob keyMaterial,
                                 ro_dynblob ciphertext,

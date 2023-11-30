@@ -241,6 +241,9 @@ public:
         return try_acquire_entry(key, entry);
     }
 
+    // we use pre-allocated data structures, i.e. we can't hit the allocation
+    // failure paths
+    // NOLINTNEXTLINE(bugprone-exception-escape)
     auto pin_or_load(load_context const &ctx, key_type const &key) noexcept
             -> result<handle>
     {
