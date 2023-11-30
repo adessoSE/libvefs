@@ -52,7 +52,7 @@ inline void fill_blob(std::span<std::byte, Extent> target,
                       std::byte value = std::byte{})
 {
     // calling memset with a nullptr is UB
-    if (target.size() > 0)
+    if (!target.empty())
     {
         std::memset(target.data(), std::to_integer<int>(value), target.size());
     }

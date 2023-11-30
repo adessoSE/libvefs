@@ -80,7 +80,7 @@ struct formatter<vefs::detail::type_info_fmt>
 
         auto out = ctx.out();
         if (std::string_view demangledNameView{demangledName};
-            demangledNameView.size() > 0)
+            !demangledNameView.empty())
         {
             out = fmt::format_to(out, FMT_STRING("{}"), demangledNameView);
         }

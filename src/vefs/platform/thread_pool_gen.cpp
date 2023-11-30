@@ -33,8 +33,8 @@ thread_pool_gen::thread_pool_gen(unsigned minWorkers,
                                  std::string_view poolName)
     : mTaskQueue{}
     , mWorkerList{}
-    , mThreadPoolName{poolName.size() ? std::string{poolName}
-                                      : make_anonymous_pool_name()}
+    , mThreadPoolName{!poolName.empty() ? std::string{poolName}
+                                        : make_anonymous_pool_name()}
 {
     assert(maxWorkers >= minWorkers);
 
@@ -50,7 +50,7 @@ thread_pool_gen::thread_pool_gen(unsigned minWorkers,
     }
     catch (...)
     {
-        if (mWorkerList.size())
+        if (!mWorkerList.empty())
         {
             // we need to get rid of all already existing worker threads
             try
