@@ -85,6 +85,8 @@ public:
         {
             if (base::_has_error(self))
             {
+                // moving lvalues is expected in this case.
+                // NOLINTNEXTLINE(bugprone-move-forwarding-reference)
                 base::_error(std::move(self)).throw_exception();
             }
             throw outcome::bad_result_access("no value");
