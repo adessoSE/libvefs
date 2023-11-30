@@ -28,8 +28,8 @@ public:
 
     auto reallocate(sector_allocator &part) noexcept -> result<sector_id>;
 
-    auto dealloc_one(const sector_id which) noexcept -> result<void>;
-    void dealloc_one(const sector_id which, leak_on_failure_t) noexcept;
+    auto dealloc_one(sector_id which) noexcept -> result<void>;
+    void dealloc_one(sector_id which, leak_on_failure_t) noexcept;
 
     static auto on_commit() noexcept -> result<void>;
 

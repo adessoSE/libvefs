@@ -37,7 +37,7 @@ public:
     }
 
     [[nodiscard]] static auto generate_key() noexcept -> key_type;
-    static void generate_keys(std::span<key_type> const keys) noexcept;
+    static void generate_keys(std::span<key_type> keys) noexcept;
 
     void update(std::byte const *const data,
                 std::size_t const byteSize) noexcept

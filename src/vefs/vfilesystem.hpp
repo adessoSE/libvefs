@@ -66,9 +66,9 @@ public:
                            detail::master_file_info const &info)
             -> result<std::unique_ptr<vfilesystem>>;
 
-    auto open(const std::string_view filePath, const file_open_mode_bitset mode)
+    auto open(std::string_view filePath, file_open_mode_bitset mode)
             -> result<vfile_handle>;
-    auto open(const detail::file_id id) -> result<vfile_handle>;
+    auto open(detail::file_id id) -> result<vfile_handle>;
     auto erase(std::string_view filePath) -> result<void>;
     /**
      * Extracts a vfile at the given path as a physical file on the
@@ -88,7 +88,7 @@ public:
      */
     auto extractAll(llfio::path_view targetBasePath) -> result<void>;
 
-    auto query(const std::string_view filePath) -> result<file_query_result>;
+    auto query(std::string_view filePath) -> result<file_query_result>;
 
     auto on_vfile_commit(detail::file_id fileId,
                          detail::root_sector_info updatedRootInfo)
