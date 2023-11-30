@@ -65,7 +65,7 @@ public:
     {
         return (*this & testValue) == testValue;
     }
-    constexpr bool test(enum_bitset value) const
+    [[nodiscard]] constexpr bool test(enum_bitset value) const
     {
         return *this % value;
     }

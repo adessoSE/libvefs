@@ -13,21 +13,26 @@ namespace vefs::test
 {
 class libb2_none_blake2b_crypto_provider : public vefs::crypto::crypto_provider
 {
-    result<void> box_seal(rw_dynblob ciphertext,
-                          rw_dynblob mac,
-                          ro_dynblob keyMaterial,
-                          ro_dynblob plaintext) const noexcept override;
+    [[nodiscard]] result<void>
+    box_seal(rw_dynblob ciphertext,
+             rw_dynblob mac,
+             ro_dynblob keyMaterial,
+             ro_dynblob plaintext) const noexcept override;
 
-    vefs::result<void> box_open(rw_dynblob plaintext,
-                                ro_dynblob keyMaterial,
-                                ro_dynblob ciphertext,
-                                ro_dynblob mac) const noexcept override;
+    [[nodiscard]] vefs::result<void>
+    box_open(rw_dynblob plaintext,
+             ro_dynblob keyMaterial,
+             ro_dynblob ciphertext,
+             ro_dynblob mac) const noexcept override;
 
-    utils::secure_byte_array<16> generate_session_salt() const override;
+    [[nodiscard]] utils::secure_byte_array<16>
+    generate_session_salt() const override;
 
-    result<void> random_bytes(rw_dynblob out) const noexcept override;
+    [[nodiscard]] result<void>
+    random_bytes(rw_dynblob out) const noexcept override;
 
-    result<int> ct_compare(ro_dynblob l, ro_dynblob r) const noexcept override;
+    [[nodiscard]] result<int> ct_compare(ro_dynblob l,
+                                         ro_dynblob r) const noexcept override;
 
 public:
     static constexpr std::size_t key_material_size

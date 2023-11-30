@@ -127,7 +127,7 @@ public:
         bitset_ops::flip(mBegin, bitpos);
     }
 
-    bool get(std::size_t bitpos) const
+    [[nodiscard]] bool get(std::size_t bitpos) const
     {
         return bitset_ops::get(mBegin, bitpos);
     }
@@ -205,7 +205,7 @@ public:
     {
     }
 
-    bool get(std::size_t bitpos) const
+    [[nodiscard]] bool get(std::size_t bitpos) const
     {
         return bitset_ops::get(mBegin, bitpos);
     }
@@ -215,7 +215,7 @@ public:
         return get(bitpos);
     }
 
-    auto data() const noexcept -> unit_type const *
+    [[nodiscard]] auto data() const noexcept -> unit_type const *
     {
         return mBegin;
     }

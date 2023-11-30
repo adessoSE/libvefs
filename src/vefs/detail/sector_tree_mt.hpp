@@ -506,7 +506,7 @@ public:
         using base_type::operator->;
         using base_type::get;
 
-        auto node_position() const noexcept -> tree_position
+        [[nodiscard]] auto node_position() const noexcept -> tree_position
         {
             return base_type::key();
         }
@@ -540,12 +540,12 @@ public:
         {
             return write_handle(static_cast<base_type &&>(*this).as_writable());
         }
-        auto as_writable() const & noexcept -> write_handle
+        [[nodiscard]] auto as_writable() const & noexcept -> write_handle
         {
             return write_handle(base_type::as_writable());
         }
 
-        auto node_position() const noexcept -> tree_position
+        [[nodiscard]] auto node_position() const noexcept -> tree_position
         {
             return base_type::key();
         }

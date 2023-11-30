@@ -95,7 +95,8 @@ public:
     }
 
     template <typename T>
-    auto read(std::size_t offset) const noexcept -> remove_cvref_t<T>
+    [[nodiscard]] auto read(std::size_t offset) const noexcept
+            -> remove_cvref_t<T>
     {
         return load_primitive<T>(mBuffer, offset);
     }
@@ -106,7 +107,7 @@ public:
         return store_primitive(mBuffer, value, offset);
     }
 
-    auto as_bytes() const noexcept -> ro_dynblob
+    [[nodiscard]] auto as_bytes() const noexcept -> ro_dynblob
     {
         return mBuffer;
     }
@@ -118,11 +119,11 @@ public:
     {
         return mBuffer.data();
     }
-    auto data() const noexcept -> std::byte const *
+    [[nodiscard]] auto data() const noexcept -> std::byte const *
     {
         return mBuffer.data();
     }
-    auto size() const noexcept -> std::size_t
+    [[nodiscard]] auto size() const noexcept -> std::size_t
     {
         return mBuffer.size_bytes();
     }

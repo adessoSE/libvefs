@@ -29,8 +29,8 @@ public:
     explicit counter(state ctrState);
     explicit counter(ro_blob<state_size> ctrState);
 
-    state const &value() const noexcept;
-    auto view() const noexcept -> ro_blob<state_size>;
+    [[nodiscard]] state const &value() const noexcept;
+    [[nodiscard]] auto view() const noexcept -> ro_blob<state_size>;
     void increment();
     counter &operator++();
     counter operator++(int);

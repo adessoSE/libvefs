@@ -73,7 +73,7 @@ public:
     /**
      * @brief returns the number of counters.
      */
-    auto num_cells() const noexcept -> size_type
+    [[nodiscard]] auto num_cells() const noexcept -> size_type
     {
         return static_cast<size_type>(mBuckets.size()) * cells_per_bucket;
     }
@@ -82,7 +82,7 @@ public:
      * @brief Returns zero if the object definitely is not part of the set,
      *        otherwise returns one.
      */
-    auto estimate(T const &value) const noexcept -> std::uint32_t
+    [[nodiscard]] auto estimate(T const &value) const noexcept -> std::uint32_t
     {
         auto const hashes = std::bit_cast<std::array<std::uint32_t, k>>(
                 hash<hasher, hash128_t>(value));

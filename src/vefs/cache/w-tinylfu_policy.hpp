@@ -180,7 +180,7 @@ public:
         }
 
     private:
-        auto should_use_window(
+        [[nodiscard]] auto should_use_window(
                 typename window_policy_type::replacement_iterator const
                         &windowHand,
                 typename main_policy_type::replacement_iterator const &mainHand)
@@ -191,7 +191,7 @@ public:
         }
     };
 
-    auto num_managed() const noexcept -> std::size_t
+    [[nodiscard]] auto num_managed() const noexcept -> std::size_t
     {
         return mWindowPolicy.num_managed() + mMainPolicy.num_managed();
     }
@@ -280,7 +280,8 @@ public:
     }
 
 private:
-    auto estimate(key_type const &key) const noexcept -> std::uint32_t
+    [[nodiscard]] auto estimate(key_type const &key) const noexcept
+            -> std::uint32_t
     {
         return mDoorkeeper.estimate(key) > 0U
                        ? 1U + mFrequencySketch.estimate(key)

@@ -31,7 +31,7 @@ public:
     error_detail_base &operator=(error_detail_base &&) = delete;
 
     virtual void stringify(format_buffer &out) const noexcept = 0;
-    virtual auto stringify() const -> std::string = 0;
+    [[nodiscard]] virtual auto stringify() const -> std::string = 0;
 };
 } // namespace detail
 
@@ -39,7 +39,7 @@ template <typename Tag, typename T>
 class error_detail final : public vefs::detail::error_detail_base
 {
     void stringify(format_buffer &out) const noexcept override;
-    auto stringify() const -> std::string override;
+    [[nodiscard]] auto stringify() const -> std::string override;
 
 public:
     using value_type = T;
@@ -51,7 +51,7 @@ public:
     error_detail(T &&v) noexcept(std::is_nothrow_move_constructible_v<T>);
 
     auto value() noexcept -> value_type &;
-    auto value() const noexcept -> value_type const &;
+    [[nodiscard]] auto value() const noexcept -> value_type const &;
 
 private:
     value_type mValue;

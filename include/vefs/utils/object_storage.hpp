@@ -45,7 +45,7 @@ public:
     {
         return *pointer();
     }
-    auto value() const noexcept -> value_type const &
+    [[nodiscard]] auto value() const noexcept -> value_type const &
     {
         return *pointer();
     }
@@ -54,7 +54,7 @@ public:
     {
         return std::launder(reinterpret_cast<pointer_type>(mStorage.data()));
     }
-    auto pointer() const noexcept -> value_type const *
+    [[nodiscard]] auto pointer() const noexcept -> value_type const *
     {
         return std::launder(
                 reinterpret_cast<value_type const *>(mStorage.data()));

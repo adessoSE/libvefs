@@ -117,7 +117,7 @@ public:
 
     ~sector_tree_seq() noexcept;
 
-    auto position() const noexcept -> tree_position
+    [[nodiscard]] auto position() const noexcept -> tree_position
     {
         return mCurrentPath.layer_position(0);
     }
@@ -135,11 +135,12 @@ public:
     template <typename Fn>
     auto commit(Fn &&commitFn) noexcept -> result<void>;
 
-    auto bytes() const noexcept -> ro_blob<sector_device::sector_payload_size>;
+    [[nodiscard]] auto bytes() const noexcept
+            -> ro_blob<sector_device::sector_payload_size>;
     auto writeable_bytes() noexcept
             -> rw_blob<sector_device::sector_payload_size>;
 
-    auto is_loaded() const noexcept -> bool
+    [[nodiscard]] auto is_loaded() const noexcept -> bool
     {
         return mRootInfo.tree_depth == mLoaded;
     }
@@ -159,8 +160,9 @@ private:
     auto create(tree_path::const_iterator updateIt,
                 const tree_path::iterator end) noexcept -> result<void>;
 
-    auto compute_update_range(tree_path const &newPath,
-                              bool const forceReload) const noexcept
+    [[nodiscard]] auto
+    compute_update_range(tree_path const &newPath,
+                         bool const forceReload) const noexcept
             -> std::pair<tree_path::const_iterator, tree_path::const_iterator>;
 
     auto grow_tree(int const desiredDepth) noexcept -> result<void>;

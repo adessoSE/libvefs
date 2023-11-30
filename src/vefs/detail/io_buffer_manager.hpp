@@ -145,7 +145,7 @@ private:
     }
 
 public:
-    auto allocate() const noexcept -> result<std::span<std::byte>>
+    [[nodiscard]] auto allocate() const noexcept -> result<std::span<std::byte>>
     {
         if (head().free_buffers.try_acquire())
         {
@@ -192,19 +192,19 @@ public:
     }
 
 private:
-    auto head() const noexcept -> control_head &
+    [[nodiscard]] auto head() const noexcept -> control_head &
     {
         return *std::launder(
                 reinterpret_cast<control_head *>(mControlBlock.get()));
     }
-    auto block(std::uint32_t const which) const noexcept
+    [[nodiscard]] auto block(std::uint32_t const which) const noexcept
             -> std::binary_semaphore &
     {
         return *std::launder(reinterpret_cast<std::binary_semaphore *>(
                 mControlBlock.get() + control_head_size
                 + which * control_slot_size));
     }
-    auto block_data(std::uint32_t const which) const noexcept
+    [[nodiscard]] auto block_data(std::uint32_t const which) const noexcept
             -> std::span<std::byte>
     {
         return mAllocatedPages.as_span().subspan(

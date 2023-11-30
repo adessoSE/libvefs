@@ -63,11 +63,12 @@ public:
     using value_type = archive_errc;
     using base::string_ref;
 
-    constexpr virtual auto name() const noexcept -> string_ref override
+    [[nodiscard]] constexpr virtual auto name() const noexcept
+            -> string_ref override
     {
         return string_ref("vefs-domain");
     }
-    constexpr virtual auto payload_info() const noexcept
+    [[nodiscard]] constexpr virtual auto payload_info() const noexcept
             -> payload_info_t override
     {
         return {sizeof(value_type),
@@ -78,7 +79,7 @@ public:
     static constexpr auto get() noexcept -> archive_domain_type const &;
 
 protected:
-    constexpr virtual auto
+    [[nodiscard]] constexpr virtual auto
     _do_failure(system_error::status_code<void> const &code) const noexcept
             -> bool override
     {
@@ -86,8 +87,8 @@ protected:
                != archive_errc::success;
     }
 
-    constexpr auto map_to_generic(value_type const value) const noexcept
-            -> system_error::errc
+    [[nodiscard]] constexpr auto
+    map_to_generic(value_type const value) const noexcept -> system_error::errc
     {
         using enum archive_errc;
         using sys_errc = system_error::errc;
@@ -123,8 +124,8 @@ protected:
         }
     }
 
-    constexpr auto map_to_message(value_type const value) const noexcept
-            -> std::string_view
+    [[nodiscard]] constexpr auto
+    map_to_message(value_type const value) const noexcept -> std::string_view
     {
         using enum archive_errc;
         using namespace std::string_view_literals;
@@ -172,7 +173,7 @@ protected:
         }
     }
 
-    constexpr virtual auto
+    [[nodiscard]] constexpr virtual auto
     _do_equivalent(system_error::status_code<void> const &lhs,
                    system_error::status_code<void> const &rhs) const noexcept
             -> bool override
@@ -194,14 +195,14 @@ protected:
         }
         return false;
     }
-    constexpr virtual auto
+    [[nodiscard]] constexpr virtual auto
     _generic_code(system_error::status_code<void> const &code) const noexcept
             -> system_error::generic_code override
     {
         return map_to_generic(static_cast<archive_code const &>(code).value());
     }
 
-    constexpr virtual auto
+    [[nodiscard]] constexpr virtual auto
     _do_message(system_error::status_code<void> const &code) const noexcept
             -> string_ref override
     {

@@ -96,7 +96,7 @@ public:
         }
     };
 
-    auto num_managed() const noexcept -> std::size_t
+    [[nodiscard]] auto num_managed() const noexcept -> std::size_t
     {
         return mSLRU.size();
     }

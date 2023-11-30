@@ -42,18 +42,18 @@ public:
     explicit constexpr tree_position(std::uint64_t pos) noexcept;
     constexpr tree_position(std::uint64_t pos, int layer) noexcept;
 
-    constexpr int layer() const noexcept;
+    [[nodiscard]] constexpr int layer() const noexcept;
 
     constexpr void layer(int layer_no) noexcept;
 
-    constexpr std::uint64_t position() const noexcept;
+    [[nodiscard]] constexpr std::uint64_t position() const noexcept;
 
     constexpr void position(std::uint64_t position) noexcept;
 
-    constexpr tree_position parent() const noexcept;
-    constexpr int parent_array_offset() const;
+    [[nodiscard]] constexpr tree_position parent() const noexcept;
+    [[nodiscard]] constexpr int parent_array_offset() const;
 
-    constexpr storage_type raw() const noexcept;
+    [[nodiscard]] constexpr storage_type raw() const noexcept;
 
     explicit constexpr operator bool() const noexcept;
     auto operator==(tree_position const &other) const noexcept -> bool
@@ -97,26 +97,26 @@ public:
     // computes the path to position from tree_position{0, treeDepth}
     inline tree_path(int treeDepth, tree_position position) noexcept;
 
-    inline tree_position layer_position(int layer) const noexcept;
-    inline std::uint64_t position(int layer) const noexcept;
-    inline int offset(int layer) const noexcept;
+    [[nodiscard]] inline tree_position layer_position(int layer) const noexcept;
+    [[nodiscard]] inline std::uint64_t position(int layer) const noexcept;
+    [[nodiscard]] inline int offset(int layer) const noexcept;
 
     inline explicit operator bool() const noexcept;
 
-    auto begin() const -> const_iterator;
-    auto cbegin() const -> const_iterator;
-    auto end() const -> const_iterator;
-    auto cend() const -> const_iterator;
+    [[nodiscard]] auto begin() const -> const_iterator;
+    [[nodiscard]] auto cbegin() const -> const_iterator;
+    [[nodiscard]] auto end() const -> const_iterator;
+    [[nodiscard]] auto cend() const -> const_iterator;
 
-    auto rbegin() const -> const_reverse_iterator;
-    auto crbegin() const -> const_reverse_iterator;
-    auto rend() const -> const_reverse_iterator;
-    auto crend() const -> const_reverse_iterator;
+    [[nodiscard]] auto rbegin() const -> const_reverse_iterator;
+    [[nodiscard]] auto crbegin() const -> const_reverse_iterator;
+    [[nodiscard]] auto rend() const -> const_reverse_iterator;
+    [[nodiscard]] auto crend() const -> const_reverse_iterator;
 
-    inline tree_path next() const;
-    inline tree_path previous() const;
+    [[nodiscard]] inline tree_path next() const;
+    [[nodiscard]] inline tree_path previous() const;
 
-    inline auto required_depth() const noexcept -> int;
+    [[nodiscard]] inline auto required_depth() const noexcept -> int;
 
 private:
     inline tree_path(int treeDepth, std::uint64_t pos, int layer = 0) noexcept;

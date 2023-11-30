@@ -24,7 +24,7 @@ struct file_id
     explicit constexpr file_id(uuid rawId) noexcept;
     explicit file_id(ro_blob<16> rawData) noexcept;
 
-    auto as_uuid() const noexcept -> uuid;
+    [[nodiscard]] auto as_uuid() const noexcept -> uuid;
 
     static auto generate() noexcept -> result<file_id>;
 

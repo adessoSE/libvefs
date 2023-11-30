@@ -62,15 +62,15 @@ public:
      *
      * currently the ranges are ordered by their last id
      */
-    auto id() const noexcept -> id_type;
+    [[nodiscard]] auto id() const noexcept -> id_type;
     /**
      * the first id within the range
      */
-    auto first() const noexcept -> id_type;
+    [[nodiscard]] auto first() const noexcept -> id_type;
     /**
      * the last id within the range
      */
-    auto last() const noexcept -> id_type;
+    [[nodiscard]] auto last() const noexcept -> id_type;
 
     /**
      * returns the first id from the range and removes it from the range
@@ -107,21 +107,21 @@ public:
     void append(std::size_t num) noexcept;
 
     auto empty() noexcept -> bool;
-    auto size() const noexcept -> std::size_t;
+    [[nodiscard]] auto size() const noexcept -> std::size_t;
 
     /**
      * returns true if this range is immediately preceeding the given id
      */
-    auto is_predecessor_of(id_type id) const noexcept -> bool;
+    [[nodiscard]] auto is_predecessor_of(id_type id) const noexcept -> bool;
     /**
      * returns true if this range is immediately succeeding the given id
      */
-    auto is_successor_of(id_type id) const noexcept -> bool;
+    [[nodiscard]] auto is_successor_of(id_type id) const noexcept -> bool;
 
     /**
      * return true if this range contains the given id
      */
-    auto contains(id_type id) const noexcept -> bool;
+    [[nodiscard]] auto contains(id_type id) const noexcept -> bool;
 
 private:
     underlying_type mFirstId;
@@ -253,19 +253,19 @@ public:
      */
     auto merge_disjunct(block_manager &other) noexcept -> result<void>;
 
-    auto begin() const noexcept -> const_iterator
+    [[nodiscard]] auto begin() const noexcept -> const_iterator
     {
         return mFreeBlocks.cbegin();
     }
-    auto cbegin() const noexcept -> const_iterator
+    [[nodiscard]] auto cbegin() const noexcept -> const_iterator
     {
         return mFreeBlocks.cbegin();
     }
-    auto end() const noexcept -> const_iterator
+    [[nodiscard]] auto end() const noexcept -> const_iterator
     {
         return mFreeBlocks.cend();
     }
-    auto cend() const noexcept -> const_iterator
+    [[nodiscard]] auto cend() const noexcept -> const_iterator
     {
         return mFreeBlocks.cend();
     }
@@ -273,7 +273,7 @@ public:
     /**
      * The number of id ranges, useful mostly for serialization purposes.
      */
-    auto num_nodes() const noexcept -> std::uint64_t
+    [[nodiscard]] auto num_nodes() const noexcept -> std::uint64_t
     {
         return mFreeBlocks.size();
     }

@@ -20,7 +20,7 @@ public:
     {
     }
 
-    inline auto read(int which) const noexcept -> sector_reference
+    [[nodiscard]] inline auto read(int which) const noexcept -> sector_reference
     {
         auto const baseOffset
                 = static_cast<std::size_t>(which) * serialized_reference_size;

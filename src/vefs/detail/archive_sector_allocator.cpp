@@ -38,7 +38,8 @@ public:
     {
     }
 
-    inline auto read(int const which) const noexcept -> free_block_range
+    [[nodiscard]] inline auto read(int const which) const noexcept
+            -> free_block_range
     {
         auto const baseOffset
                 = static_cast<std::size_t>(which) * serialized_block_range_size;

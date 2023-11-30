@@ -180,7 +180,7 @@ private:
                                      tree, std::move(initialSector));
         }
 
-        auto next_block() const noexcept -> tree_stream_position
+        [[nodiscard]] auto next_block() const noexcept -> tree_stream_position
         {
             auto const state = current_read_area();
             auto const sectorContentBegin = as_span(mCurrentSector).data();
@@ -545,7 +545,7 @@ public:
         return success();
     }
 
-    auto last_allocated() const noexcept -> detail::tree_position
+    [[nodiscard]] auto last_allocated() const noexcept -> detail::tree_position
     {
         return mLastAllocated;
     }

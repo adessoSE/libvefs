@@ -483,7 +483,7 @@ public:
     using base_type::operator->;
     using base_type::get;
 
-    auto key() const noexcept -> Key const &
+    [[nodiscard]] auto key() const noexcept -> Key const &
     {
         return base_type::get_handle()->key();
     }
@@ -497,7 +497,7 @@ public:
     /**
      * Checks whether the referenced cache_page is marked as dirty.
      */
-    auto is_dirty() const noexcept -> bool
+    [[nodiscard]] auto is_dirty() const noexcept -> bool
     {
         return base_type::get_handle()->is_dirty();
     }
@@ -529,7 +529,7 @@ public:
     using base_type::operator->;
     using base_type::get;
 
-    auto key() const noexcept -> Key const &
+    [[nodiscard]] auto key() const noexcept -> Key const &
     {
         return base_type::get_handle()->key();
     }
@@ -543,7 +543,7 @@ public:
     /**
      * Checks whether the referenced cache_page is marked as dirty.
      */
-    auto is_dirty() const noexcept -> bool
+    [[nodiscard]] auto is_dirty() const noexcept -> bool
     {
         return base_type::get_handle()->is_dirty();
     }
@@ -560,7 +560,8 @@ public:
         return cache_handle<Key, Value>{
                 static_cast<base_type &&>(*this).get_handle(), alias};
     }
-    auto as_writable() const & noexcept -> cache_handle<Key, Value>
+    [[nodiscard]] auto as_writable() const & noexcept
+            -> cache_handle<Key, Value>
     {
         return cache_handle<Key, Value>{base_type::get_handle(),
                                         const_cast<Value *>(get())};
