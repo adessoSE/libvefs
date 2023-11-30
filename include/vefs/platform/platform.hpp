@@ -68,12 +68,8 @@ struct formatter<vefs::detail::type_info_fmt>
     auto format(vefs::detail::type_info_fmt const &type, FormatContext &ctx)
     {
 #ifdef __GNUC__
-        char *demangledName;
-        {
-            int status = 0;
-            demangledName = abi::__cxa_demangle(type.value.name(), nullptr,
-                                                nullptr, &status);
-        }
+        auto demangledResource = demangle(type.value);
+        char *demangledName = demangledResource.get();
 #else
         auto demangledName = type.value.name();
 #endif
@@ -90,12 +86,28 @@ struct formatter<vefs::detail::type_info_fmt>
             out = fmt::format_to(out, "<unknown type>"sv);
         }
 
-#ifdef __GNUC__
-        free(demangledName);
-#endif
-
         return out;
     }
+
+#ifdef __GNUC__
+private:
+    struct free_demangled
+    {
+        void operator()(char *resource) const noexcept
+        {
+            // NOLINTNEXTLINE(cppcoreguidelines-no-malloc,cppcoreguidelines-owning-memory)
+            ::free(resource);
+        }
+    };
+
+    static auto demangle(std::type_info const &typeInfo)
+            -> std::unique_ptr<char, free_demangled>
+    {
+        int status = 0;
+        return std::unique_ptr<char, free_demangled>{abi::__cxa_demangle(
+                typeInfo.name(), nullptr, nullptr, &status)};
+    }
+#endif
 };
 
 } // namespace fmt

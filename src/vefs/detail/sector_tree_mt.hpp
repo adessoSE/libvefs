@@ -3,6 +3,7 @@
 #include <atomic>
 #include <memory>
 #include <mutex>
+#include <new>
 #include <ranges>
 #include <shared_mutex>
 #include <thread>
@@ -450,14 +451,10 @@ public:
                               AllocatorCtorArgs &&...args)
             -> result<std::unique_ptr<sector_tree_mt>>
     {
-        std::unique_ptr<sector_tree_mt> tree;
-        try
-        {
-            tree.reset(new sector_tree_mt(
-                    device, cryptoCtx, rootInfo,
-                    std::forward<AllocatorCtorArgs>(args)...));
-        }
-        catch (std::bad_alloc const &)
+        std::unique_ptr<sector_tree_mt> tree{new (std::nothrow) sector_tree_mt(
+                device, cryptoCtx, rootInfo,
+                std::forward<AllocatorCtorArgs>(args)...)};
+        if (tree == nullptr) [[unlikely]]
         {
             return errc::not_enough_memory;
         }
@@ -472,14 +469,10 @@ public:
                            AllocatorCtorArgs &&...args)
             -> result<std::unique_ptr<sector_tree_mt>>
     {
-        std::unique_ptr<sector_tree_mt> tree;
-        try
-        {
-            tree.reset(new sector_tree_mt(
+        std::unique_ptr<sector_tree_mt> tree{new (std::nothrow) sector_tree_mt(
                     device, cryptoCtx, {},
-                    std::forward<AllocatorCtorArgs>(args)...));
-        }
-        catch (std::bad_alloc const &)
+                    std::forward<AllocatorCtorArgs>(args)...)};
+        if (tree == nullptr) [[unlikely]]
         {
             return errc::not_enough_memory;
         }

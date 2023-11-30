@@ -59,8 +59,10 @@ auto init_unit_test() -> bool
 
     // hook up the gmock and boost test
     auto &listeners{::testing::UnitTest::GetInstance()->listeners()};
+    // NOLINTBEGIN(cppcoreguidelines-owning-memory)
     delete listeners.Release(listeners.default_result_printer());
     listeners.Append(new HookupListner);
+    // NOLINTEND(cppcoreguidelines-owning-memory)
 
     framework::master_test_suite().p_name.value = "vefs test suite";
     return true;

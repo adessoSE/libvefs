@@ -1,6 +1,7 @@
 #pragma once
 
 #include <concepts>
+#include <new>
 #include <string_view>
 #include <variant>
 
@@ -158,12 +159,13 @@ auto make_unique_rx(Args &&...args) noexcept(
         std::is_nothrow_constructible_v<T, decltype(args)...>)
         -> result<std::unique_ptr<T>>
 {
-    if (auto ptr = new (std::nothrow) T(static_cast<Args &&>(args)...))
+    result<std::unique_ptr<T>> rx{std::unique_ptr<T>{
+            new (std::nothrow) T(static_cast<Args &&>(args)...)}};
+    if (rx.assume_value().get() == nullptr) [[unlikely]]
     {
-        return std::unique_ptr<T>(ptr);
+        rx = errc::not_enough_memory;
     }
-
-    return errc::not_enough_memory;
+    return rx;
 }
 
 template <typename T, typename InjectFn>

@@ -447,9 +447,10 @@ public:
 
             entry.num_reserved_blocks += entryPosition.next_block;
 
-            entry.crypto_ctx.reset(new (std::nothrow) detail::file_crypto_ctx(
-                    descriptor.secret, descriptor.secretCounter));
-            if (!entry.crypto_ctx)
+            entry.crypto_ctx
+                    = vefs::make_unique_nothrow<detail::file_crypto_ctx>(
+                            descriptor.secret, descriptor.secretCounter);
+            if (entry.crypto_ctx == nullptr)
             {
                 return errc::not_enough_memory;
             }
