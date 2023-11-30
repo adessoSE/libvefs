@@ -10,6 +10,7 @@ Checks: >
   clang-diagnostic-*,
   cppcoreguidelines-*,
     -cppcoreguidelines-avoid-c-arrays,
+    -cppcoreguidelines-avoid-magic-numbers,
     -cppcoreguidelines-special-member-functions,
   modernize-*,
     -modernize-avoid-c-arrays,
