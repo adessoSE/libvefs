@@ -63,12 +63,11 @@ public:
     using value_type = archive_errc;
     using base::string_ref;
 
-    [[nodiscard]] constexpr virtual auto name() const noexcept
-            -> string_ref override
+    [[nodiscard]] constexpr auto name() const noexcept -> string_ref override
     {
         return string_ref("vefs-domain");
     }
-    [[nodiscard]] constexpr virtual auto payload_info() const noexcept
+    [[nodiscard]] constexpr auto payload_info() const noexcept
             -> payload_info_t override
     {
         return {sizeof(value_type),
@@ -79,7 +78,7 @@ public:
     static constexpr auto get() noexcept -> archive_domain_type const &;
 
 protected:
-    [[nodiscard]] constexpr virtual auto
+    [[nodiscard]] constexpr auto
     _do_failure(system_error::status_code<void> const &code) const noexcept
             -> bool override
     {
@@ -173,7 +172,7 @@ protected:
         }
     }
 
-    [[nodiscard]] constexpr virtual auto
+    [[nodiscard]] constexpr auto
     _do_equivalent(system_error::status_code<void> const &lhs,
                    system_error::status_code<void> const &rhs) const noexcept
             -> bool override
@@ -195,14 +194,14 @@ protected:
         }
         return false;
     }
-    [[nodiscard]] constexpr virtual auto
+    [[nodiscard]] constexpr auto
     _generic_code(system_error::status_code<void> const &code) const noexcept
             -> system_error::generic_code override
     {
         return map_to_generic(static_cast<archive_code const &>(code).value());
     }
 
-    [[nodiscard]] constexpr virtual auto
+    [[nodiscard]] constexpr auto
     _do_message(system_error::status_code<void> const &code) const noexcept
             -> string_ref override
     {
@@ -211,7 +210,7 @@ protected:
         return string_ref(message.data(), message.size());
     }
 
-    SYSTEM_ERROR2_NORETURN virtual void _do_throw_exception(
+    SYSTEM_ERROR2_NORETURN void _do_throw_exception(
             system_error::status_code<void> const &code) const override
     {
         throw system_error::status_error<archive_domain_type>(

@@ -78,13 +78,13 @@ class pooled_work_tracker : public thread_pool
 public:
     pooled_work_tracker() = delete;
     pooled_work_tracker(thread_pool *pool);
-    ~pooled_work_tracker() = default;
+    ~pooled_work_tracker() override = default;
 
     void wait();
 
 private:
     // Inherited via thread_pool
-    virtual void execute(std::unique_ptr<task_t> task) override;
+    void execute(std::unique_ptr<task_t> task) override;
 
     thread_pool *const mPool;
     std::atomic_int mWorkCtr;
