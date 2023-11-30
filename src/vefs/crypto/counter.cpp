@@ -98,7 +98,7 @@ struct has_adc_u32<T,
 constexpr bool has_adc_u32_v = has_adc_u32<unsigned int>::value;
 
 template <typename T = std::size_t>
-inline unsigned char add_carry(unsigned char carry, T a, T b, T *out)
+inline auto add_carry(unsigned char carry, T a, T b, T *out) -> unsigned char
 {
     static_assert(std::is_integral_v<T>);
     static_assert(std::is_unsigned_v<T>);

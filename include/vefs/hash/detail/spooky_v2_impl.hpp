@@ -47,9 +47,9 @@ public:
     //
     // Hash64: hash a single message in one call, return 64-bit output
     //
-    static uint64_t Hash64(void const *message, // message to hash
-                           size_t length,       // length of message in bytes
-                           uint64_t seed)       // seed
+    static auto Hash64(void const *message,       // message to hash
+                       size_t length,             // length of message in bytes
+                       uint64_t seed) -> uint64_t // seed
     {
         uint64_t hash1 = seed;
         Hash128(message, length, &hash1, &seed);
@@ -59,9 +59,9 @@ public:
     //
     // Hash32: hash a single message in one call, produce 32-bit output
     //
-    static uint32_t Hash32(void const *message, // message to hash
-                           size_t length,       // length of message in bytes
-                           uint32_t seed)       // seed
+    static auto Hash32(void const *message,       // message to hash
+                       size_t length,             // length of message in bytes
+                       uint32_t seed) -> uint32_t // seed
     {
         uint64_t hash1 = seed, hash2 = seed;
         Hash128(message, length, &hash1, &hash2);
@@ -94,7 +94,7 @@ public:
     //
     // left rotate a 64-bit value by k bytes
     //
-    static inline uint64_t Rot64(uint64_t x, int k)
+    static inline auto Rot64(uint64_t x, int k) -> uint64_t
     {
         return (x << k) | (x >> (64 - k));
     }

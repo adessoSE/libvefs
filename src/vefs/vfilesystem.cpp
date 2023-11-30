@@ -46,12 +46,14 @@ public:
                   > blocks_per_sector);
 
 private:
-    static constexpr std::uint64_t block_to_tree_position(int const block)
+    static constexpr auto block_to_tree_position(int const block)
+            -> std::uint64_t
     {
         return static_cast<std::uint64_t>(block) / blocks_per_sector;
     }
 
-    static constexpr std::uint64_t block_to_file_position(int const block)
+    static constexpr auto block_to_file_position(int const block)
+            -> std::uint64_t
     {
         auto const wblock = static_cast<std::uint64_t>(block);
 

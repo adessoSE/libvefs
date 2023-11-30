@@ -9,7 +9,7 @@ using namespace vefs::detail;
 
 namespace vefs
 {
-std::ostream &operator<<(std::ostream &str, file_open_mode_bitset val)
+auto operator<<(std::ostream &str, file_open_mode_bitset val) -> std::ostream &
 {
     using namespace std::string_view_literals;
 

@@ -8,7 +8,7 @@
 
 namespace vefs::crypto::detail
 {
-result<void> blake2b::init(std::size_t digestSize) noexcept
+auto blake2b::init(std::size_t digestSize) noexcept -> result<void>
 {
     if (!digestSize || digestSize < 16 || digestSize > block_bytes)
     {
@@ -22,7 +22,8 @@ result<void> blake2b::init(std::size_t digestSize) noexcept
     return outcome::success();
 }
 
-result<void> blake2b::init(std::size_t digestSize, ro_dynblob key) noexcept
+auto blake2b::init(std::size_t digestSize, ro_dynblob key) noexcept
+        -> result<void>
 {
     if (!digestSize || digestSize < 16 || digestSize > block_bytes)
     {
@@ -40,9 +41,10 @@ result<void> blake2b::init(std::size_t digestSize, ro_dynblob key) noexcept
     return outcome::success();
 }
 
-result<void> blake2b::init(std::size_t digestSize,
-                           ro_dynblob key,
-                           ro_blob<personal_bytes> personalisation) noexcept
+auto blake2b::init(std::size_t digestSize,
+                   ro_dynblob key,
+                   ro_blob<personal_bytes> personalisation) noexcept
+        -> result<void>
 {
     if (!digestSize || digestSize < 16 || digestSize > block_bytes)
     {
@@ -81,7 +83,7 @@ result<void> blake2b::init(std::size_t digestSize,
     return outcome::success();
 }
 
-result<void> blake2b::update(ro_dynblob data) noexcept
+auto blake2b::update(ro_dynblob data) noexcept -> result<void>
 {
     if (blake2b_update(&mState, data.data(), data.size()))
     {
@@ -90,7 +92,7 @@ result<void> blake2b::update(ro_dynblob data) noexcept
     return outcome::success();
 }
 
-result<void> blake2b::final(rw_dynblob digest) noexcept
+auto blake2b::final(rw_dynblob digest) noexcept -> result<void>
 {
     if (blake2b_final(&mState, digest.data(), digest.size()))
     {
@@ -99,7 +101,7 @@ result<void> blake2b::final(rw_dynblob digest) noexcept
     return outcome::success();
 }
 
-result<void> blake2xb::init(std::size_t digestSize) noexcept
+auto blake2xb::init(std::size_t digestSize) noexcept -> result<void>
 {
     if (!digestSize || digestSize > variable_digest_length)
     {
@@ -113,7 +115,8 @@ result<void> blake2xb::init(std::size_t digestSize) noexcept
     return outcome::success();
 }
 
-result<void> blake2xb::init(std::size_t digestSize, ro_dynblob key) noexcept
+auto blake2xb::init(std::size_t digestSize, ro_dynblob key) noexcept
+        -> result<void>
 {
     if (!digestSize || digestSize > variable_digest_length)
     {
@@ -131,9 +134,10 @@ result<void> blake2xb::init(std::size_t digestSize, ro_dynblob key) noexcept
     return outcome::success();
 }
 
-result<void> blake2xb::init(std::size_t digestSize,
-                            ro_dynblob key,
-                            ro_blob<personal_bytes> personalisation) noexcept
+auto blake2xb::init(std::size_t digestSize,
+                    ro_dynblob key,
+                    ro_blob<personal_bytes> personalisation) noexcept
+        -> result<void>
 {
     if (!digestSize || digestSize > variable_digest_length)
     {
@@ -176,7 +180,7 @@ result<void> blake2xb::init(std::size_t digestSize,
     return outcome::success();
 }
 
-result<void> blake2xb::update(ro_dynblob data) noexcept
+auto blake2xb::update(ro_dynblob data) noexcept -> result<void>
 {
     if (blake2xb_update(&mState, data.data(), data.size()))
     {
@@ -185,7 +189,7 @@ result<void> blake2xb::update(ro_dynblob data) noexcept
     return outcome::success();
 }
 
-result<void> blake2xb::final(rw_dynblob digest) noexcept
+auto blake2xb::final(rw_dynblob digest) noexcept -> result<void>
 {
     if (blake2xb_final(&mState, digest.data(), digest.size()))
     {

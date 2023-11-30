@@ -39,7 +39,7 @@ public:
             | (static_cast<std::uint64_t>(data[1]) << 32);
     }
 
-    inline result_type operator()()
+    inline auto operator()() -> result_type
     {
         std::uint64_t z = (s += 0x9E37'79B9'7F4A'7C15ull);
         z = (z ^ (z >> 30)) * 0xBF58'476D'1CE4'E5B9ull;
@@ -55,11 +55,11 @@ public:
         }
     }
 
-    static constexpr result_type min()
+    static constexpr auto min() -> result_type
     {
         return std::numeric_limits<result_type>::min();
     }
-    static constexpr result_type max()
+    static constexpr auto max() -> result_type
     {
         return std::numeric_limits<result_type>::max();
     }
@@ -113,7 +113,7 @@ public:
         s[1] = s2;
     }
 
-    inline result_type operator()()
+    inline auto operator()() -> result_type
     {
         const uint64_t s0 = s[0];
         uint64_t s1 = s[1];
@@ -150,17 +150,17 @@ public:
         }
     }
 
-    static constexpr result_type min()
+    static constexpr auto min() -> result_type
     {
         return std::numeric_limits<result_type>::min();
     }
-    static constexpr result_type max()
+    static constexpr auto max() -> result_type
     {
         return std::numeric_limits<result_type>::max();
     }
 
 private:
-    static inline uint64_t rotl(const uint64_t x, int k)
+    static inline auto rotl(const uint64_t x, int k) -> uint64_t
     {
         return (x << k) | (x >> (64 - k));
     }

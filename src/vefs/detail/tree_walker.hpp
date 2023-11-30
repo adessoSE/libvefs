@@ -42,18 +42,18 @@ public:
     explicit constexpr tree_position(std::uint64_t pos) noexcept;
     constexpr tree_position(std::uint64_t pos, int layer) noexcept;
 
-    [[nodiscard]] constexpr int layer() const noexcept;
+    [[nodiscard]] constexpr auto layer() const noexcept -> int;
 
     constexpr void layer(int layer_no) noexcept;
 
-    [[nodiscard]] constexpr std::uint64_t position() const noexcept;
+    [[nodiscard]] constexpr auto position() const noexcept -> std::uint64_t;
 
     constexpr void position(std::uint64_t position) noexcept;
 
-    [[nodiscard]] constexpr tree_position parent() const noexcept;
-    [[nodiscard]] constexpr int parent_array_offset() const;
+    [[nodiscard]] constexpr auto parent() const noexcept -> tree_position;
+    [[nodiscard]] constexpr auto parent_array_offset() const -> int;
 
-    [[nodiscard]] constexpr storage_type raw() const noexcept;
+    [[nodiscard]] constexpr auto raw() const noexcept -> storage_type;
 
     explicit constexpr operator bool() const noexcept;
     auto operator==(tree_position const &other) const noexcept -> bool
@@ -97,9 +97,11 @@ public:
     // computes the path to position from tree_position{0, treeDepth}
     inline tree_path(int treeDepth, tree_position position) noexcept;
 
-    [[nodiscard]] inline tree_position layer_position(int layer) const noexcept;
-    [[nodiscard]] inline std::uint64_t position(int layer) const noexcept;
-    [[nodiscard]] inline int offset(int layer) const noexcept;
+    [[nodiscard]] inline auto layer_position(int layer) const noexcept
+            -> tree_position;
+    [[nodiscard]] inline auto position(int layer) const noexcept
+            -> std::uint64_t;
+    [[nodiscard]] inline auto offset(int layer) const noexcept -> int;
 
     inline explicit operator bool() const noexcept;
 
@@ -113,8 +115,8 @@ public:
     [[nodiscard]] auto rend() const -> const_reverse_iterator;
     [[nodiscard]] auto crend() const -> const_reverse_iterator;
 
-    [[nodiscard]] inline tree_path next() const;
-    [[nodiscard]] inline tree_path previous() const;
+    [[nodiscard]] inline auto next() const -> tree_path;
+    [[nodiscard]] inline auto previous() const -> tree_path;
 
     [[nodiscard]] inline auto required_depth() const noexcept -> int;
 
@@ -201,7 +203,7 @@ public:
         return old;
     }
 
-    int array_offset()
+    auto array_offset() -> int
     {
         return mOwner->offset(mLayer);
     }
@@ -243,7 +245,7 @@ constexpr tree_position::tree_position(std::uint64_t pos) noexcept
 {
 }
 
-constexpr int tree_position::layer() const noexcept
+constexpr auto tree_position::layer() const noexcept -> int
 {
     return static_cast<int>((mLayerPosition & layer_mask) >> layer_offset);
 }
@@ -254,7 +256,7 @@ constexpr void tree_position::layer(int layer_no) noexcept
                      | static_cast<storage_type>(layer_no) << 56;
 }
 
-constexpr std::uint64_t tree_position::position() const noexcept
+constexpr auto tree_position::position() const noexcept -> std::uint64_t
 {
     return mLayerPosition & position_mask;
 }
@@ -269,7 +271,8 @@ constexpr tree_position::operator bool() const noexcept
     return mLayerPosition != std::numeric_limits<storage_type>::max();
 }
 
-constexpr tree_position vefs::detail::tree_position::parent() const noexcept
+constexpr auto vefs::detail::tree_position::parent() const noexcept
+        -> tree_position
 {
     return tree_position{position() / lut::references_per_sector, layer() + 1};
 }
@@ -277,12 +280,13 @@ constexpr tree_position vefs::detail::tree_position::parent() const noexcept
 /**
  * @return the offset of the parent node within the sector
  */
-inline constexpr int tree_position::parent_array_offset() const
+inline constexpr auto tree_position::parent_array_offset() const -> int
 {
     return position() % lut::references_per_sector;
 }
 
-constexpr tree_position::storage_type tree_position::raw() const noexcept
+constexpr auto tree_position::raw() const noexcept
+        -> tree_position::storage_type
 {
     return mLayerPosition;
 }
@@ -431,15 +435,15 @@ inline tree_path::tree_path(int treeDepth, tree_position position) noexcept
 {
 }
 
-inline tree_position tree_path::layer_position(int layer) const noexcept
+inline auto tree_path::layer_position(int layer) const noexcept -> tree_position
 {
     return {position(layer), layer};
 }
-inline std::uint64_t tree_path::position(int layer) const noexcept
+inline auto tree_path::position(int layer) const noexcept -> std::uint64_t
 {
     return mTreePath[layer].absolute;
 }
-inline int tree_path::offset(int layer) const noexcept
+inline auto tree_path::offset(int layer) const noexcept -> int
 {
     return mTreePath[layer].offset;
 }
@@ -493,12 +497,12 @@ inline auto tree_path::crend() const -> const_reverse_iterator
     return rend();
 }
 
-inline tree_path tree_path::next() const
+inline auto tree_path::next() const -> tree_path
 {
     return tree_path(mTreeDepth, position(mTargetLayer) + 1, mTargetLayer);
 }
 
-inline tree_path tree_path::previous() const
+inline auto tree_path::previous() const -> tree_path
 {
     return tree_path(mTreeDepth, position(mTargetLayer) - 1, mTargetLayer);
 }

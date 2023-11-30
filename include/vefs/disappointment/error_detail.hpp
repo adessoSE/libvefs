@@ -27,8 +27,8 @@ public:
 
     error_detail_base(error_detail_base const &) = delete;
     error_detail_base(error_detail_base &&) = delete;
-    error_detail_base &operator=(error_detail_base const &) = delete;
-    error_detail_base &operator=(error_detail_base &&) = delete;
+    auto operator=(error_detail_base const &) -> error_detail_base & = delete;
+    auto operator=(error_detail_base &&) -> error_detail_base & = delete;
 
     virtual void stringify(format_buffer &out) const noexcept = 0;
     [[nodiscard]] virtual auto stringify() const -> std::string = 0;

@@ -20,8 +20,8 @@ public:
     inline void mark();
     inline void unmark();
 
-    inline state get();
-    inline bool is_dirty();
+    inline auto get() -> state;
+    inline auto is_dirty() -> bool;
 
 private:
     std::atomic<bool> mState;
@@ -52,12 +52,12 @@ inline void dirt_flag::unmark()
     set(state::clean);
 }
 
-inline dirt_flag::state dirt_flag::get()
+inline auto dirt_flag::get() -> dirt_flag::state
 {
     return mState.load(std::memory_order_acquire) ? state::dirty : state::clean;
 }
 
-inline bool dirt_flag::is_dirty()
+inline auto dirt_flag::is_dirty() -> bool
 {
     return mState.load(std::memory_order_acquire);
 }

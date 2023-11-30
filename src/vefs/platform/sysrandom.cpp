@@ -107,7 +107,8 @@ vefs::result<void> vefs::detail::random_bytes(rw_dynblob buffer) noexcept
 
 #else
 
-vefs::result<void> vefs::detail::random_bytes(rw_dynblob buffer) noexcept
+auto vefs::detail::random_bytes(rw_dynblob buffer) noexcept
+        -> vefs::result<void>
 {
     using namespace vefs;
     using namespace std::string_view_literals;

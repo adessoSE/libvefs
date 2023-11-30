@@ -52,7 +52,7 @@ BoringSslTlsFixture BoringSslTlsInitializer;
 
 // we can't use the macros to specify the module name, because the
 // defining header is already included in the precompiled header...
-bool init_unit_test()
+auto init_unit_test() -> bool
 {
     auto &suite{boost::unit_test::framework::master_test_suite()};
     ::testing::InitGoogleMock(&suite.argc, suite.argv);
@@ -68,7 +68,7 @@ bool init_unit_test()
 
 // this way we don't have to care about whether Boost.Test was compiled with
 // BOOST_TEST_ALTERNATIVE_INIT_API defined or not.
-test_suite *init_unit_test_suite(int /*argc*/, char * /*argv*/[])
+auto init_unit_test_suite(int /*argc*/, char * /*argv*/[]) -> test_suite *
 {
     if (!init_unit_test())
     {

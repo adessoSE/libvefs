@@ -50,7 +50,7 @@ enum class backup_mode
     clone_extents,
 };
 
-std::true_type allow_enum_bitset(file_open_mode &&);
+auto allow_enum_bitset(file_open_mode &&) -> std::true_type;
 using file_open_mode_bitset = enum_bitset<file_open_mode>;
 
 struct file_query_result

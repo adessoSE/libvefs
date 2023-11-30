@@ -12,7 +12,7 @@
 namespace vefs::crypto::detail
 {
 // compares two little endian big nums in constant time
-inline result<int> ct_compare(ro_dynblob l, ro_dynblob r) noexcept
+inline auto ct_compare(ro_dynblob l, ro_dynblob r) noexcept -> result<int>
 {
     if (l.size() != r.size() || l.empty() || r.empty())
     {

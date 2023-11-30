@@ -14,17 +14,17 @@ namespace vefs::crypto
 {
 namespace detail
 {
-result<void> kdf_impl(rw_dynblob prk,
-                      ro_dynblob inputKey,
-                      std::span<ro_dynblob const> domainIt) noexcept;
+auto kdf_impl(rw_dynblob prk,
+              ro_dynblob inputKey,
+              std::span<ro_dynblob const> domainIt) noexcept -> result<void>;
 }
 
-result<void>
-kdf(rw_dynblob prk, ro_dynblob inputKey, ro_dynblob domain) noexcept;
+auto kdf(rw_dynblob prk, ro_dynblob inputKey, ro_dynblob domain) noexcept
+        -> result<void>;
 
 template <typename... DomainParts>
-result<void>
-kdf(rw_dynblob prk, ro_dynblob inputKey, DomainParts const &...parts)
+auto kdf(rw_dynblob prk, ro_dynblob inputKey, DomainParts const &...parts)
+        -> result<void>
 {
     std::array<ro_dynblob, sizeof...(DomainParts)> lparts{
             as_bytes(std::span(parts))...};

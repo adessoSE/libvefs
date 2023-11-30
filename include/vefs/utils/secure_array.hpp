@@ -49,8 +49,8 @@ public:
         secure_memzero(as_writable_bytes(span_type{*this}));
     }
 
-    secure_array &operator=(secure_array const &) noexcept = default;
-    secure_array &operator=(secure_array &&other) noexcept
+    auto operator=(secure_array const &) noexcept -> secure_array & = default;
+    auto operator=(secure_array &&other) noexcept -> secure_array &
     {
         static_cast<base_type &>(*this) = static_cast<base_type &>(other);
         secure_memzero(as_writable_bytes(span_type{other}));

@@ -29,11 +29,11 @@ public:
     explicit counter(state ctrState);
     explicit counter(ro_blob<state_size> ctrState);
 
-    [[nodiscard]] state const &value() const noexcept;
+    [[nodiscard]] auto value() const noexcept -> state const &;
     [[nodiscard]] auto view() const noexcept -> ro_blob<state_size>;
     void increment();
-    counter &operator++();
-    counter operator++(int);
+    auto operator++() -> counter &;
+    auto operator++(int) -> counter;
 
 private:
     state mCtrState;
@@ -50,7 +50,7 @@ inline counter::counter(ro_blob<state_size> ctrState)
     copy(ctrState, as_writable_bytes(as_span(mCtrState)));
 }
 
-inline counter::state const &counter::value() const noexcept
+inline auto counter::value() const noexcept -> counter::state const &
 {
     return mCtrState;
 }
@@ -60,26 +60,26 @@ inline auto counter::view() const noexcept -> ro_blob<state_size>
     return as_bytes(as_span(mCtrState));
 }
 
-inline counter &counter::operator++()
+inline auto counter::operator++() -> counter &
 {
     increment();
     return *this;
 }
 
-inline counter counter::operator++(int)
+inline auto counter::operator++(int) -> counter
 {
     counter current{*this};
     increment();
     return current;
 }
 
-inline bool operator==(counter const &lhs, counter const &rhs)
+inline auto operator==(counter const &lhs, counter const &rhs) -> bool
 {
     auto const &lhstate = lhs.value();
     auto const &rhstate = rhs.value();
     return std::equal(lhstate.cbegin(), lhstate.cend(), rhstate.cbegin());
 }
-inline bool operator!=(counter const &lhs, counter const &rhs)
+inline auto operator!=(counter const &lhs, counter const &rhs) -> bool
 {
     return !(lhs == rhs);
 }
@@ -115,7 +115,7 @@ struct std::atomic<vefs::crypto::counter>
     }
     atomic(atomic const &) = delete;
 
-    static constexpr bool is_lock_free() noexcept
+    static constexpr auto is_lock_free() noexcept -> bool
     {
         return false;
     }
@@ -127,8 +127,8 @@ struct std::atomic<vefs::crypto::counter>
         std::lock_guard lock{mAccessMutex};
         mImpl = desired;
     }
-    value_type load(std::memory_order
-                    = std::memory_order_seq_cst) const noexcept
+    auto load(std::memory_order = std::memory_order_seq_cst) const noexcept
+            -> value_type
     {
         std::lock_guard lock{mAccessMutex};
         return mImpl;
@@ -138,25 +138,26 @@ struct std::atomic<vefs::crypto::counter>
     {
         return load();
     }
-    value_type operator=(value_type desired) noexcept
+    auto operator=(value_type desired) noexcept -> value_type
     {
         std::lock_guard lock{mAccessMutex};
         return mImpl = desired;
     }
-    atomic &operator=(atomic const &) = delete;
+    auto operator=(atomic const &) -> atomic & = delete;
 
-    value_type exchange(value_type desired,
-                        std::memory_order = std::memory_order_seq_cst) noexcept
+    auto exchange(value_type desired,
+                  std::memory_order = std::memory_order_seq_cst) noexcept
+            -> value_type
     {
         std::lock_guard lock{mAccessMutex};
         value_type old{mImpl};
         mImpl = desired;
         return old;
     }
-    bool compare_exchange_weak(value_type const &expected,
+    auto compare_exchange_weak(value_type const &expected,
                                value_type desired,
                                std::memory_order
-                               = std::memory_order_seq_cst) noexcept
+                               = std::memory_order_seq_cst) noexcept -> bool
     {
         std::lock_guard lock{mAccessMutex};
         auto const success = mImpl == expected;
@@ -166,25 +167,25 @@ struct std::atomic<vefs::crypto::counter>
         }
         return success;
     }
-    bool compare_exchange_strong(value_type const &expected,
+    auto compare_exchange_strong(value_type const &expected,
                                  value_type desired,
                                  std::memory_order
-                                 = std::memory_order_seq_cst) noexcept
+                                 = std::memory_order_seq_cst) noexcept -> bool
     {
         return compare_exchange_weak(expected, desired);
     }
 
-    value_type fetch_increment() noexcept
+    auto fetch_increment() noexcept -> value_type
     {
         std::lock_guard lock{mAccessMutex};
         return mImpl++;
     }
-    value_type operator++() noexcept
+    auto operator++() noexcept -> value_type
     {
         std::lock_guard lock{mAccessMutex};
         return ++mImpl;
     }
-    value_type operator++(int) noexcept
+    auto operator++(int) noexcept -> value_type
     {
         std::lock_guard lock{mAccessMutex};
         return mImpl++;

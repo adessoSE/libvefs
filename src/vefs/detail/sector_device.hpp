@@ -106,17 +106,17 @@ public:
                        root_sector_info filesystemIndexRoot,
                        file_crypto_ctx const &freeSectorIndex,
                        root_sector_info freeSectorIndexRoot) -> result<void>;
-    result<void> update_static_header(ro_blob<32> newUserPRK);
+    auto update_static_header(ro_blob<32> newUserPRK) -> result<void>;
 
     // numSectors = number of sectors (i.e. including the master sector)
-    result<void> resize(std::uint64_t numSectors);
-    std::uint64_t size() const;
+    auto resize(std::uint64_t numSectors) -> result<void>;
+    auto size() const -> std::uint64_t;
 
-    ro_blob<64> master_secret_view() const;
-    ro_blob<16> session_salt_view() const;
+    auto master_secret_view() const -> ro_blob<64>;
+    auto session_salt_view() const -> ro_blob<16>;
 
-    crypto::crypto_provider const *crypto() const;
-    crypto::atomic_counter &master_secret_counter();
+    auto crypto() const -> crypto::crypto_provider const *;
+    auto master_secret_counter() -> crypto::atomic_counter &;
 
     auto create_file_secrets() noexcept
             -> result<std::unique_ptr<file_crypto_ctx>>;
@@ -132,7 +132,7 @@ private:
     auto parse_archive_header() -> result<archive_header>;
     auto parse_archive_header(header_id which) -> result<archive_header>;
 
-    result<void> write_static_archive_header(ro_blob<32> userPRK);
+    auto write_static_archive_header(ro_blob<32> userPRK) -> result<void>;
 
     static constexpr auto header_size(header_id which) noexcept -> std::size_t;
     constexpr auto header_offset(header_id which) const noexcept -> std::size_t;
@@ -166,7 +166,7 @@ auto read_archive_personalization_area(
         llfio::file_handle &file, std::span<std::byte, 1 << 12> out) noexcept
         -> result<void>;
 
-constexpr std::uint64_t sector_device::to_offset(sector_id id)
+constexpr auto sector_device::to_offset(sector_id id) -> std::uint64_t
 {
     return static_cast<std::uint64_t>(id) * sector_size;
 }
@@ -184,27 +184,27 @@ inline auto vefs::detail::sector_device::resize(std::uint64_t numSectors)
 
     return success();
 }
-inline std::uint64_t sector_device::size() const
+inline auto sector_device::size() const -> std::uint64_t
 {
     return mNumSectors.load(std::memory_order::relaxed);
 }
 
-inline ro_blob<64> sector_device::master_secret_view() const
+inline auto sector_device::master_secret_view() const -> ro_blob<64>
 {
     return as_span(mStaticHeader.master_secret);
 }
 
-inline ro_blob<16> sector_device::session_salt_view() const
+inline auto sector_device::session_salt_view() const -> ro_blob<16>
 {
     return as_span(mSessionSalt);
 }
 
-inline crypto::crypto_provider const *sector_device::crypto() const
+inline auto sector_device::crypto() const -> crypto::crypto_provider const *
 {
     return mCryptoProvider;
 }
 
-inline crypto::atomic_counter &sector_device::master_secret_counter()
+inline auto sector_device::master_secret_counter() -> crypto::atomic_counter &
 {
     return mArchiveSecretCounter;
 }

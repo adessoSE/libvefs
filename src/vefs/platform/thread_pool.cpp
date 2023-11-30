@@ -10,7 +10,7 @@
 namespace vefs::detail
 {
 
-thread_pool &thread_pool::shared()
+auto thread_pool::shared() -> thread_pool &
 {
 #if defined BOOST_OS_WINDOWS_AVAILABLE
     static thread_pool_win32_default pool;

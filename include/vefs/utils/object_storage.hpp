@@ -23,7 +23,7 @@ public:
 
     object_storage() noexcept = default;
     object_storage(object_storage const &) = delete;
-    object_storage &operator=(object_storage const &) = delete;
+    auto operator=(object_storage const &) -> object_storage & = delete;
 
     template <typename... Args>
     auto construct(Args &&...args) noexcept(

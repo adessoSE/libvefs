@@ -13,26 +13,26 @@ namespace vefs::test
 {
 class libb2_none_blake2b_crypto_provider : public vefs::crypto::crypto_provider
 {
-    [[nodiscard]] result<void>
-    box_seal(rw_dynblob ciphertext,
-             rw_dynblob mac,
-             ro_dynblob keyMaterial,
-             ro_dynblob plaintext) const noexcept override;
+    [[nodiscard]] auto box_seal(rw_dynblob ciphertext,
+                                rw_dynblob mac,
+                                ro_dynblob keyMaterial,
+                                ro_dynblob plaintext) const noexcept
+            -> result<void> override;
 
-    [[nodiscard]] vefs::result<void>
-    box_open(rw_dynblob plaintext,
-             ro_dynblob keyMaterial,
-             ro_dynblob ciphertext,
-             ro_dynblob mac) const noexcept override;
+    [[nodiscard]] auto box_open(rw_dynblob plaintext,
+                                ro_dynblob keyMaterial,
+                                ro_dynblob ciphertext,
+                                ro_dynblob mac) const noexcept
+            -> vefs::result<void> override;
 
-    [[nodiscard]] utils::secure_byte_array<16>
-    generate_session_salt() const override;
+    [[nodiscard]] auto generate_session_salt() const
+            -> utils::secure_byte_array<16> override;
 
-    [[nodiscard]] result<void>
-    random_bytes(rw_dynblob out) const noexcept override;
+    [[nodiscard]] auto random_bytes(rw_dynblob out) const noexcept
+            -> result<void> override;
 
-    [[nodiscard]] result<int> ct_compare(ro_dynblob l,
-                                         ro_dynblob r) const noexcept override;
+    [[nodiscard]] auto ct_compare(ro_dynblob l, ro_dynblob r) const noexcept
+            -> result<int> override;
 
 public:
     static constexpr std::size_t key_material_size
@@ -47,17 +47,17 @@ constexpr libb2_none_blake2b_crypto_provider::
 {
 }
 
-vefs::crypto::crypto_provider *only_mac_crypto_provider()
+auto only_mac_crypto_provider() -> vefs::crypto::crypto_provider *
 {
     static libb2_none_blake2b_crypto_provider debug_provider;
     return &debug_provider;
 }
 
-result<void> libb2_none_blake2b_crypto_provider::box_seal(
+auto libb2_none_blake2b_crypto_provider::box_seal(
         rw_dynblob ciphertext,
         rw_dynblob mac,
         ro_dynblob keyMaterial,
-        ro_dynblob plaintext) const noexcept
+        ro_dynblob plaintext) const noexcept -> result<void>
 {
     // TODO: check whether buffers alias
 
@@ -85,11 +85,11 @@ result<void> libb2_none_blake2b_crypto_provider::box_seal(
     return outcome::success();
 }
 
-result<void>
-libb2_none_blake2b_crypto_provider::box_open(rw_dynblob plaintext,
-                                             ro_dynblob keyMaterial,
-                                             ro_dynblob ciphertext,
-                                             ro_dynblob mac) const noexcept
+auto libb2_none_blake2b_crypto_provider::box_open(rw_dynblob plaintext,
+                                                  ro_dynblob keyMaterial,
+                                                  ro_dynblob ciphertext,
+                                                  ro_dynblob mac) const noexcept
+        -> result<void>
 {
     // TODO: check whether buffers alias
 
@@ -120,22 +120,22 @@ libb2_none_blake2b_crypto_provider::box_open(rw_dynblob plaintext,
     return outcome::success();
 }
 
-vefs::utils::secure_byte_array<16>
-libb2_none_blake2b_crypto_provider::generate_session_salt() const
+auto libb2_none_blake2b_crypto_provider::generate_session_salt() const
+        -> vefs::utils::secure_byte_array<16>
 {
     return {};
 }
 
-result<void>
-libb2_none_blake2b_crypto_provider::random_bytes(rw_dynblob out) const noexcept
+auto libb2_none_blake2b_crypto_provider::random_bytes(
+        rw_dynblob out) const noexcept -> result<void>
 {
     utils::secure_memzero(out);
     return outcome::success();
 }
 
-result<int>
-libb2_none_blake2b_crypto_provider::ct_compare(ro_dynblob l,
-                                               ro_dynblob r) const noexcept
+auto libb2_none_blake2b_crypto_provider::ct_compare(ro_dynblob l,
+                                                    ro_dynblob r) const noexcept
+        -> result<int>
 {
     return ::vefs::crypto::detail::ct_compare(l, r);
 }

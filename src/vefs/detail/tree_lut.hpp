@@ -66,7 +66,7 @@ constexpr auto ref_width{detail::compute_ref_width_lut()};
  * @param sectorPos the sector position for that the tree level is calculated
  * @return  the tree level starting with 0
  */
-constexpr int required_tree_depth(std::uint64_t sectorPos)
+constexpr auto required_tree_depth(std::uint64_t sectorPos) -> int
 {
     static_assert(ref_width.size() == 5); // safe guard for ref_width changes.
     return 0 + static_cast<int>(sectorPos >= ref_width[0])
@@ -81,7 +81,7 @@ constexpr int required_tree_depth(std::uint64_t sectorPos)
  * @param bytePos the byte position for that the sector is returned
  * @return the sector position where this byte is in
  */
-constexpr std::uint64_t sector_position_of(std::uint64_t bytePos)
+constexpr auto sector_position_of(std::uint64_t bytePos) -> std::uint64_t
 {
     return bytePos / sector_device::sector_payload_size;
 }

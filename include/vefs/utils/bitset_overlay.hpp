@@ -17,7 +17,8 @@ namespace vefs::utils
 namespace bitset_ops
 {
 template <typename Unit>
-constexpr std::tuple<std::size_t, Unit> offset_and_mask_of(std::size_t bitpos)
+constexpr auto offset_and_mask_of(std::size_t bitpos)
+        -> std::tuple<std::size_t, Unit>
 {
     static_assert(std::is_unsigned_v<Unit>);
 
@@ -60,7 +61,7 @@ inline void flip(Unit *begin, std::size_t bitpos)
 }
 
 template <typename Unit>
-inline bool get(Unit const *begin, std::size_t bitpos)
+inline auto get(Unit const *begin, std::size_t bitpos) -> bool
 {
     auto [offset, mask] = offset_and_mask_of<Unit>(bitpos);
 
@@ -127,7 +128,7 @@ public:
         bitset_ops::flip(mBegin, bitpos);
     }
 
-    [[nodiscard]] bool get(std::size_t bitpos) const
+    [[nodiscard]] auto get(std::size_t bitpos) const -> bool
     {
         return bitset_ops::get(mBegin, bitpos);
     }
@@ -161,12 +162,12 @@ public:
             return mOwner.get(mBitpos);
         }
 
-        bool operator=(bool value)
+        auto operator=(bool value) -> bool
         {
             mOwner.set(mBitpos, value);
             return value;
         }
-        bool operator~() const
+        auto operator~() const -> bool
         {
             return !mOwner.get(mBitpos);
         }
@@ -176,11 +177,11 @@ public:
         std::size_t mBitpos;
     };
 
-    reference operator[](std::size_t bitpos)
+    auto operator[](std::size_t bitpos) -> reference
     {
         return reference{*this, bitpos};
     }
-    bool operator[](std::size_t bitpos) const
+    auto operator[](std::size_t bitpos) const -> bool
     {
         return get(bitpos);
     }
@@ -205,12 +206,12 @@ public:
     {
     }
 
-    [[nodiscard]] bool get(std::size_t bitpos) const
+    [[nodiscard]] auto get(std::size_t bitpos) const -> bool
     {
         return bitset_ops::get(mBegin, bitpos);
     }
 
-    bool operator[](std::size_t bitpos) const
+    auto operator[](std::size_t bitpos) const -> bool
     {
         return get(bitpos);
     }

@@ -293,7 +293,8 @@ auto sector_device::create_new(llfio::file_handle fileHandle,
     return self;
 }
 
-result<void> sector_device::parse_static_archive_header(ro_blob<32> userPRK)
+auto sector_device::parse_static_archive_header(ro_blob<32> userPRK)
+        -> result<void>
 {
     auto const staticHeaderSectors
             = mMasterSector.as_span().first(static_header_size);
@@ -465,7 +466,8 @@ auto sector_device::parse_archive_header() -> result<archive_header>
     // mHeaderSelector = static_cast<header_id>(selector);
 }
 
-result<void> sector_device::write_static_archive_header(ro_blob<32> userPRK)
+auto sector_device::write_static_archive_header(ro_blob<32> userPRK)
+        -> result<void>
 {
     dplx::dp::memory_buffer staticHeaderSectors(
             mMasterSector.as_span().first(static_header_size));
@@ -715,8 +717,8 @@ auto vefs::detail::sector_device::update_header(
     return oc::success();
 }
 
-result<void>
-vefs::detail::sector_device::update_static_header(ro_blob<32> newUserPRK)
+auto vefs::detail::sector_device::update_static_header(ro_blob<32> newUserPRK)
+        -> result<void>
 {
     return write_static_archive_header(newUserPRK);
 }

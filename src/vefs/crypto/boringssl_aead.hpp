@@ -28,7 +28,7 @@ using openssl_error = error_detail<openssl_error_tag, std::string>;
 
 namespace vefs::crypto::detail
 {
-inline std::string read_openssl_errors(std::string str = std::string{})
+inline auto read_openssl_errors(std::string str = std::string{}) -> std::string
 {
     auto printCb = [](char const *msg, size_t msgSize, void *ctx) {
         auto &cbStr = *reinterpret_cast<std::string *>(ctx);
@@ -55,11 +55,11 @@ inline auto make_openssl_errinfo(std::string desc = std::string{})
     return ed::openssl_error{read_openssl_errors(desc)};
 }
 
-inline std::size_t max_overhead(const EVP_AEAD *impl)
+inline auto max_overhead(const EVP_AEAD *impl) -> std::size_t
 {
     return EVP_AEAD_max_overhead(impl);
 }
-inline std::size_t nonce_size(const EVP_AEAD *impl)
+inline auto nonce_size(const EVP_AEAD *impl) -> std::size_t
 {
     return EVP_AEAD_nonce_length(impl);
 }
@@ -76,8 +76,8 @@ public:
     {
         memset(&other.mCtx, 0, sizeof(other.mCtx));
     }
-    boringssl_aead &operator=(boringssl_aead const &) = delete;
-    boringssl_aead &operator=(boringssl_aead &&other) noexcept
+    auto operator=(boringssl_aead const &) -> boringssl_aead & = delete;
+    auto operator=(boringssl_aead &&other) noexcept -> boringssl_aead &
     {
         if (mInitialized)
         {
@@ -90,9 +90,10 @@ public:
         return *this;
     }
 
-    static result<boringssl_aead> create(ro_dynblob key,
-                                         const EVP_AEAD *algorithm
-                                         = EVP_aead_aes_256_gcm()) noexcept
+    static auto create(ro_dynblob key,
+                       const EVP_AEAD *algorithm
+                       = EVP_aead_aes_256_gcm()) noexcept
+            -> result<boringssl_aead>
     {
         using namespace std::string_view_literals;
 
@@ -125,11 +126,11 @@ public:
         }
     }
 
-    result<void> seal(rw_dynblob out,
-                      rw_dynblob &outTag,
-                      ro_dynblob nonce,
-                      ro_dynblob plain,
-                      ro_dynblob ad = ro_dynblob{}) const
+    auto seal(rw_dynblob out,
+              rw_dynblob &outTag,
+              ro_dynblob nonce,
+              ro_dynblob plain,
+              ro_dynblob ad = ro_dynblob{}) const -> result<void>
     {
         using namespace std::string_view_literals;
 
@@ -192,11 +193,11 @@ public:
         return outcome::success();
     }
 
-    result<void> open(rw_dynblob out,
-                      ro_dynblob nonce,
-                      ro_dynblob ciphertext,
-                      ro_dynblob authTag,
-                      ro_dynblob ad = ro_dynblob{})
+    auto open(rw_dynblob out,
+              ro_dynblob nonce,
+              ro_dynblob ciphertext,
+              ro_dynblob authTag,
+              ro_dynblob ad = ro_dynblob{}) -> result<void>
     {
         if (out.empty())
         {
@@ -258,11 +259,11 @@ public:
         return outcome::success();
     }
 
-    friend std::size_t max_overhead(boringssl_aead const &ctx)
+    friend auto max_overhead(boringssl_aead const &ctx) -> std::size_t
     {
         return EVP_AEAD_max_overhead(EVP_AEAD_CTX_aead(&ctx.mCtx));
     }
-    friend std::size_t nonce_size(boringssl_aead const &ctx)
+    friend auto nonce_size(boringssl_aead const &ctx) -> std::size_t
     {
         return EVP_AEAD_nonce_length(EVP_AEAD_CTX_aead(&ctx.mCtx));
     }

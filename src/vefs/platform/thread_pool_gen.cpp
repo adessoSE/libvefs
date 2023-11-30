@@ -13,7 +13,7 @@ namespace vefs::detail
 {
 namespace
 {
-inline std::string make_anonymous_pool_name()
+inline auto make_anonymous_pool_name() -> std::string
 {
     static std::atomic_int mAnonymousThreadPoolId{0};
 

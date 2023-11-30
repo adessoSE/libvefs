@@ -36,7 +36,7 @@ enum class errinfo_code_tag
 };
 using errinfo_code = boost::error_info<errinfo_code_tag, std::error_code>;
 
-errinfo_code make_system_errinfo_code();
+auto make_system_errinfo_code() -> errinfo_code;
 
 enum class errinfo_api_function_tag
 {

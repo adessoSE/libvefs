@@ -23,12 +23,12 @@ public:
     thread_pool(thread_pool const &) = delete;
     thread_pool(thread_pool &&) = delete;
 
-    thread_pool &operator=(thread_pool const &) = delete;
-    thread_pool &operator=(thread_pool &&) = delete;
+    auto operator=(thread_pool const &) -> thread_pool & = delete;
+    auto operator=(thread_pool &&) -> thread_pool & = delete;
 
     using task_t = std::function<void()>;
 
-    static thread_pool &shared();
+    static auto shared() -> thread_pool &;
 
     template <typename F>
     void execute(F &&task);

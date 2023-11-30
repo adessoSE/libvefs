@@ -40,7 +40,7 @@ template <typename T>
 concept unsigned_integer = integer<T> && !signed_integer<T>;
 
 template <typename T>
-constexpr T div_ceil(T dividend, T divisor)
+constexpr auto div_ceil(T dividend, T divisor) -> T
 {
     return dividend / divisor + (dividend % divisor != 0);
 }
@@ -165,7 +165,7 @@ template <typename T>
 using remove_cvref_t = typename remove_cvref<T>::type;
 
 template <typename F, typename... Args>
-inline decltype(auto) error_code_scope(F &&f, Args &&...args)
+inline auto error_code_scope(F &&f, Args &&...args) -> decltype(auto)
 {
     std::error_code ec;
     if constexpr (std::is_void_v<decltype(f(std::forward<Args>(args)..., ec))>)
@@ -208,7 +208,7 @@ enum class on_exit_scope
 };
 
 template <typename Fn>
-BOOST_FORCEINLINE scope_guard<Fn> operator+(on_exit_scope, Fn &&fn)
+BOOST_FORCEINLINE auto operator+(on_exit_scope, Fn &&fn) -> scope_guard<Fn>
 {
     return scope_guard<Fn>{std::forward<Fn>(fn)};
 }
@@ -239,7 +239,8 @@ enum class on_error_exit
 };
 
 template <typename Fn>
-BOOST_FORCEINLINE error_scope_guard<Fn> operator+(on_error_exit, Fn &&fn)
+BOOST_FORCEINLINE auto operator+(on_error_exit, Fn &&fn)
+        -> error_scope_guard<Fn>
 {
     return error_scope_guard<Fn>{std::forward<Fn>(fn)};
 }

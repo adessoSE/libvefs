@@ -51,7 +51,7 @@ public:
     {
         mSectorsLeaked = true;
     }
-    bool sector_leak_detected() noexcept
+    auto sector_leak_detected() noexcept -> bool
     {
         return mSectorsLeaked;
     }

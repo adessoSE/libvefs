@@ -17,7 +17,7 @@
 #include <type_traits>
 
 template <typename E>
-std::false_type allow_enum_bitset(E &&);
+auto allow_enum_bitset(E &&) -> std::false_type;
 
 template <typename E>
 constexpr bool enum_bitsets_allowed
@@ -52,55 +52,55 @@ public:
         return mValue != underlying_type{};
     }
 
-    constexpr bool operator==(enum_bitset rhs) const
+    constexpr auto operator==(enum_bitset rhs) const -> bool
     {
         return mValue == rhs.mValue;
     }
-    constexpr bool operator!=(enum_bitset rhs) const
+    constexpr auto operator!=(enum_bitset rhs) const -> bool
     {
         return mValue != rhs.mValue;
     }
 
-    constexpr bool operator%(enum_bitset testValue) const
+    constexpr auto operator%(enum_bitset testValue) const -> bool
     {
         return (*this & testValue) == testValue;
     }
-    [[nodiscard]] constexpr bool test(enum_bitset value) const
+    [[nodiscard]] constexpr auto test(enum_bitset value) const -> bool
     {
         return *this % value;
     }
 
-    constexpr enum_bitset operator&(enum_bitset rhs) const
+    constexpr auto operator&(enum_bitset rhs) const -> enum_bitset
     {
         return enum_bitset{mValue & rhs.mValue};
     }
-    constexpr enum_bitset &operator&=(enum_bitset rhs)
+    constexpr auto operator&=(enum_bitset rhs) -> enum_bitset &
     {
         mValue &= rhs.mValue;
         return *this;
     }
 
-    constexpr enum_bitset operator|(enum_bitset rhs) const
+    constexpr auto operator|(enum_bitset rhs) const -> enum_bitset
     {
         return enum_bitset{mValue | rhs.mValue};
     }
-    constexpr enum_bitset &operator|=(enum_bitset rhs)
+    constexpr auto operator|=(enum_bitset rhs) -> enum_bitset &
     {
         mValue |= rhs.mValue;
         return *this;
     }
 
-    constexpr enum_bitset operator^(enum_bitset rhs) const
+    constexpr auto operator^(enum_bitset rhs) const -> enum_bitset
     {
         return enum_bitset{mValue ^ rhs.mValue};
     }
-    constexpr enum_bitset &operator^=(enum_bitset rhs)
+    constexpr auto operator^=(enum_bitset rhs) -> enum_bitset &
     {
         mValue ^= rhs.mValue;
         return *this;
     }
 
-    constexpr enum_bitset operator~() const
+    constexpr auto operator~() const -> enum_bitset
     {
         return enum_bitset{~mValue};
     }
@@ -110,7 +110,7 @@ private:
 };
 
 template <class E, std::enable_if_t<enum_bitsets_allowed<E>, int> = 0>
-constexpr enum_bitset<E> operator|(E lhs, E rhs)
+constexpr auto operator|(E lhs, E rhs) -> enum_bitset<E>
 {
     using bitset_type = ::enum_bitset<E>;
     using value_type = typename bitset_type::underlying_type;
@@ -118,13 +118,13 @@ constexpr enum_bitset<E> operator|(E lhs, E rhs)
                        | static_cast<value_type>(rhs)};
 }
 template <class E, std::enable_if_t<enum_bitsets_allowed<E>, int> = 0>
-constexpr enum_bitset<E> operator|(E lhs, enum_bitset<E> rhs)
+constexpr auto operator|(E lhs, enum_bitset<E> rhs) -> enum_bitset<E>
 {
     return rhs | lhs;
 }
 
 template <class E, std::enable_if_t<enum_bitsets_allowed<E>, int> = 0>
-constexpr enum_bitset<E> operator&(E lhs, E rhs)
+constexpr auto operator&(E lhs, E rhs) -> enum_bitset<E>
 {
     using bitset_type = ::enum_bitset<E>;
     using value_type = typename bitset_type::underlying_type;
@@ -132,13 +132,13 @@ constexpr enum_bitset<E> operator&(E lhs, E rhs)
                        & static_cast<value_type>(rhs)};
 }
 template <class E, std::enable_if_t<enum_bitsets_allowed<E>, int> = 0>
-constexpr enum_bitset<E> operator&(E lhs, enum_bitset<E> rhs)
+constexpr auto operator&(E lhs, enum_bitset<E> rhs) -> enum_bitset<E>
 {
     return rhs & lhs;
 }
 
 template <class E, std::enable_if_t<enum_bitsets_allowed<E>, int> = 0>
-constexpr enum_bitset<E> operator^(E lhs, E rhs)
+constexpr auto operator^(E lhs, E rhs) -> enum_bitset<E>
 {
     using bitset_type = ::enum_bitset<E>;
     using value_type = typename bitset_type::underlying_type;
@@ -146,7 +146,7 @@ constexpr enum_bitset<E> operator^(E lhs, E rhs)
                        ^ static_cast<value_type>(rhs)};
 }
 template <class E, std::enable_if_t<enum_bitsets_allowed<E>, int> = 0>
-constexpr enum_bitset<E> operator^(E lhs, enum_bitset<E> rhs)
+constexpr auto operator^(E lhs, enum_bitset<E> rhs) -> enum_bitset<E>
 {
     return rhs ^ lhs;
 }

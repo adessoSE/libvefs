@@ -79,7 +79,7 @@ namespace vefs::crypto::detail
 {
 
 template <typename MAC>
-result<void> mac_feed_key(MAC &state, ro_dynblob key) noexcept
+auto mac_feed_key(MAC &state, ro_dynblob key) noexcept -> result<void>
 {
     utils::secure_byte_array<MAC::block_bytes> keyBlockMemory;
     auto keyBlock = as_span(keyBlockMemory);
@@ -104,15 +104,15 @@ public:
         utils::secure_data_erase(mState);
     }
 
-    result<void> init(std::size_t digestSize = digest_bytes) noexcept;
-    result<void> init(std::size_t digestSize, ro_dynblob key) noexcept;
-    result<void> init(std::size_t digestSize,
-                      ro_dynblob key,
-                      ro_blob<personal_bytes> personalisation) noexcept;
+    auto init(std::size_t digestSize = digest_bytes) noexcept -> result<void>;
+    auto init(std::size_t digestSize, ro_dynblob key) noexcept -> result<void>;
+    auto init(std::size_t digestSize,
+              ro_dynblob key,
+              ro_blob<personal_bytes> personalisation) noexcept -> result<void>;
 
-    result<void> update(ro_dynblob data) noexcept;
+    auto update(ro_dynblob data) noexcept -> result<void>;
 
-    result<void> final(rw_dynblob digest) noexcept;
+    auto final(rw_dynblob digest) noexcept -> result<void>;
 
 private:
     blake2b_state mState{};
@@ -133,15 +133,15 @@ public:
         utils::secure_data_erase(mState);
     }
 
-    result<void> init(std::size_t digestSize) noexcept;
-    result<void> init(std::size_t digestSize, ro_dynblob key) noexcept;
-    result<void> init(std::size_t digestSize,
-                      ro_dynblob key,
-                      ro_blob<personal_bytes> personalisation) noexcept;
+    auto init(std::size_t digestSize) noexcept -> result<void>;
+    auto init(std::size_t digestSize, ro_dynblob key) noexcept -> result<void>;
+    auto init(std::size_t digestSize,
+              ro_dynblob key,
+              ro_blob<personal_bytes> personalisation) noexcept -> result<void>;
 
-    result<void> update(ro_dynblob data) noexcept;
+    auto update(ro_dynblob data) noexcept -> result<void>;
 
-    result<void> final(rw_dynblob digest) noexcept;
+    auto final(rw_dynblob digest) noexcept -> result<void>;
 
 private:
     blake2xb_state mState{};

@@ -8,9 +8,9 @@ namespace vefs::crypto
 namespace detail
 {
 
-result<void> kdf_impl(rw_dynblob prk,
-                      ro_dynblob inputKey,
-                      std::span<ro_dynblob const> domain) noexcept
+auto kdf_impl(rw_dynblob prk,
+              ro_dynblob inputKey,
+              std::span<ro_dynblob const> domain) noexcept -> result<void>
 {
     blake2xb state{};
 
@@ -25,8 +25,8 @@ result<void> kdf_impl(rw_dynblob prk,
 
 } // namespace detail
 
-result<void>
-kdf(rw_dynblob prk, ro_dynblob inputKey, ro_dynblob domain) noexcept
+auto kdf(rw_dynblob prk, ro_dynblob inputKey, ro_dynblob domain) noexcept
+        -> result<void>
 {
     using namespace detail;
 
