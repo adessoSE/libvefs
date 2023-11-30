@@ -245,6 +245,8 @@ BOOST_FORCEINLINE auto operator+(on_error_exit, Fn &&fn)
     return error_scope_guard<Fn>{std::forward<Fn>(fn)};
 }
 
+// NOLINTBEGIN(cppcoreguidelines-macro-usage)
+
 #define VEFS_ANONYMOUS_VAR(id) BOOST_PP_CAT(id, __LINE__)
 #define VEFS_SCOPE_EXIT                                                        \
     auto VEFS_ANONYMOUS_VAR(_scope_exit_guard_)                                \
@@ -252,5 +254,7 @@ BOOST_FORCEINLINE auto operator+(on_error_exit, Fn &&fn)
 #define VEFS_ERROR_EXIT                                                        \
     auto VEFS_ANONYMOUS_VAR(_error_exit_guard_)                                \
             = ::vefs::utils::on_error_exit{} + [&]()
+
+// NOLINTEND(cppcoreguidelines-macro-usage)
 
 } // namespace vefs::utils

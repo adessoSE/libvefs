@@ -253,9 +253,13 @@ auto collect_system_error() -> system_error::system_code;
 
 } // namespace vefs
 
+// NOLINTBEGIN(cppcoreguidelines-macro-usage)
+
 #define VEFS_TRY(...) OUTCOME_TRY(__VA_ARGS__)
 
 #define VEFS_TRY_INJECT(stmt, injected) VEFS_TRY(stmt)
 // #define VEFS_TRY_INJECT(stmt, injected)
 //     VEFS_TRY(vefs::inject((stmt), [&](auto &_vefsError) mutable
 //                           { _vefsError << injected; }))
+
+// NOLINTEND(cppcoreguidelines-macro-usage)

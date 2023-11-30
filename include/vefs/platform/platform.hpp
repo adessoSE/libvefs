@@ -11,6 +11,8 @@
 
 #include <fmt/format.h>
 
+// NOLINTBEGIN(cppcoreguidelines-macro-usage)
+
 #if defined BOOST_COMP_GNUC_AVAILABLE || defined BOOST_COMP_CLANG_AVAILABLE
 
 #define VEFS_PREFETCH_NTA(ptr) __builtin_prefetch((ptr), 0, 0)
@@ -40,6 +42,8 @@
 #define VEFS_PREFETCH_NTA(ptr) ((void)ptr)
 
 #endif
+
+// NOLINTEND(cppcoreguidelines-macro-usage)
 
 namespace vefs::utils
 {

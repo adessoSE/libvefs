@@ -24,7 +24,7 @@
 #endif
 #endif
 
-#define ALLOW_UNALIGNED_READS 1
+#define ALLOW_UNALIGNED_READS 1 // NOLINT(cppcoreguidelines-macro-usage)
 
 namespace vefs::external
 {
