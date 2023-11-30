@@ -71,8 +71,8 @@ struct formatter<vefs::detail::type_info_fmt>
         char *demangledName;
         {
             int status = 0;
-            demangledName
-                    = abi::__cxa_demangle(type.value.name(), 0, 0, &status);
+            demangledName = abi::__cxa_demangle(type.value.name(), nullptr,
+                                                nullptr, &status);
         }
 #else
         auto demangledName = type.value.name();
