@@ -81,7 +81,7 @@ thread_pool_gen::thread_pool_gen(unsigned minWorkers,
     }
 }
 
-thread_pool_gen::~thread_pool_gen()
+thread_pool_gen::~thread_pool_gen() noexcept
 {
     for (std::size_t i = 0, end = mWorkerList.size(); i < end; ++i)
     {

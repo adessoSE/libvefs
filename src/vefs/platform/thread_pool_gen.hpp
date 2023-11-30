@@ -31,7 +31,7 @@ public:
                              unsigned maxWorkers
                              = std::thread::hardware_concurrency(),
                              std::string_view poolName = {});
-    ~thread_pool_gen() override;
+    virtual ~thread_pool_gen() noexcept;
 
 private:
     void worker_main(moodycamel::ConsumerToken workerToken, int id);

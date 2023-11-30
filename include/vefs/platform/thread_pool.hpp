@@ -14,10 +14,11 @@ namespace vefs::detail
 {
 
 class thread_pool
+
 {
 protected:
     thread_pool() noexcept = default;
-    virtual ~thread_pool() noexcept = default;
+    ~thread_pool() noexcept = default;
 
 public:
     thread_pool(thread_pool const &) = delete;
@@ -78,7 +79,7 @@ class pooled_work_tracker : public thread_pool
 public:
     pooled_work_tracker() = delete;
     pooled_work_tracker(thread_pool *pool);
-    ~pooled_work_tracker() override = default;
+    virtual ~pooled_work_tracker() noexcept = default;
 
     void wait();
 

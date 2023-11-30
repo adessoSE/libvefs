@@ -39,6 +39,7 @@ public:
             = vefs::crypto::detail::blake2b::max_key_bytes;
 
     constexpr libb2_none_blake2b_crypto_provider();
+    constexpr virtual ~libb2_none_blake2b_crypto_provider() noexcept = default;
 };
 
 constexpr libb2_none_blake2b_crypto_provider::

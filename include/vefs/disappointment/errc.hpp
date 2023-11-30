@@ -37,9 +37,11 @@ enum class archive_errc : int
     no_more_data,
 };
 
+// NOLINTNEXTLINE(cppcoreguidelines-virtual-class-destructor)
 class archive_domain_type;
 using archive_code = system_error::status_code<archive_domain_type>;
 
+// NOLINTNEXTLINE(cppcoreguidelines-virtual-class-destructor)
 class archive_domain_type : public system_error::status_code_domain
 {
     using base = system_error::status_code_domain;

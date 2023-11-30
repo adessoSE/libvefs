@@ -46,15 +46,15 @@ public:
     const std::size_t key_material_size;
 
 protected:
-    constexpr crypto_provider(std::size_t keyMaterialSize)
+    constexpr crypto_provider(std::size_t keyMaterialSize) noexcept
         : key_material_size{keyMaterialSize}
     {
     }
-    constexpr crypto_provider()
+    constexpr crypto_provider() noexcept
         : key_material_size{5}
     {
     }
-    virtual ~crypto_provider() = default;
+    constexpr ~crypto_provider() noexcept = default;
 };
 static_assert(!std::is_default_constructible_v<crypto_provider>);
 static_assert(!std::is_copy_constructible_v<crypto_provider>);

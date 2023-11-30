@@ -36,5 +36,6 @@ public:
         : crypto_provider(boringssl_aes_256_gcm_provider::key_material_size)
     {
     }
+    constexpr virtual ~boringssl_aes_256_gcm_provider() noexcept = default;
 };
 } // namespace vefs::crypto::detail

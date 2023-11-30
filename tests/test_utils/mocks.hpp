@@ -44,6 +44,8 @@ public:
                 ct_compare,
                 (vefs::ro_dynblob l, vefs::ro_dynblob r),
                 (const, noexcept));
+
+    virtual ~crypto_provider_mock() noexcept = default;
 };
 
 class file_crypto_ctx_mock : public vefs::detail::file_crypto_ctx_interface
