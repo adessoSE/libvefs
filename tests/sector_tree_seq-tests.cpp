@@ -47,7 +47,7 @@ public:
         return allocated;
     }
 
-    auto dealloc_one([[maybe_unused]] sector_id const which) noexcept
+    static auto dealloc_one([[maybe_unused]] sector_id const which) noexcept
             -> result<void>
     {
         return success();
@@ -57,7 +57,7 @@ public:
     {
     }
 
-    auto on_commit() noexcept -> result<void>
+    static auto on_commit() noexcept -> result<void>
     {
         return success();
     }

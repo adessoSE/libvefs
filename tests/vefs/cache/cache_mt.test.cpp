@@ -76,9 +76,9 @@ struct ex_traits
     {
     }
 
-    auto load(load_context const &ctx,
-              key_type,
-              vefs::utils::object_storage<value_type> &storage) noexcept
+    static auto load(load_context const &ctx,
+                     key_type,
+                     vefs::utils::object_storage<value_type> &storage) noexcept
             -> vefs::result<std::pair<value_type *, bool>>
     {
         auto cx = &storage.construct(ctx.emplace, ctx.destructorCalled);

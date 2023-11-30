@@ -128,7 +128,8 @@ private:
      * calculate the waypoint offset and absolute value dependent on the layer
      * where it is in and the position
      */
-    BOOST_FORCEINLINE auto calc_waypoint_params(int layer, std::uint64_t pos)
+    static BOOST_FORCEINLINE auto calc_waypoint_params(int layer,
+                                                       std::uint64_t pos)
             -> waypoint;
 
     template <int layer>

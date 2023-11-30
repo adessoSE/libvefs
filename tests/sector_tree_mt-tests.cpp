@@ -61,14 +61,14 @@ public:
         return allocated;
     }
 
-    auto dealloc(sector_allocator &) noexcept -> result<void>
+    static auto dealloc(sector_allocator &) noexcept -> result<void>
     {
         return oc::success();
     }
     void dealloc(sector_allocator &, leak_on_failure_t) noexcept
     {
     }
-    auto dealloc_one(sector_id const) noexcept -> result<void>
+    static auto dealloc_one(sector_id const) noexcept -> result<void>
     {
         return oc::success();
     }
@@ -76,7 +76,7 @@ public:
     {
     }
 
-    auto on_commit() noexcept -> result<void>
+    static auto on_commit() noexcept -> result<void>
     {
         return oc::success();
     }

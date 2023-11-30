@@ -135,7 +135,8 @@ private:
     auto write_static_archive_header(ro_blob<32> userPRK) -> result<void>;
 
     static constexpr auto header_size(header_id which) noexcept -> std::size_t;
-    constexpr auto header_offset(header_id which) const noexcept -> std::size_t;
+    static constexpr auto header_offset(header_id which) noexcept
+            -> std::size_t;
     void switch_header() noexcept;
 
     crypto::crypto_provider *const mCryptoProvider;
@@ -215,7 +216,7 @@ inline auto sector_device::master_secret_counter() -> crypto::atomic_counter &
 #pragma warning(disable : 4146)
 #endif
 
-constexpr auto sector_device::header_offset(header_id which) const noexcept
+constexpr auto sector_device::header_offset(header_id which) noexcept
         -> std::size_t
 {
     return static_header_size + personalization_area_size

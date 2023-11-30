@@ -75,7 +75,7 @@ public:
         mSource.dealloc_one(which, archive_sector_allocator::leak_on_failure);
     }
 
-    auto on_commit() noexcept -> result<void>
+    static auto on_commit() noexcept -> result<void>
     {
         return success();
     }

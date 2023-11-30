@@ -31,7 +31,7 @@ public:
     auto dealloc_one(const sector_id which) noexcept -> result<void>;
     void dealloc_one(const sector_id which, leak_on_failure_t) noexcept;
 
-    auto on_commit() noexcept -> result<void>;
+    static auto on_commit() noexcept -> result<void>;
 
     void on_leak_detected() noexcept;
     auto leaked() -> bool;

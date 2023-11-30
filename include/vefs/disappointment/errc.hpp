@@ -91,8 +91,8 @@ protected:
                != archive_errc::success;
     }
 
-    [[nodiscard]] constexpr auto
-    map_to_generic(value_type const value) const noexcept -> system_error::errc
+    [[nodiscard]] static constexpr auto
+    map_to_generic(value_type const value) noexcept -> system_error::errc
     {
         using enum archive_errc;
         using sys_errc = system_error::errc;
@@ -128,8 +128,8 @@ protected:
         }
     }
 
-    [[nodiscard]] constexpr auto
-    map_to_message(value_type const value) const noexcept -> std::string_view
+    [[nodiscard]] static constexpr auto
+    map_to_message(value_type const value) noexcept -> std::string_view
     {
         using enum archive_errc;
         using namespace std::string_view_literals;

@@ -475,6 +475,8 @@ auto archive_handle::erase(std::string_view filePath) -> result<void>
     return mFilesystem->erase(filePath);
 }
 
+// public API
+// NOLINTNEXTLINE(readability-convert-member-functions-to-static)
 auto archive_handle::read(vfile_handle const &handle,
                           rw_dynblob buffer,
                           std::uint64_t readFilePos) -> result<void>
@@ -497,6 +499,8 @@ auto archive_handle::read(vfile_handle const &handle,
     return readrx;
 }
 
+// public API
+// NOLINTNEXTLINE(readability-convert-member-functions-to-static)
 auto archive_handle::write(vfile_handle const &handle,
                            ro_dynblob data,
                            std::uint64_t writeFilePos) -> result<void>
@@ -520,6 +524,8 @@ auto archive_handle::write(vfile_handle const &handle,
     return writerx;
 }
 
+// public API
+// NOLINTNEXTLINE(readability-convert-member-functions-to-static)
 auto archive_handle::truncate(vfile_handle const &handle,
                               std::uint64_t maxExtent) -> result<void>
 {
@@ -533,6 +539,8 @@ auto archive_handle::truncate(vfile_handle const &handle,
     return resizerx;
 }
 
+// public API
+// NOLINTNEXTLINE(readability-convert-member-functions-to-static)
 auto archive_handle::maximum_extent_of(vfile_handle const &handle)
         -> result<std::uint64_t>
 {
@@ -543,6 +551,8 @@ auto archive_handle::maximum_extent_of(vfile_handle const &handle)
     return handle->maximum_extent();
 }
 
+// public API
+// NOLINTNEXTLINE(readability-convert-member-functions-to-static)
 auto archive_handle::commit(vfile_handle const &handle) -> result<void>
 {
     if (!handle)
@@ -555,16 +565,22 @@ auto archive_handle::commit(vfile_handle const &handle) -> result<void>
     return syncrx;
 }
 
+// public API
+// NOLINTNEXTLINE(readability-convert-member-functions-to-static)
 auto vefs::archive_handle::try_lock(vfile_handle const &handle) -> bool
 {
     return handle->try_lock();
 }
 
+// public API
+// NOLINTNEXTLINE(readability-convert-member-functions-to-static)
 auto vefs::archive_handle::lock(vfile_handle const &handle) -> void
 {
     handle->lock();
 }
 
+// public API
+// NOLINTNEXTLINE(readability-convert-member-functions-to-static)
 auto vefs::archive_handle::unlock(vfile_handle const &handle) -> void
 {
     handle->unlock();

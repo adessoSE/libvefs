@@ -64,7 +64,7 @@ namespace fmt
 template <>
 struct formatter<vefs::detail::type_info_fmt>
 {
-    constexpr auto parse(format_parse_context &ctx) noexcept
+    static constexpr auto parse(format_parse_context &ctx) noexcept
     {
         return ctx.begin();
     }
