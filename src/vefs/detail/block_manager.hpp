@@ -214,7 +214,7 @@ public:
     /**
      * adds a contiguous block range [begin, begin + num) to the block pool
      */
-    auto dealloc_contiguous(const id_type begin, const std::size_t num) noexcept
+    auto dealloc_contiguous(id_type const begin, std::size_t const num) noexcept
             -> result<void>;
 
     /**
@@ -556,16 +556,16 @@ inline auto block_manager<IdType>::dealloc_one(const id_type which) noexcept
 
 template <typename IdType>
 inline auto block_manager<IdType>::dealloc_contiguous(
-        const id_type first, const std::size_t num) noexcept -> result<void>
+        id_type const begin, std::size_t const num) noexcept -> result<void>
 {
     if (num == 0)
     {
         return success();
     }
 
-    auto const last = range_type::advance(first, num - 1);
+    auto const last = range_type::advance(begin, num - 1);
     auto const blocksBegin = mFreeBlocks.begin();
-    auto const succIt = mFreeBlocks.upper_bound(first);
+    auto const succIt = mFreeBlocks.upper_bound(begin);
     auto const blocksEnd = mFreeBlocks.end();
 
     bool inserted = false;
@@ -579,7 +579,7 @@ inline auto block_manager<IdType>::dealloc_contiguous(
     }
     if (succIt != blocksBegin)
     {
-        if (auto precIt = std::prev(succIt); precIt->is_predecessor_of(first))
+        if (auto precIt = std::prev(succIt); precIt->is_predecessor_of(begin))
         {
             if (inserted)
             {
@@ -600,7 +600,7 @@ inline auto block_manager<IdType>::dealloc_contiguous(
     try
     {
         auto node = allocator_traits::allocate(mAllocator, 1);
-        allocator_traits::construct(mAllocator, node, first, last);
+        allocator_traits::construct(mAllocator, node, begin, last);
         mFreeBlocks.insert_before(succIt, *node);
         return success();
     }

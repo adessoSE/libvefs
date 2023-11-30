@@ -292,13 +292,13 @@ constexpr auto tree_position::raw() const noexcept
     return mLayerPosition;
 }
 
-constexpr auto next(tree_position value) noexcept -> tree_position
+constexpr auto next(tree_position position) noexcept -> tree_position
 {
-    return {value.position() + 1, value.layer()};
+    return {position.position() + 1, position.layer()};
 }
-constexpr auto prev(tree_position value) noexcept -> tree_position
+constexpr auto prev(tree_position position) noexcept -> tree_position
 {
-    return {value.position() - 1, value.layer()};
+    return {position.position() - 1, position.layer()};
 }
 
 #pragma endregion

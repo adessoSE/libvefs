@@ -124,7 +124,7 @@ public:
     auto create_file_secrets2() noexcept -> result<file_crypto_ctx::state_type>;
 
 private:
-    sector_device(llfio::file_handle mfh,
+    sector_device(llfio::file_handle file,
                   crypto::crypto_provider *cryptoProvider,
                   size_t numSectors);
 

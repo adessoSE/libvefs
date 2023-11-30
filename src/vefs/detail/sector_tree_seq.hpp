@@ -171,7 +171,7 @@ private:
 
     auto collect_intermediate_nodes() noexcept -> result<void>;
 
-    auto collect_next_layer(utils::bitset_overlay bitset) -> result<void>;
+    auto collect_next_layer(utils::bitset_overlay allocs) -> result<void>;
 
     auto sync_to_device(int const layer) noexcept -> result<void>;
 

@@ -32,8 +32,8 @@ inline dirt_flag::dirt_flag()
 {
 }
 
-inline dirt_flag::dirt_flag(state initalState)
-    : mState{initalState == state::dirty}
+inline dirt_flag::dirt_flag(state initialState)
+    : mState{initialState == state::dirty}
 {
 }
 
