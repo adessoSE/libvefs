@@ -412,8 +412,8 @@ inline auto archive(llfio::path_handle const &base,
                     creation creationMode = creation::open_existing)
         -> result<archive_handle>
 {
-    return archive_handle::archive(base, std::move(path), userPRK,
-                                   cryptoProvider, creationMode);
+    return archive_handle::archive(base, path, userPRK, cryptoProvider,
+                                   creationMode);
 }
 
 auto read_archive_personalization_area(

@@ -200,6 +200,8 @@ private:
                 -> result<stream_info>
         {
             using namespace dplx;
+            // false positive--code doesn't compile otherwise
+            // NOLINTNEXTLINE(performance-move-const-arg)
             auto &&buffer = dp::get_input_buffer(std::move(content));
             dp::parse_context ctx{buffer};
 
