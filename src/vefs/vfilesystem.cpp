@@ -185,7 +185,8 @@ private:
         [[nodiscard]] auto next_block() const noexcept -> tree_stream_position
         {
             auto const state = current_read_area();
-            auto const sectorContentBegin = as_span(mCurrentSector).data();
+            auto const *const sectorContentBegin
+                    = as_span(mCurrentSector).data();
 
             auto const blockOffset = state.remaining_begin()
                                      - sectorContentBegin - alloc_map_size;

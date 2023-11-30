@@ -131,11 +131,11 @@ private:
             return errc::not_enough_memory;
         }
 
-        auto initPtr = mControlBlock.get();
+        auto *initPtr = mControlBlock.get();
         ::new (initPtr) control_head(mNumBuffers);
         initPtr += control_head_size;
 
-        for (auto const end = initPtr + mNumBuffers * control_slot_size;
+        for (auto *const end = initPtr + mNumBuffers * control_slot_size;
              initPtr != end; initPtr += control_slot_size)
         {
             ::new (static_cast<void *>(initPtr)) std::binary_semaphore(1);
@@ -162,7 +162,7 @@ public:
             try
             {
                 allocator tmp{}; // this is valid due to always_equal
-                auto const allocation
+                auto *const allocation
                         = allocator_traits::allocate(tmp, mBufferSize);
                 return {allocation, mBufferSize};
             }

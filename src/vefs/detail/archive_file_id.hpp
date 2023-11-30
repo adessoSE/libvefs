@@ -101,7 +101,8 @@ struct fmt::formatter<vefs::detail::file_id>
         auto out = ctx.out();
         auto const id = fid.as_uuid();
         auto const bytes = id.as_bytes();
-        auto const data = reinterpret_cast<std::uint8_t const *>(bytes.data());
+        auto const *const data
+                = reinterpret_cast<std::uint8_t const *>(bytes.data());
 
         for (std::size_t i = 0, limit = bytes.size(); i < limit; ++i)
         {
