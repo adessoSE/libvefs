@@ -197,7 +197,10 @@ private:
         return mRootInfo.tree_depth - mLoaded;
     }
 
+    // this type is neither copyable nor movable anyways
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     sector_device &mDevice;
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     file_crypto_ctx &mCryptoCtx;
 
     tree_path mCurrentPath;

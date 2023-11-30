@@ -122,6 +122,8 @@ private:
                  llfio::path_view targetBasePath,
                  OpenFn &&open) -> result<void>;
 
+    // this type is neither copyable nor movable anyways
+    // NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members)
     detail::sector_device &mDevice;
     detail::archive_sector_allocator &mSectorAllocator;
     detail::thread_pool &mDeviceExecutor;
@@ -135,6 +137,7 @@ private:
     std::unique_ptr<tree_type> mIndexTree;
     utils::dirt_flag mWriteFlag;
     std::mutex mIOSync;
+    // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
 };
 
 } // namespace vefs

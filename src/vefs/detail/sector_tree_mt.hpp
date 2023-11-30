@@ -140,20 +140,26 @@ public:
 template <typename TreeAllocator>
 class sector_cache_traits
 {
+    // this is a reference wrapper by design
+    // NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members)
     sector_device &mDevice;
     file_crypto_ctx &mCryptoCtx;
     root_sector_info &mRootInfo;
     TreeAllocator &mTreeAllocator;
     std::mutex &mRootSync;
+    // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
 
 public:
     struct initializer_type
     {
+        // this is a reference wrapper by design
+        // NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members)
         sector_device &device;
         file_crypto_ctx &cryptoCtx;
         root_sector_info &rootInfo;
         TreeAllocator &treeAllocator;
         std::mutex &rootSync;
+        // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
     };
     explicit sector_cache_traits(initializer_type const &init)
         : mDevice(init.device)

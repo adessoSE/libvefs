@@ -38,6 +38,8 @@ public:
     void reset_leak_flag();
 
 private:
+    // this is a reference wrapper by design
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     sector_id_container &mIds;
     bool mLeaked;
 };

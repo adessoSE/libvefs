@@ -634,8 +634,10 @@ private:
         mIndexBlocks.write_to_bitset(headerOverlay, begin, blocks_per_sector);
     }
 
+    // NOLINTBEGIN(cppcoreguidelines-avoid-const-or-ref-data-members)
     tree_type &mIndexTree;
     block_manager &mIndexBlocks;
+    // NOLINTEND(cppcoreguidelines-avoid-const-or-ref-data-members)
     detail::tree_position mLastAllocated;
 };
 

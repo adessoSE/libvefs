@@ -43,7 +43,9 @@ public:
             -> result<int>
             = 0;
 
-    const std::size_t key_material_size;
+    // this type is neither copyable nor movable anyways
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
+    std::size_t const key_material_size;
 
 protected:
     constexpr crypto_provider(std::size_t keyMaterialSize) noexcept

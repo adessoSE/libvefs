@@ -86,6 +86,8 @@ public:
     }
 
 private:
+    // this is a reference wrapper by design
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     archive_sector_allocator &mSource;
 };
 

@@ -54,6 +54,8 @@ namespace vefs::detail
 {
 struct type_info_fmt
 {
+    // this is a dedicated reference wrapper
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     std::type_info const &value;
 };
 } // namespace vefs::detail

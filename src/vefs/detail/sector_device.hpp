@@ -139,6 +139,8 @@ private:
             -> std::size_t;
     void switch_header() noexcept;
 
+    // this type is neither copyable nor movable anyways
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     crypto::crypto_provider *const mCryptoProvider;
     llfio::file_handle mArchiveFile;
     llfio::unique_file_lock mArchiveFileLock;

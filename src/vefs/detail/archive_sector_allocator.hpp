@@ -69,6 +69,8 @@ private:
 
     auto trim() noexcept -> result<void>;
 
+    // this type is neither copyable nor movable anyways
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     sector_device &mSectorDevice;
     utils::block_manager<sector_id> mSectorManager;
     std::mutex mAllocatorSync;

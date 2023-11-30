@@ -87,6 +87,8 @@ private:
     // Inherited via thread_pool
     void execute(std::unique_ptr<task_t> task) override;
 
+    // this is neither movable nor copyable, anyways
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     thread_pool *const mPool;
     std::atomic_int mWorkCtr;
 #if __cpp_lib_atomic_wait < 201'907L // TODO: remove after gcc11 release

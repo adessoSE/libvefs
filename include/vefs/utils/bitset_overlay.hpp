@@ -173,6 +173,8 @@ public:
         }
 
     private:
+        // this is a dedicated reference wrapper
+        // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
         bitset_overlay &mOwner;
         std::size_t mBitpos;
     };

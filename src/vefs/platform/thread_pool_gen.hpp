@@ -41,6 +41,8 @@ private:
 
     moodycamel::BlockingConcurrentQueue<work_item_t> mTaskQueue;
     std::vector<std::thread> mWorkerList;
-    const std::string mThreadPoolName;
+    // this type is neither copyable nor movable anyways
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
+    std::string const mThreadPoolName;
 };
 } // namespace vefs::detail

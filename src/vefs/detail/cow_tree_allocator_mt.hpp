@@ -200,6 +200,8 @@ private:
         return allocation;
     }
 
+    // this type is neither copyable nor movable anyways
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     source_allocator_type &mSourceAllocator;
     long long mCommitCounter;
     std::mutex mBufferSync;

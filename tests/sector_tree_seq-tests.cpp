@@ -68,6 +68,8 @@ public:
 
     std::mutex alloc_sync;
     uint64_t alloc_counter;
+    // this is a reference wrapper by design
+    // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
     sector_device &device;
 };
 
