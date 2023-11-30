@@ -294,11 +294,11 @@ constexpr auto tree_position::raw() const noexcept
 
 constexpr auto next(tree_position value) noexcept -> tree_position
 {
-    return tree_position(value.position() + 1, value.layer());
+    return {value.position() + 1, value.layer()};
 }
 constexpr auto prev(tree_position value) noexcept -> tree_position
 {
-    return tree_position(value.position() - 1, value.layer());
+    return {value.position() - 1, value.layer()};
 }
 
 #pragma endregion
@@ -500,12 +500,12 @@ inline auto tree_path::crend() const -> const_reverse_iterator
 
 inline auto tree_path::next() const -> tree_path
 {
-    return tree_path(mTreeDepth, position(mTargetLayer) + 1, mTargetLayer);
+    return {mTreeDepth, position(mTargetLayer) + 1, mTargetLayer};
 }
 
 inline auto tree_path::previous() const -> tree_path
 {
-    return tree_path(mTreeDepth, position(mTargetLayer) - 1, mTargetLayer);
+    return {mTreeDepth, position(mTargetLayer) - 1, mTargetLayer};
 }
 
 inline auto tree_path::required_depth() const noexcept -> int
