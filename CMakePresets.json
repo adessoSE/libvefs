@@ -130,8 +130,8 @@
                 "x64-linux"
             ],
             "cacheVariables": {
-                "VCPKG_TARGET_TRIPLET": "x64-linux-clang",
-                "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "${sourceDir}/tools/toolchains/clang-x64-linux.cmake"
+                "VCPKG_TARGET_TRIPLET": "x64-linux-clang-16",
+                "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "${sourceDir}/tools/toolchains/x64-linux-clang-16.cmake"
             }
         },
         {
@@ -140,8 +140,8 @@
                 "x64-linux-clang"
             ],
             "cacheVariables": {
-                "VCPKG_TARGET_TRIPLET": "x64-linux-clang-15",
-                "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "${sourceDir}/tools/toolchains/clang-15-x64-linux.cmake",
+                "VCPKG_TARGET_TRIPLET": "x64-linux-clang-16",
+                "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "${sourceDir}/tools/toolchains/x64-linux-clang-16.cmake",
                 "CMAKE_EXPORT_COMPILE_COMMANDS": true
             }
         },
@@ -151,7 +151,7 @@
                 "x64-linux"
             ],
             "cacheVariables": {
-                "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "${sourceDir}/tools/toolchains/gcc-12-x64-linux.cmake",
+                "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "${sourceDir}/tools/toolchains/x64-linux-gcc-12.cmake",
                 "CMAKE_CXX_FLAGS": "-fconcepts-diagnostics-depth=0 -ftemplate-backtrace-limit=0 -fsanitize=address,leak,undefined -g -fno-omit-frame-pointer",
                 "CMAKE_EXE_LINKER_FLAGS": "-fsanitize=address,leak,undefined"
             }

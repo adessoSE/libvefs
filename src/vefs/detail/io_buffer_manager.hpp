@@ -7,7 +7,7 @@
 #include <semaphore>
 
 #include <dplx/dp/legacy/memory_buffer.hpp>
-#include <dplx/predef/compiler.h>
+#include <dplx/predef/library.h>
 
 #include <vefs/disappointment.hpp>
 #include <vefs/llfio.hpp>
@@ -30,7 +30,7 @@ class io_buffer_manager
     {
         free_buffers_semaphore_type free_buffers;
 
-#if VEFS_WORKAROUND_TESTED_AT(DPLX_COMP_GNUC, 12, 1, 0)
+#if VEFS_WORKAROUND_TESTED_AT(BOOST_LIB_STD_GNU, 12, 1, 0)
 #else
         constexpr
 #endif

@@ -45,8 +45,6 @@ class archive_domain_type : public system_error::status_code_domain
     using base = system_error::status_code_domain;
     template <class DomainType>
     friend class system_error::status_code;
-    template <class StatusCode>
-    friend class system_error::detail::indirecting_domain;
 
 public:
     static constexpr std::string_view uuid
