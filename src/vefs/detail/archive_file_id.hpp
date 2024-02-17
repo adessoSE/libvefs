@@ -66,12 +66,12 @@ inline auto file_id::generate() noexcept -> result<file_id>
     VEFS_TRY(random_bytes(as_writable_bytes(std::span(bytes))));
 
     // variant must be 10xxxxxx
-    bytes[8] &= 0b0011'1111;
-    bytes[8] |= 0b1000'0000;
+    bytes[8] &= 0b00111111;
+    bytes[8] |= 0b10000000;
 
     // version must be 0100xxxx
-    bytes[6] &= 0b0000'1111;
-    bytes[6] |= 0b0100'0000;
+    bytes[6] &= 0b00001111;
+    bytes[6] |= 0b01000000;
 
     return file_id{uuid{bytes}};
 }

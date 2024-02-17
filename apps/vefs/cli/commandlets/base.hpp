@@ -17,7 +17,7 @@
 #include "vefs/cli/error.hpp"
 
 // fmt 9.0.0
-#if FMT_VERSION >= 9'00'00
+#if FMT_VERSION >= 90'000
 template <>
 struct fmt::formatter<lyra::parser> : fmt::ostream_formatter
 {
@@ -113,8 +113,7 @@ protected:
 
     commandlet_base()
         : cmd(std::string(T::name),
-              [self = static_cast<T *>(this)](lyra::group const &g)
-              {
+              [self = static_cast<T *>(this)](lyra::group const &g) {
                   if (result<void> rx = self->exec(g); rx.has_failure())
                   {
                       fmt::print("Command execution failed: {}\n{}\n",

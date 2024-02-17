@@ -80,8 +80,8 @@ inline void set_n(Unit *begin, const std::size_t numBits)
     if (auto const remaining = numBits % byte_limits::digits)
     {
         constexpr std::array<std::uint8_t, 8> lut
-                = {0b0000'0000, 0b0000'0001, 0b0000'0011, 0b0000'0111,
-                   0b0000'1111, 0b0001'1111, 0b0011'1111, 0b0111'1111};
+                = {0b00000000, 0b00000001, 0b00000011, 0b00000111,
+                   0b00001111, 0b00011111, 0b00111111, 0b01111111};
         *pend |= lut[remaining];
     }
 }

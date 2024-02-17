@@ -27,21 +27,21 @@ enum class [[nodiscard]] cache_replacement_result
     /**
      * @brief failed; the page is currently used
      */
-    pinned = 0b0'0000,
+    pinned = 0b00000,
     /**
      * @brief succeeded; the page is unoccupied
      */
-    dead = 0b1'0010,
+    dead = 0b10010,
     /**
      * @brief succeeded; the page is occupied and clean
      */
-    clean = 0b1'0000,
+    clean = 0b10000,
     /**
      * @brief succeeded; the page is occupied and dirty/modified
      *
      * This indicates that changes need to be synchronized.
      */
-    dirty = 0b1'0001,
+    dirty = 0b10001,
 };
 
 #if defined(DPLX_COMP_MSVC_AVAILABLE)
@@ -101,11 +101,11 @@ private:
     static constexpr int ref_ctr_offset = 0;
     static constexpr int ref_ctr_digits = 16;
     static constexpr state_type ref_ctr_mask = ((one << ref_ctr_digits) - 1U)
-                                            << ref_ctr_offset;
+                                               << ref_ctr_offset;
     static constexpr state_type ref_ctr_one = one << ref_ctr_offset;
 
-    static constexpr state_type dirt_flag = one
-                                         << (ref_ctr_offset + ref_ctr_digits);
+    static constexpr state_type dirt_flag
+            = one << (ref_ctr_offset + ref_ctr_digits);
     static constexpr state_type tombstone_flag = dirt_flag << 1;
     // this serves as an exclusive lock
     static constexpr state_type dirty_tombstone = dirt_flag | tombstone_flag;
@@ -170,8 +170,8 @@ public:
     {
         auto const state = mValue.load(std::memory_order::acquire);
         return (state & (tombstone_flag | generation_mask))
-                    == (expectedGeneration & generation_mask)
-            && expectedKey == key();
+                       == (expectedGeneration & generation_mask)
+               && expectedKey == key();
     }
 
     auto try_acquire_wait() noexcept -> bool
@@ -306,12 +306,13 @@ public:
             // wrap around as intended
             static_assert(generation_one == (dirt_flag << 2));
             next = (state + ((~state & dirt_flag) << 2)) | dirty_tombstone
-                 | ref_ctr_one;
-        } while (!mValue.compare_exchange_weak(state, next, acq_rel, acquire));
+                   | ref_ctr_one;
+        }
+        while (!mValue.compare_exchange_weak(state, next, acq_rel, acquire));
 
         nextGeneration = (state + generation_one) & generation_mask;
         return static_cast<cache_replacement_result>(
-                0b1'0000U | ((state & dirty_tombstone) >> ref_ctr_digits));
+                0b10000U | ((state & dirty_tombstone) >> ref_ctr_digits));
     }
     /**
      * @brief Updates the generation counter after @ref try_start_replace
@@ -378,7 +379,8 @@ public:
             }
 
             next = state | dirty_tombstone;
-        } while (mValue.compare_exchange_weak(state, next, acq_rel, acquire));
+        }
+        while (mValue.compare_exchange_weak(state, next, acq_rel, acquire));
 
         return true;
     }
@@ -552,13 +554,13 @@ public:
     {
         base_type::get_handle()->mark_clean();
     }
-    auto as_writable() &&noexcept -> cache_handle<Key, Value>
+    auto as_writable() && noexcept -> cache_handle<Key, Value>
     {
         auto *const alias = const_cast<Value *>(get());
         return cache_handle<Key, Value>{
                 static_cast<base_type &&>(*this).get_handle(), alias};
     }
-    auto as_writable() const &noexcept -> cache_handle<Key, Value>
+    auto as_writable() const & noexcept -> cache_handle<Key, Value>
     {
         return cache_handle<Key, Value>{base_type::get_handle(),
                                         const_cast<Value *>(get())};

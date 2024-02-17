@@ -317,8 +317,7 @@ auto archive_handle::purge_corruption(llfio::path_handle const &base,
     VEFS_TRY(auto workingCopy,
              llfio::file(base, workingCopyPath, llfio::file_handle::mode::write,
                          llfio::file_handle::creation::only_if_not_exist));
-    utils::scope_guard cleanup = [&]
-    {
+    utils::scope_guard cleanup = [&] {
         if (workingCopy.is_valid())
         {
             // if purging fails
@@ -378,7 +377,7 @@ auto archive_handle::purge_corruption(llfio::file_handle &&file,
     else
     {
         return std::move(openFsRx).assume_error()
-            << ed::archive_file{"[archive-index]"};
+               << ed::archive_file{"[archive-index]"};
     }
 
     VEFS_TRY(filesystem->replace_corrupted_sectors());

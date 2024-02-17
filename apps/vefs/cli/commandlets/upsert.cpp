@@ -33,9 +33,9 @@ inline auto transfer_to_vfile(llfio::file_handle &file,
             readRx.has_error())
         {
 #if defined(BOOST_OS_WINDOWS_AVAILABLE)
-            constexpr system_error::win32_code error_handle_eof{0x00000026};
+            constexpr system_error::win32_code error_handle_eof{0x0000'0026};
             constexpr system_error::nt_code status_end_of_file{
-                    static_cast<long>(0xc0000011U)};
+                    static_cast<long>(0xc000'0011U)};
             if (readRx.assume_error() == error_handle_eof
                 || readRx.assume_error() == status_end_of_file)
             {

@@ -60,7 +60,7 @@ public:
     static constexpr unsigned cell_limit = 1U << bits_per_cell;
     static constexpr unsigned cell_mask = cell_limit - 1U;
     static constexpr unsigned cell_reset_mask = cell_mask >> 1;
-#if defined(BOOST_COMP_GNUC_AVAILABLE)
+#if defined(BOOST_COMP_GNUC_AVAILABLE) && !defined(BOOST_COMP_GNUC_EMULATED)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wuseless-cast"
 #endif
@@ -68,7 +68,7 @@ public:
             = static_cast<bucket_type>(0x7777'7777'7777'7777U);
     static constexpr bucket_type bucket_oddity_mask
             = static_cast<bucket_type>(0x1111'1111'1111'1111U);
-#if defined(BOOST_COMP_GNUC_AVAILABLE)
+#if defined(BOOST_COMP_GNUC_AVAILABLE) && !defined(BOOST_COMP_GNUC_EMULATED)
 #pragma GCC diagnostic pop
 #endif
 
@@ -172,7 +172,7 @@ public:
         {
             unsigned const incr = values[i] == estimate;
             mBuckets[bucketIndices[i]] += static_cast<bucket_type>(incr)
-                                       << cellShifts[i];
+                                          << cellShifts[i];
         }
         return true;
     }

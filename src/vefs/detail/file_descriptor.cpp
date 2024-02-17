@@ -12,14 +12,12 @@ auto dplx::dp::codec<vefs::detail::file_descriptor>::decode(
     return dp::decode_object(ctx, value);
 }
 auto dplx::dp::codec<vefs::detail::file_descriptor>::size_of(
-        emit_context &ctx, value_type const &value) noexcept
-        -> std::uint64_t
+        emit_context &ctx, value_type const &value) noexcept -> std::uint64_t
 {
     return dp::size_of_object(ctx, value);
 }
 auto dplx::dp::codec<vefs::detail::file_descriptor>::encode(
-        emit_context &ctx, value_type const &value) noexcept
-        -> result<void>
+        emit_context &ctx, value_type const &value) noexcept -> result<void>
 {
     return dp::encode_object(ctx, value);
 }

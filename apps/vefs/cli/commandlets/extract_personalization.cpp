@@ -27,8 +27,7 @@ auto extract_personalization::exec(lyra::group const &) const -> result<void>
     VEFS_TRY(auto &&outFile,
              llfio::file({}, mTargetFile, file_handle::mode::write,
                          file_handle::creation::always_new));
-    dplx::scope_guard outFileRemover = [&outFile]
-    {
+    dplx::scope_guard outFileRemover = [&outFile] {
         if (outFile.is_valid())
         {
             (void)outFile.unlink(3s);

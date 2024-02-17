@@ -59,7 +59,7 @@ struct file_descriptor
     }
 
 #if defined BOOST_COMP_MSVC_AVAILABLE                                          \
-        && BOOST_COMP_MSVC < BOOST_VERSION_NUMBER(19, 35, 32215)
+        && BOOST_COMP_MSVC < BOOST_VERSION_NUMBER(19, 35, 32'215)
     struct root_sector_accessor
         : dplx::dp::member_accessor_base<file_descriptor, sector_id>
     {
@@ -101,7 +101,7 @@ struct file_descriptor
             dplx::dp::property_def<3U, &file_descriptor::secret>{},
             dplx::dp::property_def<4U, &file_descriptor::secretCounter>{},
 #if defined BOOST_COMP_MSVC_AVAILABLE                                          \
-        && BOOST_COMP_MSVC < BOOST_VERSION_NUMBER(19, 35, 32215)
+        && BOOST_COMP_MSVC < BOOST_VERSION_NUMBER(19, 35, 32'215)
             dplx::dp::property_fun<5U, root_sector_accessor>{},
             dplx::dp::property_fun<6U, root_mac_accessor>{},
             dplx::dp::property_fun<7U, max_extent_accessor>{},

@@ -129,7 +129,7 @@ auto archive_sector_allocator::mine_new_raw(int num) noexcept
     if (auto resizerx = mSectorDevice.resize(oldSize + num); !resizerx)
     {
         return archive_errc::resource_exhausted
-            << ed::wrapped_error(std::move(resizerx).assume_error());
+               << ed::wrapped_error(std::move(resizerx).assume_error());
     }
     sector_id first{oldSize};
     return id_range_t{first, id_range_t::advance(first, num)};
@@ -185,7 +185,7 @@ auto archive_sector_allocator::initialize_from(
                                       idContainer));
 
     auto const lastSectorPos = (rootInfo.maximum_extent - 1)
-                             / sector_device::sector_payload_size;
+                               / sector_device::sector_payload_size;
     if (lastSectorPos != 0)
     {
         VEFS_TRY(freeSectorTree->move_to(lastSectorPos));
@@ -339,15 +339,14 @@ auto archive_sector_allocator::finalize(
     for (;;)
     {
         VEFS_TRY(freeSectorTree->commit(
-                [&](root_sector_info rootInfo) noexcept -> result<void>
-                {
+                [&](root_sector_info rootInfo) noexcept -> result<void> {
                     if (!idContainer.empty())
                     {
                         return success();
                     }
                     rootInfo.maximum_extent
                             = (freeSectorTree->position().position() + 1)
-                            * sector_device::sector_payload_size;
+                              * sector_device::sector_payload_size;
 
                     VEFS_TRY(mSectorDevice.update_header(filesystemCryptoCtx,
                                                          filesystemRoot,

@@ -38,7 +38,7 @@ enum class blake2_errc
     update_failed,
 };
 
-}
+} // namespace vefs::crypto::detail
 
 // TODO: fixme
 template <>

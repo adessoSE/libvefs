@@ -80,8 +80,8 @@ public:
                    replacement_iterator const &right) noexcept -> bool
         {
             return left.mOwner == right.mOwner
-                && left.mWindowHand == right.mWindowHand
-                && left.mMainHand == right.mMainHand;
+                   && left.mWindowHand == right.mWindowHand
+                   && left.mMainHand == right.mMainHand;
         }
 
         // constructs an end iterator
@@ -187,7 +187,7 @@ public:
                 const noexcept -> bool
         {
             return mOwner->estimate(windowHand->key())
-                <= mOwner->estimate(mainHand->key());
+                   <= mOwner->estimate(mainHand->key());
         }
     };
 
@@ -276,15 +276,15 @@ public:
     auto on_purge(key_type const &key, index_type const where) noexcept -> bool
     {
         return mWindowPolicy.on_purge(key, where)
-            || mMainPolicy.on_purge(key, where);
+               || mMainPolicy.on_purge(key, where);
     }
 
 private:
     auto estimate(key_type const &key) const noexcept -> std::uint32_t
     {
         return mDoorkeeper.estimate(key) > 0U
-                     ? 1U + mFrequencySketch.estimate(key)
-                     : 1U;
+                       ? 1U + mFrequencySketch.estimate(key)
+                       : 1U;
     }
 };
 
