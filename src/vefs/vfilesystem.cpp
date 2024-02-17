@@ -970,6 +970,7 @@ auto vfilesystem::commit() -> result<void>
             detail::lut::sector_position_of(mCommittedRoot.maximum_extent - 1)};
     index_tree_layout layout(*mIndexTree, mIndexBlocks, lastAllocated);
 
+    system_error::error syncError{};
     for (auto const &[path, fid] : lockedIndex)
     {
         try
@@ -989,19 +990,18 @@ auto vfilesystem::commit() -> result<void>
                 vefs::copy(pathBytes,
                            as_writable_bytes(std::span(descriptor.filePath)));
 
-                if (auto syncrx = layout.sync_to_tree(e, descriptor); !syncrx)
+                if (auto syncrx = layout.sync_to_tree(e, descriptor);
+                    syncrx.has_failure())
                 {
-                    syncrx.assume_error()
-                            << ed::archive_file{"[archive-index]"};
+                    syncrx.error() << ed::archive_file{"[archive-index]"};
 
-                    // note that this isn't a child of std::exception
-                    throw std::move(syncrx).assume_error();
+                    syncError = std::move(syncrx).assume_error();
                 }
             });
+            if (!syncError.empty())
+            {
+                return syncError;
         }
-        catch (system_error::error const &error)
-        {
-            return error.clone();
         }
         catch (std::bad_alloc const &)
         {
