@@ -10,8 +10,9 @@
 #     http://creativecommons.org/publicdomain/zero/1.0/
 #
 ########################################################################
-cmake_minimum_required(VERSION 3.22)
+cmake_minimum_required(VERSION 3.22 FATAL_ERROR)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/tools/cmake/")
+set(CMAKE_CXX_SCAN_FOR_MODULES 0)
 
 ########################################################################
 # configure vcpkg from environment vars if possible

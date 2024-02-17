@@ -118,7 +118,7 @@ private:
         int next_block;
     };
 
-#if defined(DPLX_COMP_GNUC_AVAILABLE)
+#if defined(DPLX_COMP_GNUC_AVAILABLE) && !defined(DPLX_COMP_GNUC_EMULATED)
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
 #endif
@@ -362,7 +362,7 @@ private:
             return as_span(mCurrentSector).subspan(alloc_map_size);
         }
     };
-#if defined(DPLX_COMP_GNUC_AVAILABLE)
+#if defined(DPLX_COMP_GNUC_AVAILABLE) && !defined(DPLX_COMP_GNUC_EMULATED)
 #pragma GCC diagnostic pop
 #endif
 
@@ -979,6 +979,7 @@ auto vfilesystem::commit() -> result<void>
             detail::lut::sector_position_of(mCommittedRoot.maximum_extent - 1)};
     index_tree_layout layout(*mIndexTree, mIndexBlocks, lastAllocated);
 
+    system_error::error syncError{};
     for (auto const &[path, fid] : lockedIndex)
     {
         try
@@ -1002,19 +1003,18 @@ auto vfilesystem::commit() -> result<void>
                                                       descriptor.filePath)));
 
                         if (auto syncrx = layout.sync_to_tree(e, descriptor);
-                            !syncrx)
+                            syncrx.has_failure())
                         {
-                            syncrx.assume_error()
+                            syncrx.error()
                                     << ed::archive_file{"[archive-index]"};
 
-                            std::move(syncrx).assume_error().throw_exception();
+                            syncError = std::move(syncrx).assume_error();
                         }
                     });
-        }
-        catch (system_error::status_error<system_error::erased<
-                       system_error::system_code::value_type>> const &exc)
-        {
-            return exc.code().clone();
+            if (!syncError.empty())
+            {
+                return syncError;
+            }
         }
         catch (std::bad_alloc const &)
         {
