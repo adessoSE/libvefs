@@ -522,6 +522,7 @@ public:
                                      encodedSize));
 
         VEFS_TRY(dplx::dp::encode(outStream, descriptor));
+        VEFS_TRY(outStream.sync_output());
 
         entry.needs_index_update = false;
         return success();
