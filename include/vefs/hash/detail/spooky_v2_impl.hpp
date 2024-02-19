@@ -30,6 +30,8 @@
 #include <cstddef>
 #include <cstdint>
 
+// NOLINTBEGIN
+
 namespace vefs::external
 {
 
@@ -431,3 +433,5 @@ private:
 };
 
 } // namespace vefs::external
+
+// NOLINTEND

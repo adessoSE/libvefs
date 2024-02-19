@@ -24,6 +24,8 @@
 #endif
 #endif
 
+// NOLINTBEGIN
+
 #define ALLOW_UNALIGNED_READS 1 // NOLINT(cppcoreguidelines-macro-usage)
 
 namespace vefs::external
@@ -382,3 +384,5 @@ void SpookyHash::Final(uint64_t *hash1, uint64_t *hash2)
 }
 
 } // namespace vefs::external
+
+// NOLINTEND
