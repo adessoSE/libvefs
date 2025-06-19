@@ -157,7 +157,7 @@ auto mdc_retrieve_key_box(llfio::path_view archivePath)
         return cli_errc::malformed_mdc_key_box;
     }
 
-    boost::json::error_code jsonParseErrorCode;
+    std::error_code jsonParseErrorCode;
     auto const jsonKeyBox = boost::json::parse(boost::json::string_view(
             reinterpret_cast<char const *>(readContent.data() + 2), jsonSize));
     if (jsonParseErrorCode)
