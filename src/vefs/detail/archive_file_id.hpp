@@ -94,7 +94,7 @@ struct fmt::formatter<vefs::detail::file_id>
     }
 
     template <typename FormatContext>
-    auto format(vefs::detail::file_id const &fid, FormatContext &ctx)
+    auto format(vefs::detail::file_id const &fid, FormatContext &ctx) const
     {
         using char_type = typename FormatContext::char_type;
 

@@ -8,6 +8,7 @@
 #include <ostream>
 #include <string>
 
+#include <fmt/base.h>
 #include <fmt/ostream.h>
 
 #include <vefs/disappointment/error_detail.hpp>
@@ -41,7 +42,7 @@ struct fmt::formatter<vefs::detail::sector_id>
     }
 
     template <typename FormatContext>
-    auto format(const vefs::detail::sector_id id, FormatContext &ctx)
+    auto format(vefs::detail::sector_id const id, FormatContext &ctx) const
     {
         using itype = std::underlying_type_t<vefs::detail::sector_id>;
         return fmt::format_to(ctx.out(), "SIDX:{:04x}", static_cast<itype>(id));
