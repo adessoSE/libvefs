@@ -9,11 +9,13 @@
 
 // NOLINTBEGIN(modernize-macro-to-enum)
 // NOLINTBEGIN(cppcoreguidelines-macro-usage)
+// NOLINTBEGIN(cppcoreguidelines-macro-to-enum)
 
 // #cmakedefine01
 
 #cmakedefine01 VEFS_DISABLE_WORKAROUNDS
 #cmakedefine01 VEFS_FLAG_OUTDATED_WORKAROUNDS
 
+// NOLINTEND(cppcoreguidelines-macro-to-enum)
 // NOLINTEND(cppcoreguidelines-macro-usage)
 // NOLINTEND(modernize-macro-to-enum)

@@ -8,7 +8,7 @@ dplx_target_sources(vefs # core
         archive_fwd.hpp
         llfio.hpp
         span.hpp
-        
+
         config.hpp
         detail/workaround.hpp
 

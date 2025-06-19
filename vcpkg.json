@@ -30,13 +30,6 @@
         "outcome",
         "stduuid"
     ],
-    "overrides": [
-        {
-            "name": "boringssl",
-            "version-date": "2021-06-23",
-            "port-version": 4
-        }
-    ],
     "features": {
         "cli": {
             "description": "Build the CLI",

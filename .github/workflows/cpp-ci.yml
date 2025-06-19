@@ -14,29 +14,37 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-22.04, windows-2022]
+        os: [ubuntu-24.04, windows-2022]
         compiler: [gcc, clang, msvc]
         exclude:
-          - os: ubuntu-22.04
+          - os: ubuntu-24.04
             compiler: msvc
           - os: windows-2022
             compiler: gcc
         include:
-          - os: ubuntu-22.04
-            triplet: x64-linux
+          - os: macos-13
+            compiler: gcc
+            triplet: x64-macos
+          - os: macos-15
+            compiler: clang
+            triplet: arm64-macos
             install: |
-              sudo apt-get -qq update
-              sudo apt-get -qq install nasm
-          - os: ubuntu-22.04
+              HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=1 brew install llvm@19
+          - os: ubuntu-24.04
+            triplet: x64-linux
+          - os: ubuntu-24.04
             triplet: x64-linux
             compiler: clang
             install: |
               sudo cp tools/llvm-snapshot.gpg.key.asc /etc/apt/trusted.gpg.d/llvm-snapshot.asc
-              sudo add-apt-repository "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-16 main"
+              sudo add-apt-repository "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-19 main"
               sudo apt-get -qq update
-              sudo apt-get -qq -y install clang-16 nasm
+              sudo apt-get -qq -y install clang-19 nasm
           - os: windows-2022
             triplet: x64-windows
+
+    permissions:
+      actions: read
 
     env:
       CTEST_OUTPUT_ON_FAILURE: "1"
@@ -44,56 +52,54 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Install go (boringSSL build dependency)
-        if: ${{ !startsWith(matrix.os, 'windows-') }}
-        uses: actions/setup-go@v4
-        with:
-          go-version: '>=1.20.7'
-
       - name: Install required packages / compilers
         if: ${{ matrix.install }}
         run: ${{ matrix.install }}
 
       - uses: lukka/get-cmake@latest
         with:
-          cmakeVersion: 3.22.6
+          cmakeVersion: 3.31.7
+
+      - name: Restore vcpkg cache
+        id: vcpkg-cache
+        uses: TAServers/vcpkg-cache@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          prefix: vcpkg/${{ matrix.triplet }}-${{ matrix.compiler }}/
 
       - name: Initialize vcpkg
-        uses: lukka/run-vcpkg@v11
+        uses: lukka/run-vcpkg@b3dd708d38df5c856fe1c18dc0d59ab771f93921
         with:
           vcpkgDirectory: ${{ github.workspace }}/build/vcpkg
-          vcpkgGitCommitId: a42af01b72c28a8e1d7b48107b33e4f286a55ef6
 
-      - name: Build ${{ matrix.triplet }}-${{ matrix.compiler }} preset
+      - name: Build ${{ matrix.triplet }}-${{ matrix.compiler }}-ci preset
         uses: lukka/run-cmake@v10
         with:
-          configurePreset: ${{ matrix.triplet }}-${{ matrix.compiler }}
-          buildPreset: ${{ matrix.triplet }}-${{ matrix.compiler }}
-          testPreset: ${{ matrix.triplet }}-${{ matrix.compiler }}
+          configurePreset: ${{ matrix.triplet }}-${{ matrix.compiler }}-ci
+          buildPreset: ${{ matrix.triplet }}-${{ matrix.compiler }}-ci
+          testPreset: ${{ matrix.triplet }}-${{ matrix.compiler }}-ci
         env:
           CC: ''
           CXX: ''
+          VCPKG_BINARY_SOURCES: "clear;files,${{ steps.vcpkg-cache.outputs.path }},readwrite"
 
-      - name: Build ${{ matrix.triplet }}-${{ matrix.compiler }}-release preset
+      - name: Build ${{ matrix.triplet }}-${{ matrix.compiler }}-ci-release preset
         uses: lukka/run-cmake@v10
         with:
-          configurePreset: ${{ matrix.triplet }}-${{ matrix.compiler }}
-          buildPreset: ${{ matrix.triplet }}-${{ matrix.compiler }}-release
-          testPreset: ${{ matrix.triplet }}-${{ matrix.compiler }}-release
+          configurePreset: ${{ matrix.triplet }}-${{ matrix.compiler }}-ci
+          buildPreset: ${{ matrix.triplet }}-${{ matrix.compiler }}-ci-release
+          testPreset: ${{ matrix.triplet }}-${{ matrix.compiler }}-ci-release
         env:
           CC: ''
           CXX: ''
-
-      - name: Prevent uploading a corrupted vcpkg cache
-        if: ${{ failure() || cancelled() }}
-        run: |
-          echo "RUNVCPKG_NO_CACHE=1" >> $GITHUB_ENV
-        shell: bash
-
+          VCPKG_BINARY_SOURCES: "clear;files,${{ steps.vcpkg-cache.outputs.path }},readwrite"
 
   check-format:
     name: clang-tidy & clang-format
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
+
+    permissions:
+        actions: read
 
     steps:
       - uses: actions/checkout@v3
@@ -103,36 +109,35 @@ jobs:
         with:
           go-version: '>=1.20.7'
 
-      - name: "Install clang-tools-16"
+      - name: "Install clang-tools-20"
         run: |
           sudo cp ${{ github.workspace }}/tools/llvm-snapshot.gpg.key.asc /etc/apt/trusted.gpg.d/llvm-snapshot.asc
-          sudo add-apt-repository "deb http://apt.llvm.org/jammy/ llvm-toolchain-jammy-16 main"
+          sudo add-apt-repository "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-20 main"
           sudo apt-get -qq update
-          sudo apt-get -qq -y install clang-16 clang-tidy-16 clang-format-16 nasm
-
-      - name: Install go (boringSSL build dependency)
-        uses: actions/setup-go@v4
-        with:
-          go-version: '>=1.20.7'
-      - name: Install nasm (boringSSL build dependency)
-        run: |
-          sudo apt-get -qq update
-          sudo apt-get -qq install nasm
+          sudo apt-get -qq -y install clang-20 clang-tidy-20 clang-format-20 nasm
 
       - uses: lukka/get-cmake@latest
         with:
-          cmakeVersion: 3.22.6
+          cmakeVersion: 3.31.7
+
+      - name: Restore vcpkg cache
+        id: vcpkg-cache
+        uses: TAServers/vcpkg-cache@v3
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          prefix: vcpkg/lint/
 
       - name: Initialize vcpkg
-        uses: lukka/run-vcpkg@v11
+        uses: lukka/run-vcpkg@b3dd708d38df5c856fe1c18dc0d59ab771f93921
         with:
           vcpkgDirectory: ${{ github.workspace }}/../vcpkg
-          vcpkgGitCommitId: a42af01b72c28a8e1d7b48107b33e4f286a55ef6
 
-      - name: Configure x64-linux-clang preset
+      - name: Configure x64-linux-ci-lint preset
         uses: lukka/run-cmake@v10
         with:
           configurePreset: x64-linux-ci-lint
+        env:
+          VCPKG_BINARY_SOURCES: "clear;files,${{ steps.vcpkg-cache.outputs.path }},readwrite"
 
       - uses: cpp-linter/cpp-linter-action@v2
         name: Lint with clang-format and clang-tidy
@@ -140,7 +145,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          version: 16.0.6
+          version: 20
           style: file # use .clang-format settings
           tidy-checks: '' # use .clang-tidy settings
           extensions: cpp,hpp
@@ -151,8 +156,3 @@ jobs:
       - name: Fail if issues have been raised
         if: steps.linter.outputs.checks-failed > 0
         run: exit 1
-
-      - if: ${{ failure() || cancelled() }}
-        run: |
-          echo "RUNVCPKG_NO_CACHE=1" >> $GITHUB_ENV
-        shell: bash

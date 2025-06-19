@@ -1,12 +1,16 @@
 {
     "recommendations": [
+        // general editor utility
         "EditorConfig.EditorConfig",
+        // GitHub integration
         "github.vscode-github-actions",
+        "GitHub.vscode-pull-request-github",
+        // C++
+        "llvm-vs-code-extensions.vscode-clangd",
+        "ms-vscode.cmake-tools",
+        // sphinx
         "lextudio.restructuredtext",
         "ms-python.python",
-        "ms-vscode.cpptools-extension-pack",
-        "ms-vscode.cmake-tools",
         "trond-snekvik.simple-rst",
-        "twxs.cmake",
     ]
 }
