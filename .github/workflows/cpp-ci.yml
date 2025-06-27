@@ -25,13 +25,19 @@ jobs:
           - os: macos-13
             compiler: gcc
             triplet: x64-macos
+            install: |
+              HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=1 brew install nasm
           - os: macos-15
             compiler: clang
             triplet: arm64-macos
             install: |
-              HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=1 brew install llvm@19
+              HOMEBREW_NO_INSTALLED_DEPENDENTS_CHECK=1 brew install llvm@19 nasm
           - os: ubuntu-24.04
             triplet: x64-linux
+            compiler: gcc
+            install: |
+              sudo apt-get -qq update
+              sudo apt-get -qq install nasm
           - os: ubuntu-24.04
             triplet: x64-linux
             compiler: clang
@@ -39,7 +45,7 @@ jobs:
               sudo cp tools/llvm-snapshot.gpg.key.asc /etc/apt/trusted.gpg.d/llvm-snapshot.asc
               sudo add-apt-repository "deb http://apt.llvm.org/noble/ llvm-toolchain-noble-19 main"
               sudo apt-get -qq update
-              sudo apt-get -qq -y install clang-19 nasm
+              sudo apt-get -qq install clang-19 nasm
           - os: windows-2022
             triplet: x64-windows
 
