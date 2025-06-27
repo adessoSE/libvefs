@@ -52,6 +52,11 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
+      - name: Install go (boringSSL build dependency)
+        uses: actions/setup-go@v4
+        with:
+          go-version: '>=1.20.7'
+
       - name: Install required packages / compilers
         if: ${{ matrix.install }}
         run: ${{ matrix.install }}
