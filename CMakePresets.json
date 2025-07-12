@@ -201,7 +201,7 @@
         {
             "name": "x64-linux-gcc-ci",
             "inherits": [
-                "x64-linux-gcc-12"
+                "x64-linux-gcc-14"
             ]
         },
         {
@@ -233,8 +233,8 @@
                 "base"
             ],
             "cacheVariables": {
-                "VCPKG_TARGET_TRIPLET": "x64-osx-gcc-12",
-                "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "${sourceDir}/tools/toolchains/x64-macos-gcc-12.cmake"
+                "VCPKG_TARGET_TRIPLET": "x64-macos-gcc-14",
+                "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "${sourceDir}/tools/toolchains/x64-macos-gcc-14.cmake"
             },
             "vendor": {
                 "microsoft.com/VisualStudioSettings/CMake/1.0": {
