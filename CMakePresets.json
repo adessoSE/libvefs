@@ -201,7 +201,7 @@
         {
             "name": "x64-linux-gcc-ci",
             "inherits": [
-                "x64-linux-gcc-14"
+                "x64-linux-gcc-12"
             ]
         },
         {
