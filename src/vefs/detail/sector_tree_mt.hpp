@@ -19,6 +19,7 @@
 #include "reference_sector_layout.hpp"
 #include "root_sector_info.hpp"
 #include "tree_walker.hpp"
+#include "vefs/utils/misc.hpp"
 
 namespace vefs::detail
 {
@@ -959,7 +960,8 @@ inline auto extract(sector_tree_mt<TreeAllocator> &tree,
                                       it, tree_position{it.position() + 1})));
 
         auto chunk = as_span(sector).subspan(std::exchange(offset, 0));
-        auto chunkSize = std::min(chunk.size(), endPos - startPos);
+        auto chunkSize = std::min(chunk.size(),
+                                  utils::uint64_to_size(endPos - startPos));
 
         llfio::file_handle::const_buffer_type buffers[1] = {
                 {chunk.data(), chunkSize}
