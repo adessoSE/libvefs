@@ -64,7 +64,7 @@ find_package(fmt CONFIG REQUIRED)
 
 find_package(unofficial-concurrentqueue CONFIG REQUIRED)
 
-find_package(libb2 REQUIRED CONFIG)
+find_package(libb2-reforged REQUIRED CONFIG)
 
 find_package(libcuckoo CONFIG REQUIRED)
 
@@ -153,7 +153,7 @@ target_link_libraries(vefs
         Boost::boost
         Deeplex::deeppack
         Deeplex::deeplog
-        libb2
+        Deeplex::libb2-reforged
         fmt::fmt
         llfio::${VEFS_LLFIO_TARGET}
         outcome::hl

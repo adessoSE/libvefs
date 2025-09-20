@@ -21,7 +21,7 @@
         "deeplog",
         "deeppack",
         "fmt",
-        "libb2",
+        "libb2-reforged",
         "libcuckoo",
         {
             "name": "llfio",

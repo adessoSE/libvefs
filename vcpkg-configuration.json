@@ -11,13 +11,13 @@
         {
             "kind": "git",
             "repository": "https://github.com/deeplex/vcpkg-registry",
-            "baseline": "70800657bcd57ab9ac7d0963e01d475236b4da03",
+            "baseline": "d3ba94ac72b5f40588b3ba2c8197e698916ff0e5",
             "packages": [
                 "base64",
                 "concrete",
                 "deeppack",
                 "deeplog",
-                "libb2",
+                "libb2-reforged",
                 "libcuckoo"
             ]
         }
