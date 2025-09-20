@@ -1,11 +1,10 @@
 #pragma once
 
-#include <atomic>
+#include <algorithm>
 #include <memory>
 #include <mutex>
 #include <ranges>
 #include <shared_mutex>
-#include <thread>
 
 #include <boost/container/static_vector.hpp>
 
