@@ -48,22 +48,14 @@ vefs::result<void> vefs::detail::random_bytes(rw_dynblob buffer) noexcept
     return outcome::success();
 }
 
-#elif defined BOOST_OS_UNIX_AVAILABLE
+#elif defined(BOOST_OS_LINUX_AVAILABLE)
 
-#if __has_include(<sys/random.h>)
 #include <sys/random.h>
-#endif
-
-#include <fcntl.h>
-#include <sys/stat.h>
 #include <sys/types.h>
-#include <unistd.h>
 
-#if !__has_include(<sys/random.h>)
-
-vefs::result<void> vefs::detail::random_bytes(rw_dynblob buffer) noexcept
+auto vefs::detail::random_bytes(rw_dynblob buffer) noexcept
+        -> vefs::result<void>
 {
-    using namespace vefs;
     using namespace std::string_view_literals;
 
     if (buffer.empty())
@@ -72,7 +64,90 @@ vefs::result<void> vefs::detail::random_bytes(rw_dynblob buffer) noexcept
                << ed::error_code_api_origin{"random_bytes"sv};
     }
 
-    int urandom = open("/dev/urandom", O_RDONLY);
+    constexpr std::size_t maxChunkSize{33'554'431};
+
+    while (!buffer.empty())
+    {
+        auto const chunkSize = std::min(maxChunkSize, buffer.size());
+
+        ssize_t const readResult
+                = ::getrandom(static_cast<void *>(buffer.data()), chunkSize, 0);
+        if (readResult == -1)
+        {
+            return collect_system_error()
+                   << ed::error_code_api_origin{"getrandom"sv};
+        }
+        if (readResult == 0)
+        {
+            return archive_errc::bad
+                   << ed::error_code_api_origin{"getrandom"sv};
+        }
+        buffer = buffer.subspan(static_cast<size_t>(readResult));
+    }
+    return outcome::success();
+}
+
+#elif defined(BOOST_OS_UNIX_AVAILABLE) || defined(BOOST_OS_MACOS_AVAILABLE)
+
+#include <fcntl.h>
+#include <limits.h> // NOLINT(modernize-deprecated-headers)
+#include <sys/stat.h>
+#include <sys/types.h>
+#include <unistd.h>
+
+#if __has_include(<sys/random.h>)
+#include <sys/random.h>
+#endif
+
+#if _POSIX_VERSION >= 202'405L || defined(BOOST_OS_MACOS_AVAILABLE)
+
+auto vefs::detail::random_bytes(rw_dynblob buffer) noexcept
+        -> vefs::result<void>
+{
+    using namespace std::string_view_literals;
+
+    if (buffer.empty())
+    {
+        return errc::invalid_argument
+               << ed::error_code_api_origin{"random_bytes"sv};
+    }
+
+    constexpr std::size_t maxChunkSize{
+#if defined(GETENTROPY_MAX)
+            GETENTROPY_MAX
+#else
+            256
+#endif
+    };
+
+    while (!buffer.empty())
+    {
+        auto const chunkSize = std::min(maxChunkSize, buffer.size());
+
+        if (::getentropy(static_cast<void *>(buffer.data()), chunkSize) != 0)
+        {
+            return collect_system_error()
+                   << ed::error_code_api_origin{"getentropy"sv};
+        }
+        buffer = buffer.subspan(chunkSize);
+    }
+    return outcome::success();
+}
+
+#else
+
+auto vefs::detail::random_bytes(rw_dynblob buffer) noexcept
+        -> vefs::result<void>
+{
+    using namespace std::string_view_literals;
+
+    if (buffer.empty())
+    {
+        return errc::invalid_argument
+               << ed::error_code_api_origin{"random_bytes"sv};
+    }
+
+    int urandom = ::open("/dev/urandom", O_RDONLY);
     if (urandom == -1)
     {
         return collect_system_error()
@@ -83,58 +158,24 @@ vefs::result<void> vefs::detail::random_bytes(rw_dynblob buffer) noexcept
         close(urandom);
     };
 
+    constexpr size_t maxChunkSize{std::numeric_limits<ssize_t>::max()};
+
     while (!buffer.empty())
     {
-        constexpr size_t max_portion
-                = static_cast<size_t>(std::numeric_limits<ssize_t>::max());
-        auto const portion = std::min(max_portion, buffer.size());
+        auto const chunkSize = std::min(maxChunkSize, buffer.size());
 
-        ssize_t tmp = read(urandom, buffer.data(), portion);
-        if (tmp == -1)
+        ssize_t const readResult = ::read(urandom, buffer.data(), chunkSize);
+        if (readResult == -1)
         {
             return collect_system_error()
                    << ed::error_code_api_origin{"read(\"/dev/urandom\")"sv};
         }
-        if (tmp == 0)
+        if (readResult == 0)
         {
             return archive_errc::bad
                    << ed::error_code_api_origin{"read(\"/dev/urandom\")"sv};
         }
-        buffer = buffer.subspan(static_cast<size_t>(tmp));
-    }
-    return outcome::success();
-}
-
-#else
-
-vefs::result<void> vefs::detail::random_bytes(rw_dynblob buffer) noexcept
-{
-    using namespace vefs;
-    using namespace std::string_view_literals;
-
-    if (buffer.empty())
-    {
-        return errc::invalid_argument
-               << ed::error_code_api_origin{"random_bytes"sv};
-    }
-
-    while (!buffer.empty())
-    {
-        constexpr size_t max_portion = static_cast<size_t>(33'554'431);
-        auto const portion = std::min(max_portion, buffer.size());
-
-        ssize_t tmp = getrandom(static_cast<void *>(buffer.data()), portion, 0);
-        if (tmp == -1)
-        {
-            return collect_system_error()
-                   << ed::error_code_api_origin{"getrandom"sv};
-        }
-        if (tmp == 0)
-        {
-            return archive_errc::bad
-                   << ed::error_code_api_origin{"getrandom"sv};
-        }
-        buffer = buffer.subspan(static_cast<size_t>(tmp));
+        buffer = buffer.subspan(static_cast<size_t>(readResult));
     }
     return outcome::success();
 }
