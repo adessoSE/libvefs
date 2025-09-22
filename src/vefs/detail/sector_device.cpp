@@ -3,6 +3,7 @@
 #include <array>
 #include <optional>
 #include <random>
+#include <span>
 
 #include <dplx/dp.hpp>
 #include <dplx/dp/api.hpp>
@@ -133,12 +134,14 @@ auto sector_device::create_file_secrets() noexcept
     utils::secure_byte_array<32> fileSecret{};
     auto ctrValue = mArchiveSecretCounter.fetch_increment().value();
     VEFS_TRY(crypto::kdf(as_span(fileSecret), master_secret_view(),
-                         file_kdf_secret, ctrValue, session_salt_view()));
+                         file_kdf_secret, as_bytes(as_span(ctrValue)),
+                         session_salt_view()));
 
     crypto::counter::state fileWriteCtrState;
     ctrValue = mArchiveSecretCounter.fetch_increment().value();
     VEFS_TRY(crypto::kdf(as_writable_bytes(as_span(fileWriteCtrState)),
-                         master_secret_view(), file_kdf_counter, ctrValue));
+                         master_secret_view(), file_kdf_counter,
+                         as_bytes(as_span(ctrValue))));
 
     std::unique_ptr<file_crypto_ctx> ctx{new (std::nothrow) file_crypto_ctx(
             as_span(fileSecret), crypto::counter{fileWriteCtrState})};
@@ -155,12 +158,14 @@ auto sector_device::create_file_secrets2() noexcept
     utils::secure_byte_array<32> fileSecret{};
     auto ctrValue = mArchiveSecretCounter.fetch_increment().value();
     VEFS_TRY(crypto::kdf(as_span(fileSecret), master_secret_view(),
-                         file_kdf_secret, ctrValue, session_salt_view()));
+                         file_kdf_secret, as_bytes(as_span(ctrValue)),
+                         session_salt_view()));
 
     crypto::counter::state fileWriteCtrState;
     ctrValue = mArchiveSecretCounter.fetch_increment().value();
     VEFS_TRY(crypto::kdf(as_writable_bytes(as_span(fileWriteCtrState)),
-                         master_secret_view(), file_kdf_counter, ctrValue));
+                         master_secret_view(), file_kdf_counter,
+                         as_bytes(as_span(ctrValue))));
 
     return file_crypto_ctx::state_type{fileSecret,
                                        crypto::counter{fileWriteCtrState}};
@@ -691,7 +696,7 @@ auto vefs::detail::sector_device::update_header(
                                  static_cast<std::uint16_t>(
                                          serializationBuffer.consumed_size())));
 
-    VEFS_TRY(crypto::kdf(box.salt, as_bytes(std::span(ectr)),
+    VEFS_TRY(crypto::kdf(box.salt, as_bytes(as_span(ectr)),
                          archive_header_kdf_salt, mSessionSalt));
 
     secure_byte_array<44> headerKeyNonce;
