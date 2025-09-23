@@ -80,6 +80,13 @@ if(MSVC)
 elseif(CMAKE_CXX_COMPILER_ID MATCHES ".*Clang")
     add_compile_options(${CLANG_WARNINGS})
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    if (APPLE)
+        list(APPEND GCC_WARNINGS
+            # gcc on macOS produces numerous false positives with -O2 or higher
+            -Wno-stringop-overflow
+            -Wno-null-dereference
+        )
+    endif()
     add_compile_options(${GCC_WARNINGS})
 else()
     message(AUTHOR_WARNING "No compiler warnings set for '${CMAKE_CXX_COMPILER_ID}' compiler.")
