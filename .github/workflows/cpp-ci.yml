@@ -62,6 +62,7 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version: '>=1.20.7'
+          cache: false
 
       - name: Install required packages / compilers
         if: ${{ matrix.install }}
@@ -119,6 +120,7 @@ jobs:
         uses: actions/setup-go@v4
         with:
           go-version: '>=1.20.7'
+          cache: false
 
       - name: "Install clang-tools-20"
         run: |
