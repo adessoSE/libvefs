@@ -132,7 +132,7 @@ public:
         }
         part = {*this, sector_id{}};
     }
-    auto dealloc_one(const sector_id which) noexcept -> result<void>
+    auto dealloc_one(sector_id const which) noexcept -> result<void>
     {
         try
         {
@@ -145,7 +145,7 @@ public:
             return errc::not_enough_memory;
         }
     }
-    void dealloc_one(const sector_id which, leak_on_failure_t) noexcept
+    void dealloc_one(sector_id const which, leak_on_failure_t) noexcept
     {
         if (!dealloc_one(which))
         {
@@ -156,7 +156,7 @@ public:
     auto on_commit() noexcept -> result<void>
     {
         mCommitCounter += 1;
-        const std::scoped_lock lock{mBufferSync, mDeallocationSync};
+        std::scoped_lock const lock{mBufferSync, mDeallocationSync};
 
         auto const bufferAmount = std::min(mAllocationBuffer.capacity()
                                                    - mAllocationBuffer.size(),

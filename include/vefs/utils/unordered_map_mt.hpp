@@ -27,13 +27,13 @@ template <typename Key,
           typename T,
           typename Hash = std_hash_for<spooky_v2_hash, Key>,
           typename KeyEqual = std::equal_to<>,
-          typename Allocator = std::allocator<std::pair<const Key, T>>,
+          typename Allocator = std::allocator<std::pair<Key const, T>>,
           std::size_t SLOT_PER_BUCKET = libcuckoo::DEFAULT_SLOT_PER_BUCKET>
 using unordered_map_mt = libcuckoo::
         cuckoohash_map<Key, T, Hash, KeyEqual, Allocator, SLOT_PER_BUCKET>;
 
 template <typename T,
-          typename Allocator = std::allocator<std::pair<const std::string, T>>,
+          typename Allocator = std::allocator<std::pair<std::string const, T>>,
           std::size_t SLOT_PER_BUCKET = libcuckoo::DEFAULT_SLOT_PER_BUCKET>
 using unordered_string_map_mt = libcuckoo::cuckoohash_map<
         std::string,

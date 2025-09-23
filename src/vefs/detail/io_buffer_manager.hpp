@@ -41,7 +41,7 @@ class io_buffer_manager
     };
 
 public:
-    static inline const std::size_t page_size = llfio::utils::page_size();
+    static inline std::size_t const page_size = llfio::utils::page_size();
 
 private:
     static inline constexpr std::size_t control_head_size = utils::round_up_p2(

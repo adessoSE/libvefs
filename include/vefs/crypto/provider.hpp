@@ -35,7 +35,7 @@ public:
     virtual result<int> ct_compare(ro_dynblob l, ro_dynblob r) const noexcept
             = 0;
 
-    const std::size_t key_material_size;
+    std::size_t const key_material_size;
 
 protected:
     constexpr crypto_provider(std::size_t keyMaterialSize)

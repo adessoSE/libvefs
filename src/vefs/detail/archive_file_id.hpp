@@ -17,8 +17,8 @@ namespace vefs::detail
 
 struct file_id
 {
-    static const file_id archive_index;
-    static const file_id free_block_index;
+    static file_id const archive_index;
+    static file_id const free_block_index;
 
     constexpr file_id() noexcept = default;
     explicit constexpr file_id(uuid rawId) noexcept;
@@ -36,10 +36,10 @@ private:
     uuid mId;
 };
 
-inline const file_id file_id::archive_index{
+inline file_id const file_id::archive_index{
         uuid{{0xba, 0x22, 0xb0, 0x33, 0x4b, 0xa8, 0x4e, 0x5b, 0x83, 0x0c, 0xbf,
               0x48, 0x94, 0xaf, 0x53, 0xf8}}};
-inline const file_id file_id::free_block_index{
+inline file_id const file_id::free_block_index{
         uuid{{0x33, 0x38, 0xbe, 0x54, 0x6b, 0x02, 0x49, 0x24, 0x9f, 0xcc, 0x56,
               0x3d, 0x7e, 0xe6, 0x81, 0xe6}}};
 
@@ -49,9 +49,9 @@ constexpr file_id::file_id(uuid rawId) noexcept
 }
 inline file_id::file_id(ro_blob<16> rawData) noexcept
     : mId(std::span<std::uint8_t, rawData.extent>(
-            reinterpret_cast<std::uint8_t *>(
-                    const_cast<std::byte *>(rawData.data())),
-            rawData.extent))
+              reinterpret_cast<std::uint8_t *>(
+                      const_cast<std::byte *>(rawData.data())),
+              rawData.extent))
 {
 }
 

@@ -167,11 +167,11 @@ inline auto as_string_view(R &r) noexcept -> std::string_view
 {
     return std::string_view{std::ranges::data(r), std::ranges::size(r)};
 }
-constexpr auto is_null_byte(const std::byte value) noexcept -> bool
+constexpr auto is_null_byte(std::byte const value) noexcept -> bool
 {
     return value == std::byte{};
 }
-constexpr auto is_non_null_byte(const std::byte value) noexcept -> bool
+constexpr auto is_non_null_byte(std::byte const value) noexcept -> bool
 {
     return !is_null_byte(value);
 }

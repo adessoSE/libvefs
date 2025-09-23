@@ -192,7 +192,7 @@ public:
      *
      * \returns the start id or archive_errc::resource_exhausted
      */
-    auto alloc_contiguous(const std::size_t num) noexcept -> result<id_type>;
+    auto alloc_contiguous(std::size_t const num) noexcept -> result<id_type>;
 
     /**
      * tries to extend the contiguous block range represented by [begin,
@@ -201,20 +201,20 @@ public:
      * \returns the new begin id or archive_errc::resource_exhausted if the
      * request couldn't be served
      */
-    auto extend(const id_type begin,
-                const id_type end,
-                const std::uint64_t num) noexcept -> result<id_type>;
+    auto extend(id_type const begin,
+                id_type const end,
+                std::uint64_t const num) noexcept -> result<id_type>;
 
     /**
      * adds a block to the block pool
      *
      * \returns errc::not_enough_memory if a new node couldn't be allocated
      */
-    auto dealloc_one(const id_type which) noexcept -> result<void>;
+    auto dealloc_one(id_type const which) noexcept -> result<void>;
     /**
      * adds a contiguous block range [begin, begin + num) to the block pool
      */
-    auto dealloc_contiguous(const id_type begin, const std::size_t num) noexcept
+    auto dealloc_contiguous(id_type const begin, std::size_t const num) noexcept
             -> result<void>;
 
     /**
@@ -222,8 +222,8 @@ public:
      * given bitset
      */
     void write_to_bitset(bitset_overlay data,
-                         const IdType begin,
-                         const std::size_t num) const noexcept;
+                         IdType const begin,
+                         std::size_t const num) const noexcept;
     /**
      * deserializes the state from the given bitset into the range [begin,
      * begin + num)
@@ -231,9 +231,9 @@ public:
      * \returns errc::not_enough_memory if not enough memory could be
      * allocated
      */
-    auto parse_bitset(const const_bitset_overlay data,
-                      const IdType begin,
-                      const std::size_t num) noexcept -> result<void>;
+    auto parse_bitset(const_bitset_overlay const data,
+                      IdType const begin,
+                      std::size_t const num) noexcept -> result<void>;
 
     /**
      * removes all blocks from the pool
@@ -478,7 +478,7 @@ block_manager<IdType>::alloc_multiple(std::span<id_type> ids) noexcept
 
 template <typename IdType>
 inline auto
-block_manager<IdType>::alloc_contiguous(const std::size_t num) noexcept
+block_manager<IdType>::alloc_contiguous(std::size_t const num) noexcept
         -> result<id_type>
 {
     auto end = mFreeBlocks.end();
@@ -498,9 +498,9 @@ block_manager<IdType>::alloc_contiguous(const std::size_t num) noexcept
 }
 
 template <typename IdType>
-inline auto block_manager<IdType>::extend(const id_type begin,
-                                          const id_type end,
-                                          const std::uint64_t num) noexcept
+inline auto block_manager<IdType>::extend(id_type const begin,
+                                          id_type const end,
+                                          std::uint64_t const num) noexcept
         -> result<id_type>
 {
     if (mFreeBlocks.empty())
@@ -548,7 +548,7 @@ inline auto block_manager<IdType>::extend(const id_type begin,
 }
 
 template <typename IdType>
-inline auto block_manager<IdType>::dealloc_one(const id_type which) noexcept
+inline auto block_manager<IdType>::dealloc_one(id_type const which) noexcept
         -> result<void>
 {
     return dealloc_contiguous(which, 1);
@@ -556,7 +556,7 @@ inline auto block_manager<IdType>::dealloc_one(const id_type which) noexcept
 
 template <typename IdType>
 inline auto block_manager<IdType>::dealloc_contiguous(
-        const id_type first, const std::size_t num) noexcept -> result<void>
+        id_type const first, std::size_t const num) noexcept -> result<void>
 {
     if (num == 0)
     {
@@ -613,8 +613,8 @@ inline auto block_manager<IdType>::dealloc_contiguous(
 template <typename IdType>
 inline void
 block_manager<IdType>::write_to_bitset(bitset_overlay data,
-                                       const IdType begin,
-                                       const std::size_t num) const noexcept
+                                       IdType const begin,
+                                       std::size_t const num) const noexcept
 {
     if (num == 0)
     {
@@ -652,9 +652,9 @@ block_manager<IdType>::write_to_bitset(bitset_overlay data,
 }
 
 template <typename IdType>
-inline auto block_manager<IdType>::parse_bitset(const const_bitset_overlay data,
-                                                const IdType begin,
-                                                const std::size_t num) noexcept
+inline auto block_manager<IdType>::parse_bitset(const_bitset_overlay const data,
+                                                IdType const begin,
+                                                std::size_t const num) noexcept
         -> result<void>
 {
     typename range_type::difference_type start = -1;

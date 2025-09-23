@@ -34,7 +34,7 @@ public:
     using typename base_type::value_type;
 
     secure_array() noexcept = default;
-    explicit secure_array(std::span<const T, arr_size> other) noexcept
+    explicit secure_array(std::span<T const, arr_size> other) noexcept
     {
         copy(other, as_span(*this));
     }

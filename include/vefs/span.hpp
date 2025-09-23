@@ -44,7 +44,7 @@ using rw_blob = std::span<std::byte, Extent>;
 using rw_dynblob = rw_blob<dynamic_extent>;
 
 template <std::size_t Extent>
-using ro_blob = std::span<const std::byte, Extent>;
+using ro_blob = std::span<std::byte const, Extent>;
 using ro_dynblob = ro_blob<dynamic_extent>;
 
 template <std::size_t Extent>

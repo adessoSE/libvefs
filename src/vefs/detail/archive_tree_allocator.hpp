@@ -66,11 +66,11 @@ public:
                                 archive_sector_allocator::leak_on_failure);
         }
     }
-    auto dealloc_one(const sector_id which) noexcept -> result<void>
+    auto dealloc_one(sector_id const which) noexcept -> result<void>
     {
         return mSource.dealloc_one(which);
     }
-    void dealloc_one(const sector_id which, leak_on_failure_t) noexcept
+    void dealloc_one(sector_id const which, leak_on_failure_t) noexcept
     {
         mSource.dealloc_one(which, archive_sector_allocator::leak_on_failure);
     }

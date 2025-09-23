@@ -121,12 +121,12 @@ public:
     {
         return mCurrentPath.layer_position(0);
     }
-    auto move_backward(const access_mode mode = access_mode::read) noexcept
+    auto move_backward(access_mode const mode = access_mode::read) noexcept
             -> result<void>;
-    auto move_forward(const access_mode mode = access_mode::read) noexcept
+    auto move_forward(access_mode const mode = access_mode::read) noexcept
             -> result<void>;
-    auto move_to(const std::uint64_t leafPosition,
-                 const access_mode mode = access_mode::read) noexcept
+    auto move_to(std::uint64_t const leafPosition,
+                 access_mode const mode = access_mode::read) noexcept
             -> result<void>;
 
     auto erase_leaf(std::uint64_t leafId) noexcept -> result<void>;
@@ -147,25 +147,25 @@ public:
     auto extract_alloc_map(utils::bitset_overlay allocs) -> result<void>;
 
 private:
-    auto move_to(const tree_path loadPath, const access_mode mode) noexcept
+    auto move_to(tree_path const loadPath, access_mode const mode) noexcept
             -> result<void>;
 
     auto load_next(int const parentRefOffset) noexcept -> result<void>;
     auto load(tree_path const &newPath,
               tree_path::const_iterator &updateIt,
-              const tree_path::const_iterator end) noexcept -> result<void>;
+              tree_path::const_iterator const end) noexcept -> result<void>;
 
     auto create_next(int const parentRefOffset) noexcept -> result<void>;
     auto create(tree_path::const_iterator updateIt,
-                const tree_path::iterator end) noexcept -> result<void>;
+                tree_path::iterator const end) noexcept -> result<void>;
 
     auto compute_update_range(tree_path const &newPath,
                               bool const forceReload) const noexcept
             -> std::pair<tree_path::const_iterator, tree_path::const_iterator>;
 
     auto grow_tree(int const desiredDepth) noexcept -> result<void>;
-    auto require_tree_depth(const std::uint64_t leafPosition,
-                            const access_mode mode) noexcept -> result<void>;
+    auto require_tree_depth(std::uint64_t const leafPosition,
+                            access_mode const mode) noexcept -> result<void>;
 
     auto collect_intermediate_nodes() noexcept -> result<void>;
 
@@ -448,7 +448,7 @@ sector_tree_seq<TreeAllocator>::load_next(int const parentRefOffset) noexcept
 
 template <typename TreeAllocator>
 inline auto
-sector_tree_seq<TreeAllocator>::move_backward(const access_mode mode) noexcept
+sector_tree_seq<TreeAllocator>::move_backward(access_mode const mode) noexcept
         -> result<void>
 {
     if (mCurrentPath.position(0) == 0)
@@ -460,7 +460,7 @@ sector_tree_seq<TreeAllocator>::move_backward(const access_mode mode) noexcept
 
 template <typename TreeAllocator>
 inline auto
-sector_tree_seq<TreeAllocator>::move_forward(const access_mode mode) noexcept
+sector_tree_seq<TreeAllocator>::move_forward(access_mode const mode) noexcept
         -> result<void>
 {
     VEFS_TRY(require_tree_depth(mCurrentPath.position(0) + 1, mode));
@@ -479,8 +479,8 @@ sector_tree_seq<TreeAllocator>::move_to(std::uint64_t const leafPosition,
 
 template <typename TreeAllocator>
 inline auto
-sector_tree_seq<TreeAllocator>::move_to(const tree_path loadPath,
-                                        const access_mode mode) noexcept
+sector_tree_seq<TreeAllocator>::move_to(tree_path const loadPath,
+                                        access_mode const mode) noexcept
         -> result<void>
 {
     auto [updateIt, end] = compute_update_range(loadPath, false);
@@ -608,7 +608,7 @@ template <typename TreeAllocator>
 inline auto sector_tree_seq<TreeAllocator>::load(
         tree_path const &newPath,
         tree_path::const_iterator &updateIt,
-        const tree_path::const_iterator end) noexcept -> result<void>
+        tree_path::const_iterator const end) noexcept -> result<void>
 {
     if (updateIt == newPath.cend())
     {
@@ -653,7 +653,7 @@ sector_tree_seq<TreeAllocator>::create_next(int const parentRefOffset) noexcept
 template <typename TreeAllocator>
 inline auto
 sector_tree_seq<TreeAllocator>::create(tree_path::const_iterator updateIt,
-                                       const tree_path::iterator end) noexcept
+                                       tree_path::iterator const end) noexcept
         -> result<void>
 {
     for (; updateIt != end; ++updateIt)
@@ -684,7 +684,7 @@ sector_tree_seq<TreeAllocator>::grow_tree(int const desiredDepth) noexcept
 
 template <typename TreeAllocator>
 inline auto sector_tree_seq<TreeAllocator>::require_tree_depth(
-        const std::uint64_t leafPosition, const access_mode mode) noexcept
+        std::uint64_t const leafPosition, access_mode const mode) noexcept
         -> result<void>
 {
     if (auto const requiredDepth = lut::required_tree_depth(leafPosition);

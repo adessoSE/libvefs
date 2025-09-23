@@ -191,9 +191,7 @@ auto inject(llfio::byte_io_handle::io_result<T> rx, InjectFn &&injectFn)
 
 template <typename T>
 concept tryable = requires(T &&t) {
-    {
-        oc::try_operation_has_value(t)
-    } -> std::same_as<bool>;
+    { oc::try_operation_has_value(t) } -> std::same_as<bool>;
     {
         oc::try_operation_return_as(static_cast<T &&>(t))
     } -> std::convertible_to<result<void>>;

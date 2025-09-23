@@ -735,8 +735,8 @@ auto vfilesystem::create_new_impl() -> result<void>
     return success();
 }
 
-auto vfilesystem::open(const std::string_view filePath,
-                       const file_open_mode_bitset mode) -> result<vfile_handle>
+auto vfilesystem::open(std::string_view const filePath,
+                       file_open_mode_bitset const mode) -> result<vfile_handle>
 {
     using detail::file_id;
 
@@ -919,7 +919,7 @@ auto vfilesystem::extractAll(llfio::path_view targetBasePath) -> result<void>
     return success();
 }
 
-auto vfilesystem::query(const std::string_view filePath)
+auto vfilesystem::query(std::string_view const filePath)
         -> result<file_query_result>
 {
     using detail::file_id;
@@ -1002,7 +1002,7 @@ auto vfilesystem::commit() -> result<void>
             if (!syncError.empty())
             {
                 return syncError;
-        }
+            }
         }
         catch (std::bad_alloc const &)
         {
@@ -1014,7 +1014,9 @@ auto vfilesystem::commit() -> result<void>
                      * detail::sector_device::sector_payload_size;
     return mIndexTree->commit(
             [this, maxExtent](detail::root_sector_info rootInfo) noexcept
-            -> result<void> { return sync_commit_info(rootInfo, maxExtent); });
+                    -> result<void> {
+                return sync_commit_info(rootInfo, maxExtent);
+            });
 }
 
 auto vfilesystem::sync_commit_info(detail::root_sector_info rootInfo,
