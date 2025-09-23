@@ -4,4 +4,7 @@ set(VCPKG_LIBRARY_LINKAGE static)
 
 set(VCPKG_CMAKE_SYSTEM_NAME Darwin)
 set(VCPKG_OSX_ARCHITECTURES x86_64)
-set(VCPKG_CHAINLOAD_TOOLCHAIN_FILE "${CMAKE_CURRENT_LIST_DIR}/../toolchains/x64-macos-gcc-14.cmake")
+
+if(NOT PORT STREQUAL "boringssl")
+    set(VCPKG_CHAINLOAD_TOOLCHAIN_FILE "${CMAKE_CURRENT_LIST_DIR}/../toolchains/x64-macos-gcc-14.cmake")
+endif()
