@@ -68,7 +68,7 @@ inline bool get(Unit const *begin, std::size_t bitpos)
 }
 
 template <typename Unit>
-inline void set_n(Unit *begin, const std::size_t numBits)
+inline void set_n(Unit *begin, std::size_t const numBits)
 {
     using byte_limits = std::numeric_limits<std::uint8_t>;
 

@@ -50,7 +50,7 @@ public:
 
         return deserialized;
     }
-    inline void write(int const which, const free_block_range range) noexcept
+    inline void write(int const which, free_block_range const range) noexcept
     {
         auto const baseOffset
                 = static_cast<std::size_t>(which) * serialized_block_range_size;

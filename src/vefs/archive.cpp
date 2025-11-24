@@ -460,14 +460,14 @@ auto archive_handle::commit() -> result<void>
     return mFilesystem->commit();
 }
 
-auto archive_handle::open(const std::string_view filePath,
-                          const file_open_mode_bitset mode)
+auto archive_handle::open(std::string_view const filePath,
+                          file_open_mode_bitset const mode)
         -> result<vfile_handle>
 {
     return mFilesystem->open(filePath, mode);
 }
 
-auto archive_handle::query(const std::string_view filePath)
+auto archive_handle::query(std::string_view const filePath)
         -> result<file_query_result>
 {
     return mFilesystem->query(filePath);

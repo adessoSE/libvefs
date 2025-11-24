@@ -31,7 +31,7 @@ auto preallocated_tree_allocator::reallocate(sector_allocator &part) noexcept
     return allocated;
 }
 
-auto preallocated_tree_allocator::dealloc_one(const sector_id which) noexcept
+auto preallocated_tree_allocator::dealloc_one(sector_id const which) noexcept
         -> result<void>
 {
     try
@@ -45,7 +45,7 @@ auto preallocated_tree_allocator::dealloc_one(const sector_id which) noexcept
     }
 }
 
-void preallocated_tree_allocator::dealloc_one(const sector_id which,
+void preallocated_tree_allocator::dealloc_one(sector_id const which,
                                               leak_on_failure_t) noexcept
 {
     if (!dealloc_one(which))

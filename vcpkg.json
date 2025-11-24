@@ -21,7 +21,7 @@
         "deeplog",
         "deeppack",
         "fmt",
-        "libb2",
+        "libb2-reforged",
         "libcuckoo",
         {
             "name": "llfio",
@@ -29,13 +29,6 @@
         },
         "outcome",
         "stduuid"
-    ],
-    "overrides": [
-        {
-            "name": "boringssl",
-            "version-date": "2021-06-23",
-            "port-version": 4
-        }
     ],
     "features": {
         "cli": {

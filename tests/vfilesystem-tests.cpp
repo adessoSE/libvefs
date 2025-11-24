@@ -1,5 +1,7 @@
 #include "vefs/vfilesystem.hpp"
 
+#include <fmt/ranges.h>
+
 #include "test-utils.hpp"
 
 #include "vefs/detail/sector_device.hpp"

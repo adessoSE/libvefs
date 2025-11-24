@@ -91,7 +91,7 @@ constexpr std::uint64_t sector_position_of(std::uint64_t bytePos)
  * including the reference sector overhead \param byteSize the file size in
  * bytes
  */
-constexpr auto required_sector_count(const std::uint64_t byteSize)
+constexpr auto required_sector_count(std::uint64_t const byteSize)
         -> std::uint64_t
 {
     static_assert(ref_width.size() == 5); // safe guard for ref_width changes.

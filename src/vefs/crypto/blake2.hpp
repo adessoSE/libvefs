@@ -53,7 +53,7 @@ struct SYSTEM_ERROR2_NAMESPACE::quick_status_code_from_enum<
     {
         using blake2_errc = vefs::crypto::detail::blake2_errc;
 
-        static const std::initializer_list<mapping> v = {
+        static std::initializer_list<mapping> const v = {
                 {         blake2_errc::finalization_failed,
                  "the blake2 finalization call failed",                {errc::unknown}                      },
                 {         blake2_errc::invalid_digest_size,

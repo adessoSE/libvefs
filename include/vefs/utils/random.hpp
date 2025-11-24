@@ -115,9 +115,9 @@ public:
 
     inline result_type operator()()
     {
-        const uint64_t s0 = s[0];
+        uint64_t const s0 = s[0];
         uint64_t s1 = s[1];
-        const uint64_t result = s0 + s1;
+        uint64_t const result = s0 + s1;
 
         s1 ^= s0;
         s[0] = rotl(s0, 55) ^ s1 ^ (s1 << 14); // a, b
@@ -126,7 +126,7 @@ public:
         return result;
     }
 
-    void fill(const rw_dynblob dest)
+    void fill(rw_dynblob const dest)
     {
         auto rem(dest);
         while (!rem.empty())
@@ -141,7 +141,7 @@ public:
     {
         for (unsigned long long i = 0; i < j; ++i)
         {
-            const uint64_t s0 = s[0];
+            uint64_t const s0 = s[0];
             uint64_t s1 = s[1];
 
             s1 ^= s0;
@@ -160,7 +160,7 @@ public:
     }
 
 private:
-    static inline uint64_t rotl(const uint64_t x, int k)
+    static inline uint64_t rotl(uint64_t const x, int k)
     {
         return (x << k) | (x >> (64 - k));
     }

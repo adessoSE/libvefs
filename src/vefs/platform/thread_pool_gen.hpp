@@ -41,6 +41,6 @@ private:
 
     moodycamel::BlockingConcurrentQueue<work_item_t> mTaskQueue;
     std::vector<std::thread> mWorkerList;
-    const std::string mThreadPoolName;
+    std::string const mThreadPoolName;
 };
 } // namespace vefs::detail

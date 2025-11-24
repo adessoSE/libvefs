@@ -206,8 +206,8 @@ public:
     cache_mt(index_type cacheSize,
              typename traits_type::initializer_type traitsInitializer,
              allocator_type const &alloc = allocator_type())
-        : mTraits(
-                static_cast<decltype(traitsInitializer) &&>(traitsInitializer))
+        : mTraits(static_cast<decltype(traitsInitializer) &&>(
+                  traitsInitializer))
         , mIndex(derive_index_size(cacheSize), {}, {}, alloc)
         , mPageCtrl(cacheSize, alloc)
         , mPage(cacheSize, alloc)

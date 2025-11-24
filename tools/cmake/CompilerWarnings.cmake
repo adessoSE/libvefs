@@ -32,8 +32,6 @@ set(CLANG_WARNINGS
     -Wall
     -Wextra # reasonable and standard
     -Wshadow # warn the user if a variable declaration shadows one from a parent context
-    -Wnon-virtual-dtor # warn the user if a class with virtual functions has a non-virtual destructor. This helps
-                       # catch hard to track down memory errors
     -Wold-style-cast # warn for c-style casts
     -Wcast-align # warn for potential performance problem casts
     -Wunused # warn on anything being unused
@@ -82,6 +80,13 @@ if(MSVC)
 elseif(CMAKE_CXX_COMPILER_ID MATCHES ".*Clang")
     add_compile_options(${CLANG_WARNINGS})
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    if (APPLE)
+        list(APPEND GCC_WARNINGS
+            # gcc on macOS produces numerous false positives with -O2 or higher
+            -Wno-stringop-overflow
+            -Wno-null-dereference
+        )
+    endif()
     add_compile_options(${GCC_WARNINGS})
 else()
     message(AUTHOR_WARNING "No compiler warnings set for '${CMAKE_CXX_COMPILER_ID}' compiler.")

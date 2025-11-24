@@ -1,25 +1,47 @@
 ---
+# bugprone-forward-declaration-namespace generates a false positive for boost
+# clang-analyzer-optin.core.EnumCastOutOfRange I disagree.
 # cppcoreguidelines-avoid-magic-numbers aliases readability-magic-numbers
 # cppcoreguidelines-avoid-c-arrays aliases modernize-avoid-c-arrays
+# cppcoreguidelines-missing-std-forward doesn't recognize equivalent static casts
+# cppcoreguidelines-rvalue-reference-param-not-moved doesn't recognize equivalent static casts
 # cppcoreguidelines-special-member-functions is overly explicit and verbose
+# cppcoreguidelines-use-default-member-init I disagree.
+# clang-analyzer-core.uninitialized.Assign happens to choke on OUTCOME_TRY
+# modernize-use-designated-initializers interacts badly with our test data tables
+# readability-redundant-inline-specifier doesn't consider MSVC /Ob1
 Checks: >
   boost-*,
+    -boost-use-ranges,
   bugprone-*,
     -bugprone-easily-swappable-parameters,
+    -bugprone-forward-declaration-namespace,
   clang-analyzer-*,
+    -clang-analyzer-core.uninitialized.Assign,
+    -clang-analyzer-optin.core.EnumCastOutOfRange,
   clang-diagnostic-*,
   cppcoreguidelines-*,
     -cppcoreguidelines-avoid-c-arrays,
+    -cppcoreguidelines-avoid-do-while,
+    -cppcoreguidelines-missing-std-forward,
+    -cppcoreguidelines-rvalue-reference-param-not-moved,
     -cppcoreguidelines-special-member-functions,
+    -cppcoreguidelines-use-default-member-init,
   modernize-*,
     -modernize-avoid-c-arrays,
+    -cppcoreguidelines-avoid-do-while,
     -modernize-use-default-member-init,
+    -modernize-use-designated-initializers,
+    -modernize-use-ranges,
   performance-*,
+    -performance-enum-size,
   portability-*,
+    -portability-template-virtual-member-function,
   readability-*,
     -readability-identifier-length,
     -readability-magic-numbers,
     -readability-named-parameter,
+    -readability-redundant-inline-specifier,
     -readability-redundant-member-init,
     -readability-static-accessed-through-instance
 WarningsAsErrors: true

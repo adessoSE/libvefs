@@ -10,7 +10,7 @@
 #     http://creativecommons.org/publicdomain/zero/1.0/
 #
 ########################################################################
-cmake_minimum_required(VERSION 3.22)
+cmake_minimum_required(VERSION 3.23...4.0)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/tools/cmake/")
 
 ########################################################################
@@ -64,13 +64,13 @@ find_package(fmt CONFIG REQUIRED)
 
 find_package(unofficial-concurrentqueue CONFIG REQUIRED)
 
-find_package(libb2 REQUIRED CONFIG)
+find_package(libb2-reforged REQUIRED CONFIG)
 
 find_package(libcuckoo CONFIG REQUIRED)
 
 find_package(stduuid CONFIG REQUIRED)
 
-find_package(OpenSSL REQUIRED)
+find_package(OpenSSL CONFIG REQUIRED COMPONENTS Crypto)
 
 if (BUILD_TESTING)
     set(_VEFS_REQUIRE_UNIT_TEST_FRAMEWORK unit_test_framework)
@@ -153,7 +153,7 @@ target_link_libraries(vefs
         Boost::boost
         Deeplex::deeppack
         Deeplex::deeplog
-        libb2
+        Deeplex::libb2-reforged
         fmt::fmt
         llfio::${VEFS_LLFIO_TARGET}
         outcome::hl

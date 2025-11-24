@@ -1,19 +1,44 @@
 #pragma once
 
 #include <cassert>
+#include <climits>
 #include <cstddef>
 
-#include <array>
 #include <atomic>
-#include <mutex>
-#include <stdexcept>
+#include <bit>
+#include <type_traits>
 
 #include <dplx/dp.hpp>
 #include <dplx/dp/macros.hpp>
 
-#include <vefs/exceptions.hpp>
 #include <vefs/span.hpp>
-#include <vefs/utils/secure_array.hpp>
+
+#include <boost/predef/architecture.h>
+#include <boost/predef/compiler.h>
+#include <boost/predef/os.h>
+
+#define VEFS_COUNTER_IMPL_GENERIC     0b00010
+#define VEFS_COUNTER_IMPL_INT128      0b00101
+#define VEFS_COUNTER_IMPL_ADC64       0b01001
+#define VEFS_COUNTER_IMPL_ADC32       0b10000
+#define VEFS_COUNTER_IMPL_ULL_STORAGE 0b00001
+
+#if defined(__SIZEOF_INT128__)
+#define VEFS_COUNTER_IMPL VEFS_COUNTER_IMPL_INT128
+#elif defined(BOOST_ARCH_X86_AVAILABLE)
+#if defined(BOOST_COMP_GNUC_AVAILABLE)
+#include <x86intrin.h>
+#else
+#include <intrin.h.>
+#endif
+#if defined(BOOST_ARCH_X86_64_AVAILABLE)
+#define VEFS_COUNTER_IMPL VEFS_COUNTER_IMPL_ADC64
+#else
+#define VEFS_COUNTER_IMPL VEFS_COUNTER_IMPL_ADC32
+#endif
+#else
+#define VEFS_COUNTER_IMPL VEFS_COUNTER_IMPL_GENERIC
+#endif
 
 namespace vefs::crypto
 {
@@ -21,101 +46,179 @@ namespace vefs::crypto
 class counter
 {
 public:
-    static constexpr std::size_t state_size = 16;
-    using state = utils::secure_array<std::size_t,
-                                      state_size / sizeof(std::size_t)>;
+    struct state
+    {
+// we explicitly reference __x86_64__ to account for the x32 ABI
+#if VEFS_COUNTER_IMPL & VEFS_COUNTER_IMPL_ULL_STORAGE
+        unsigned long long value[2];
 
-    counter() = default;
-    explicit counter(state ctrState);
-    explicit counter(ro_blob<state_size> ctrState);
+        friend inline constexpr auto as_span(state &s) noexcept
+                -> std::span<unsigned long long, 2>
+        {
+            return {s.value};
+        }
+        friend inline constexpr auto as_span(state const &s) noexcept
+                -> std::span<unsigned long long const, 2>
+        {
+            return {s.value};
+        }
+#else
+        std::uint32_t value[4];
 
-    state const &value() const noexcept;
-    auto view() const noexcept -> ro_blob<state_size>;
-    void increment();
-    counter &operator++();
-    counter operator++(int);
+        friend inline constexpr auto as_span(state &s) noexcept
+                -> std::span<std::uint32_t, 4>
+        {
+            return {s.value};
+        }
+        friend inline constexpr auto as_span(state const &s) noexcept
+                -> std::span<std::uint32_t const, 4>
+        {
+            return {s.value};
+        }
+#endif
+        friend constexpr auto operator==(state const &lhs,
+                                         state const &rhs) noexcept -> bool
+                // NOLINTNEXTLINE(cppcoreguidelines-pro-bounds-constant-array-index)
+                = default;
+    };
 
 private:
-    state mCtrState;
+    state mCtrState{};
+
+public:
+    // inline ~counter() noexcept
+    // {
+    //     utils::secure_memzero(as_blob());
+    // }
+    constexpr counter() noexcept = default;
+
+    constexpr counter(counter const &) = default;
+    constexpr counter &operator=(counter const &) = default;
+    constexpr counter(counter &&) noexcept = default;
+    constexpr counter &operator=(counter &&) noexcept = default;
+
+    explicit constexpr counter(state ctrState) noexcept
+        : mCtrState(ctrState)
+    {
+    }
+    explicit inline counter(ro_blob<sizeof(state)> ctrState) noexcept
+    {
+        copy(ctrState, as_blob());
+    }
+
+    static constexpr std::size_t state_size{16};
+    static_assert(sizeof(state) == state_size);
+
+    [[nodiscard]] inline auto value() const noexcept -> state const &
+    {
+        return mCtrState;
+    }
+    [[nodiscard]] inline auto view() const noexcept -> ro_blob<sizeof(state)>
+    {
+        return as_bytes(std::span(mCtrState.value));
+    }
+    inline void increment() noexcept
+    {
+#if VEFS_COUNTER_IMPL == VEFS_COUNTER_IMPL_INT128
+        mCtrState = std::bit_cast<state>(
+                __extension__ std::bit_cast<unsigned __int128>(mCtrState) + 1);
+#elif VEFS_COUNTER_IMPL == VEFS_COUNTER_IMPL_ADC64
+        _addcarry_u64(_addcarry_u64(0U, mCtrState.value[0], 1ULL,
+                                    &mCtrState.value[0]),
+                      mCtrState.value[1], 0, &mCtrState.value[1]);
+#elif VEFS_COUNTER_IMPL == VEFS_COUNTER_IMPL_ADC32
+        _addcarry_u32(
+                _addcarry_u32(
+                        _addcarry_u32(_addcarry_u32(0U, mCtrState.value[0], 1,
+                                                    &mCtrState.value[0]),
+                                      mCtrState.value[1], 0,
+                                      &mCtrState.value[1]),
+                        mCtrState.value[2], 0, &mCtrState.value[2]),
+                mCtrState.value[3], 0, &mCtrState.value[3]);
+#elif VEFS_COUNTER_IMPL == VEFS_COUNTER_IMPL_GENERIC
+        constexpr int bitWidth = sizeof(std::uint32_t) * CHAR_BIT;
+        std::uint64_t acc{1};
+        acc += mCtrState.value[0];
+        mCtrState.value[0] = static_cast<std::uint32_t>(acc);
+        acc = mCtrState.value[1] + (acc >> bitWidth);
+        mCtrState.value[1] = static_cast<std::uint32_t>(acc);
+        acc = mCtrState.value[2] + (acc >> bitWidth);
+        mCtrState.value[2] = static_cast<std::uint32_t>(acc);
+        acc = mCtrState.value[3] + (acc >> bitWidth);
+        mCtrState.value[3] = static_cast<std::uint32_t>(acc);
+#else
+#error "invalid VEFS_COUNTER_IMPL value"
+#endif
+    }
+    inline auto operator++() -> counter &
+    {
+        increment();
+        return *this;
+    }
+    inline auto operator++(int) -> counter
+    {
+        counter original{*this};
+        increment();
+        return original;
+    }
+
+    friend constexpr auto operator==(counter const &lhs,
+                                     counter const &rhs) noexcept -> bool
+            = default;
+
+private:
+    [[nodiscard]] auto as_blob() noexcept -> rw_blob<sizeof(state)>
+    {
+        return as_writable_bytes(std::span(mCtrState.value));
+    }
 };
 
-inline counter::counter(state ctrState)
-    : mCtrState(std::move(ctrState))
-{
-}
-
-inline counter::counter(ro_blob<state_size> ctrState)
-    : mCtrState()
-{
-    copy(ctrState, as_writable_bytes(as_span(mCtrState)));
-}
-
-inline counter::state const &counter::value() const noexcept
-{
-    return mCtrState;
-}
-
-inline auto counter::view() const noexcept -> ro_blob<state_size>
-{
-    return as_bytes(as_span(mCtrState));
-}
-
-inline counter &counter::operator++()
-{
-    increment();
-    return *this;
-}
-
-inline counter counter::operator++(int)
-{
-    counter current{*this};
-    increment();
-    return current;
-}
-
-inline bool operator==(counter const &lhs, counter const &rhs)
-{
-    auto const &lhstate = lhs.value();
-    auto const &rhstate = rhs.value();
-    return std::equal(lhstate.cbegin(), lhstate.cend(), rhstate.cbegin());
-}
-inline bool operator!=(counter const &lhs, counter const &rhs)
-{
-    return !(lhs == rhs);
-}
-
 } // namespace vefs::crypto
+
+#undef VEFS_COUNTER_IMPL
+#undef VEFS_COUNTER_IMPL_ULL_STORAGE
+#undef VEFS_COUNTER_IMPL_ADC32
+#undef VEFS_COUNTER_IMPL_ADC64
+#undef VEFS_COUNTER_IMPL_INT128
+#undef VEFS_COUNTER_IMPL_GENERIC
 
 DPLX_DP_DECLARE_CODEC_SIMPLE(vefs::crypto::counter);
 
 template <>
 struct std::atomic<vefs::crypto::counter>
 {
+private:
+    using mutex_type =
+#if defined(BOOST_OS_LINUX_AVAILABLE) || defined(BOOST_OS_ANDROID_AVAILABLE)   \
+        || defined(BOOST_OS_WINDOWS_AVAILABLE)
+            std::atomic<std::int32_t>
+#else
+            std::atomic<std::make_signed_t<std::size_t>>
+#endif
+            ;
+
+    vefs::crypto::counter mImpl{};
+    mutable mutex_type mAccessMutex{0};
+
+public:
     using value_type = vefs::crypto::counter;
 
-    atomic() noexcept
-        : mImpl(value_type::state{})
-        , mAccessMutex()
-    {
-    }
-    atomic(value_type ctr) noexcept
+    constexpr atomic() noexcept = default;
+    constexpr atomic(value_type ctr) noexcept
         : mImpl(ctr)
-        , mAccessMutex()
     {
     }
-    atomic(value_type::state ctrState) noexcept
+    explicit constexpr atomic(value_type::state ctrState) noexcept
         : mImpl(ctrState)
-        , mAccessMutex()
     {
     }
-    atomic(vefs::ro_blob<value_type::state_size> ctrState) noexcept
+    explicit atomic(vefs::ro_blob<value_type::state_size> ctrState) noexcept
         : mImpl(ctrState)
-        , mAccessMutex()
     {
     }
     atomic(atomic const &) = delete;
 
-    static constexpr bool is_lock_free() noexcept
+    static constexpr auto is_lock_free() noexcept -> bool
     {
         return false;
     }
@@ -124,13 +227,13 @@ struct std::atomic<vefs::crypto::counter>
     void store(value_type desired,
                std::memory_order = std::memory_order_seq_cst) noexcept
     {
-        std::lock_guard lock{mAccessMutex};
+        lock_guard lock{mAccessMutex};
         mImpl = desired;
     }
-    value_type load(std::memory_order
-                    = std::memory_order_seq_cst) const noexcept
+    auto load(std::memory_order = std::memory_order_seq_cst) const noexcept
+            -> value_type
     {
-        std::lock_guard lock{mAccessMutex};
+        lock_guard lock{mAccessMutex};
         return mImpl;
     }
 
@@ -138,27 +241,31 @@ struct std::atomic<vefs::crypto::counter>
     {
         return load();
     }
-    value_type operator=(value_type desired) noexcept
+    // the value assignment operator accepts and returns `T` as per C++ standard
+    // NOLINTNEXTLINE(cppcoreguidelines-c-copy-assignment-signature)
+    auto operator=(value_type desired) noexcept -> value_type
     {
-        std::lock_guard lock{mAccessMutex};
-        return mImpl = desired;
+        lock_guard lock{mAccessMutex};
+        mImpl = desired;
+        return desired;
     }
-    atomic &operator=(atomic const &) = delete;
+    auto operator=(atomic const &) -> atomic & = delete;
 
-    value_type exchange(value_type desired,
-                        std::memory_order = std::memory_order_seq_cst) noexcept
+    auto exchange(value_type desired,
+                  std::memory_order = std::memory_order_seq_cst) noexcept
+            -> value_type
     {
-        std::lock_guard lock{mAccessMutex};
+        lock_guard lock{mAccessMutex};
         value_type old{mImpl};
         mImpl = desired;
         return old;
     }
-    bool compare_exchange_weak(value_type const &expected,
+    auto compare_exchange_weak(value_type const &expected,
                                value_type desired,
                                std::memory_order
-                               = std::memory_order_seq_cst) noexcept
+                               = std::memory_order_seq_cst) noexcept -> bool
     {
-        std::lock_guard lock{mAccessMutex};
+        lock_guard lock{mAccessMutex};
         auto const success = mImpl == expected;
         if (success)
         {
@@ -166,33 +273,57 @@ struct std::atomic<vefs::crypto::counter>
         }
         return success;
     }
-    bool compare_exchange_strong(value_type const &expected,
+    auto compare_exchange_strong(value_type const &expected,
                                  value_type desired,
                                  std::memory_order
-                                 = std::memory_order_seq_cst) noexcept
+                                 = std::memory_order_seq_cst) noexcept -> bool
     {
         return compare_exchange_weak(expected, desired);
     }
 
-    value_type fetch_increment() noexcept
+    auto fetch_increment() noexcept -> value_type
     {
-        std::lock_guard lock{mAccessMutex};
+        lock_guard lock{mAccessMutex};
         return mImpl++;
     }
-    value_type operator++() noexcept
+    auto operator++() noexcept -> value_type
     {
-        std::lock_guard lock{mAccessMutex};
+        lock_guard lock{mAccessMutex};
         return ++mImpl;
     }
-    value_type operator++(int) noexcept
+    auto operator++(int) noexcept -> value_type
     {
-        std::lock_guard lock{mAccessMutex};
+        lock_guard lock{mAccessMutex};
         return mImpl++;
     }
 
 private:
-    vefs::crypto::counter mImpl;
-    mutable std::mutex mAccessMutex;
+    struct [[nodiscard]] lock_guard
+    {
+        // NOLINTNEXTLINE(cppcoreguidelines-avoid-const-or-ref-data-members)
+        mutex_type &mMutex;
+
+        static constexpr mutex_type::value_type unlocked_value{0};
+        static constexpr mutex_type::value_type locked_value{1};
+
+        lock_guard(mutex_type &mutex) noexcept
+            : mMutex(mutex)
+        {
+            mutex_type::value_type expected{unlocked_value};
+            while (!mMutex.compare_exchange_weak(expected, locked_value,
+                                                 std::memory_order_acq_rel,
+                                                 std::memory_order_acquire))
+            {
+                mMutex.wait(expected, std::memory_order_acquire);
+                expected = unlocked_value;
+            }
+        }
+        ~lock_guard() noexcept
+        {
+            mMutex.store(unlocked_value, std::memory_order_release);
+            mMutex.notify_one();
+        }
+    };
 };
 
 namespace vefs::crypto

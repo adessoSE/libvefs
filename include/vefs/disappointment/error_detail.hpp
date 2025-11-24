@@ -1,7 +1,7 @@
 #pragma once
 
+#include <iterator>
 #include <string>
-#include <tuple>
 #include <type_traits>
 #ifdef __GNUC__
 #include <cxxabi.h>

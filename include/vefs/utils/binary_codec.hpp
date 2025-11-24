@@ -18,7 +18,7 @@
 namespace vefs
 {
 template <typename T, std::size_t Extent>
-inline auto load_primitive(std::span<const std::byte, Extent> memory,
+inline auto load_primitive(std::span<std::byte const, Extent> memory,
                            std::size_t offset = 0) noexcept
         -> utils::remove_cvref_t<T>
 {
@@ -49,7 +49,7 @@ template <typename T, std::size_t Extent>
 inline auto load_primitive(std::span<std::byte, Extent> memory,
                            std::size_t offset = 0) noexcept
 {
-    return load_primitive<T>(std::span<const std::byte, Extent>(memory),
+    return load_primitive<T>(std::span<std::byte const, Extent>(memory),
                              offset);
 }
 

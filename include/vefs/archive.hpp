@@ -225,7 +225,7 @@ public:
      * @param mode the filemode used to open the virtual file
      * @return a handle to the virtual file or an error
      */
-    auto open(const std::string_view filePath, const file_open_mode_bitset mode)
+    auto open(std::string_view const filePath, file_open_mode_bitset const mode)
             -> result<vfile_handle>;
 
     /**
@@ -235,7 +235,7 @@ public:
      * @param filePath the path to the file within the encrypted archive
      * @return the information about the file or an error
      */
-    auto query(const std::string_view filePath) -> result<file_query_result>;
+    auto query(std::string_view const filePath) -> result<file_query_result>;
 
     /**
      * @brief Delete a virtual file from the encrypted archive.

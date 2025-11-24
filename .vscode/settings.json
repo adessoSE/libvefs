@@ -80,6 +80,7 @@
         "ranges": "cpp",
         "ratio": "cpp",
         "regex": "cpp",
+        "resumable": "cpp",
         "scoped_allocator": "cpp",
         "semaphore": "cpp",
         "set": "cpp",

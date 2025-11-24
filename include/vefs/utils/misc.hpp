@@ -3,14 +3,16 @@
 #include <cassert>
 
 #include <concepts>
+#include <cstddef>
 #include <exception>
-#include <functional>
 #include <stdexcept>
 #include <string_view>
 #include <type_traits>
 
 #include <boost/predef/compiler.h>
 #include <boost/preprocessor/cat.hpp>
+
+#include <dplx/cncr/utils.hpp>
 
 #include <vefs/exceptions.hpp>
 
@@ -38,6 +40,40 @@ concept signed_integer = integer<T> && std::is_signed_v<T>;
 
 template <typename T>
 concept unsigned_integer = integer<T> && !signed_integer<T>;
+
+#if defined(BOOST_COMP_GNUC_AVAILABLE) && !defined(BOOST_COMP_GNUC_EMULATED)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wuseless-cast"
+#endif
+
+DPLX_ATTR_FORCE_INLINE constexpr auto uint64_to_size(std::uint64_t v) noexcept
+        -> std::size_t
+{
+    if constexpr (std::is_same_v<std::uint64_t, std::size_t>)
+    {
+        return v;
+    }
+    else
+    {
+        return static_cast<std::size_t>(v);
+    }
+}
+DPLX_ATTR_FORCE_INLINE constexpr auto size_to_uint64(std::size_t v) noexcept
+        -> std::uint64_t
+{
+    if constexpr (std::is_same_v<std::uint64_t, std::size_t>)
+    {
+        return v;
+    }
+    else
+    {
+        return static_cast<std::uint64_t>(v);
+    }
+}
+
+#if defined(BOOST_COMP_GNUC_AVAILABLE) && !defined(BOOST_COMP_GNUC_EMULATED)
+#pragma GCC diagnostic pop
+#endif
 
 template <typename T>
 constexpr T div_ceil(T dividend, T divisor)
@@ -131,11 +167,11 @@ inline auto as_string_view(R &r) noexcept -> std::string_view
 {
     return std::string_view{std::ranges::data(r), std::ranges::size(r)};
 }
-constexpr auto is_null_byte(const std::byte value) noexcept -> bool
+constexpr auto is_null_byte(std::byte const value) noexcept -> bool
 {
     return value == std::byte{};
 }
-constexpr auto is_non_null_byte(const std::byte value) noexcept -> bool
+constexpr auto is_non_null_byte(std::byte const value) noexcept -> bool
 {
     return !is_null_byte(value);
 }
