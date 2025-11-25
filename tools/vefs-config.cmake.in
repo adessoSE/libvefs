@@ -8,7 +8,7 @@ find_dependency(fmt CONFIG)
 
 find_dependency(unofficial-concurrentqueue CONFIG)
 
-find_dependency(libb2 REQUIRED CONFIG)
+find_dependency(libb2-reforged CONFIG)
 
 find_dependency(libcuckoo CONFIG)
 
