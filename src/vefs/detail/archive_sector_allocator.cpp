@@ -213,7 +213,8 @@ auto archive_sector_allocator::initialize_from(
             VEFS_TRY(mSectorManager.dealloc_contiguous(startId, numSectors));
         }
 
-        if (auto const currentLeaf = freeSectorTree->position().position())
+        if (auto const currentLeaf = freeSectorTree->position().position();
+            currentLeaf != 0U)
         {
             VEFS_TRY(freeSectorTree->erase_leaf(currentLeaf));
             for (auto id : idContainer)
@@ -222,7 +223,14 @@ auto archive_sector_allocator::initialize_from(
             }
             idContainer.clear();
 
-            VEFS_TRY(freeSectorTree->move_backward());
+            if (currentLeaf == freeSectorTree->position().position())
+            {
+                VEFS_TRY(freeSectorTree->move_backward());
+            }
+            else
+            {
+                VEFS_TRY(freeSectorTree->move_to(currentLeaf - 1U));
+            }
         }
         else
         {
