@@ -167,6 +167,21 @@ protected:
         case archive_file_did_not_exist:
             return "the given file contained no data, but creation::open_existing"sv;
 
+        case bad:
+            return "an API precondition has been violated"sv;
+
+        case resource_exhausted:
+            return "the archive has run out of free sectors"sv;
+
+        case still_in_use:
+            return "the archive is still in use by other handles"sv;
+
+        case not_loaded:
+            return "the sector has not been loaded"sv;
+
+        case no_more_data:
+            return "there is no more data to read"sv;
+
         default:
             return "unknown vefs archive error code"sv;
         }

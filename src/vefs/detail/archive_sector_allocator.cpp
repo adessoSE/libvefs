@@ -195,7 +195,13 @@ auto archive_sector_allocator::initialize_from(
     // Andrei Alexandrescu
     for (;;)
     {
-        free_block_sector_layout sector{freeSectorTree->writeable_bytes()};
+        // avoid setting the dirty flag, the binary_codec API needs to be
+        // refactored to support a const view for read-only access
+        auto const sectorBytes = freeSectorTree->bytes();
+        free_block_sector_layout sector{rw_blob<sectorBytes.size()>(
+                const_cast<std::byte *>(sectorBytes.data()),
+                sectorBytes.size())};
+
         for (std::size_t i = 0; i < sector.num_entries_per_sector; ++i)
         {
             auto [startId, numSectors] = sector.read(i);
@@ -213,7 +219,8 @@ auto archive_sector_allocator::initialize_from(
             VEFS_TRY(mSectorManager.dealloc_contiguous(startId, numSectors));
         }
 
-        if (auto const currentLeaf = freeSectorTree->position().position())
+        if (auto const currentLeaf = freeSectorTree->position().position();
+            currentLeaf != 0U)
         {
             VEFS_TRY(freeSectorTree->erase_leaf(currentLeaf));
             for (auto id : idContainer)
@@ -222,7 +229,14 @@ auto archive_sector_allocator::initialize_from(
             }
             idContainer.clear();
 
-            VEFS_TRY(freeSectorTree->move_backward());
+            if (currentLeaf == freeSectorTree->position().position())
+            {
+                VEFS_TRY(freeSectorTree->move_backward());
+            }
+            else
+            {
+                VEFS_TRY(freeSectorTree->move_to(currentLeaf - 1U));
+            }
         }
         else
         {

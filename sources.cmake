@@ -245,6 +245,7 @@ if (BUILD_TESTING)
             tree_lut-tests.cpp
             tree_walker-tests.cpp
             archive_file_id_tests.cpp
+            archive-sector-allocator-tests.cpp
             archive-integration-tests.cpp
 
             vefs/hash/hash_algorithm.test.cpp
