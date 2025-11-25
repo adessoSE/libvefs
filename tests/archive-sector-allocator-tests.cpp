@@ -23,13 +23,13 @@ struct archive_sector_allocator_dependencies
 
     archive_sector_allocator_dependencies()
         : testFile(vefs::llfio::mapped_temp_inode().value())
+        , fileCryptoContext(file_crypto_ctx::zero_init)
         , device(sector_device::create_new(
                          testFile.reopen(0).value(),
                          vefs::test::only_mac_crypto_provider(),
                          default_user_prk)
                          .value()
                          .device)
-        , fileCryptoContext(file_crypto_ctx::zero_init)
     {
     }
 };
