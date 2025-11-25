@@ -195,7 +195,13 @@ auto archive_sector_allocator::initialize_from(
     // Andrei Alexandrescu
     for (;;)
     {
-        free_block_sector_layout sector{freeSectorTree->writeable_bytes()};
+        // avoid setting the dirty flag, the binary_codec API needs to be
+        // refactored to support a const view for read-only access
+        auto const sectorBytes = freeSectorTree->bytes();
+        free_block_sector_layout sector{rw_blob<sectorBytes.size()>(
+                const_cast<std::byte *>(sectorBytes.data()),
+                sectorBytes.size())};
+
         for (std::size_t i = 0; i < sector.num_entries_per_sector; ++i)
         {
             auto [startId, numSectors] = sector.read(i);
