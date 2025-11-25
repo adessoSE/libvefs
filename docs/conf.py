@@ -22,7 +22,7 @@ copyright = '2017-2023 adesso AG'
 author = 'Henrik Gaßmann'
 
 # The full version, including alpha/beta/rc tags
-release = '0.6.0-alpha.0'
+release = '0.6.0-alpha.1'
 
 
 # -- General configuration ---------------------------------------------------
