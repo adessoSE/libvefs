@@ -1,0 +1,5 @@
+if (DEFINED VCPKG_ROOT)
+    include("${VCPKG_ROOT}/scripts/toolchains/${_lxVCPKG_TARGET}.cmake")
+elseif (DEFINED ENV{VCPKG_ROOT})
+    include("$ENV{VCPKG_ROOT}/scripts/toolchains/${_lxVCPKG_TARGET}.cmake")
+endif()

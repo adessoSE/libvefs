@@ -190,18 +190,18 @@
             }
         },
         {
-            "name": "x64-linux-gcc-12",
+            "name": "x64-linux-gcc-14",
             "inherits": [
                 "x64-linux-gcc"
             ],
             "cacheVariables": {
-                "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "${sourceDir}/tools/toolchains/x64-linux-gcc-12.cmake"
+                "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "${sourceDir}/tools/toolchains/x64-linux-gcc-14.cmake"
             }
         },
         {
             "name": "x64-linux-gcc-ci",
             "inherits": [
-                "x64-linux-gcc-12"
+                "x64-linux-gcc-14"
             ]
         },
         {
@@ -233,8 +233,8 @@
                 "base"
             ],
             "cacheVariables": {
-                "VCPKG_TARGET_TRIPLET": "x64-macos-gcc-14",
-                "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "${sourceDir}/tools/toolchains/x64-macos-gcc-14.cmake"
+                "VCPKG_TARGET_TRIPLET": "x64-macos-gcc-15",
+                "VCPKG_CHAINLOAD_TOOLCHAIN_FILE": "${sourceDir}/tools/toolchains/x64-macos-gcc-15.cmake"
             },
             "vendor": {
                 "microsoft.com/VisualStudioSettings/CMake/1.0": {

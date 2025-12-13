@@ -1,0 +1,13 @@
+set(_lxVCPKG_TARGET "osx")
+include("${CMAKE_CURRENT_LIST_DIR}/_vcpkg.cmake")
+
+if (NOT DEFINED CMAKE_SYSTEM_PROCESSOR)
+    set(CMAKE_SYSTEM_PROCESSOR x86_64)
+endif()
+set(CMAKE_OSX_ARCHITECTURES x86_64 CACHE STRING "OSX target architectures")
+
+set(CMAKE_C_COMPILER gcc-15)
+set(CMAKE_CXX_COMPILER g++-15)
+set(CMAKE_OSX_DEPLOYMENT_TARGET 16.4 CACHE STRING "OSX deployment target")
+
+include("${CMAKE_CURRENT_LIST_DIR}/_base.cmake")
