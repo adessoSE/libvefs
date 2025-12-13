@@ -1,10 +1,12 @@
-set(CMAKE_SYSTEM_PROCESSOR AMD64)
-
 set(CMAKE_C_COMPILER clang-19)
 set(CMAKE_CXX_COMPILER clang++-19)
 
-set(CMAKE_C_STANDARD 17)
-set(CMAKE_CXX_STANDARD 20)
+set(_lxVCPKG_TARGET "linux")
+include("${CMAKE_CURRENT_LIST_DIR}/_vcpkg.cmake")
 
-set(CMAKE_CXX_FLAGS_INIT "-fsized-deallocation")
-set(CMAKE_CXX_SCAN_FOR_MODULES OFF)
+if (NOT DEFINED CMAKE_SYSTEM_PROCESSOR)
+    set(CMAKE_SYSTEM_PROCESSOR AMD64)
+endif()
+
+include("${CMAKE_CURRENT_LIST_DIR}/_base.cmake")
+include("${CMAKE_CURRENT_LIST_DIR}/_clang.cmake")

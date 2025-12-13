@@ -33,5 +33,5 @@
             "toolsToInstall": "copier,pipenv"
         }
     },
-    "postCreateCommand": "cd ${containerWorkspaceFolder}/docs && pipenv sync --dev",
+    "postCreateCommand": "cd '${containerWorkspaceFolder}' && mkdir -p build && ln -s -f x64-linux-clang/compile_commands.json ./build/compile_commands.json && cd ./docs && pipenv sync --dev",
 }

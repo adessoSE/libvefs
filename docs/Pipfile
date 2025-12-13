@@ -4,10 +4,10 @@ verify_ssl = true
 name = "pypi"
 
 [packages]
-sphinx = "~=7.0"
+sphinx = "~=8.2.3"
 sphinx-copybutton = "~=0.5.2"
 sphinx-multiversion = "~=0.2.4"
-furo = "==2023.5.20"
+furo = "==2025.9.25"
 
 [dev-packages]
 esbonio = "*"
