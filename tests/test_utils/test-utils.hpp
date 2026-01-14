@@ -52,7 +52,7 @@ inline std::ostream &operator<<(std::ostream &s, error_domain const &domain)
 inline auto boost_test_print_type(std::ostream &s, archive_errc c)
         -> std::ostream &
 {
-    return operator<<(s, make_status_code(c));
+    return operator<<(s, vefs::archive_code(c));
 }
 
 template <typename T>
