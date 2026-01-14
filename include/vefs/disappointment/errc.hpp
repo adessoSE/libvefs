@@ -1,9 +1,11 @@
 #pragma once
 
+#include <dplx/cncr/data_defined_status_domain.hpp>
 #include <dplx/predef/compiler.h>
 
-#include <status-code/error.hpp>
-#include <status-code/system_code.hpp>
+#include <status-code/status_code.hpp>
+
+#include <vefs/disappointment/fwd.hpp>
 
 #if defined(DPLX_COMP_GNUC_AVAILABLE)
 #pragma GCC diagnostic push
@@ -15,10 +17,10 @@ namespace vefs
 
 namespace system_error = SYSTEM_ERROR2_NAMESPACE;
 
-enum class archive_errc : int
+enum class archive_errc : error_code
 {
     success = 0,
-    invalid_prefix = 1,
+    invalid_prefix,
     oversized_static_header,
     no_archive_header,
     identical_header_version,
@@ -37,213 +39,44 @@ enum class archive_errc : int
     no_more_data,
 };
 
-class archive_domain_type;
-using archive_code = system_error::status_code<archive_domain_type>;
+} // namespace vefs
 
-class archive_domain_type : public system_error::status_code_domain
+template <>
+struct dplx::cncr::status_enum_definition<vefs::archive_errc>
+    : status_enum_definition_defaults<vefs::archive_errc>
 {
-    using base = system_error::status_code_domain;
-    template <class DomainType>
-    friend class system_error::status_code;
+    static constexpr char domain_id[]
+            = "{9F10BF2E-4F20-459E-9976-4D975CBB3349}";
+    static constexpr char domain_name[] = "vefs-domain";
 
-public:
-    static constexpr std::string_view uuid
-            = "9F10BF2E-4F20-459E-9976-4D975CBB3349";
-
-    constexpr ~archive_domain_type() noexcept = default;
-    constexpr archive_domain_type() noexcept
-        : base(uuid.data(), base::_uuid_size<uuid.size()>{})
-    {
-    }
-    constexpr archive_domain_type(archive_domain_type const &) noexcept
-            = default;
-    constexpr auto operator=(archive_domain_type const &) noexcept
-            -> archive_domain_type & = default;
-
-    using value_type = archive_errc;
-    using base::string_ref;
-
-    constexpr virtual auto name() const noexcept -> string_ref override
-    {
-        return string_ref("vefs-domain");
-    }
-    constexpr virtual auto payload_info() const noexcept
-            -> payload_info_t override
-    {
-        return {sizeof(value_type),
-                sizeof(value_type) + sizeof(archive_domain_type *),
-                std::max(alignof(value_type), alignof(archive_domain_type *))};
-    }
-
-    static constexpr auto get() noexcept -> archive_domain_type const &;
-
-protected:
-    constexpr virtual auto
-    _do_failure(system_error::status_code<void> const &code) const noexcept
-            -> bool override
-    {
-        return static_cast<archive_code const &>(code).value()
-               != archive_errc::success;
-    }
-
-    constexpr auto map_to_generic(value_type const value) const noexcept
-            -> system_error::errc
-    {
-        using enum archive_errc;
-        using sys_errc = system_error::errc;
-        switch (value)
-        {
-        case success:
-            return sys_errc::success;
-
-        case invalid_prefix:
-        case oversized_static_header:
-        case no_archive_header:
-        case identical_header_version:
-        case tag_mismatch:
-        case sector_reference_out_of_range:
-        case corrupt_index_entry:
-        case vfilesystem_invalid_size:
-            return sys_errc::bad_message;
-
-        case no_such_vfile:
-            return sys_errc::no_such_file_or_directory;
-
-        case wrong_user_prk:
-            return sys_errc::invalid_argument;
-
-        case archive_file_already_existed:
-            return sys_errc::file_exists;
-
-        case archive_file_did_not_exist:
-            return sys_errc::no_such_file_or_directory;
-
-        default:
-            return sys_errc::unknown;
-        }
-    }
-
-    constexpr auto map_to_message(value_type const value) const noexcept
-            -> std::string_view
-    {
-        using enum archive_errc;
-        using namespace std::string_view_literals;
-
-        switch (value)
-        {
-        case invalid_prefix:
-            return "the magic number at the beginning of the archive didn't match"sv;
-
-        case oversized_static_header:
-            return "the static archive header would be greater than the master sector"sv;
-
-        case no_archive_header:
-            return "no valid archive header could be read"sv;
-
-        case identical_header_version:
-            return "both archive headers were valid and contained the same version switch"sv;
-
-        case tag_mismatch:
-            return "decryption failed because the message tag didn't match"sv;
-
-        case sector_reference_out_of_range:
-            return "a sector reference pointed to a sector which currently isn't allocated"sv;
-
-        case corrupt_index_entry:
-            return "an entry from the archive index is corrupted and could not be read"sv;
-
-        case no_such_vfile:
-            return "no file has been found under the given name"sv;
-
-        case wrong_user_prk:
-            return "the given archive key is not valid for this archive or the archive head has been corrupted"sv;
-
-        case vfilesystem_invalid_size:
-            return "the vfilesystem storage extent is not a multiple of the sector_payload_size"sv;
-
-        case archive_file_already_existed:
-            return "the given file already contained data which would be overwritten, but creation::only_if_not_exist was specified"sv;
-
-        case archive_file_did_not_exist:
-            return "the given file contained no data, but creation::open_existing"sv;
-
-        case bad:
-            return "an API precondition has been violated"sv;
-
-        case resource_exhausted:
-            return "the archive has run out of free sectors"sv;
-
-        case still_in_use:
-            return "the archive is still in use by other handles"sv;
-
-        case not_loaded:
-            return "the sector has not been loaded"sv;
-
-        case no_more_data:
-            return "there is no more data to read"sv;
-
-        default:
-            return "unknown vefs archive error code"sv;
-        }
-    }
-
-    constexpr virtual auto
-    _do_equivalent(system_error::status_code<void> const &lhs,
-                   system_error::status_code<void> const &rhs) const noexcept
-            -> bool override
-    {
-        auto const &alhs = static_cast<archive_code const &>(lhs);
-        if (rhs.domain() == *this)
-        {
-            return alhs.value()
-                   == static_cast<archive_code const &>(rhs).value();
-        }
-        else if (rhs.domain() == system_error::generic_code_domain)
-        {
-            system_error::errc sysErrc
-                    = static_cast<system_error::generic_code const &>(rhs)
-                              .value();
-
-            return system_error::errc::unknown != sysErrc
-                   && map_to_generic(alhs.value()) == sysErrc;
-        }
-        return false;
-    }
-    constexpr virtual auto
-    _generic_code(system_error::status_code<void> const &code) const noexcept
-            -> system_error::generic_code override
-    {
-        return map_to_generic(static_cast<archive_code const &>(code).value());
-    }
-
-    constexpr virtual auto
-    _do_message(system_error::status_code<void> const &code) const noexcept
-            -> string_ref override
-    {
-        auto const archiveCode = static_cast<archive_code const &>(code);
-        auto const message = map_to_message(archiveCode.value());
-        return string_ref(message.data(), message.size());
-    }
-
-    SYSTEM_ERROR2_NORETURN virtual void _do_throw_exception(
-            system_error::status_code<void> const &code) const override
-    {
-        throw system_error::status_error<archive_domain_type>(
-                static_cast<archive_code const &>(code).clone());
-    }
+    static constexpr value_descriptor values[] = {
+            // clang-format off
+            {                      code::success,                   generic_errc::success, "the operation completed successfully"                                                                            },
+            {               code::invalid_prefix,               generic_errc::bad_message, "the magic number at the beginning of the archive didn't match"                                                   },
+            {      code::oversized_static_header,               generic_errc::bad_message, "the static archive header would be greater than the master sector"                                               },
+            {            code::no_archive_header,               generic_errc::bad_message, "no valid archive header could be read"                                                                           },
+            {     code::identical_header_version,               generic_errc::bad_message, "both archive headers were valid and contained the same version switch"                                           },
+            {                 code::tag_mismatch,               generic_errc::bad_message, "decryption failed because the message tag didn't match"                                                          },
+            {code::sector_reference_out_of_range,               generic_errc::bad_message, "a sector reference pointed to a sector which currently isn't allocated"                                          },
+            {          code::corrupt_index_entry,               generic_errc::bad_message, "an entry from the archive index is corrupted and could not be read"                                              },
+            {                code::no_such_vfile, generic_errc::no_such_file_or_directory, "no file has been found under the given name"                                                                     },
+            {               code::wrong_user_prk,          generic_errc::invalid_argument, "the given archive key is not valid for this archive or the archive head has been corrupted"                      },
+            {     code::vfilesystem_invalid_size,               generic_errc::bad_message, "the vfilesystem storage extent is not a multiple of the sector_payload_size"                                     },
+            { code::archive_file_already_existed,               generic_errc::file_exists, "the given file already contained data which would be overwritten, but creation::only_if_not_exist was specified" },
+            {   code::archive_file_did_not_exist, generic_errc::no_such_file_or_directory, "the given file contained no data, but creation::open_existing"                                                   },
+            {                          code::bad,          generic_errc::invalid_argument, "an API precondition has been violated"                                                                           },
+            {           code::resource_exhausted,                   generic_errc::unknown, "the archive has run out of free sectors"                                                                         },
+            {                 code::still_in_use,                   generic_errc::unknown, "the archive is still in use by other handles"                                                                    },
+            {                   code::not_loaded,                   generic_errc::unknown, "the sector has not been loaded"                                                                                  },
+            {                 code::no_more_data,                   generic_errc::unknown, "there is no more data to read"                                                                                   },
+            // clang-format on
+    };
 };
-inline constexpr archive_domain_type archive_domain{};
 
-constexpr auto archive_domain_type::get() noexcept
-        -> archive_domain_type const &
+namespace vefs
 {
-    return archive_domain;
-}
 
-constexpr auto make_status_code(archive_errc c) noexcept -> archive_code
-{
-    return archive_code(system_error::in_place, c);
-}
+using archive_code = dplx::cncr::data_defined_status_code<archive_errc>;
 
 } // namespace vefs
 
