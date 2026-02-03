@@ -24,8 +24,8 @@ endif()
 vcpkg_from_github(
     OUT_SOURCE_PATH SOURCE_PATH
     REPO ned14/outcome
-    REF e4f14947525fac8085c6df1dfd30cdbee6ccfb1c
-    SHA512 ffece86cf299087ad2fd1152ea6ff30d1c063247d7ce682ccbb4abeb116683749f58c54214cd9aec1733e2e34413da06203a5240253776f49c404633dae68165
+    REF 2db94be7aa1c65115d1942042238317d53ab601c
+    SHA512 7ccc56b4c10eb04a5eb22b984cb7d512a5bb69fac86958018e9e3be2ac470a020fdfdd4fbcb8cb94ea1c44c242a98dda5c1a9df47c8cd561006fad21fd3effa7
     HEAD_REF develop
     PATCHES
         fix-status-code-path.patch
