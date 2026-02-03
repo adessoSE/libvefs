@@ -10,7 +10,7 @@
 #     http://creativecommons.org/publicdomain/zero/1.0/
 #
 ########################################################################
-cmake_minimum_required(VERSION 3.23...4.0)
+cmake_minimum_required(VERSION 3.25)
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/tools/cmake/")
 
 ########################################################################
@@ -62,7 +62,7 @@ find_package(base64 CONFIG REQUIRED)
 
 find_package(fmt CONFIG REQUIRED)
 
-find_package(unofficial-concurrentqueue CONFIG REQUIRED)
+find_package(concurrentqueue CONFIG REQUIRED)
 
 find_package(libb2-reforged REQUIRED CONFIG)
 
@@ -157,7 +157,7 @@ target_link_libraries(vefs
         fmt::fmt
         llfio::${VEFS_LLFIO_TARGET}
         outcome::hl
-        unofficial::concurrentqueue::concurrentqueue
+        concurrentqueue::concurrentqueue
         libcuckoo::libcuckoo
         stduuid
 )

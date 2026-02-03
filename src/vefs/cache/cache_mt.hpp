@@ -14,7 +14,7 @@
 #pragma warning(push, 3)
 #pragma warning(disable : 4702) // unreachable code
 #endif
-#include <concurrentqueue/concurrentqueue.h>
+#include <concurrentqueue/moodycamel/concurrentqueue.h>
 #if defined(DPLX_COMP_MSVC_AVAILABLE)
 #pragma warning(pop)
 #endif
